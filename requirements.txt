@@ -1,0 +1,10 @@
+pyyaml
+
+# langchain 及其相关库
+langchain
+langchain-core
+# 注：根据你的代码，安装对应的库
+# eg: 如果你用的是deepseek, 就是 langchain-deepseek; 如果你用的是Gemini, 就是 langchain-google-genai
+langchain-deepseek
+
+pydantic
