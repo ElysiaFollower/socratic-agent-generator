@@ -68,7 +68,7 @@ export default function App() {
   return (
     <div className="h-screen flex bg-gray-50">
       <aside className="w-72 bg-white border-r p-4">
-        <h2 className="text-lg font-semibold mb-4">苏格拉底式导师</h2>
+        <h2 className="text-lg font-semibold mb-4">SEED Labs</h2>
         <div className="space-y-2">
           {profiles.map(p => (
             <button 
