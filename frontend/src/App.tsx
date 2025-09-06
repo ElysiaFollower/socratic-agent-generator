@@ -64,7 +64,17 @@ export default function App() {
     try {
       // 先获取聊天历史
       const historyResponse = await getChatHistory(session.session_id)
-      const chatHistory = historyResponse.messages || []
+      let chatHistory = historyResponse.messages || []
+      
+      // // 过滤掉第一条欢迎提示词消息
+      // if (chatHistory.length > 0 && chatHistory[0].role === 'user') {
+      //   const firstMessage = chatHistory[0].content
+      //   // 如果第一条用户消息包含欢迎提示词的特征，则跳过它
+      //   if (firstMessage.includes('作为一名苏格拉底式导师') && firstMessage.includes('欢迎语：')) {
+      //     chatHistory = chatHistory.slice(1) // 移除第一条消息
+      //   }
+      // }
+      chatHistory = chatHistory.slice(1) // 移除第一条消息
       
       if (chatHistory.length > 0) {
         // 如果有聊天历史，直接显示历史记录
