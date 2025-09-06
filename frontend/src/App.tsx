@@ -264,9 +264,14 @@ export default function App() {
       <main className="flex-1 flex flex-col">
         <header className="p-4 border-b bg-white">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-xl font-semibold">苏格拉底式AI导师</h1>
+            <h1 className="text-xl font-semibold">
+              {getCurrentSession() ? getCurrentSession()?.session_name : '苏格拉底式AI导师'}
+            </h1>
             <p className="text-sm text-gray-600">
-              {getCurrentSession() ? `当前会话: ${getCurrentSession()?.session_name}` : '通过提问启发思考，引导深度学习'}
+              {getCurrentSession() 
+                ? `课程: ${getCurrentSession()?.topic_name} | Profile: ${getCurrentSession()?.profile}` 
+                : '通过提问启发思考，引导深度学习'
+              }
             </p>
           </div>
         </header>
