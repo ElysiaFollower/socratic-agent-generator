@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react'
-import { listProfiles, createSession, getWelcomeMessage, sendMessage, listSessions, renameSession, deleteSession, Session, getChatHistory } from './api/tutor'
+import React, { useEffect, useState, useRef } from 'react'
+import { listProfiles, createSession, getWelcomeMessage, sendMessage, listSessions, renameSession, deleteSession, Session, getChatHistory, getState } from './api/tutor'
 import './App.css'
 
 export default function App() {
@@ -12,6 +12,22 @@ export default function App() {
   const [showProfileSelector, setShowProfileSelector] = useState(false)
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
+  const [currentStep, setCurrentStep] = useState(0)
+  const [curriculum, setCurriculum] = useState<string[]>([])
+  
+  // 添加引用来访问消息容器
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const chatContainerRef = useRef<HTMLElement>(null)
+
+  // 滚动到底部的函数
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  // 当消息列表更新时自动滚动到底部
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   useEffect(() => {
     loadProfiles()
@@ -47,6 +63,17 @@ export default function App() {
       setMessages([])
       setShowProfileSelector(false)
       
+      // 获取会话状态信息以初始化进度条
+      try {
+        const stateResponse = await getState(res.session_id)
+        setCurrentStep(stateResponse.step || 0)
+        setCurriculum(stateResponse.curriculum || [])
+      } catch (stateError) {
+        console.error('获取新会话状态失败:', stateError)
+        setCurrentStep(0)
+        setCurriculum([])
+      }
+      
       // 获取欢迎消息
       const welcome = await getWelcomeMessage(res.session_id)
       setMessages([{role: 'assistant', content: welcome.welcome}])
@@ -60,8 +87,15 @@ export default function App() {
   async function switchToSession(session: Session) {
     setSessionId(session.session_id)
     setMessages([])
+    setCurrentStep(0)
+    setCurriculum([])
     
     try {
+      // 获取会话状态信息
+      const stateResponse = await getState(session.session_id)
+      setCurrentStep(stateResponse.step || 0)
+      setCurriculum(stateResponse.curriculum || [])
+      
       // 先获取聊天历史
       const historyResponse = await getChatHistory(session.session_id)
       let chatHistory = historyResponse.messages || []
@@ -70,8 +104,7 @@ export default function App() {
       // if (chatHistory.length > 0 && chatHistory[0].role === 'user') {
       //   const firstMessage = chatHistory[0].content
       //   // 如果第一条用户消息包含欢迎提示词的特征，则跳过它
-      //   if (firstMessage.includes('作为一名苏格拉底式导师') && firstMessage.includes('欢迎语：')) {
-      //     chatHistory = chatHistory.slice(1) // 移除第一条消息
+      //   if (firstMessage.includes('作为一名苏格拉底式导师') &&第一条消息
       //   }
       // }
       chatHistory = chatHistory.slice(1) // 移除第一条消息
@@ -111,6 +144,15 @@ export default function App() {
     try {
       const res = await sendMessage(sessionId, userMsg)
       setMessages(prev => [...prev, {role: 'assistant', content: res.reply}])
+      
+      // 发送消息后更新学习进度
+      try {
+        const stateResponse = await getState(sessionId)
+        setCurrentStep(stateResponse.step || 0)
+        setCurriculum(stateResponse.curriculum || [])
+      } catch (stateError) {
+        console.error('更新学习进度失败:', stateError)
+      }
     } catch (error) {
       console.error('发送消息失败:', error)
       setMessages(prev => [...prev, {role: 'assistant', content: '抱歉，我遇到了一些问题。请稍后再试。'}])
@@ -273,10 +315,33 @@ export default function App() {
                 : '通过提问启发思考，引导深度学习'
               }
             </p>
+            
+            {/* 进度条 */}
+            {getCurrentSession() && curriculum.length > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
+                  <span>学习进度</span>
+                  <span>{currentStep} / {curriculum.length}</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{ width: `${Math.min((currentStep / curriculum.length) * 100, 100)}%` }}
+                  ></div>
+                </div>
+                <div className="mt-2 text-xs text-gray-500">
+                  {currentStep < curriculum.length ? (
+                    <span>当前: {curriculum[currentStep]?.substring(0, 100)}...</span>
+                  ) : (
+                    <span>🎉 恭喜！您已完成所有学习步骤</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </header>
 
-        <section className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full">
+        <section className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full" ref={chatContainerRef}>
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
@@ -312,6 +377,7 @@ export default function App() {
                   </div>
                 </div>
               )}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </section>
