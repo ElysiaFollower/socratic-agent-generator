@@ -4,23 +4,24 @@ from pydantic import BaseModel, Field
 # --- LangChain & LLM ---
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_deepseek import ChatDeepSeek
+# from langchain_deepseek import ChatDeepSeek # Keep your original LLM import
 
 # ----------------------------------------------------------------
 # 1. 定义数据结构 (使用Pydantic保证精密专业)
 # ----------------------------------------------------------------
 
-class DigestedTask(BaseModel):
-    """单个任务的结构化摘要"""
-    task_id: str = Field(description="任务编号，例如 '0.', '1.'")
-    task_title: str = Field(description="任务的标题，例如 '熟悉 Shellcode'")
-    objective: str = Field(description="该任务的核心学习目标或挑战，一句话总结")
-    key_elements: List[str] = Field(description="任务中提到的关键技术、命令或概念列表")
+class Task(BaseModel):
+    """单个实验任务的结构化摘要"""
+    task_title: str = Field(description="任务的标题，例如 '熟悉 Shellcode' 或 '编译与侦察'")
+    objective: str = Field(description="该任务的核心学习目标或挑战，用一句话高度总结。")
+    key_elements: List[str] = Field(
+        description="完成该任务所涉及的关键技术、命令、函数或概念的列表。例如：['-fno-stack-protector', 'gdb', 'EIP/RIP']"
+    )
 
 class DigestedManual(BaseModel):
-    """整个实验文档的结构化摘要"""
-    overall_goal: str = Field(description="整个实验的最终目标")
-    tasks: List[DigestedTask] = Field(description="从文档中提取的所有任务的列表")
+    """实验手册的完整结构化摘要"""
+    overall_goal: str = Field(description="整个实验最终要达成的总体目标。")
+    tasks: List[Task] = Field(description="按顺序排列的、构成整个实验的所有核心任务列表。")
 
 
 # ----------------------------------------------------------------
@@ -30,6 +31,7 @@ class DigestedManual(BaseModel):
 class CurriculumGenerator:
     """
     一个能够读取实验文档并生成苏格拉底教学大纲的智能体。
+    它通过一个两阶段的流程来实现：Digest -> Transform。
     """
     def __init__(self, llm: Any):
         self.llm = llm
@@ -37,67 +39,81 @@ class CurriculumGenerator:
     def _digest_document(self, lab_manual_content: str) -> DigestedManual:
         """
         阶段一：文档解析与结构化 (The "Reader" Agent)
+        将原始Markdown文档转化为结构化的DigestedManual对象。
         """
-        print("⏳ [阶段1/3] 正在解析与摘要化实验文档...")
+        print("⏳ [阶段1/2] 正在解析与结构化实验文档...")
         
         parser = JsonOutputParser(pydantic_object=DigestedManual)
         
-        prompt = ChatPromptTemplate.from_template(
-            """
-            你是一位顶级的计算机实验助教。你的任务是仔细阅读并解析以下实验文档，并严格按照JSON格式提取核心信息。
-
-            {format_instructions}
-
-            --- 实验文档开始 ---
-            {lab_manual}
-            --- 实验文档结束 ---
-            """
-        )
+        prompt = ChatPromptTemplate.from_messages([
+            ("system",
+             "你是一位经验丰富且专业细心的计算机安全实验助教。"
+             "你的任务是仔细阅读实验手册，并将其内容分解为一系列逻辑清晰、循序渐进的任务步骤。"
+             "请专注于提取操作性的、可验证的任务，忽略背景介绍、客套话等非核心内容。"
+             "你需要严格按照{format_instructions}指定的JSON格式进行输出。"),
+            ("user", 
+             "这是实验手册的Markdown内容，请开始分析：\n\n<lab_manual>\n{lab_manual}\n</lab_manual>")
+        ])
 
         chain = prompt | self.llm | parser
         
-        digest = chain.invoke({
+        digest_json = chain.invoke({
             "lab_manual": lab_manual_content,
-            "format_instructions": parser.get_format_instructions()
+            "format_instructions": parser.get_format_instructions(),
         })
         
-        print("✅ [阶段1/3] 文档摘要完成。")
-        # TODO: 确认一下这里接口的变化
-        return DigestedManual.model_validate(digest)
-        #return DigestedManual.parse_obj(digest)
+        print("✅ [阶段1/2] 文档结构化完成。")
+        return DigestedManual.parse_obj(digest_json)
 
     def _transform_to_socratic_curriculum(self, digest: DigestedManual) -> List[str]:
         """
-        阶段二与阶段三：苏格拉底式转化与精炼 (未来实现)
+        阶段二：苏格拉底式转化与精炼 (The "Tutor" Agent)
+        将结构化的任务列表，转化为循循善诱的教学大纲。
         """
-        print("⏳ [阶段2&3/3] 正在将摘要转化为苏格拉底教学大纲...")
-        # 在这里，我们将设计一个更强大的链，它会遍历 digest.tasks,
-        # 并应用预定义的苏格拉底式智能体设计原则来生成每一步。
-        #
-        # 为了让第一版能跑通，我们暂时使用一个简单的占位逻辑。
+        print("⏳ [阶段2/2] 正在将结构化任务转化为苏格拉底教学大纲...")
         
-        final_curriculum = []
-        step_counter = 1
+        # 为了让LLM更好地理解，我们将Pydantic对象转回JSON字符串作为上下文
+        digest_str = digest.model_dump_json(indent=2)
+
+        # 这里我们期望的输出是一个简单的JSON，所以用Pydantic定义一个简单的包装类
+        class CurriculumOutput(BaseModel):
+            curriculum: List[str] = Field(description="最终生成的、循循善诱的教学大纲列表。")
+
+        parser = JsonOutputParser(pydantic_object=CurriculumOutput)
+
+        prompt = ChatPromptTemplate.from_messages([
+            ("system",
+             "你是一位顶级的教学设计师，尤其精通苏格拉底教学法和计算机科学教育。"
+             "你的任务是将一份结构化的实验任务列表，转化为一套完整的、循循善诱的教学大纲。"
+             "你的教学风格应该遵循以下原则："
+             "1. **概念先行，由浅入深**：在介绍具体操作前，先用通俗的比喻解释核心概念。"
+             "2. **启发式提问**：每个步骤不应是简单的命令，而应包含一个引导学生思考的问题（例如：'你认为篡改这个‘返回地址’会带来什么后果？'）。"
+             "3. **串联逻辑**：步骤之间应该有明确的因果和逻辑关系，让学生理解“为什么”要这么做。"
+             "4. **聚焦核心**：将任务目标和关键技术点自然地融入到对话中。"
+             "5. **完整闭环**：从介绍背景、理论铺垫，到动手实践，再到最后的总结防范，形成一个完整的学习闭环。"
+             "请严格按照{format_instructions}指定的JSON格式，仅输出包含'curriculum'键的JSON对象。"),
+            ("user",
+             "这是结构化的实验任务列表，请根据它设计教学大纲：\n\n{digest}")
+        ])
         
-        # 添加一个开场白
-        final_curriculum.append(f"{step_counter}. 实验介绍与目标：你好！本次实验的目标是 '{digest.overall_goal}'。让我们开始吧！")
-        step_counter += 1
+        chain = prompt | self.llm | parser
+        
+        result = chain.invoke({
+            "digest": digest_str,
+            "format_instructions": parser.get_format_instructions(),
+        })
 
-        for task in digest.tasks:
-            final_curriculum.append(f"{step_counter}. {task.task_id} - {task.task_title}: 让我们来完成这个任务，它的目标是'{task.objective}'。")
-            step_counter += 1
-
-        print("✅ [阶段2&3/3] 教学大纲初步生成。")
-        return final_curriculum
+        print("✅ [阶段2/2] 苏格拉底教学大纲生成完毕。")
+        return result['curriculum']
 
     def generate(self, lab_manual_content: str) -> List[str]:
         """
-        执行完整的三阶段流水线，生成最终的教学大纲。
+        执行完整的两阶段流程，生成最终的教学大纲。
         """
-        # 阶段一
+        # 阶段一：提炼和结构化信息
         digested_manual = self._digest_document(lab_manual_content)
         
-        # 阶段二 & 三
+        # 阶段二：将结构化信息转化为苏格拉底教学大纲
         final_curriculum = self._transform_to_socratic_curriculum(digested_manual)
         
         return final_curriculum

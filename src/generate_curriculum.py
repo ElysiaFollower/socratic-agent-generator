@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Any
 
 # --- 核心模块导入 ---
-# 我们将 CurriculumGenerator 类完整地移到这里
 from generator.curriculum_generator import CurriculumGenerator
 
 # --- LLM 与环境 ---
