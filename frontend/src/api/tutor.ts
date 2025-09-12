@@ -9,7 +9,7 @@ export interface Session {
 }
 
 export async function listProfiles(): Promise<string[]> {
-  const res = await axios.get('/api/profiles')
+  const res = await axios.get('/api/profiles') //获取所有可用的配置文件
   return res.data
 }
 
@@ -39,7 +39,7 @@ export async function getChatHistory(sessionId: string): Promise<{messages: {rol
 }
 
 export async function listSessions(): Promise<Session[]> {
-  const res = await axios.get('/api/sessions')
+  const res = await axios.get('/api/sessions') //获取所有会话
   return res.data
 }
 

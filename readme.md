@@ -1,6 +1,6 @@
 # Socratic Agent Generator
 
-一个基于苏格拉底式教学法的AI导师生成器，能够从实验手册自动生成个性化的智能导师配置，并提供Web界面进行交互式学习。
+一个基于苏格拉底式教学法的AI导师生成器，能够从实验手册自动生成个性化的智能导师配置，并同时提供了Web界面可运行苏格拉底智能体加载生成的配置文件并进行交互式学习。
 
 ## 项目特性
 
@@ -9,7 +9,6 @@
 - 🌐 **Web界面**: React前端 + FastAPI后端的现代化交互界面
 - 🔄 **实时对话**: 支持实时师生对话和学习进度跟踪
 - 🎨 **类GPT界面**: 仿ChatGPT的用户友好界面设计
-- 🚀 **跨平台**: 支持Windows、Linux、macOS统一启动脚本
 
 ## 系统架构
 
@@ -67,7 +66,6 @@ socratic-agent-generator/
 
 - **Python**: 3.8+ 
 - **Node.js**: 18+
-- **Git Bash** (Windows用户推荐)
 
 ### 1. 克隆项目
 
@@ -76,44 +74,51 @@ git clone <repository-url>
 cd socratic-agent-generator
 ```
 
-### 2. 创建虚拟环境
-
-```bash
-python -m venv .seedAI
-```
-
-### 3. 配置环境变量
+### 2. 配置环境变量
 
 ```bash
 cp .env.example .env
 # 编辑 .env 文件，添加必要的API密钥 (如 DEEPSEEK_API_KEY)
 ```
 
-### 4. 一键启动 (推荐)
+### 2. 启动
 
+#### 启动后端
+
+推荐使用conda配置虚拟环境，需要先安装conda。不过如果不怕弄脏环境的话也可以不配置虚拟环境，不怕安装科学计算库可能遇到的二进制编译问题的话也可以使用venv。
+创建虚拟环境
 ```bash
-# Windows (Git Bash)
-bash start.sh
+conda create -n SocraticGenerator -y
+```
+这里的环境名称SocraticGenerator可以自行修改，不过要自行保持后续使用的一致性。
 
-# Linux/macOS  
-./start.sh
+启用虚拟环境
+```bash
+conda activate SocraticGenerator
 ```
 
-选择第3个选项 "同时启动前后端"，然后访问 http://localhost:5173
-
-### 5. 分别启动 (调试用)
-
-**启动后端:**
+第一次配置的时候需要先安装依赖
 ```bash
-bash start-backend.sh
-# 后端运行在: http://localhost:8000
+pip install -r requirements.txt
 ```
 
-**启动前端:**
+启动后端服务
 ```bash
-bash start-frontend.sh  
-# 前端运行在: http://localhost:5173
+python ./src/app.py
 ```
+
+
+#### 启动前端
+
+第一次启动时需要先安装依赖
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
 
 ## 使用方法
 
@@ -130,7 +135,7 @@ bash start-frontend.sh
    python src/main.py --config-dir configs/my_course --output-dir generated_tutors
    ```
 
-3. **生成课程大纲** (可选)
+3. **生成课程大纲**
    ```bash
    python src/generate_curriculum.py --manual configs/my_course/lab_manual.md --output configs/my_course/curriculum.json
    ```
@@ -141,6 +146,7 @@ bash start-frontend.sh
 ```bash
 python src/tutor_runner.py --profile generated_tutors/seed_buffer_overflow_profile.json
 ```
+此处的profile可以替换为您针对自己的课程生成的profile
 
 ### Web界面模式
 
@@ -168,8 +174,6 @@ API文档地址: http://localhost:8000/docs
 
 1. **前端**: React + TypeScript + Vite + Tailwind CSS
 2. **后端**: Python + FastAPI + LangChain
-3. **LLM**: DeepSeek (可扩展其他模型)
-4. **会话管理**: 内存存储 (可扩展到Redis/数据库)
 
 ### 添加新的LLM支持
 
@@ -179,43 +183,23 @@ API文档地址: http://localhost:8000/docs
 self.llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 ```
 
-### 自定义前端样式
-
-修改 `frontend/src/App.tsx` 和相关组件，使用Tailwind CSS类进行样式定制。
 
 ## 故障排查
 
 ### 常见问题
 
-**1. 虚拟环境激活失败**
-- Windows: 确保使用 Git Bash 或 PowerShell
-- 检查 `.seedAI/Scripts/activate` 文件是否存在
-
-**2. 前端依赖安装失败**  
+**1. 前端依赖安装失败**  
 - 删除 `frontend/node_modules` 后重新运行 `npm install`
 - 确保 Node.js 版本 >= 18
 
-**3. 后端启动失败**
+**2. 后端启动失败**
 - 检查虚拟环境是否正确激活
 - 确保所有Python依赖已安装: `pip install -r requirements.txt`
 
-**4. LLM调用失败**
+**3. LLM调用失败**
 - 检查 `.env` 文件中的API密钥配置
 - 确认网络连接正常
 
-### 查看日志
-
-**一键启动模式:**
-```bash
-# 后端日志
-tail -f backend.log
-
-# 前端日志  
-tail -f frontend.log
-```
-
-**分别启动模式:**
-日志直接显示在终端中
 
 ## 贡献指南
 
@@ -225,18 +209,38 @@ tail -f frontend.log
 4. 推送分支: `git push origin feature/new-feature`
 5. 提交Pull Request
 
-## 许可证
-
-[添加许可证信息]
 
 ## 更新日志
 
-### v1.0.0 (2025-01-XX)
+### v1.0.0 (2025-0-12)
 - ✨ 初始版本发布
 - 🎯 支持苏格拉底式导师生成
-- 🌐 Web界面支持
-- 🚀 跨平台启动脚本
+- 🌐 Web界面支持苏格拉底智能体运行
 
 ---
 
 📧 如有问题或建议，请提交Issue或联系维护者。
+
+## 许可证
+
+MIT License
+
+Copyright (c) 2025 Socratic Agent Generator
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

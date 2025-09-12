@@ -32,7 +32,7 @@ export default function App() {
   useEffect(() => {
     loadProfiles()
     loadSessions()
-  }, [])
+  }, []) //依赖数组为空，表示在组件完成首次渲染并挂载到DOM上之后自动执行一次
 
   async function loadProfiles() {
     try {
