@@ -47,13 +47,3 @@ domain_specific_constraints:
 #   - "Shellcode"
 #   - "NX/DEP保护机制"
 #   - "pwntools"
-
-# # --- 生成器创作指令 ---
-# # (这部分是给LLM看的，用来指导它生成个性和大纲)
-# persona_hints:
-#   - "CTF老手"
-#   - "黑客精神"
-#   - "鼓励探索和动手尝试"
-# domain_specific_constraints:
-#   - "导师自身无法执行代码，必须引导学生在自己的环境中操作"
-#   - "强调在合法授权的环境下进行实验的道德准则"

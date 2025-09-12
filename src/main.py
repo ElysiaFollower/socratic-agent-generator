@@ -4,27 +4,22 @@ import yaml
 import argparse
 from pathlib import Path
 from generator.prompt_assembler import assemble_socratic_prompt
+import config
 
 def main():
     """程序主入口"""
-    parser = argparse.ArgumentParser(description="苏格拉底智能体生成器 - 阶段一")
+    parser = argparse.ArgumentParser(description="苏格拉底智能体配置生成器")
     parser.add_argument(
         "--config-dir", 
         type=str, 
         required=True,
         help="包含 definition.yaml 和 curriculum.json 的课题配置文件夹路径。"
     )
-    parser.add_argument(
-        "--output-dir",
-        type=str,
-        default="generated_tutors",
-        help="生成的导师配置档案的输出目录。"
-    )
     args = parser.parse_args()
 
     # --- 1. 路径处理 ---
     config_path = Path(args.config_dir)
-    output_path = Path(args.output_dir)
+    output_path = config.PROFILES_OUTPUT_PATH # 直接写死，方便前端查询
     definition_file = config_path / "definition.yaml"
     curriculum_file = config_path / "curriculum.json"
     
@@ -60,7 +55,7 @@ def main():
     tutor_profile = {
         "topic_name": definition.get("topic_name", profile_name),
         "version": definition.get("version", 1.0),
-        "system_prompt_template": system_prompt, # 我们称之为模板，因为还有一个插槽
+        "system_prompt_template": system_prompt, # 我们称之为模板，因为还有一个插槽；这个插槽是为了让苏格拉底智能体在运行时自动填充的
         "curriculum": curriculum
     }
 
