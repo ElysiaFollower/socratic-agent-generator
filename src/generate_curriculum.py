@@ -20,17 +20,11 @@ def main():
         required=True,
         help="实验指导手册的 Markdown 文件路径。"
     )
-    parser.add_argument(
-        "--output",
-        type=str,
-        required=True,
-        help="生成的 curriculum.json 的输出文件路径。"
-    )
     args = parser.parse_args()
 
     # --- 1. 路径与加载 ---
     manual_path = Path(args.manual)
-    output_path = Path(args.output)
+    output_path = manual_path.parent / "curriculum.json"
     
     if not manual_path.exists():
         print(f"错误：实验手册文件未找到 -> {manual_path}")

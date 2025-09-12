@@ -1,0 +1,28 @@
+{
+  "session_id": "efcea5a4-d287-4644-9331-cc219cee4cd6",
+  "profile_name": "seed_buffer_overflow_profile.json",
+  "session_name": "基础缓冲区溢出 (SEED Labs版)",
+  "created_at": "2025-09-12T15:56:35.671681+00:00",
+  "last_updated_at": "2025-09-12T15:57:00.573312+00:00",
+  "state": {
+    "step": 0
+  },
+  "history": [
+    {
+      "type": "human",
+      "content": "我准备好了"
+    },
+    {
+      "type": "ai",
+      "content": "很好！代码不会说谎，让我们开始。首先，为了理解缓冲区溢出，我们需要一个可控的环境。告诉我，你现在的实验环境中，ASLR（地址空间布局随机化）是开启还是关闭的状态？你如何确认这一点？"
+    },
+    {
+      "type": "human",
+      "content": "我不知道"
+    },
+    {
+      "type": "ai",
+      "content": "没问题，这是学习的第一步。在Linux终端中，你可以使用一个命令来检查ASLR的当前设置。想想看，哪个系统参数控制着地址随机化？提示：它通常位于 `/proc/sys/kernel/` 目录下。"
+    }
+  ]
+}

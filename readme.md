@@ -1,187 +1,205 @@
 # Socratic Agent Generator
 
-一个基于苏格拉底式教学法的AI导师生成器，能够从实验手册自动生成个性化的智能导师配置，并同时提供了Web界面可运行苏格拉底智能体加载生成的配置文件并进行交互式学习。
+Socratic Agent Generator 是一个基于苏格拉底式教学法的 AI 导师生成器。它能自动将实验手册转换为个性化的 AI 导师配置文件。并提供一个交互式 Web 界面，让学生可以与加载任意配置的导师进行循序渐进的对话式学习。
 
 ## 项目特性
 
 - 🤖 **智能导师生成**: 从实验手册自动生成苏格拉底式AI导师
-- 🎯 **个性化教学**: 根据课程内容定制教学风格和引导方式  
+- 🎯 **个性化教学**: AI 导师将根据您提供的教学大纲，循序渐进地引导学生完成学习节点。
 - 🌐 **Web界面**: React前端 + FastAPI后端的现代化交互界面
 - 🔄 **实时对话**: 支持实时师生对话和学习进度跟踪
-- 🎨 **类GPT界面**: 仿ChatGPT的用户友好界面设计
 
 ## 系统架构
 
 ```
-苏格拉底导师生成器
-├── 后端 (Python + FastAPI)
-│   ├── 导师配置生成器
-│   ├── 课程大纲生成器  
-│   ├── LLM集成 (DeepSeek)
+Socratic Agent Generator
+├── Backend (Python + FastAPI)
+│   ├── Agent Profile Generator  # 导师配置生成器
+│   ├── Curriculum Generator     # 教学大纲生成器
+│   ├── LLM Integration (DeepSeek)
 │   └── RESTful API
-├── 前端 (React + TypeScript)
-│   ├── 导师选择界面
-│   ├── 实时聊天窗口
-│   └── 学习进度展示
-└── 配置管理
-    ├── 实验手册解析
-    └── 导师配置输出
+├── Frontend (React + TypeScript)
+│   ├── Tutor Selection UI     # 导师选择界面
+│   ├── Real-time Chat Window  # 实时聊天窗口
+│   └── Learning Progress Display # 学习进度展示
+└── Configuration Management
+    ├── Lab Manual Parser      # 实验手册解析
+    └── Profile Exporter       # 导师配置输出
 ```
 
 ## 文件结构
 
 ```
 socratic-agent-generator/
+├── .env.example                  # 环境变量模板文件
+├── .gitignore                    # Git忽略文件配置
+├── readme.md                     # 项目说明文档
+├── requirements.txt              # Python依赖包列表
 ├── configs/                      # 课程配置和实验手册
-│   └── seed_buffer_overflow/
+│   └── seed_buffer_overflow/     # 缓冲区溢出课程**示例**
 │       ├── definition.yaml       # 课程元数据定义
-│       ├── lab_manual.md         # 实验手册 (Markdown)
-│       └── curriculum.json       # 生成的课程大纲
+│       ├── lab_manual.md         # 实验手册，无格式要求
+│       ├── curriculum.json       # 生成的苏格拉底式教学大纲
+│       └── curriculum-human.json # 人工编写的教学大纲参考 —— curriculum.json的中间态是生成出来就是让人有自主审核权的
 ├── src/                          # 后端核心代码
-│   ├── api_server.py            # FastAPI服务器
-│   ├── main.py                  # 导师配置生成主程序
-│   ├── tutor_runner.py          # 命令行导师运行器
-│   └── generator/               # 生成器模块
-│       ├── curriculum_generator.py
-│       ├── prompt_assembler.py
-│       └── persona_generator.py
-├── frontend/                     # React前端应用
-│   ├── src/
-│   │   ├── App.tsx              # 主应用组件
-│   │   ├── api/tutor.ts         # API客户端
-│   │   └── components/          # UI组件
-│   ├── package.json
-│   └── vite.config.ts           # Vite构建配置
-├── generated_tutors/             # 生成的导师配置文件
-│   └── seed_buffer_overflow_profile.json
-├── start-backend.sh             # 后端启动脚本
-├── start-frontend.sh            # 前端启动脚本
-├── start.sh                     # 一键启动脚本
-└── requirements.txt             # Python依赖
+│   ├── app.py                    # FastAPI服务器主程序
+│   ├── config.py                 # 项目配置文件
+│   ├── main.py                   # 导师配置生成主程序
+│   ├── generate_curriculum.py    # 课程大纲生成器
+│   ├── tutor_runner_cli.py       # 命令行导师运行器
+│   ├── tutor_core.py             # 苏格拉底智能体核心逻辑
+│   ├── generator/                # 生成器模块
+│   │   ├── curriculum_generator.py # 教学大纲生成器
+│   │   ├── prompt_assembler.py   # 提示词组装器
+│   │   └── persona_generator.py  # 导师人格生成器(尚未实现)
+│   └── data/                     # 数据存储目录
+│       └── session_data/         # 会话数据存储
+│           └── *.json            # 用户会话记录文件
+├── tutor-profiles/               # 生成的导师配置文件目录
+│   └── seed_buffer_overflow_profile.json # **示例**导师配置
+└── frontend/                     # React前端应用
+    ├── package.json              # 前端依赖配置
+    ├── vite.config.ts            # Vite构建配置
+    ├── src/
+    │   ├── App.tsx               # 主应用组件
+    │   ├── api/tutor.ts          # 后端API客户端
+    │   └── ...
+    └── dist/                     # 前端构建输出目录
 ```
 
 ## 快速开始
 
-### 环境要求
+本节将指导您如何在本地环境中设置并运行整个 Web 应用。
+
+### 1. 环境设置与依赖安装
 
 - **Python**: 3.8+ 
 - **Node.js**: 18+
 
-### 1. 克隆项目
+#### 克隆项目
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/ElysiaFollower/socratic-agent-generator.git
 cd socratic-agent-generator
 ```
 
-### 2. 配置环境变量
+### 配置环境变量
 
 ```bash
 cp .env.example .env
-# 编辑 .env 文件，添加必要的API密钥 (如 DEEPSEEK_API_KEY)
 ```
+然后，编辑 .env 文件，填入你的 DEEPSEEK_API_KEY。
+- 目前仅支持了Deepseek的调用，如有需要，可修改tutor_core的初始化部分，将初始化模型更换为目标模型
 
-### 2. 启动
+#### 后端环境(Python)
 
-#### 启动后端
-
-推荐使用conda配置虚拟环境，需要先安装conda。不过如果不怕弄脏环境的话也可以不配置虚拟环境，不怕安装科学计算库可能遇到的二进制编译问题的话也可以使用venv。
+推荐使用 Conda 创建独立的 Python 虚拟环境，需要先安装conda。不过若不怕弄脏环境的话也可以不配置虚拟环境，不怕安装科学计算库可能遇到的二进制编译问题的话也可以使用venv。
 创建虚拟环境
 ```bash
-conda create -n SocraticGenerator -y
-```
-这里的环境名称SocraticGenerator可以自行修改，不过要自行保持后续使用的一致性。
+# 创建并激活 Conda 环境 (环境名可自定义)
+conda create -n SocraticAgent python=3.9 -y
+conda activate SocraticAgent
 
-启用虚拟环境
-```bash
-conda activate SocraticGenerator
-```
-
-第一次配置的时候需要先安装依赖
-```bash
+# 安装 Python 依赖
 pip install -r requirements.txt
 ```
 
-启动后端服务
+#### 前端环境(Node.js)
 ```bash
-python ./src/app.py
-```
+# 进入前端目录
+cd frontend
 
-
-#### 启动前端
-
-第一次启动时需要先安装依赖
-```bash
+# 安装 Node.js 依赖
 npm install
 ```
 
+### 2. 启动服务
+
+您需要分别启动后端和前端服务。
+
+#### 启动后端服务(FastAPI)
+
 ```bash
+# 确保位于项目根目录，并已激活 Conda 环境
+python src/app.py
+```
+- 后端默认运行在 http://localhost:8000。您可以在 src/config.py 中修改端口; 不过此时要同步修改前端的配置文件，将代理/api请求的端口也指向正确的位置
+
+#### 启动前端服务(React)
+
+```bash
+# 打开一个新的终端，进入前端目录
+cd frontend
+
+# 启动开发服务器
 npm run dev
 ```
 
+前端默认运行在 http://localhost:5173。您可以在 frontend/vite.config.ts 中修改端口。
 
-## 使用方法
 
-### 生成新的导师配置
+## 创建你的专属AI导师
 
-1. **准备课程材料**
-   ```bash
-   mkdir configs/my_course
-   # 添加 definition.yaml 和 lab_manual.md
-   ```
+本节介绍如何从零开始，为你自己的课程创建一个新的 AI 导师。
 
-2. **生成导师配置**
-   ```bash
-   python src/main.py --config-dir configs/my_course --output-dir generated_tutors
-   ```
+### 1. 准备课程材料
 
-3. **生成课程大纲**
-   ```bash
-   python src/generate_curriculum.py --manual configs/my_course/lab_manual.md --output configs/my_course/curriculum.json
-   ```
+首先，在 configs/ 目录下为你的新课程创建一个文件夹，例如 my_new_course。
+```bash
+mkdir configs/my_new_course
+```
+在该文件夹中，你需要准备两个核心文件：
+- definition.yaml: 课程的元数据文件，定义课程的名称、目标、前置知识等。
+- lab_manual.md: 详细的实验手册，这是 AI 生成教学大纲的主要依据。
+
+### 2. 生成教学大纲 (Curriculum)
+
+运行以下命令，让 AI 分析你的实验手册并生成结构化的教学大纲。
+```bash
+python src/generate_curriculum.py --manual configs/my_new_course/lab_manual.md
+```
+
+命令执行后，会在 configs/my_new_course/ 目录下生成一个 curriculum.json 文件。
+强烈建议：请人工审核并微调此文件，确保教学流程的准确性和逻辑性。
+
+### 3. 组装最终导师配置 (Profile)
+
+最后，将所有课程材料组装成一个完整的导师配置文件。
+```bash
+python src/main.py --config-dir configs/my_new_course
+```
+
+此命令会读取 my_new_course 目录下的所有配置，并在 tutor-profiles/ 目录下生成一个最终的 my_new_course_profile.json 文件。
+
+现在，你可以在 Web 界面或命令行中加载这个新的导师配置了！
+
+## 与 AI 导师互动
+
+### Web 界面模式
+
+1. 确保前后端服务已按 快速开始 的指引成功启动。
+2. 在浏览器打开前端页面（默认为 http://localhost:5173）。
+3. 在导师选择列表中，找到并选择你想要互动的课程。
+4. 开始与你的 AI 导师进行对话学习！
 
 ### 命令行模式
 
-直接在终端中与导师对话:
+如果你希望在终端中快速验证导师效果，可以使用以下命令：
 ```bash
-python src/tutor_runner.py --profile generated_tutors/seed_buffer_overflow_profile.json
+# --profile 参数指定要加载的导师配置文件
+python src/tutor_runner_cli.py --profile tutor-profiles/seed_buffer_overflow_profile.json
 ```
-此处的profile可以替换为您针对自己的课程生成的profile
 
-### Web界面模式
 
-1. 启动服务 (见上述启动方法)
-2. 打开 http://localhost:5173
-3. 选择课程配置
-4. 开始与AI导师对话
 
 ## API文档
 
-后端提供以下RESTful API:
+后端启动后，可通过访问 http://localhost:8000/docs 查看由 FastAPI 自动生成的 API 文档。(后端端口若自行修改，此处也相应修改)
 
-- `GET /api/profiles` - 列出可用的导师配置
-- `POST /api/tutor/session` - 创建新的对话会话  
-- `GET /api/tutor/{session_id}/welcome` - 获取导师欢迎消息
-- `POST /api/tutor/{session_id}/message` - 发送消息并获取回复
-- `GET /api/tutor/{session_id}/state` - 获取会话状态
-- `GET /api/health` - 健康检查
+## 技术栈
 
-API文档地址: http://localhost:8000/docs
-
-## 开发指南
-
-### 项目架构
-
-1. **前端**: React + TypeScript + Vite + Tailwind CSS
-2. **后端**: Python + FastAPI + LangChain
-
-### 添加新的LLM支持
-
-修改 `src/api_server.py` 中的 `TutorSession` 类:
-```python
-# 替换 ChatDeepSeek 为其他LLM
-self.llm = ChatOpenAI(model="gpt-4", temperature=0.7)
-```
+- **后端**：Python, FastAPI, LangChain
+- **前端**：React, TypeScript, Vite, Tailwind CSS
 
 
 ## 故障排查
@@ -203,16 +221,18 @@ self.llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 ## 贡献指南
 
+我们欢迎任何形式的贡献！无论是新功能、Bug 修复还是文档改进。
+
 1. Fork 项目
-2. 创建功能分支: `git checkout -b feature/new-feature`
-3. 提交更改: `git commit -am 'Add new feature'`
-4. 推送分支: `git push origin feature/new-feature`
+2. 创建您的特性分支: `git checkout -b feature/AmazingFeature`
+3. 提交您的更改: `git commit -am 'Add some AmazingFeature'`
+4. 推送分支: `git push origin feature/AmazingFeature`
 5. 提交Pull Request
 
 
 ## 更新日志
 
-### v1.0.0 (2025-0-12)
+### v1.0.0 (2025-9-12)
 - ✨ 初始版本发布
 - 🎯 支持苏格拉底式导师生成
 - 🌐 Web界面支持苏格拉底智能体运行
@@ -223,24 +243,4 @@ self.llm = ChatOpenAI(model="gpt-4", temperature=0.7)
 
 ## 许可证
 
-MIT License
-
-Copyright (c) 2025 Socratic Agent Generator
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+本项目基于 MIT License 授权。

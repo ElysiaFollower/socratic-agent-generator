@@ -1,10 +1,39 @@
-pyyaml
+# =============================================================================
+# Socratic Agent Generator - Python Dependencies
+# =============================================================================
 
-# langchain 及其相关库
-langchain
-langchain-core
-# 注：根据你的代码，安装对应的库
-# eg: 如果你用的是deepseek, 就是 langchain-deepseek; 如果你用的是Gemini, 就是 langchain-google-genai
-langchain-deepseek
+# 核心依赖
+pydantic>=2.0.0                    # 数据验证和序列化
+pyyaml>=6.0                        # YAML配置文件解析
 
-pydantic
+# Web框架
+fastapi>=0.100.0                   # 现代Python Web框架
+uvicorn[standard]>=0.20.0          # ASGI服务器，用于运行FastAPI应用
+
+# LangChain生态系统
+langchain>=0.1.0                   # LangChain核心库
+langchain-core>=0.1.0              # LangChain核心组件
+langchain-community>=0.0.10        # LangChain社区扩展（包含ChatMessageHistory）
+langchain-deepseek>=0.0.1          # DeepSeek API集成
+
+# 环境变量管理
+python-dotenv>=1.0.0               # 环境变量加载
+
+# 时区处理
+pytz>=2023.3                       # 时区处理库
+
+# 可选：模板引擎（如果将来需要使用Jinja2模板）
+# jinja2>=3.1.0
+
+# 开发工具（可选）
+# pytest>=7.0.0                    # 测试框架
+# black>=23.0.0                     # 代码格式化
+# flake8>=6.0.0                     # 代码检查
+
+# =============================================================================
+# 安装说明：
+# 1. 创建虚拟环境：conda create -n SocraticGenerator python=3.8+
+# 2. 激活环境：conda activate SocraticGenerator
+# 3. 安装依赖：pip install -r requirements.txt
+# 4. 配置环境变量：创建.env文件并添加DEEPSEEK_API_KEY
+# =============================================================================
