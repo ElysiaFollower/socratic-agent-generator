@@ -8,6 +8,14 @@ export interface Session {
   created_at: string
 }
 
+export interface SendMessageResponse {
+  reply: string;
+  state: {
+    step: number;
+  };
+  is_finished: boolean;
+}
+
 export async function listProfiles(): Promise<string[]> {
   const res = await axios.get('/api/profiles') //获取所有可用的配置文件
   return res.data
@@ -23,9 +31,10 @@ export async function getWelcomeMessage(sessionId: string): Promise<{welcome: st
   return res.data
 }
 
-export async function sendMessage(sessionId: string, message: string): Promise<{reply: string}> {
-  const res = await axios.post(`/api/tutor/${sessionId}/message`, { message })
-  return res.data
+export async function sendMessage(sessionId: string, message: string): Promise<SendMessageResponse> {
+  const res = await axios.post(`/api/tutor/${sessionId}/message`, { message });
+  // 后端返回的数据结构现在是 { reply: "...", state: { step: X }, is_finished: false }
+  return res.data;
 }
 
 export async function getState(sessionId: string) {

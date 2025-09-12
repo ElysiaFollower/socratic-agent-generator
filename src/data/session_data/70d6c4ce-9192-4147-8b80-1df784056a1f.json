@@ -1,0 +1,11 @@
+{
+  "session_id": "70d6c4ce-9192-4147-8b80-1df784056a1f",
+  "profile_name": "seed_buffer_overflow_profile.json",
+  "session_name": "基础缓冲区溢出 (SEED Labs版)",
+  "created_at": "2025-09-12T14:55:44.191807+00:00",
+  "last_updated_at": "2025-09-12T14:55:44.297104+00:00",
+  "state": {
+    "step": 0
+  },
+  "history": []
+}
