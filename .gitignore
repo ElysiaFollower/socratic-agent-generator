@@ -72,3 +72,6 @@ generated_tutors/*.json
 .cache/
 .npm/
 .yarn/
+
+# 历史会话
+sessions/

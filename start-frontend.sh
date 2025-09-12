@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Socratic Agent 前端启动脚本 (跨平台: Windows/Linux/macOS)
-# Windows 使用方法: bash start-frontend.sh (需要 Git Bash 或 WSL)
+# Windows 使用方法: bash start-frontend.sh (需要 Git Bash)
 # Linux/macOS 使用方法: ./start-frontend.sh 或 bash start-frontend.sh
 
 cd "$(dirname "$0")"
@@ -12,9 +12,9 @@ echo "=========================================="
 
 echo "[1/4] 检测操作系统和激活虚拟环境..."
 
-# 改进的操作系统检测逻辑
-if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ -n "$WINDIR" ]] || [[ -n "$SYSTEMROOT" ]] || [[ "$OS" == "Windows_NT" ]] || [[ -d "/mnt/c" ]]; then
-    # Windows 环境 (Git Bash, MSYS2, Cygwin, WSL)
+# 改进的操作系统检测逻辑 (避免触发WSL)
+if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ -n "$WINDIR" ]] || [[ -n "$SYSTEMROOT" ]] || [[ "$OS" == "Windows_NT" ]]; then
+    # Windows 环境 (Git Bash, MSYS2, Cygwin)
     OS_TYPE="Windows"
     VENV_ACTIVATE_SUFFIX="Scripts/activate"
 else

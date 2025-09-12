@@ -12,9 +12,9 @@ echo "=========================================="
 
 echo "[1/4] 检测操作系统和激活虚拟环境..."
 
-# 改进的操作系统检测逻辑
-if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ -n "$WINDIR" ]] || [[ -n "$SYSTEMROOT" ]] || [[ "$OS" == "Windows_NT" ]] || [[ -d "/mnt/c" ]]; then
-    # Windows 环境 (Git Bash, MSYS2, Cygwin, WSL)
+# 改进的操作系统检测逻辑 (避免触发WSL)
+if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ -n "$WINDIR" ]] || [[ -n "$SYSTEMROOT" ]] || [[ "$OS" == "Windows_NT" ]]; then
+    # Windows 环境 (Git Bash, MSYS2, Cygwin)
     OS_TYPE="Windows"
     VENV_ACTIVATE_SUFFIX="Scripts/activate"
 else
