@@ -2,7 +2,7 @@
 
 import argparse
 from pathlib import Path
-from tutor_core import Tutor # 从我们的新模块导入
+from tutor_core import Tutor 
 
 def cli_main():
     """主函数：导师运行器"""
@@ -16,13 +16,13 @@ def cli_main():
     args = parser.parse_args()
 
     # 1. 创建Tutor实例
+    session_id = f"cli_session_{Path(args.profile).stem}" # 命令行用一个固定的session_id
     try:
-        tutor = Tutor(Path(args.profile))
+        tutor = Tutor(session_id, Path(args.profile))
     except Exception as e:
         print(e)
         return
 
-    session_id = f"cli_session_{Path(args.profile).stem}" # 命令行用一个固定的session_id
     print("--- 苏格拉底导师已上线 ---")
     print(tutor.get_welcome_message() + '(输入 \'q\' 或 \'exit\' 退出)')
 
@@ -32,7 +32,7 @@ def cli_main():
             print("导师：学习贵在坚持，期待下次与你继续探讨！")
             break
 
-        result = tutor.process_message(session_id, user_input)
+        result = tutor.process_message(user_input)
         
         print("导师:", result["reply"])
 

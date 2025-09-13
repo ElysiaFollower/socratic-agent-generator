@@ -213,6 +213,7 @@ python src/tutor_runner_cli.py --profile tutor-profiles/seed_buffer_overflow_pro
 **2. 后端启动失败**
 - 检查虚拟环境是否正确激活
 - 确保所有Python依赖已安装: `pip install -r requirements.txt`
+- 若失败提示为“ERROR:    [WinError 10013] 以一种访问权限不允许的方式做了一个访问套接字的尝试。”则很可能是因为端口被其他进程占用，请在src/config.py中修改端口并尝试重新启动。成功后请同步修改vite.config.ts中的代理端口。
 
 **3. LLM调用失败**
 - 检查 `.env` 文件中的API密钥配置
