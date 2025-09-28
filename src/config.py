@@ -1,24 +1,35 @@
 from pathlib import Path
+import os
 
-# 项目根目录
-PROJECT_ROOT = Path(__file__).parent.resolve()
-# 导师配置文件的输出目录名
-PROFILES_DIR_NAME = 'tutor-profiles'
-# 导师配置文件输出路径
-PROFILES_OUTPUT_PATH = PROJECT_ROOT / PROFILES_DIR_NAME
+# root
+ROOT_DIR = Path(__file__).parent.parent.resolve()
 
-# 会话记录存储
+# Raw data
+RAW_DATA_DIR_NAME = 'data_raw'
+RAW_DATA_DIR = ROOT_DIR / RAW_DATA_DIR_NAME
+
+# data folder
+DATA_DIR_NAME = 'data'
+DATA_DIR = ROOT_DIR / DATA_DIR_NAME
+
+# generated tutor profiles
+PROFILES_DIR_NAME = 'tutor_profiles'
+PROFILES_DIR = DATA_DIR / PROFILES_DIR_NAME
+
+# session data
 SESSION_DATA_DIR_NAME = 'session_data'
-SESSION_DATA_PATH = PROJECT_ROOT / 'data' /SESSION_DATA_DIR_NAME
+SESSION_DATA_DIR = DATA_DIR / SESSION_DATA_DIR_NAME
 
 
 # --- API Server Config ---
-# 后端服务地址
-API_HOST = "127.0.0.1"
-API_PORT = 8000
+API_HOST: str = os.getenv('API_HOST', '127.0.0.1')
+API_PORT: int = int(os.getenv('API_PORT', '8000'))
 
-# 允许访问后端API的前端地址
-CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+# Allowed frontend origins to access the backend API
+_cors_allowed_origins_str: str = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
+CORS_ALLOWED_ORIGINS: list[str] = [origin.strip() for origin in _cors_allowed_origins_str.split(',') if origin.strip()]
+# will be like this
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173",
+# ]

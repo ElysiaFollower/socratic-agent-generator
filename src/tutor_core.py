@@ -17,7 +17,7 @@ from langchain_core.output_parsers import StrOutputParser
 from langchain_deepseek import ChatDeepSeek
 from dotenv import load_dotenv
 
-from config import SESSION_DATA_PATH
+from config import SESSION_DATA_DIR
 
 # 加载环境变量
 load_dotenv()
@@ -53,7 +53,7 @@ class Tutor:
         # --- 核心属性 ---
         self.session_id = session_id
         self.profile_path = profile_path
-        self.filepath = SESSION_DATA_PATH / f"{self.session_id}.json" #会话文件路径
+        self.filepath = SESSION_DATA_DIR / f"{self.session_id}.json" #会话文件路径
 
         # --- 加载配置 ---
         self.profile = load_tutor_profile(profile_path)

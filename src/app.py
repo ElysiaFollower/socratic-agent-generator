@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # --- 导入核心模块和配置 ---
-from config import PROFILES_OUTPUT_PATH, SESSION_DATA_PATH, CORS_ALLOWED_ORIGINS, API_HOST, API_PORT
+from config import PROFILES_DIR, SESSION_DATA_DIR, CORS_ALLOWED_ORIGINS, API_HOST, API_PORT
 from tutor_core import Tutor
 
 # --- FastAPI 应用实例 ---
@@ -31,8 +31,8 @@ app.add_middleware(
 )
 
 # --- 应用启动时，确保目录存在 ---
-PROFILES_OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
-SESSION_DATA_PATH.mkdir(parents=True, exist_ok=True)
+PROFILES_DIR.mkdir(parents=True, exist_ok=True)
+SESSION_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # --- Pydantic 数据模型 ---
@@ -60,7 +60,7 @@ class SessionManager:
             return self.active_tutors[session_id]
 
         # 2. 如果缓存中没有，则从磁盘加载会话文件
-        session_filepath = SESSION_DATA_PATH / f"{session_id}.json"
+        session_filepath = SESSION_DATA_DIR / f"{session_id}.json"
         if not session_filepath.exists():
             raise HTTPException(status_code=404, detail="会话不存在或已过期")
             
@@ -71,7 +71,7 @@ class SessionManager:
         if not profile_name:
             raise HTTPException(status_code=500, detail="会话数据损坏：缺少profile_name")
 
-        profile_path = PROFILES_OUTPUT_PATH / profile_name
+        profile_path = PROFILES_DIR / profile_name
         if not profile_path.exists():
             raise HTTPException(status_code=404, detail=f"该会话所需的导师配置 '{profile_name}' 文件不存在")
 
@@ -103,7 +103,7 @@ class SessionManager:
         self.active_tutors.pop(session_id, None)
         
         # 2. 从磁盘删除文件
-        filepath = SESSION_DATA_PATH / f"{session_id}.json"
+        filepath = SESSION_DATA_DIR / f"{session_id}.json"
         if filepath.exists():
             filepath.unlink()
             return # 成功
@@ -123,13 +123,13 @@ def health():
 
 @app.get("/api/profiles", response_model=List[str], summary="获取所有可用的导师配置列表")
 def list_profiles():
-    return [p.name for p in PROFILES_OUTPUT_PATH.glob("*.json")]
+    return [p.name for p in PROFILES_DIR.glob("*.json")]
 
 @app.get("/api/sessions", summary="获取所有历史会话列表")
 def list_sessions():
     """通过扫描数据目录来高效地列出所有会话的元数据。"""
     session_list = []
-    for f in SESSION_DATA_PATH.glob("*.json"):
+    for f in SESSION_DATA_DIR.glob("*.json"):
         with open(f, 'r', encoding='utf-8') as session_file:
             data = json.load(session_file)
             # 为前端构造所需的数据结构
@@ -145,7 +145,7 @@ def list_sessions():
 
 @app.post("/api/tutor/session", summary="创建一个新的会话")
 def create_session(req: CreateSessionRequest):
-    profile_path = PROFILES_OUTPUT_PATH / req.profile
+    profile_path = PROFILES_DIR / req.profile
     tutor = session_manager.create_session(profile_path)
     return {"session_id": tutor.session_id}
     

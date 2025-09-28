@@ -1,77 +1,16 @@
-# 环境变量和配置
 .env
-.env.local
-.env.production
-.env.development
 
-# 编辑器和IDE
 .vscode/
-.idea/
-*.swp
-*.swo
-*~
 
-# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# 虚拟环境
-.seedAI/
-venv/
-.venv/
-env/
-ENV/
-
-# 前端依赖和构建
 frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.next/
-frontend/.nuxt/
-frontend/.vuepress/dist/
 
-# 日志文件
 *.log
-backend.log
-frontend.log
-debug.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
-# 临时文件
-*.tmp
-*.temp
-.DS_Store
-Thumbs.db
+temp/
 
-# 生成的文件
-generated_tutors/*.json
-!generated_tutors/seed_buffer_overflow_profile.json
+# ignore session data
+data/session_data/*
+!data/session_data/.gitkeep
 
-# 缓存
-.cache/
-.npm/
-.yarn/
-
-# 历史会话
-sessions/

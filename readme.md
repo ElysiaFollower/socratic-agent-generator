@@ -1,3 +1,5 @@
+# TODO: out of date
+
 # Socratic Agent Generator
 
 Socratic Agent Generator 是一个基于苏格拉底式教学法的 AI 导师生成器。它能自动将实验手册转换为个性化的 AI 导师配置文件。并提供一个交互式 Web 界面，让学生可以与加载任意配置的导师进行循序渐进的对话式学习。
@@ -83,7 +85,7 @@ git clone https://github.com/ElysiaFollower/socratic-agent-generator.git
 cd socratic-agent-generator
 ```
 
-### 配置环境变量
+#### 配置环境变量
 
 ```bash
 cp .env.example .env
@@ -123,7 +125,7 @@ npm install
 # 确保位于项目根目录，并已激活 Conda 环境
 python src/app.py
 ```
-- 后端默认运行在 http://localhost:8000。您可以在 src/config.py 中修改端口; 不过此时要同步修改前端的配置文件，将代理/api请求的端口也指向正确的位置
+- 后端默认运行在 http://localhost:8000 。您可以在 src/config.py 中修改端口; 不过此时要同步修改前端的配置文件，将代理/api请求的端口也指向正确的位置
 
 #### 启动前端服务(React)
 
@@ -135,7 +137,7 @@ cd frontend
 npm run dev
 ```
 
-前端默认运行在 http://localhost:5173。您可以在 frontend/vite.config.ts 中修改端口。
+前端默认运行在 http://localhost:5173 。您可以在 frontend/vite.config.ts 中修改端口。
 
 
 ## 创建你的专属AI导师

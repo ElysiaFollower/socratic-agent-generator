@@ -10,16 +10,16 @@ def main():
     """程序主入口"""
     parser = argparse.ArgumentParser(description="苏格拉底智能体配置生成器")
     parser.add_argument(
-        "--config-dir", 
+        "--dir-name", 
         type=str, 
         required=True,
-        help="包含 definition.yaml 和 curriculum.json 的课题配置文件夹路径。"
+        help="包含 definition.yaml 和 curriculum.json 的课题配置文件夹名。"
     )
     args = parser.parse_args()
 
     # --- 1. 路径处理 ---
-    config_path = Path(args.config_dir)
-    output_path = config.PROFILES_OUTPUT_PATH # 直接写死，方便前端查询
+    config_path = config.RAW_DATA_DIR / Path(args.config_dir)
+    output_path = config.PROFILES_DIR
     definition_file = config_path / "definition.yaml"
     curriculum_file = config_path / "curriculum.json"
     
