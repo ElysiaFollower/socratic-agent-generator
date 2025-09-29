@@ -33,3 +33,6 @@ CORS_ALLOWED_ORIGINS: list[str] = [origin.strip() for origin in _cors_allowed_or
 #     "http://localhost:5173",
 #     "http://127.0.0.1:5173",
 # ]
+
+# --- Agent Config ---
+LESSON_DOMAIN: str = os.getenv('LESSON_DOMAIN', '计算机安全')

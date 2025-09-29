@@ -1,6 +1,5 @@
 # 导师的元数据定义
 topic_name: "基础缓冲区溢出 (SEED Labs版)"
-version: 1.0
 
 # 用于生成人设和风格的线索
 persona_hints:
@@ -14,36 +13,10 @@ domain_specific_constraints:
   - "强调导师自身无法执行代码，必须引导学生在自己的环境中操作。"
   - "提醒学生在合法授权的环境下进行实验的道德准则。"
 
-
-
-
-
-
-
-
-
-
-
-
-# # --- 基本信息 ---
-# topic_name: "基础缓冲区溢出 (Stack BOF 101)"
-# version: 1.0
-
-# # --- 教学目标 ---
-# target_audience: "对二进制安全感兴趣的CTF新手"
-# learning_objectives:
-#   - "理解栈、返回地址、缓冲区的基本概念"
-#   - "能独立使用gdb-pwndbg在调试器中复现栈溢出"
-#   - "掌握使用循环冗余模式字符串计算偏移量的方法"
-#   - "能编写简单的pwntools脚本来完成利用"
-
-# # --- 内容原材料 ---
-# key_concepts:
-#   - "栈 (Stack)"
-#   - "函数调用约定"
-#   - "返回地址 (Return Address)"
-#   - "EIP寄存器"
-#   - "缓冲区 (Buffer)"
-#   - "Shellcode"
-#   - "NX/DEP保护机制"
-#   - "pwntools"
+# --- 教学目标 ---
+target_audience: "对二进制安全感兴趣的CTF新手"
+learning_objectives:
+  - "理解栈、返回地址、缓冲区的基本概念"
+  - "能独立使用gdb-pwndbg在调试器中复现栈溢出"
+  - "掌握使用循环冗余模式字符串计算偏移量的方法"
+  - "能编写简单的pwntools脚本来完成利用"

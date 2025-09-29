@@ -1,4 +1,7 @@
 #该文件封装苏格拉底智能体得以运行的主要逻辑
+from dotenv import load_dotenv
+# 加载环境变量
+load_dotenv()
 
 import json
 import uuid
@@ -15,12 +18,11 @@ from langchain_core.output_parsers import StrOutputParser
 # --- LLM选择 ---
 # TODO: 未来可以把这里做成可配置的，以加载不同的LLM。
 from langchain_deepseek import ChatDeepSeek
-from dotenv import load_dotenv
+
 
 from config import SESSION_DATA_DIR
 
-# 加载环境变量
-load_dotenv()
+
 
 def load_tutor_profile(profile_path: Path) -> Dict[str, Any]:
     """

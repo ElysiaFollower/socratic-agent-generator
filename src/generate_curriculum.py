@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 import json
 import argparse
@@ -9,7 +12,7 @@ from generator.curriculum_generator import CurriculumGenerator
 
 # --- LLM 与环境 ---
 from langchain_deepseek import ChatDeepSeek
-from dotenv import load_dotenv
+
 
 def main():
     """主函数：教学大纲生成器"""
@@ -35,7 +38,6 @@ def main():
         lab_manual_content = f.read()
 
     # --- 2. 初始化LLM和生成器 ---
-    load_dotenv()
     llm = ChatDeepSeek(model="deepseek-chat", temperature=0.1)
     
     curriculum_generator = CurriculumGenerator(llm)
