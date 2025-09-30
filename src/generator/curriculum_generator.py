@@ -153,7 +153,7 @@ class CurriculumGenerator:
                 raise RuntimeError(f"文档处理失败: {str(e)}") from e
        
 
-    def generate(self, lab_manual_content: str) -> List[SocraticStep]:
+    def generate(self, lab_manual_content: str) -> List[Dict[str, Any]]:
         """
         执行完整的两阶段流程，生成最终的教学大纲。
         """
@@ -163,4 +163,4 @@ class CurriculumGenerator:
         # 阶段二：将结构化信息转化为苏格拉底教学大纲
         final_curriculum = self._transform_to_socratic_curriculum(digested_manual)
         
-        return final_curriculum
+        return [step.model_dump() for step in final_curriculum]
