@@ -39,6 +39,7 @@ LESSON_DOMAIN: str = os.getenv('LESSON_DOMAIN', '计算机安全')
 
 # --- LLM Config ---
 TEMPERATURE: float = float(os.getenv('TEMPERATURE', '0.7'))
+MAX_INPUT_TOKENS: int = int(os.getenv('MAX_INPUT_TOKENS', '128000'))
 
 # --- Output Language ---
 # A list of supported languages. The key is what the user sees (e.g., in a dropdown),

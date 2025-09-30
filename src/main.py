@@ -1,6 +1,6 @@
 import os
 import json
-import yaml
+import json
 import argparse
 from pathlib import Path
 from generator.prompt_assembler import assemble_socratic_prompt
@@ -13,26 +13,26 @@ def main():
         "--dir-name", 
         type=str, 
         required=True,
-        help="包含 definition.yaml 和 curriculum.json 的课题配置文件夹名。"
+        help="包含 definition.json 和 curriculum.json 的课题配置文件夹名。"
     )
     args = parser.parse_args()
 
     # --- 1. 路径处理 ---
     config_path = config.RAW_DATA_DIR / Path(args.config_dir)
     output_path = config.PROFILES_DIR
-    definition_file = config_path / "definition.yaml"
+    definition_file = config_path / "definition.json"
     curriculum_file = config_path / "curriculum.json"
     
     # 确保输入文件存在
     if not definition_file.exists() or not curriculum_file.exists():
-        print(f"错误：在'{config_path}'中未找到 definition.yaml 或 curriculum.json。")
+        print(f"错误：在'{config_path}'中未找到 definition.json 或 curriculum.json。")
         return
 
     print(f"✅ 正在从 '{config_path}' 加载课题定义...")
 
     # --- 2. 加载输入 ---
     with open(definition_file, 'r', encoding='utf-8') as f:
-        definition = yaml.safe_load(f)
+        definition = json.load(f)
     
     with open(curriculum_file, 'r', encoding='utf-8') as f:
         curriculum = json.load(f)

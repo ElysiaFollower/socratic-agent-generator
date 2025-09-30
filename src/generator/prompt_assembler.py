@@ -6,9 +6,10 @@ MASTER_PROMPT_TEMPLATE = """
 {persona_description}
 
 你的教学目标：以苏格拉底式问答法的方式，引导一位学生，独立思考并完成“{topic_name}”的学习。
+**Instruction:** Your response must be in language:**{{output_language}}**.
 
 ### 核心原则
-1.  **绝对禁止**直接给出答案。你的回答永远是一个引导性的问题或一个启发性的提示。
+1.  禁止直接给出答案。你的回答永远是一个引导性的问题或一个启发性的提示。
 2.  严格按照下面的【教学大纲】和【当前步骤】进行引导。
 3.  如果学生回答正确，用赞美之词鼓励他，并引出下一个步骤的问题。
 4.  如果学生回答错误或表示不解，将当前步骤的问题拆解得更小、更简单来帮助他理解。
@@ -43,7 +44,7 @@ def assemble_socratic_prompt(
     将所有部件组装成最终的、完整的系统提示词。
 
     Args:
-        definition: 从 definition.yaml 加载的字典。
+        definition: 从 definition.json 加载的字典。
         curriculum: 从 curriculum.json 加载的教学大纲列表。
 
     Returns:

@@ -79,7 +79,7 @@ class CurriculumGenerator:
              "你是一位经验丰富且专业细心的"+ LESSON_DOMAIN +"实验助教。"
              "你的任务是仔细阅读实验手册，并将其内容分解为一系列逻辑清晰、循序渐进的任务步骤。"
              "请专注于提取操作性的、可验证的任务，忽略背景介绍、客套话等非核心内容。"
-             "你需要严格按照{format_instructions}指定的JSON格式进行输出。"),
+             "你需要严格按照\"{format_instructions}\"指定的JSON格式进行输出。"),
             ("user", 
              "这是实验手册的内容，请开始分析：\n\n<lab_manual>\n{lab_manual}\n</lab_manual>")
         ])
@@ -105,7 +105,7 @@ class CurriculumGenerator:
                 raise RuntimeError(f"文档处理失败: {str(e)}") from e
             
 
-    def _transform_to_socratic_curriculum(self, digest: DigestedManual) -> List[SocraticStep]:
+    def _transform_to_socratic_curriculum(self, digest: DigestedManual) -> SocraticCurriculum:
         """
         阶段二：苏格拉底式转化与精炼 (The "Tutor" Agent)
         将结构化的任务列表，转化为循循善诱的教学大纲。
@@ -143,7 +143,7 @@ class CurriculumGenerator:
 
             result = SocraticCurriculum.model_validate(result)
             print("✅ [阶段2/2] 苏格拉底教学大纲生成完毕。")
-            return result.curriculum
+            return result
         except Exception as e:
             print("❌ [阶段2/2] 苏格拉底教学大纲生成失败：", e)
             input("try again? (y/n)")
@@ -153,7 +153,7 @@ class CurriculumGenerator:
                 raise RuntimeError(f"文档处理失败: {str(e)}") from e
        
 
-    def generate(self, lab_manual_content: str) -> List[Dict[str, Any]]:
+    def generate(self, lab_manual_content: str) -> SocraticCurriculum:
         """
         执行完整的两阶段流程，生成最终的教学大纲。
         """
@@ -161,6 +161,6 @@ class CurriculumGenerator:
         digested_manual = self._digest_document(lab_manual_content)
         
         # 阶段二：将结构化信息转化为苏格拉底教学大纲
-        final_curriculum = self._transform_to_socratic_curriculum(digested_manual)
+        curriculum = self._transform_to_socratic_curriculum(digested_manual)
         
-        return [step.model_dump() for step in final_curriculum]
+        return curriculum

@@ -19,11 +19,7 @@ from langchain_core.output_parsers import StrOutputParser
 # TODO: 未来可以把这里做成可配置的，以加载不同的LLM。
 from langchain_deepseek import ChatDeepSeek
 
-
 from config import SESSION_DATA_DIR, SUPPORTED_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME, TEMPERATURE
-
-
-
 
 class Tutor:
     """
@@ -62,7 +58,7 @@ class Tutor:
         llm = ChatDeepSeek(model="deepseek-chat", temperature=TEMPERATURE)
         
         prompt = ChatPromptTemplate.from_messages([
-            ("system", "{system_prompt_with_state}\n\n--- \n**Instruction:** Your response must be in language:**{language}**."),
+            ("system", "{system_prompt_with_state}"),
             MessagesPlaceholder(variable_name="history"),
             ("user", "{input}"),
         ])
@@ -218,13 +214,13 @@ class Tutor:
         # 填充系统提示词模板
         # 用加载的模板，填充动态的当前步骤描述
         formatted_system_prompt = self.system_prompt_template.format(
-            current_step_description=current_step_description
+            current_step_description=current_step_description,
+            output_language=self.output_language
         )
         # 调用主链
         response = self.chain_with_history.invoke({
             "system_prompt_with_state": formatted_system_prompt, 
             "input": user_input,
-            "language": self.output_language
         },  config={"configurable": {"session_id": self.session_id}})
 
         # 每次处理完后自动保存

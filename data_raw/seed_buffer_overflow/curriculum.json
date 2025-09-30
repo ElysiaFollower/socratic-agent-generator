@@ -1,68 +1,62 @@
 [
   {
     "step_title": "环境准备与防御措施关闭",
-    "guiding_question": "想象一下，如果我们要研究一栋建筑的防火系统，是不是需要先暂时关闭它才能测试其弱点？同样地，为了理解缓冲区溢出攻击的本质，我们为什么要先关闭系统的安全防护？",
-    "success_criteria": "学生能够解释关闭地址随机化(ASLR)和栈保护的必要性，并成功配置实验环境",
-    "learning_objective": "理解现代操作系统安全防护机制的作用，掌握实验环境配置方法"
+    "guiding_question": "想象一下，我们要研究一个古老的城堡防御系统，但首先需要暂时关闭现代安保设备。你认为为什么在安全研究中，有时需要先关闭防护机制来理解攻击原理？",
+    "success_criteria": "学生能够解释关闭ASLR的原因，并成功配置实验环境",
+    "learning_objective": "理解地址空间布局随机化(ASLR)的作用原理及其对缓冲区溢出攻击的影响"
   },
   {
     "step_title": "熟悉Shellcode",
-    "guiding_question": "如果把计算机程序比作一本指令书，那么shellcode就像是书中的'魔法咒语'——一段能够直接让计算机执行特定任务的机器代码。你认为为什么攻击者需要精心构造这样的'咒语'？",
-    "success_criteria": "学生能够解释shellcode的工作原理，并成功修改shellcode执行自定义命令",
-    "learning_objective": "掌握shellcode的基本概念、工作原理和修改方法"
+    "guiding_question": "如果把缓冲区溢出比作向城堡内投递秘密指令，那么Shellcode就是这些指令的密码本。你认为为什么攻击者需要精心设计这些二进制代码？",
+    "success_criteria": "学生能够修改Shellcode执行自定义命令，并理解其工作原理",
+    "learning_objective": "掌握Shellcode的结构和工作原理，学会修改和测试自定义Shellcode"
   },
   {
-    "step_title": "第一关攻击：已知地址攻击",
-    "guiding_question": "假设你知道朋友家的确切地址，就能直接找到他家。在缓冲区溢出中，如果我们知道shellcode的确切内存地址，你认为会发生什么？为什么这种'精确打击'相对容易实现？",
-    "success_criteria": "学生成功利用已知缓冲区地址和帧指针信息完成对32位服务器的攻击",
-    "learning_objective": "掌握基于已知地址的缓冲区溢出攻击原理和技术"
+    "step_title": "第一关攻击 - 已知地址攻击",
+    "guiding_question": "现在你知道了城堡的精确地图和守卫换岗时间，你认为如何利用这些信息设计最有效的入侵方案？",
+    "success_criteria": "成功利用已知缓冲区地址和帧指针信息获取root权限",
+    "learning_objective": "理解函数调用栈的结构，掌握在已知内存布局情况下的精确溢出攻击技术"
   },
   {
-    "step_title": "构建反向Shell",
-    "guiding_question": "传统的shell是你在本地输入命令，但如果想要远程控制一台计算机，就像是通过电话线让对方主动'打电话'给你汇报情况，这种'反向连接'有什么优势？",
-    "success_criteria": "学生成功修改shellcode实现反向shell连接并获取远程控制权限",
-    "learning_objective": "理解反向shell的工作原理，掌握shellcode的网络连接技术"
+    "step_title": "第二关攻击 - 未知精确地址攻击",
+    "guiding_question": "如果现在你只知道城堡的大致区域，但不知道具体房间位置，你会如何设计攻击策略来提高成功率？",
+    "success_criteria": "在仅知缓冲区地址范围的情况下成功获取root权限",
+    "learning_objective": "掌握内存对齐原理和范围攻击技术，理解NOP雪橇在不确定性攻击中的作用"
   },
   {
-    "step_title": "第二关攻击：未知帧指针攻击",
-    "guiding_question": "现在朋友搬家了，你只知道他住在那条街的某个门牌号范围内。在这种情况下，你会用什么策略来找到他？同样地，当不知道精确地址时，攻击者如何'地毯式搜索'内存空间？",
-    "success_criteria": "学生在未知帧指针情况下成功完成对32位服务器的缓冲区溢出攻击",
-    "learning_objective": "掌握基于地址范围猜测的缓冲区溢出攻击技术"
+    "step_title": "第三关攻击 - 64位系统挑战",
+    "guiding_question": "从32位升级到64位就像从小镇搬到大都市，地址空间变大了，但交通规则也更复杂。你认为最大的挑战会是什么？",
+    "success_criteria": "成功解决64位地址零字节问题并完成攻击",
+    "learning_objective": "理解64位与32位架构差异，掌握处理地址零字节限制的技术"
   },
   {
-    "step_title": "第三关攻击：64位系统与零字节问题",
-    "guiding_question": "想象一下邮寄包裹时，如果地址中包含'停止符'，邮递员就会提前停止读取地址。在64位系统中，为什么地址中的零字节会成为strcpy函数的'停止符'？我们该如何绕过这个限制？",
-    "success_criteria": "学生成功解决64位地址中的零字节问题，完成对64位服务器的攻击",
-    "learning_objective": "理解64位系统地址空间特点，掌握零字节问题的解决方案"
+    "step_title": "第四关攻击 - 小缓冲区环境",
+    "guiding_question": "想象你只能通过一个很小的窗口向城堡内传递指令，你会如何优化你的攻击代码以适应这个限制？",
+    "success_criteria": "在有限溢出空间内成功构造精确payload并获取权限",
+    "learning_objective": "掌握在空间受限环境下的payload优化技术，理解最小化Shellcode的设计原则"
   },
   {
-    "step_title": "第四关攻击：小缓冲区挑战",
-    "guiding_question": "如果你只有一个很小的行李箱，却要装下所有旅行必需品，你会如何优化打包策略？同样地，面对有限的溢出空间，攻击者如何'精打细算'地构造payload？",
-    "success_criteria": "学生成功在小缓冲区情况下完成对64位服务器的攻击",
-    "learning_objective": "掌握在有限溢出空间下的payload优化技术"
+    "step_title": "地址随机化防护评估",
+    "guiding_question": "如果城堡每天都会随机改变内部布局，你认为这对攻击者意味着什么？这种防护是绝对安全的吗？",
+    "success_criteria": "能够分析ASLR对攻击成功率的影响，理解其防护原理和局限性",
+    "learning_objective": "深入理解ASLR的工作原理，评估其在现实环境中的防护效果和可被绕过的条件"
   },
   {
-    "step_title": "地址随机化(ASLR)评估",
-    "guiding_question": "如果每次重启后，城市的所有建筑都会随机变换位置，小偷还能轻易找到目标吗？ASLR如何通过'移动目标'来增加攻击难度？这种保护是绝对安全的吗？",
-    "success_criteria": "学生能够观察并分析ASLR对缓冲区溢出攻击的影响",
-    "learning_objective": "理解ASLR的工作原理和防护效果，掌握其局限性"
+    "step_title": "StackGuard防护机制分析",
+    "guiding_question": "想象栈保护就像在城堡的关键通道设置哨兵，一旦有人擅闯就会报警。你认为这种机制能完全阻止入侵吗？",
+    "success_criteria": "能够解释StackGuard的工作原理，分析其防护效果和潜在绕过方法",
+    "learning_objective": "理解栈保护金丝雀(Canary)机制的工作原理和防护边界"
   },
   {
-    "step_title": "StackGuard保护评估",
-    "guiding_question": "古代城堡会在关键通道设置卫兵(canary)来预警入侵。StackGuard如何在栈帧中设置这样的'金丝雀'来检测缓冲区溢出？如果金丝雀'死了'(被修改)，系统会如何响应？",
-    "success_criteria": "学生能够测试StackGuard的防护效果并理解其检测机制",
-    "learning_objective": "理解StackGuard/canary值的保护原理和工作机制"
+    "step_title": "不可执行栈防护评估",
+    "guiding_question": "如果城堡规定某些区域只能存放物资但不能执行命令，这对攻击者的策略会产生什么根本性改变？",
+    "success_criteria": "理解不可执行栈的防护原理，能够分析其对不同类型攻击的影响",
+    "learning_objective": "掌握数据执行保护(DEP/NX)的工作原理，理解其对传统Shellcode攻击的防护效果"
   },
   {
-    "step_title": "不可执行栈保护评估",
-    "guiding_question": "如果图书馆规定只能在特定区域(如阅览室)阅读书籍，而不能在书架区直接执行书中的指令，这会如何防止恶意代码的执行？NX保护如何通过'数据与代码分离'来增强安全性？",
-    "success_criteria": "学生能够测试不可执行栈保护的防护效果，并理解return-to-libc等绕过技术",
-    "learning_objective": "理解NX保护的工作原理，掌握基本的绕过技术概念"
-  },
-  {
-    "step_title": "综合总结与防护策略",
-    "guiding_question": "经过这一系列的攻击和防御测试，你认为现代操作系统应该采用怎样的'纵深防御'策略？单一的安全措施足够吗？为什么真正的安全需要多层次防护？",
-    "success_criteria": "学生能够总结各种缓冲区溢出防护措施的优缺点，并提出综合防护建议",
+    "step_title": "综合防护策略分析",
+    "guiding_question": "经过这一系列攻防实验，你认为什么样的防护组合才能真正有效防御缓冲区溢出攻击？单一防护措施足够吗？",
+    "success_criteria": "学生能够综合分析各种防护机制的优缺点，提出有效的纵深防御策略",
     "learning_objective": "建立完整的缓冲区溢出攻防知识体系，理解纵深防御的重要性"
   }
 ]

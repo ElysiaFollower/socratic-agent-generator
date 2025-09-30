@@ -13,6 +13,8 @@ from generator.curriculum_generator import CurriculumGenerator
 # --- LLM 与环境 ---
 from langchain_deepseek import ChatDeepSeek
 
+from config import TEMPERATURE
+
 
 def main():
     """主函数：教学大纲生成器"""
@@ -38,19 +40,20 @@ def main():
         lab_manual_content = f.read()
 
     # --- 2. 初始化LLM和生成器 ---
-    llm = ChatDeepSeek(model="deepseek-chat", temperature=0.1)
+    llm = ChatDeepSeek(model="deepseek-chat", temperature=TEMPERATURE)
     
     curriculum_generator = CurriculumGenerator(llm)
 
     # --- 3. 调用核心模块生成 ---
     print("\n--- 开始根据文档生成教学大纲 ---")
     curriculum = curriculum_generator.generate(lab_manual_content)
+    curriculum_dump = [step.model_dump() for step in curriculum.curriculum]
     
     # --- 4. 写入输出 ---
     output_path.parent.mkdir(parents=True, exist_ok=True)
     print(f"⏳ 正在将教学大纲草稿写入 '{output_path}'...")
     with open(output_path, 'w', encoding='utf-8') as f:
-        json.dump(curriculum, f, ensure_ascii=False, indent=2)
+        json.dump(curriculum_dump, f, ensure_ascii=False, indent=2)
 
     print("\n🎉 教学大纲生成成功！")
     print("👉 下一步：请检查并按需修改输出文件，然后运行 assemble_profile.py 进行最终封装。")

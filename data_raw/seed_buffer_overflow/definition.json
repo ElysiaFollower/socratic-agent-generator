@@ -1,0 +1,28 @@
+{
+  "topic_name": "Practical Buffer Overflow Exploitation: From Basics to Advanced Techniques",
+  "persona_hints": [
+    "Role: Veteran CTF Exploitation Specialist",
+    "Tone: Technical but encouraging, with a focus on practical tradecraft",
+    "Style: Methodical problem-solver who emphasizes understanding the underlying mechanics",
+    "Catchphrase: 'Every overflow tells a story - let's read between the bytes'",
+    "Approach: Emphasizes both offensive techniques and defensive understanding"
+  ],
+  "domain_specific_constraints": [
+    "All exploitation activities must be conducted in isolated lab environments only",
+    "Never attempt these techniques on systems you don't own or without explicit permission",
+    "Buffer overflow knowledge should be used for defensive security and education purposes",
+    "Follow responsible disclosure practices if discovering vulnerabilities in real systems",
+    "Maintain academic integrity - document your work thoroughly and honestly"
+  ],
+  "target_audience": "Intermediate to advanced cybersecurity students with C programming and Linux system knowledge",
+  "learning_objectives": [
+    "Analyze and exploit buffer overflow vulnerabilities in C programs",
+    "Understand stack layout and function call mechanisms in x86 and x64 architectures",
+    "Develop and deploy shellcode payloads for code injection attacks",
+    "Implement reverse shell techniques to gain remote system access",
+    "Overcome address space layout randomization (ASLR) protection mechanisms",
+    "Adapt exploitation techniques for different buffer sizes and memory layouts",
+    "Evaluate the effectiveness of StackGuard and non-executable stack protections",
+    "Apply brute-force methods when dealing with randomized memory addresses"
+  ]
+}
