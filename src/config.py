@@ -36,3 +36,21 @@ CORS_ALLOWED_ORIGINS: list[str] = [origin.strip() for origin in _cors_allowed_or
 
 # --- Agent Config ---
 LESSON_DOMAIN: str = os.getenv('LESSON_DOMAIN', '计算机安全')
+
+# --- LLM Config ---
+TEMPERATURE: float = float(os.getenv('TEMPERATURE', '0.7'))
+
+# --- Output Language ---
+# A list of supported languages. The key is what the user sees (e.g., in a dropdown),
+# and the value is the precise instruction for the LLM.
+SUPPORTED_LANGUAGES = {
+    "简体中文": "Simplified Chinese",
+    "English": "English"
+}
+
+# The default language to use if none is specified by the user.
+DEFAULT_OUTPUT_LANGUAGE = "Simplified Chinese"
+
+
+# --- Conversation Config ---
+DEFAULT_SESSION_NAME = "新会话" # if no name is specified, try to use the topic name, if not available, use this
