@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import LESSON_DOMAIN
 
+import asyncio
+
 # ----------------------------------------------------------------
 # 1. 定义数据结构 
 # ----------------------------------------------------------------
@@ -68,7 +70,7 @@ class CurriculumGenerator:
     def __init__(self, llm: Any):
         self.llm = llm
 
-    def _digest_document(self, lab_manual_content: str) -> DigestedManual:
+    async def _digest_document(self, lab_manual_content: str) -> DigestedManual:
         """
         阶段一：文档解析与结构化 (The "Reader" Agent)
         将原始文档转化为结构化的DigestedManual对象。
@@ -90,7 +92,7 @@ class CurriculumGenerator:
         chain = prompt | self.llm | parser
         
         try:
-            digest_json = chain.invoke({
+            digest_json = await chain.ainvoke({
                 "lab_manual": lab_manual_content,
                 "format_instructions": parser.get_format_instructions(),
             })
@@ -100,15 +102,10 @@ class CurriculumGenerator:
             return result
         
         except Exception as e:
-            print("❌ [阶段1/2] 文档结构化失败：", e)
-            input("try again? (y/n)")
-            if input().lower() == 'y':
-                return self._digest_document(lab_manual_content)
-            else:
-                raise RuntimeError(f"文档处理失败: {str(e)}") from e
+            raise RuntimeError(f"文档处理失败: {str(e)}") from e
             
 
-    def _transform_to_socratic_curriculum(self, digest: DigestedManual) -> SocraticCurriculum:
+    async def _transform_to_socratic_curriculum(self, digest: DigestedManual) -> SocraticCurriculum:
         """
         阶段二：苏格拉底式转化与精炼 (The "Tutor" Agent)
         将结构化的任务列表，转化为循循善诱的教学大纲。
@@ -139,7 +136,7 @@ class CurriculumGenerator:
             chain = prompt | self.llm | parser
             
             format_instructions = parser.get_format_instructions()
-            result = chain.invoke({
+            result = await chain.ainvoke({
                 "digest": digest_str,
                 "format_instructions": format_instructions,
             })
@@ -148,36 +145,34 @@ class CurriculumGenerator:
             print("✅ [阶段2/2] 苏格拉底教学大纲生成完毕。")
             return result
         except Exception as e:
-            print("❌ [阶段2/2] 苏格拉底教学大纲生成失败：", e)
-            input("try again? (y/n)")
-            if input().lower() == 'y':
-                return self._transform_to_socratic_curriculum(digest)
-            else:
-                raise RuntimeError(f"文档处理失败: {str(e)}") from e
+            raise RuntimeError(f"文档处理失败: {str(e)}") from e
        
 
-    def generate(self, lab_manual_content: str) -> SocraticCurriculum:
+    async def generate(self, lab_manual_content: str) -> SocraticCurriculum:
         """
         执行完整的两阶段流程，生成最终的教学大纲。
         """
         # 阶段一：提炼和结构化信息
-        digested_manual = self._digest_document(lab_manual_content)
+        digested_manual = await self._digest_document(lab_manual_content)
         
         # 阶段二：将结构化信息转化为苏格拉底教学大纲
-        curriculum = self._transform_to_socratic_curriculum(digested_manual)
+        curriculum = await self._transform_to_socratic_curriculum(digested_manual)
         
         return curriculum
     
 if __name__ == "__main__":
     # example usages, run at root directory
-    with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
-        lab_manual_content = f.read()
-    
-    from langchain_deepseek import ChatDeepSeek
-    import config
-    from dotenv import load_dotenv
-    load_dotenv()
-    
-    generator = CurriculumGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
-    curriculum = generator.generate(lab_manual_content)
-    print(curriculum.model_dump_json(indent=2))
+    async def main():
+        with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
+            lab_manual_content = f.read()
+        
+        from langchain_deepseek import ChatDeepSeek
+        import config
+        from dotenv import load_dotenv
+        load_dotenv()
+        
+        generator = CurriculumGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
+        curriculum = await generator.generate(lab_manual_content)
+        print(curriculum.model_dump_json(indent=2))
+        
+    asyncio.get_event_loop().run_until_complete(main())

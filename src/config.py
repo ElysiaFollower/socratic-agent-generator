@@ -20,6 +20,10 @@ PROFILES_DIR = DATA_DIR / PROFILES_DIR_NAME
 SESSION_DATA_DIR_NAME = 'session_data'
 SESSION_DATA_DIR = DATA_DIR / SESSION_DATA_DIR_NAME
 
+# prompt templates
+PROMPT_TEMPLATE_DIR_NAME = 'templates'
+PROMPT_TEMPLATE_DIR = ROOT_DIR / 'src' / PROMPT_TEMPLATE_DIR_NAME
+
 
 # --- API Server Config ---
 API_HOST: str = os.getenv('API_HOST', '127.0.0.1')
@@ -40,6 +44,10 @@ LESSON_DOMAIN: str = os.getenv('LESSON_DOMAIN', '计算机安全')
 # --- LLM Config ---
 TEMPERATURE: float = float(os.getenv('TEMPERATURE', '0.7'))
 MAX_INPUT_TOKENS: int = int(os.getenv('MAX_INPUT_TOKENS', '128000'))
+def get_default_llm():
+    """DEFAULT_LLM"""
+    from langchain_deepseek import ChatDeepSeek
+    return ChatDeepSeek(model="deepseek-chat", temperature=TEMPERATURE)
 
 # --- Output Language ---
 # A list of supported languages. The key is what the user sees (e.g., in a dropdown),

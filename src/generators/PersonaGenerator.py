@@ -10,6 +10,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import MAX_INPUT_TOKENS
 
+import asyncio
+
 class TutorPersona(BaseModel):
     """
     The complete, structured metadata for a lesson, automatically inferred
@@ -65,7 +67,7 @@ class PersonaGenerator:
         return content[:max_chars//2] + "\n\n... (content truncated) ...\n\n" + content[-max_chars//2:]
 
  
-    def generate(self, lab_manual_content: str) -> TutorPersona:
+    async def generate(self, lab_manual_content: str) -> TutorPersona:
         """
         by given lab manual content, generate persona information for tutor (only the begining and the ending slice will be used)
         like what a person he/she is, who he/she is trying to teach, what main concepts he/she is going to teach
@@ -74,30 +76,29 @@ class PersonaGenerator:
         content_excerpt = self._create_excerpt(lab_manual_content, max_chars=MAX_INPUT_TOKENS-1000)
 
         try:
-            generated_data = self.chain.invoke({
+            generated_data = await self.chain.ainvoke({
                 "lab_manual_content": content_excerpt,
                 "format_instructions": self.output_parser.get_format_instructions()
             })
             result = TutorPersona.model_validate(generated_data)
             return result
         except Exception as e:
-            print(f"Error generating definition: {e}")
-            input("try again? (y/n)")
-            if input().lower() == 'y':
-                return self.generate(lab_manual_content)
-            else:
-                raise RuntimeError(f"fail to generate definition: {str(e)}") from e
+            raise RuntimeError(f"fail to generate definition: {str(e)}") from e
         
 if __name__ == "__main__":
     #example usage; run at the root directory
-    with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
-        lab_manual_content = f.read()
+    async def main():
+        with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
+            lab_manual_content = f.read()
+        
+        from langchain_deepseek import ChatDeepSeek
+        import config
+        from dotenv import load_dotenv
+        load_dotenv()  
+        
+        generator = PersonaGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
+        definition =  await generator.generate(lab_manual_content)
+        print(definition.model_dump_json(indent=2))
     
-    from langchain_deepseek import ChatDeepSeek
-    import config
-    from dotenv import load_dotenv
-    load_dotenv()  
+    asyncio.get_event_loop().run_until_complete(main())
     
-    generator = PersonaGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
-    definition =  generator.generate(lab_manual_content)
-    print(definition.model_dump_json(indent=2))
