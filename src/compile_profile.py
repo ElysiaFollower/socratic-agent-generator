@@ -2,7 +2,7 @@ import json
 import jinja2
 from pathlib import Path
 
-from generators.prompt_assembler import PromptAssembler
+from src.utils.prompt_assembler import PromptAssembler
 
 def compile_profile(config_dir: Path, template_path: Path, output_path: Path):
     """

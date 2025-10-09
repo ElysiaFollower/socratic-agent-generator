@@ -35,9 +35,8 @@ class PersonaGenerator:
     Generate persona for tutor
     given out persona_hints/target_audience in json format
     """
-    def __init__(self, llm: Any, max_retries: int = 3):
+    def __init__(self, llm: Any):
         self.llm = llm
-        self.max_retries = max_retries
         self.output_parser = JsonOutputParser(pydantic_object=TutorPersona)
         self.prompt = ChatPromptTemplate.from_messages([
             ("system",
@@ -74,21 +73,20 @@ class PersonaGenerator:
         print("🤖 Analyzing lab manual to generate definition.json...")
         content_excerpt = self._create_excerpt(lab_manual_content, max_chars=MAX_INPUT_TOKENS-1000)
 
-        for attempt in range(self.max_retries):
-            try:
-                generated_data = self.chain.invoke({
-                    "lab_manual_content": content_excerpt,
-                    "format_instructions": self.output_parser.get_format_instructions()
-                })
-                result = TutorPersona.model_validate(generated_data)
-                return result
-            except Exception as e:
-                print(f"❌ [Attempt {attempt + 1}/{self.max_retries}] Error generating definition: {e}")
-                if attempt + 1 == self.max_retries:
-                    raise RuntimeError(f"Definition generation failed after {self.max_retries} attempts.") from e
-        
-        # This line should not be reachable due to the raise in the loop
-        raise RuntimeError("Definition generation failed unexpectedly.")
+        try:
+            generated_data = self.chain.invoke({
+                "lab_manual_content": content_excerpt,
+                "format_instructions": self.output_parser.get_format_instructions()
+            })
+            result = TutorPersona.model_validate(generated_data)
+            return result
+        except Exception as e:
+            print(f"Error generating definition: {e}")
+            input("try again? (y/n)")
+            if input().lower() == 'y':
+                return self.generate(lab_manual_content)
+            else:
+                raise RuntimeError(f"fail to generate definition: {str(e)}") from e
         
 if __name__ == "__main__":
     #example usage; run at the root directory

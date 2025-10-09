@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 # --- 核心模块导入 ---
-from generators.curriculum_generator import CurriculumGenerator
+from src.generators.CurriculumGenerator import CurriculumGenerator
 
 # --- LLM 与环境 ---
 from langchain_deepseek import ChatDeepSeek

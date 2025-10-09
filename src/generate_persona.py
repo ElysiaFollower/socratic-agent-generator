@@ -8,7 +8,7 @@ import sys
 
 
 
-from generators.persona_generator import PersonaGenerator
+from src.generators.PersonaGenerator import PersonaGenerator
 
 from langchain_deepseek import ChatDeepSeek
 from config import TEMPERATURE
