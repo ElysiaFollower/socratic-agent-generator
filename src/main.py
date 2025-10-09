@@ -3,7 +3,7 @@ import json
 import json
 import argparse
 from pathlib import Path
-from generator.prompt_assembler import assemble_socratic_prompt
+from generators.prompt_assembler import assemble_socratic_prompt
 import config
 
 def main():

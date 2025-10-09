@@ -26,15 +26,11 @@ class TutorPersona(BaseModel):
         description="The inferred target audience based on the manual's complexity and content."
     )
 
-    learning_objectives: List[str] = Field(
-        description="A list of specific, action-oriented learning objectives that a student will achieve."
-    )
-
 
 class PersonaGenerator:
     """
     Generate persona for tutor
-    given out persona_hints/target_audience/learning_objectives in json format
+    given out persona_hints/target_audience in json format
     """
     def __init__(self, llm: Any, max_retries: int = 3):
         self.llm = llm
@@ -47,10 +43,9 @@ class PersonaGenerator:
              "You must infer all information, including a creative and fitting persona for the tutor.\n\n"
              "Analyze the provided lab manual to determine the following:\n"
              "1.  **topic_name**: Create a clear, compelling title for the lab.\n"
-             "2.  **learning_objectives**: Extract the key skills and concepts a student will master. These must be specific and action-oriented (e.g., 'Use GDB to analyze the stack').\n"
-             "3.  **target_audience**: Infer the intended audience (e.g., 'Beginners in Python', 'Advanced cybersecurity students') based on the manual's complexity, prerequisites, and tone.\n"
-             "4.  **persona_hints**: Be creative. Invent an engaging persona that fits the lab's subject matter. For a hacking lab, a 'CTF champion' persona is great. For a data science lab, a 'data detective' might be fitting. Define their role, tone, style, and a catchphrase.\n"
-             "5.  **domain_specific_constraints**: Identify crucial rules or ethical guidelines. For security labs, this is about ethics. For science labs, it could be about safety.\n\n"
+             "2.  **target_audience**: Infer the intended audience (e.g., 'Beginners in Python', 'Advanced cybersecurity students') based on the manual's complexity, prerequisites, and tone.\n"
+             "3.  **persona_hints**: Be creative. Invent an engaging persona that fits the lab's subject matter. For a hacking lab, a 'CTF champion' persona is great. For a data science lab, a 'data detective' might be fitting. Define their role, tone, style, and a catchphrase.\n"
+             "4.  **domain_specific_constraints**: Identify crucial rules or ethical guidelines. For security labs, this is about ethics. For science labs, it could be about safety.\n\n"
              "Produce a single JSON object that strictly follows the provided format instructions:\"{format_instructions}\". Be insightful and creative."),
             ("user",
              "Here is the lab manual. Please analyze it and generate the complete definition metadata.\n\n"

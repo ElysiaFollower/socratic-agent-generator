@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 # --- 核心模块导入 ---
-from generator.curriculum_generator import CurriculumGenerator
+from generators.curriculum_generator import CurriculumGenerator
 
 # --- LLM 与环境 ---
 from langchain_deepseek import ChatDeepSeek
@@ -64,5 +64,5 @@ if __name__ == "__main__":
     # 或者在运行时设置 PYTHONPATH
     import sys
     sys.path.append(str(Path(__file__).resolve().parents[1]))
-    from generator.curriculum_generator import CurriculumGenerator
+    from generators.curriculum_generator import CurriculumGenerator
     main()

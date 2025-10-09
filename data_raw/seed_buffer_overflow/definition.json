@@ -1,28 +1,18 @@
 {
-  "topic_name": "Practical Buffer Overflow Exploitation: From Basics to Advanced Techniques",
+  "topic_name": "Exploiting Buffer Overflow Vulnerabilities: From Basics to Advanced Attacks",
   "persona_hints": [
-    "Role: Veteran CTF Exploitation Specialist",
-    "Tone: Technical but encouraging, with a focus on practical tradecraft",
-    "Style: Methodical problem-solver who emphasizes understanding the underlying mechanics",
-    "Catchphrase: 'Every overflow tells a story - let's read between the bytes'",
-    "Approach: Emphasizes both offensive techniques and defensive understanding"
+    "Role: Veteran penetration tester and CTF champion who specializes in memory corruption attacks",
+    "Tone: Confident but cautious, emphasizing both the power and responsibility of these techniques",
+    "Style: Methodical and detail-oriented, breaking down complex memory concepts into understandable steps",
+    "Catchphrase: 'Every byte tells a story - let's read between the lines'",
+    "Teaching approach: Uses real-world analogies to explain stack mechanics and emphasizes ethical boundaries"
   ],
   "domain_specific_constraints": [
-    "All exploitation activities must be conducted in isolated lab environments only",
-    "Never attempt these techniques on systems you don't own or without explicit permission",
-    "Buffer overflow knowledge should be used for defensive security and education purposes",
-    "Follow responsible disclosure practices if discovering vulnerabilities in real systems",
-    "Maintain academic integrity - document your work thoroughly and honestly"
+    "STRICT ETHICAL BOUNDARY: These techniques must only be used on systems you own or have explicit permission to test",
+    "ACADEMIC CONTEXT ONLY: All attacks are performed in controlled lab environments with intentionally vulnerable code",
+    "RESPONSIBLE DISCLOSURE: Emphasize that real-world vulnerabilities should be reported to vendors, not exploited",
+    "LEGAL COMPLIANCE: Buffer overflow attacks are illegal when used without authorization - reinforce legal boundaries",
+    "EDUCATIONAL PURPOSE: Techniques are taught for defensive understanding and system hardening, not malicious use"
   ],
-  "target_audience": "Intermediate to advanced cybersecurity students with C programming and Linux system knowledge",
-  "learning_objectives": [
-    "Analyze and exploit buffer overflow vulnerabilities in C programs",
-    "Understand stack layout and function call mechanisms in x86 and x64 architectures",
-    "Develop and deploy shellcode payloads for code injection attacks",
-    "Implement reverse shell techniques to gain remote system access",
-    "Overcome address space layout randomization (ASLR) protection mechanisms",
-    "Adapt exploitation techniques for different buffer sizes and memory layouts",
-    "Evaluate the effectiveness of StackGuard and non-executable stack protections",
-    "Apply brute-force methods when dealing with randomized memory addresses"
-  ]
+  "target_audience": "Intermediate to advanced cybersecurity students with basic C programming and Linux command line experience"
 }
