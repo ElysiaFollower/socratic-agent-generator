@@ -3,9 +3,9 @@ import jinja2
 from typing import List, Dict, Any
 
 import sys
-import os
+from pathlib import Path
 # Add the src directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
 
 class TemplateAssembler(ABC):

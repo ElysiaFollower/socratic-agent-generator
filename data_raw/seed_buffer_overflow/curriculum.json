@@ -1,62 +1,68 @@
 [
   {
     "step_title": "环境准备与防御措施关闭",
-    "guiding_question": "想象一下，我们要研究一把锁的安全漏洞，是不是应该先把锁匠安装的各种防护装置暂时关闭，才能更清楚地看到锁芯的工作原理？",
-    "success_criteria": "学生能够解释为什么要关闭地址随机化等防御机制，并成功配置实验环境",
-    "learning_objective": "理解缓冲区溢出攻击实验环境的基本配置原理，掌握关闭ASLR等防御机制的方法"
+    "guiding_question": "想象一下，我们要研究一个古老的城堡防御系统，但首先需要暂时关闭现代安保设备才能观察原始结构。你认为为什么在分析缓冲区溢出漏洞时，需要先关闭地址随机化这样的保护机制？",
+    "success_criteria": "学生能够正确执行sysctl命令关闭地址随机化，并解释为什么在实验环境中需要这样做",
+    "learning_objective": "理解地址空间布局随机化(ASLR)的基本原理及其对缓冲区溢出攻击的影响，掌握实验环境配置方法"
   },
   {
     "step_title": "熟悉Shellcode",
-    "guiding_question": "如果把缓冲区溢出比作一把钥匙，那么Shellcode就是这把钥匙能够开启的指令序列。你认为什么样的指令序列既能完成我们的目标，又不会触发系统的安全警报？",
-    "success_criteria": "学生能够理解Shellcode的工作原理，并成功修改Shellcode执行自定义命令",
-    "learning_objective": "掌握Shellcode的基本结构和修改方法，理解二进制代码注入的原理"
+    "guiding_question": "如果把缓冲区溢出比作一把钥匙，那么shellcode就是这把钥匙的齿纹。你认为为什么shellcode需要精心设计，而不能直接使用普通的程序代码？",
+    "success_criteria": "学生能够修改shellcode以执行自定义命令，并解释shellcode中特殊字符限制的原因",
+    "learning_objective": "掌握shellcode的工作原理，理解机器码执行机制，学会修改和测试自定义shellcode"
   },
   {
-    "step_title": "第一关攻击 - 基础溢出",
-    "guiding_question": "当strcpy()函数遇到超出预期长度的输入时，就像往一个固定大小的杯子里倒水，多余的水会流向哪里？你认为这些'溢出的水'会覆盖什么重要的信息？",
-    "success_criteria": "学生能够成功利用32位服务器的缓冲区溢出漏洞获取root权限",
-    "learning_objective": "理解栈帧结构，掌握定位返回地址和注入Shellcode的基本方法"
+    "step_title": "第一关攻击基础",
+    "guiding_question": "在32位系统中，函数调用时栈的结构就像一叠整齐的书本。如果有一本书的内容溢出到了下一本书的位置，会发生什么？你认为如何利用这种溢出控制程序的执行流程？",
+    "success_criteria": "学生能够定位返回地址在栈中的位置，并成功构造payload覆盖返回地址",
+    "learning_objective": "理解32位栈帧结构，掌握strcpy漏洞利用原理，学会计算缓冲区地址和返回地址偏移"
   },
   {
-    "step_title": "第二关攻击 - 未知缓冲区",
-    "guiding_question": "如果不知道杯子的确切大小，你如何确定需要倒多少水才能刚好溢出？在内存中，这种'试探'会面临什么挑战？",
-    "success_criteria": "学生在未知缓冲区大小的情况下成功利用32位服务器漏洞",
-    "learning_objective": "掌握在信息不完整条件下的攻击策略，理解内存对齐对攻击成功的影响"
+    "step_title": "第一关实战攻击",
+    "guiding_question": "现在我们已经知道了栈的结构和shellcode的作用，你认为如何将这两者结合起来，让程序在溢出后执行我们的shellcode而不是崩溃？",
+    "success_criteria": "学生成功利用缓冲区溢出漏洞在32位服务器上获取root权限",
+    "learning_objective": "掌握完整的缓冲区溢出攻击链构造，包括payload布局、返回地址计算和shellcode注入"
   },
   {
-    "step_title": "第三关攻击 - 64位挑战",
-    "guiding_question": "从32位到64位，地址空间扩大了，但strcpy函数遇到零字节就会停止。这就像在一条宽阔的高速公路上设置了收费站，你如何设计payload才能顺利通过所有'收费站'？",
-    "success_criteria": "学生能够成功利用64位服务器的缓冲区溢出漏洞",
-    "learning_objective": "理解64位架构下的地址空间特点，掌握规避零字节限制的技巧"
+    "step_title": "第二关未知缓冲区攻击",
+    "guiding_question": "如果不知道书架的确切大小，但知道它在一定范围内，你会用什么策略来找到刚好能放满书架又不溢出的书？这种策略在缓冲区溢出攻击中如何应用？",
+    "success_criteria": "学生在未知缓冲区大小的情况下成功利用漏洞，理解暴力攻击的限制条件",
+    "learning_objective": "掌握在不确定缓冲区大小情况下的攻击策略，理解内存对齐对攻击成功的影响"
   },
   {
-    "step_title": "第四关攻击 - 小缓冲区限制",
-    "guiding_question": "如果溢出的空间非常有限，就像只能携带很少的行李上飞机，你如何精心安排这些'行李'的摆放顺序，确保最重要的物品能够发挥作用？",
-    "success_criteria": "学生能够在小缓冲区条件下成功利用64位服务器漏洞",
-    "learning_objective": "掌握在有限空间内构造高效payload的技术，理解栈布局优化的重要性"
+    "step_title": "第三关64位零字节问题",
+    "guiding_question": "64位系统的地址空间更大，但strcpy函数遇到零字节就会停止复制。这就像用吸管喝水时遇到气泡就会停止吸水。你认为如何绕过这个限制来构造有效的攻击payload？",
+    "success_criteria": "学生成功解决64位地址中的零字节问题并利用漏洞获取权限",
+    "learning_objective": "理解64位与32位架构差异，掌握零字节问题的解决方案，学会64位栈帧分析"
   },
   {
-    "step_title": "地址随机化评估",
-    "guiding_question": "想象一下，如果每次重启后，城市的所有街道都随机重新命名，导航系统还能正常工作吗？地址随机化如何让攻击者的'导航'变得困难？",
-    "success_criteria": "学生能够评估ASLR对缓冲区溢出攻击的影响，理解19位随机化的防护效果",
-    "learning_objective": "理解ASLR的工作原理和防护效果，掌握在ASLR启用条件下的攻击策略"
+    "step_title": "第四关小缓冲区挑战",
+    "guiding_question": "如果溢出的空间非常有限，就像在一个小杯子里装很多东西，你会如何优化payload的结构来最大化利用有限的空间？",
+    "success_criteria": "学生在小缓冲区条件下成功构造精确payload并利用漏洞",
+    "learning_objective": "掌握在有限溢出空间下的payload优化技术，理解小缓冲区攻击的特殊挑战"
   },
   {
-    "step_title": "StackGuard保护评估",
-    "guiding_question": "如果在栈的关键位置放置一个'哨兵'，任何试图越过这个哨兵的行为都会被立即发现。你认为这种机制如何防止缓冲区溢出攻击的成功？",
-    "success_criteria": "学生能够解释StackGuard机制的工作原理，评估其对缓冲区溢出的防护效果",
-    "learning_objective": "理解canary值的检测机制，掌握StackGuard防护原理"
+    "step_title": "地址随机化防护评估",
+    "guiding_question": "现在我们把安保系统重新打开。地址随机化让每次运行程序时栈的位置都不同，这就像每次重启后城堡的密室都会随机移动。你认为这种防护对攻击者造成了什么困难？",
+    "success_criteria": "学生能够分析ASLR对攻击成功率的影响，理解19位随机化的安全意义",
+    "learning_objective": "评估ASLR防护机制的有效性，理解随机化位数与安全性的关系"
   },
   {
-    "step_title": "不可执行栈评估",
-    "guiding_question": "如果把栈区域标记为'只读数据区'，就像禁止在停车场里直接修车，Shellcode即使成功注入也无法执行。这种防护方式有什么优缺点？",
-    "success_criteria": "学生能够评估不可执行栈对Shellcode执行的防护效果，理解段错误的产生原因",
-    "learning_objective": "掌握不可执行栈的防护原理，理解现代操作系统内存保护机制"
+    "step_title": "StackGuard保护机制分析",
+    "guiding_question": "StackGuard在栈上放置了一个'哨兵值'，就像在保险箱里放了一个会响的铃铛。如果有人试图破坏保险箱，铃铛就会响。你认为这种机制如何检测栈溢出攻击？",
+    "success_criteria": "学生能够解释canary值的工作原理，并测试StackGuard防护的有效性",
+    "learning_objective": "理解StackGuard防护机制，掌握canary值的检测原理和绕过方法"
   },
   {
-    "step_title": "综合防护与防范总结",
-    "guiding_question": "经过这一系列实验，你认为哪种防护措施最有效？在实际开发中，我们应该如何组合使用这些防护措施来构建纵深防御体系？",
-    "success_criteria": "学生能够综合分析各种防护措施的效果，提出合理的防御策略组合",
-    "learning_objective": "建立完整的缓冲区溢出防护知识体系，掌握纵深防御的设计思路"
+    "step_title": "不可执行栈保护测试",
+    "guiding_question": "不可执行栈就像在书架上贴了'禁止在此书写'的标签。即使你把代码写在上面，系统也不会执行它。这种防护如何影响我们的shellcode执行？",
+    "success_criteria": "学生能够演示不可执行栈对shellcode执行的影响，理解段错误的产生原因",
+    "learning_objective": "评估不可执行栈防护的有效性，理解数据执行保护(DEP)的原理"
+  },
+  {
+    "step_title": "综合防护措施分析",
+    "guiding_question": "经过这一系列实验，你认为现代操作系统中的多种防护机制是如何协同工作来防御缓冲区溢出攻击的？单独使用某一种防护是否足够？",
+    "success_criteria": "学生能够综合分析各种防护机制的优势和局限性，提出完整的安全防护策略",
+    "learning_objective": "整合所学知识，理解纵深防御理念，掌握缓冲区溢出防护的最佳实践"
   }
 ]

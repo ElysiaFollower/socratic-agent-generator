@@ -60,9 +60,4 @@ def main():
     print(f"   查看输出: {output_path.resolve()}")
 
 if __name__ == "__main__":
-    # 为了让这个脚本能找到 generator 模块，我们需要一些路径技巧
-    # 或者在运行时设置 PYTHONPATH
-    import sys
-    sys.path.append(str(Path(__file__).resolve().parents[1]))
-    from generators.curriculum_generator import CurriculumGenerator
     main()

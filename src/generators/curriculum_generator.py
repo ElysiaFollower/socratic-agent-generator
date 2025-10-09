@@ -5,6 +5,9 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import LESSON_DOMAIN
 
 # ----------------------------------------------------------------
@@ -164,3 +167,17 @@ class CurriculumGenerator:
         curriculum = self._transform_to_socratic_curriculum(digested_manual)
         
         return curriculum
+    
+if __name__ == "__main__":
+    # example usages, run at root directory
+    with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
+        lab_manual_content = f.read()
+    
+    from langchain_deepseek import ChatDeepSeek
+    import config
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    generator = CurriculumGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
+    curriculum = generator.generate(lab_manual_content)
+    print(curriculum.model_dump_json(indent=2))

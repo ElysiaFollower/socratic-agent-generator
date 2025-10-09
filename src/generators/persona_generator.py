@@ -5,6 +5,9 @@ from pydantic import BaseModel, Field
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import MAX_INPUT_TOKENS
 
 class TutorPersona(BaseModel):
@@ -87,3 +90,16 @@ class PersonaGenerator:
         # This line should not be reachable due to the raise in the loop
         raise RuntimeError("Definition generation failed unexpectedly.")
         
+if __name__ == "__main__":
+    #example usage; run at the root directory
+    with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
+        lab_manual_content = f.read()
+    
+    from langchain_deepseek import ChatDeepSeek
+    import config
+    from dotenv import load_dotenv
+    load_dotenv()  
+    
+    generator = PersonaGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
+    definition =  generator.generate(lab_manual_content)
+    print(definition.model_dump_json(indent=2))
