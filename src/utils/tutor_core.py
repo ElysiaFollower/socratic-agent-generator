@@ -6,7 +6,7 @@ load_dotenv()
 import json
 import uuid
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, overload, Union
 from datetime import datetime
 import pytz
 # --- LangChain核心组件 ---
@@ -15,19 +15,17 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.output_parsers import StrOutputParser
 
-# --- LLM选择 ---
-# TODO: 未来可以把这里做成可配置的，以加载不同的LLM。
-from langchain_deepseek import ChatDeepSeek
-
-from config import SESSION_DATA_DIR, SUPPORTED_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME, TEMPERATURE
+from config import SESSION_DATA_DIR, SUPPORTED_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME, TEMPERATURE, get_default_llm
 
 class Tutor:
     """
     一个Tutor实例对应一个独立的、可持久化的会话。拥有唯一的session_id
     """
-    def __init__(self, session_id: str, profile_path: Optional[Path], language: Optional[str], session_name: Optional[str] = None):
-        '''初始化; session_id is needed; when the session data exists, it will be loaded from the file and the following parameters are ignored
+    def __init__(self, session_id: str, llm: Optional[Any]=None, profile_path: Optional[Path]=None, language: Optional[str]=None, session_name: Optional[str] = None):
+        '''初始化; session_id is required; if the session data exists, it will be loaded from the file and the following parameters(except llm) are ignored
+        llm: if None, use the default llm
         attributes:
+            llm: Any, eg: ChatDeepSeek
             session_id: str
             sessionFilePath: Path
                 session_name: str
@@ -51,57 +49,69 @@ class Tutor:
         if not self._load(self.sessionFilePath):
             # load existing session data failed, create a new one
             if profile_path is None:
-                raise ValueError("错误：缺少必要参数：profile_path; when create a new session, profile_path is needed")
+                raise ValueError("error：lack necessary parameters：profile_path; when create a new session, profile_path is needed")
             self._create(session_id, profile_path, language, session_name)
         
-        # --- 初始化 LangChain 组件 ---
-        llm = ChatDeepSeek(model="deepseek-chat", temperature=TEMPERATURE)
+        self.llm = llm or get_default_llm()
         
-        prompt = ChatPromptTemplate.from_messages([
+        main_prompt = ChatPromptTemplate.from_messages([
             ("system", "{system_prompt_with_state}"),
             MessagesPlaceholder(variable_name="history"),
             ("user", "{input}"),
         ])
+        # TODO: new evaluation logic with success_criteria
         evaluator_prompt = ChatPromptTemplate.from_template("教学目标：{step_desc}。学生回答：{user_input}。他是否已经正确理解或完成了这个步骤？请只回答'是'或'否'，不要有任何其他多余的字。")
 
         #主智能体链(无对话记录)
-        chain = prompt | llm | StrOutputParser()
+        main_chain = main_prompt | self.llm | StrOutputParser()
         #评估器链
-        self.evaluator_chain = evaluator_prompt | llm | StrOutputParser()
+        self.evaluator_chain = evaluator_prompt | self.llm | StrOutputParser()
 
         #主智能体链
-        self.chain_with_history = RunnableWithMessageHistory(
-            chain,
+        self.main_chain_with_history = RunnableWithMessageHistory(
+            main_chain,
             lambda sid: self.history, # session is implemented by ourself, ignore this parameter
             input_messages_key="input",
             history_messages_key="history",
         )
-        print("导师初始化完毕！")
-
-
-    def _load_tutor_profile(self, profile_path: Path) -> None:
-        """
-        加载并验证导师配置档案。
-        """
-        if profile_path is None or not profile_path.exists():
-            raise FileNotFoundError(f"错误：导师配置档案未找到 -> {profile_path}")
+        print("Tutor init success!")
         
-        with open(profile_path, 'r', encoding='utf-8') as f:
-            try:
-                profile = json.load(f)
-            except json.JSONDecodeError:
-                raise ValueError(f"错误：无法解析JSON文件 -> {profile_path}")
-
-        # 验证关键字段是否存在
-        required_keys = ["topic_name", "system_prompt_template", "curriculum"]
-        if not all(key in profile for key in required_keys):
-            raise ValueError("错误：配置文件中缺少必要的字段 (topic_name, system_prompt_template, curriculum)")
+    @overload
+    def _load_tutor_profile(self, profile: Dict[str, Any]) -> None:
+        """load tutor profile from given content""" 
+        ...
+    @overload
+    def _load_tutor_profile(self, profile: Path) -> None:
+        """load tutor profile from file"""
+        ...
+    def _load_tutor_profile(self, profile: Union[Path, Dict[str, Any]]) -> None:
+        "load tutor profile from given content or file"
+        if isinstance(profile, Path):
+            profile_path = profile
+            if profile_path is None or not profile_path.exists():
+                raise FileNotFoundError(f"error: tutor profile not found -> {profile_path}")
             
-        self.topic_name = profile.get("topic_name", None)
-        self.system_prompt_template = profile.get("system_prompt_template", None)
-        self.curriculum = profile.get("curriculum", None)
-        
-    
+            with open(profile_path, 'r', encoding='utf-8') as f:
+                try:
+                    profile_data = json.load(f)
+                except json.JSONDecodeError:
+                    raise ValueError(f"error：unable to parse JSON file -> {profile_path}")
+        else:
+            profile_data = profile
+            
+        # check required keys(must given)
+        required_keys = ["prompt_template_string", "curriculum"]
+        if not all(key in profile_data for key in required_keys):
+            raise ValueError(f"error：profile requires the following fields: {required_keys}")
+            
+        self.topic_name = profile_data.get("topic_name", None)
+        self.target_audience = profile_data.get("target_audience", None)
+        self.persona_hints = profile_data.get("persona_hints", None)
+        self.domain_specific_constraints = profile_data.get("domain_specific_constraints", None)
+        self.learning_objectives = profile_data.get("learning_objectives", None)
+        self.curriculum = profile_data.get("curriculum", None)
+        self.prompt_template_string = profile_data.get("prompt_template_string", None)
+
     def _load(self, sessionFilePath: Path) -> bool:
         """given a session file path. try to load the session data from the file
             if the session data does not exist, return False else return True

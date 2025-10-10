@@ -2,7 +2,7 @@
 
 import argparse
 from pathlib import Path
-from tutor_core import Tutor 
+from src.utils.tutor_core import Tutor 
 
 def cli_main():
     """主函数：导师运行器"""

@@ -66,7 +66,7 @@ class ProfileGenerateManager:
         persona_dump = persona.model_dump()
         return persona_dump
     
-    async def compile_profile(self, curriculum: Optional[List[Dict[str, Any]]]=None, definition: Optional[Dict[str, Any]]=None) -> None:
+    async def compile_profile(self, curriculum: Optional[List[Dict[str, Any]]]=None, definition: Optional[Dict[str, Any]]=None, profile_name: Optional[str]=None) -> None:
         """compile the profile and save it to disk
         curriculum and definition is readable and can be modified by user
         but profile is not readable and not designed to be modified
@@ -74,25 +74,36 @@ class ProfileGenerateManager:
         Args:
             curriculum (Optional[List[Dict[str, Any]]], optional): reviewed curriculum. Defaults: auto generated.
             definition (Optional[Dict[str, Any]], optional): reviewed definition. Defaults: auto generated.
+            profile_name (Optional[str], optional): profile name. Defaults: topic_name.
         """
-        curriculum = curriculum or await self.generate_curriculum()
-        definition = definition or await self.generate_persona()
+        if curriculum is None and definition is None:
+            curriculum, definition = await asyncio.gather(
+                self.generate_curriculum(),
+                self.generate_persona()
+            )
+        else:
+            curriculum = curriculum or await self.generate_curriculum()
+            definition = definition or await self.generate_persona()
+        assert curriculum is not None
+        assert definition is not None
         
         # assemble prompt
         base_template = self.template_assembler.assemble(definition, curriculum)
         
         # generate profile
-        profile = self._assemble_profile(curriculum, definition, base_template)
+        profile = self._assemble_profile(curriculum, definition, base_template, profile_name)
         
         # save
         self._save_profile(profile)
     
-    def _assemble_profile(self, curriculum: List[Dict[str, Any]], definition: Dict[str, Any], base_template: str) -> Dict[str, Any]:
+    def _assemble_profile(self, curriculum: List[Dict[str, Any]], definition: Dict[str, Any], base_template: str, profile_name: Optional[str]) -> Dict[str, Any]:
         """
         define the structure of profile
         """
+        profile_name = profile_name or definition.get("topic_name") # use topic_name as its default(init) value
         profile = {
             "profile_id": str(uuid.uuid4()),
+            "profile_name": profile_name, 
             "topic_name": definition.get("topic_name"),
             "persona_hints": definition.get("persona_hints"),
             "target_audience": definition.get("target_audience"),

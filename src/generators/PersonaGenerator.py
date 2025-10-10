@@ -81,6 +81,7 @@ class PersonaGenerator:
                 "format_instructions": self.output_parser.get_format_instructions()
             })
             result = TutorPersona.model_validate(generated_data)
+            print("🤖 definition generated successfully")
             return result
         except Exception as e:
             raise RuntimeError(f"fail to generate definition: {str(e)}") from e

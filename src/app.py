@@ -12,7 +12,7 @@ from pydantic import BaseModel
 
 # --- 导入核心模块和配置 ---
 from config import PROFILES_DIR, SESSION_DATA_DIR, CORS_ALLOWED_ORIGINS, API_HOST, API_PORT
-from tutor_core import Tutor
+from src.utils.tutor_core import Tutor
 
 # --- FastAPI 应用实例 ---
 app = FastAPI(
