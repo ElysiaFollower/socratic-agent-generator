@@ -9,9 +9,11 @@ import config
 from generators.CurriculumGenerator import CurriculumGenerator
 from generators.PersonaGenerator import PersonaGenerator
 from utils.TemplateAssembler import BaseTemplateAssembler
+from schemas.profile import Profile
+from schemas.curriculum import SocraticCurriculum
+from schemas.definition import TutorPersona
 
 from typing import Dict, List, Optional, Any
-import uuid
 import json
 import asyncio
 
@@ -46,27 +48,25 @@ class ProfileGenerateManager:
         """
         self.lab_manual_content = lab_manual_content
         
-    async def generate_curriculum(self)->List[Dict[str, Any]]:
+    async def generate_curriculum(self)->SocraticCurriculum:
         """generate curriculum by referencing lab manual
 
         Returns:
             List[Dict[str, str]]: list of steps
         """
         curriculum = await self.curriculum_generator.generate(self.lab_manual_content)
-        curriulum_dump = [step.model_dump() for step in curriculum.curriculum]
-        return curriulum_dump
+        return curriculum
 
-    async def generate_persona(self)->Dict[str, Any]:
+    async def generate_persona(self)->TutorPersona:
         """generate persona by referencing lab manual
 
         Returns:
             Dict[str, str]: persona
         """
         persona = await self.persona_generator.generate(self.lab_manual_content)
-        persona_dump = persona.model_dump()
-        return persona_dump
+        return persona
     
-    async def compile_profile(self, curriculum: Optional[List[Dict[str, Any]]]=None, definition: Optional[Dict[str, Any]]=None, profile_name: Optional[str]=None) -> None:
+    async def compile_profile(self, curriculum: Optional[SocraticCurriculum]=None, definition: Optional[TutorPersona]=None, profile_name: Optional[str]=None) -> None:
         """compile the profile and save it to disk
         curriculum and definition is readable and can be modified by user
         but profile is not readable and not designed to be modified
@@ -96,23 +96,22 @@ class ProfileGenerateManager:
         # save
         self._save_profile(profile)
     
-    def _assemble_profile(self, curriculum: List[Dict[str, Any]], definition: Dict[str, Any], base_template: str, profile_name: Optional[str]) -> Dict[str, Any]:
+    def _assemble_profile(self, curriculum: SocraticCurriculum, definition: TutorPersona, base_template: str, profile_name: Optional[str]) -> Profile:
         """
         define the structure of profile
         """
-        profile_name = profile_name or definition.get("topic_name") # use topic_name as its default(init) value
-        profile = {
-            "profile_id": str(uuid.uuid4()),
-            "profile_name": profile_name, 
-            "topic_name": definition.get("topic_name"),
-            "persona_hints": definition.get("persona_hints"),
-            "target_audience": definition.get("target_audience"),
-            "curriculum": curriculum,
-            "prompt_template": base_template            
-        }
-        return profile
+        # use topic_name as its default(init) value
+        # profile_id is auto generated
+        return Profile(
+            profile_name=profile_name,
+            topic_name=definition.get("topic_name", "unknown topic"),
+            persona_hints=definition.get("persona_hints", []),
+            target_audience=definition.get("target_audience", "unknown"),
+            curriculum=curriculum,
+            prompt_template=base_template
+        )
     
-    def _save_profile(self, profile: Dict[str, Any]) -> None:
+    def _save_profile(self, profile: Profile) -> None:
         """save profile to disk
 
         Args:
@@ -124,7 +123,7 @@ class ProfileGenerateManager:
         output_path = self.output_dir / f"{profile_id}.json"
         
         with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(profile, f, ensure_ascii=False, indent=2)
+            json.dump(profile.model_dump(), f, ensure_ascii=False, indent=2)
         
         print(f"Profile saved to {output_path}")
 

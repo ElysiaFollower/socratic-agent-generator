@@ -1,5 +1,4 @@
 from typing import List, Dict, Any
-from pydantic import BaseModel, Field
 
 # --- LangChain & LLM ---
 from langchain_core.prompts import ChatPromptTemplate
@@ -9,28 +8,9 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import MAX_INPUT_TOKENS
+from schemas.definition import TutorPersona
 
 import asyncio
-
-class TutorPersona(BaseModel):
-    """
-    The complete, structured metadata for a lesson, automatically inferred
-    from a lab manual. This will be saved as definition.json.
-    """
-    topic_name: str = Field(description="A concise and descriptive title for the lab/topic.")
-
-    persona_hints: List[str] = Field(
-        description="A list of creative and fitting clues to define the tutor's persona (role, tone, style, catchphrase)."
-    )
-
-    domain_specific_constraints: List[str] = Field(
-        description="Important rules or ethical considerations specific to the lab's domain (e.g., security ethics, lab safety)."
-    )
-
-    target_audience: str = Field(
-        description="The inferred target audience based on the manual's complexity and content."
-    )
-
 
 class PersonaGenerator:
     """

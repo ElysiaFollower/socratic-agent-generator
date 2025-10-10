@@ -1,5 +1,4 @@
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
 
 # --- LangChain & LLM ---
 from langchain_core.prompts import ChatPromptTemplate
@@ -9,58 +8,10 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import LESSON_DOMAIN
+from schemas.curriculum import SocraticCurriculum
+from schemas.others import DigestedManual
 
 import asyncio
-
-# ----------------------------------------------------------------
-# 1. 定义数据结构 
-# ----------------------------------------------------------------
-
-# 整理实验文档的结构
-class Task(BaseModel):
-    """单个实验任务的结构化摘要"""
-    task_title: str = Field(description="任务的标题，例如 '熟悉 Shellcode' 或 '编译与侦察'")
-    objective: str = Field(description="该任务的核心学习目标或挑战，用一句话高度总结。")
-    key_elements: List[str] = Field(
-        description="完成该任务所涉及的关键技术、命令、函数或概念的列表。例如：['-fno-stack-protector', 'gdb', 'EIP/RIP']"
-    )
-    
-class DigestedManual(BaseModel):
-    """实验手册的完整结构化摘要"""
-    overall_goal: str = Field(description="整个实验最终要达成的总体目标。")
-    tasks: List[Task] = Field(description="按顺序排列的、构成整个实验的所有核心任务列表。")
-
-
-# 输出教学大纲的结构
-class SocraticStep(BaseModel):
-    """
-    富信息的苏格拉底教学节点
-    """
-    step_title: str = Field(description="这一步骤的简短标题，例如：'关闭栈保护'或'定位返回地址'")
-    
-    # --- Human-Facing Channel ---
-    guiding_question: str = Field(
-        description="[对人] 用于奠定该步骤总基调，启发学生思考的生动的苏格拉底式提问"
-    )
-    
-    # --- Machine-Facing Channel ---
-    success_criteria: str = Field(
-        description="[对机器] 用于评估该步骤完成，明确的成功标准。例如: '学生需要描述出EIP寄存器的作用'"
-    )
-    
-    # --- 其它元数据 ---
-    learning_objective: str = Field(
-        description="学生在该步骤的学习中应该掌握的核心知识点"
-    )
-    
-class SocraticCurriculum(BaseModel):
-    """最终生成的完整苏格拉底教学大纲"""
-    curriculum: List[SocraticStep] = Field(description="按顺序排列的、构成整个实验的所有富信息教学节点。")
-
-
-# ----------------------------------------------------------------
-# 2. 定义核心生成逻辑
-# ----------------------------------------------------------------
 
 class CurriculumGenerator:
     """

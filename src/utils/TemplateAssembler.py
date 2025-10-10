@@ -7,6 +7,8 @@ from pathlib import Path
 # Add the src directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
+from schemas.curriculum import SocraticCurriculum
+from schemas.definition import TutorPersona
 
 class TemplateAssembler(ABC):
     """
@@ -42,7 +44,7 @@ class BaseTemplateAssembler(TemplateAssembler):
     used for profile generation
     """
     
-    def assemble(self, definition: Dict[str, Any], curriculum: List[Dict[str, Any]]) -> str:
+    def assemble(self, definition: TutorPersona, curriculum: SocraticCurriculum) -> str:
         """
         Assembles the base prompt by filling in the static parts of the template.
 
@@ -82,7 +84,7 @@ class BaseTemplateAssembler(TemplateAssembler):
         base_template = self.template.render(base_context | waited_to_render) # partially render the template, with placeholders unchanged
         return base_template
     
-    def _format_persona(self, definition: Dict[str, Any]) -> str:
+    def _format_persona(self, definition: TutorPersona) -> str:
         """
         Creates a rich persona description from the definition file.
         This is a significant upgrade from the simple join.
@@ -94,13 +96,13 @@ class BaseTemplateAssembler(TemplateAssembler):
             f"Your persona and style should be guided by these hints:\n- {hints}"
         )
 
-    def _format_curriculum_for_prompt(self, curriculum: List[Dict[str, Any]]) -> str:
+    def _format_curriculum_for_prompt(self, curriculum: SocraticCurriculum) -> str:
         """
         Formats the list of SocraticStep objects into a human-readable numbered list.
         step title + objective can mostly represent the overall curriculum
         """
         formatted_steps = []
-        for i, step in enumerate(curriculum, 1):
+        for i, step in enumerate(curriculum.root, 1):
             formatted_steps.append(f"{i}. {step.get('step_title', 'Untitled Step')}: {step.get('learning_objective', '')}")
         return "\n".join(formatted_steps)
 
@@ -110,7 +112,7 @@ class PromptAssembler(TemplateAssembler):
     """
     Assembles the final dynamic prompt for the Socratic tutor.
     """
-    def assemble(self, curriculum: List[Dict[str, Any]], step: int, output_language: str=config.DEFAULT_OUTPUT_LANGUAGE) -> str:
+    def assemble(self, curriculum: SocraticCurriculum, step: int, output_language: str=config.DEFAULT_OUTPUT_LANGUAGE) -> str:
         """
         Assembles the final prompt by rendering the template with the dynamic content.
         used for interactive session
@@ -123,11 +125,11 @@ class PromptAssembler(TemplateAssembler):
         Returns:
             The assembled prompt as a string.
         """
-        if step < 1 or step > len(curriculum): 
+        if step < 1 or step > len(curriculum.root): 
             raise ValueError("Invalid step index; out of range.")    
     
         # Extract the current step data
-        current_step = curriculum[step - 1]
+        current_step = curriculum.root[step - 1]
 
         # Prepare the dynamic context for the current step
         dynamic_context = {
@@ -155,9 +157,11 @@ if __name__ == "__main__":
     # Assemble the base template
     import json
     with open("./data_raw/seed_buffer_overflow/definition.json", "r", encoding="utf-8") as f:
-        definition = json.load(f)
+        definition_data = json.load(f)
     with open("./data_raw/seed_buffer_overflow/curriculum.json", "r", encoding="utf-8") as f:
-        curriculum = json.load(f)
+        curriculum_data = json.load(f)
+    definition = TutorPersona(**definition_data)
+    curriculum = SocraticCurriculum(curriculum_data)
     base_template = base_assembler.assemble(definition, curriculum)
     print(base_template)
     print("\n\n --------------- \n\n")
