@@ -57,7 +57,7 @@ class BaseTemplateAssembler(TemplateAssembler):
         """
         # 1. Format the static components for the prompt
         persona_description = self._format_persona(definition)
-        domain_rules = "\n".join(f"- {rule}" for rule in definition.get("domain_specific_constraints", []))
+        domain_rules = "\n".join(f"- {rule}" for rule in definition.get_domain_specific_constraints())
         curriculum_str = self._format_curriculum_for_prompt(curriculum)
 
         # 2. Create a "partial" render of the template, filling only the static parts
@@ -65,7 +65,7 @@ class BaseTemplateAssembler(TemplateAssembler):
         # We can create a simple dictionary to hold the static parts.
         base_context = {
             "persona_description": persona_description,
-            "topic_name": definition.get("topic_name", "Unnamed Topic"),
+            "topic_name": definition.get_topic_name(),
             "domain_specific_rules": domain_rules,
             "curriculum_str": curriculum_str
         }
@@ -89,10 +89,10 @@ class BaseTemplateAssembler(TemplateAssembler):
         Creates a rich persona description from the definition file.
         This is a significant upgrade from the simple join.
         """
-        hints = "\n- ".join(definition.get("persona_hints", ["A helpful AI tutor."]))
+        hints = "\n- ".join(definition.get_persona_hints())
         return (
-            f"You are an Socratic AI Tutor for the topic: \"{definition.get('topic_name', 'Unnamed Topic')}\".\n"
-            f"Your target audience is: {definition.get('target_audience', 'students')}.\n"
+            f"You are an Socratic AI Tutor for the topic: \"{definition.get_topic_name()}\".\n"
+            f"Your target audience is: {definition.get_target_audience()}.\n"
             f"Your persona and style should be guided by these hints:\n- {hints}"
         )
 
@@ -102,8 +102,8 @@ class BaseTemplateAssembler(TemplateAssembler):
         step title + objective can mostly represent the overall curriculum
         """
         formatted_steps = []
-        for i, step in enumerate(curriculum.root, 1):
-            formatted_steps.append(f"{i}. {step.get('step_title', 'Untitled Step')}: {step.get('learning_objective', '')}")
+        for i, _ in enumerate(curriculum.root, 1):
+            formatted_steps.append(f"{i}. {curriculum.get_step_title(i)}: {curriculum.get_learning_objective(i)}")
         return "\n".join(formatted_steps)
 
 
@@ -112,32 +112,29 @@ class PromptAssembler(TemplateAssembler):
     """
     Assembles the final dynamic prompt for the Socratic tutor.
     """
-    def assemble(self, curriculum: SocraticCurriculum, step: int, output_language: str=config.DEFAULT_OUTPUT_LANGUAGE) -> str:
+    def assemble(self, curriculum: SocraticCurriculum, stepIndex: int, output_language: str=config.DEFAULT_OUTPUT_LANGUAGE) -> str:
         """
         Assembles the final prompt by rendering the template with the dynamic content.
         used for interactive session
         
         Args:
             curriculum: content of curriculum
-            step: current step index, start from 1
+            stepIndex: current step index, start from 1
             output_language: output language
             
         Returns:
             The assembled prompt as a string.
         """
-        if step < 1 or step > len(curriculum.root): 
+        if stepIndex < 1 or stepIndex > curriculum.get_len(): 
             raise ValueError("Invalid step index; out of range.")    
-    
-        # Extract the current step data
-        current_step = curriculum.root[step - 1]
 
         # Prepare the dynamic context for the current step
         dynamic_context = {
             "current_step": {
-                "step_title": current_step.get("step_title", "Untitled Step"),
-                "learning_objective": current_step.get("learning_objective", "No objective provided."),
-                "guiding_question": current_step.get("guiding_question", "No question provided."),
-                "success_criteria": current_step.get("success_criteria", "No criteria provided.")
+                "step_title": curriculum.get_step_title(stepIndex),
+                "learning_objective": curriculum.get_learning_objective(stepIndex),
+                "guiding_question": curriculum.get_guiding_question(stepIndex),
+                "success_criteria": curriculum.get_success_criteria(stepIndex)
             },
             "output_language": output_language
         }
@@ -169,7 +166,7 @@ if __name__ == "__main__":
     dynamic_assembler = PromptAssembler(base_template)
 
     # Assemble the dynamic prompt
-    final_prompt = dynamic_assembler.assemble(curriculum, step=2, output_language="English")
+    final_prompt = dynamic_assembler.assemble(curriculum, stepIndex=2, output_language="English")
     print(final_prompt)
     
     

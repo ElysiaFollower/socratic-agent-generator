@@ -32,3 +32,23 @@ class SocraticCurriculum(RootModel[List[SocraticStep]]): # may have some problem
         description="按顺序排列的、构成整个实验的所有富信息教学节点。"
     )
     
+    def get_step_title(self, stepIndex: int) -> str:
+        "start from 1"
+        return self.root[stepIndex-1].step_title
+    def get_guiding_question(self, stepIndex: int) -> str:
+        "start from 1"
+        return self.root[stepIndex-1].guiding_question
+    def get_success_criteria(self, stepIndex: int) -> str:
+        "start from 1"
+        return self.root[stepIndex-1].success_criteria
+    def get_learning_objective(self, stepIndex: int) -> str:
+        "start from 1"
+        return self.root[stepIndex-1].learning_objective
+    
+    def get_step(self, stepIndex: int) -> SocraticStep:
+        "start from 1"
+        return self.root[stepIndex-1]
+    
+    def get_len(self) -> int:
+        return len(self.root)
+    

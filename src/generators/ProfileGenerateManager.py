@@ -104,9 +104,9 @@ class ProfileGenerateManager:
         # profile_id is auto generated
         return Profile(
             profile_name=profile_name,
-            topic_name=definition.get("topic_name", "unknown topic"),
-            persona_hints=definition.get("persona_hints", []),
-            target_audience=definition.get("target_audience", "unknown"),
+            topic_name=definition.get_topic_name(),
+            persona_hints=definition.get_persona_hints(),
+            target_audience=definition.get_target_audience(),
             curriculum=curriculum,
             prompt_template=base_template
         )
