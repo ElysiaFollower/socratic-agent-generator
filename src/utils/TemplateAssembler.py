@@ -125,8 +125,10 @@ class PromptAssembler(TemplateAssembler):
         Returns:
             The assembled prompt as a string.
         """
-        if stepIndex < 1 or stepIndex > curriculum.get_len(): 
-            raise ValueError("Invalid step index; out of range.")    
+        if stepIndex < 1: 
+            raise ValueError("Invalid step index; out of range.")   
+        elif stepIndex > curriculum.get_len():
+            return "Task Complete. No additional task. Just Congratulations to user!"
 
         # Prepare the dynamic context for the current step
         dynamic_context = {

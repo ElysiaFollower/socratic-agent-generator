@@ -4,7 +4,7 @@ load_dotenv()
 
 import json
 from pathlib import Path
-from typing import Dict, Any, List, Optional, overload, Union
+from typing import Dict, Any, List, Optional, overload, Union, AsyncGenerator
 from datetime import datetime
 import pytz
 # --- LangChain core components ---
@@ -186,6 +186,7 @@ class Tutor:
         """
         处理单条用户消息，并返回导师的回复和最新状态。
         跳步作弊码：'希儿天下第一可爱'
+        mainly for testing; which is synchronous
         """
         # 需要维护当前进度状态,即SessionState.stepIndex
         
@@ -196,14 +197,14 @@ class Tutor:
             if self.session.state.stepIndex <= self.session.get_curriculum().get_len():
                 return ResponseMessage(
                     reply=f"(真拿你没办法，我们直接来看下一步吧) : {self.session.get_curriculum().get_guiding_question(self.session.state.stepIndex)}",
-                    state=self.session.state.stepIndex,
+                    state=self.session.state,
                     is_finished=False
                 )
 
         if self.session.state.stepIndex > self.session.get_curriculum().get_len():
             return ResponseMessage(
                 reply="太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！",
-                state=self.session.state.stepIndex,
+                state=self.session.state,
                 is_finished=True
             )
 
@@ -222,11 +223,12 @@ class Tutor:
             print("\n--- (导师在后台欣慰地点了点头，认为你已掌握，准备进入下一步) ---\n")
             self.session.state.stepIndex += 1
             additional_note = f"\n\n(user just passed last step. Please review and introduce current step)"
-            # 更新下一步的任务描述 (如果还有的话)
-            if self.session.state.stepIndex <= self.session.get_curriculum().get_len():
-                current_step_title = self.session.get_curriculum().get_step_title(self.session.state.stepIndex)
-                print(f"--- (当前步骤: {current_step_title}) ---")
-
+            if self.session.state.stepIndex > self.session.get_curriculum().get_len():
+                return ResponseMessage(
+                    reply="太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！",
+                    state=self.session.state,
+                    is_finished=True
+                )
         # 填充系统提示词模板
         # 用加载的模板，填充动态的当前步骤描述
         formatted_system_prompt = self.prompt_assembler.assemble(self.session.profile.curriculum, self.session.state.stepIndex, self.session.output_language)
@@ -241,9 +243,81 @@ class Tutor:
 
         return ResponseMessage(
             reply=response,
-            state=self.session.state.stepIndex,
+            state=self.session.state,
             is_finished=False
         )
+        
+    async def stream_message(self, user_input: str) -> AsyncGenerator[Union[str, ResponseMessage], None]:
+        """
+        yield ResponseMessage stream
+        and finally yield complete ResponseMessage 
+        """
+        reply = ""
+        if user_input == '希儿天下第一可爱': # 跳步机关(仅做特殊用途)
+            print("--- (检测到作弊码，强制进入下一关) ---")
+            self.session.state.stepIndex = min(self.session.state.stepIndex, self.session.get_curriculum().get_len()) + 1
+            self.save()
+            if self.session.state.stepIndex <= self.session.get_curriculum().get_len():
+                token = f"(真拿你没办法，我们直接来看下一步吧) : {self.session.get_curriculum().get_guiding_question(self.session.state.stepIndex)}"
+                yield token
+                yield ResponseMessage(
+                    reply=token,
+                    state=self.session.state,
+                    is_finished=False
+                )
+                return 
+        
+        if self.session.state.stepIndex > self.session.get_curriculum().get_len():
+            token = "太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！"
+            yield token
+            yield ResponseMessage(
+                reply=token,
+                state=self.session.state,
+                is_finished=True
+            )
+            return
+        
+        cur_step_title = self.session.get_curriculum().get_step_title(self.session.state.stepIndex)
+        cur_success_criteria = self.session.get_curriculum().get_success_criteria(self.session.state.stepIndex)
+        # evaluate
+        evaluation_result = await self.evaluator_chain.ainvoke({
+            "step_title": cur_step_title,
+            "success_criteria": cur_success_criteria,
+            "user_input": user_input
+        })
+
+        additional_note = ""
+        if evaluation_result.lower() == 'yes':
+            print("\n--- (导师在后台欣慰地点了点头，认为你已掌握，准备进入下一步) ---\n")
+            self.session.state.stepIndex += 1
+            additional_note = f"\n\n(user just passed last step. Please review and introduce current step)"
+            if self.session.state.stepIndex > self.session.get_curriculum().get_len():
+                token = "太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！"
+                yield token
+                yield ResponseMessage(
+                    reply=token,
+                    state=self.session.state,
+                    is_finished=True
+                )
+                return
+            
+        formatted_system_prompt = self.prompt_assembler.assemble(self.session.profile.curriculum, self.session.state.stepIndex, self.session.output_language)
+        
+        # ⭐ call main chain at stream mode and yield tokens
+        async for chunk in self.main_chain_with_history.astream({
+            "system_prompt_with_state": formatted_system_prompt + additional_note,
+            "input": user_input,
+        }, config={"configurable": {"session_id": self.session.session_id}}):
+            reply += chunk
+            yield chunk
+            
+        self.save()
+        yield ResponseMessage(
+            reply=reply,
+            state=self.session.state,
+            is_finished=False
+        )
+
 
 if __name__ == '__main__':
     # example usage and test
