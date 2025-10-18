@@ -26,11 +26,11 @@ PROMPT_TEMPLATE_DIR = ROOT_DIR / 'src' / PROMPT_TEMPLATE_DIR_NAME
 
 
 # --- API Server Config ---
-API_HOST: str = os.getenv('API_HOST', '127.0.0.1')
+API_HOST: str = os.getenv('API_HOST', '0.0.0.0')
 API_PORT: int = int(os.getenv('API_PORT', '8000'))
 
 # Allowed frontend origins to access the backend API
-_cors_allowed_origins_str: str = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')
+_cors_allowed_origins_str: str = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000')
 CORS_ALLOWED_ORIGINS: list[str] = [origin.strip() for origin in _cors_allowed_origins_str.split(',') if origin.strip()]
 # will be like this
 # CORS_ALLOWED_ORIGINS = [

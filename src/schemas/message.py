@@ -1,4 +1,4 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Literal
 from pydantic import BaseModel, Field
 
 import sys
@@ -42,4 +42,19 @@ class MessageRequest(BaseModel):
 class RenameSessionRequest(BaseModel):
     "PUT /sessions/{id}/rename"
     session_name: str = Field(description="会话的新名称")
+    
+    
+# --------- temp --------
+
+class OpenAIChatMessage(BaseModel):
+    """OpenAI 格式的消息体"""
+    role: Literal["user", "system", "assistant"]
+    content: str
+
+class OpenAIRequest(BaseModel):
+    """OpenAI 格式的聊天请求体"""
+    messages: List[OpenAIChatMessage]
+    model: str  # 前端会传来它当前选择的模型, e.g., "gpt-4"
+    stream: bool = True
+    # 我们暂时忽略其他字段
     

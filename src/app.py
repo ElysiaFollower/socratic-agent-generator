@@ -3,11 +3,12 @@
 
 import json
 import uuid
+import time
 from pathlib import Path
 from typing import Dict, Any, List
 import asyncio
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -163,6 +164,123 @@ def get_state(session_id: str):
         "totalSteps": total_steps,
         "isFinished": current_step > total_steps
     }
+
+
+
+# ---------- temp ----------
+
+from schemas.message import (
+    OpenAIRequest, OpenAIChatMessage 
+)
+async def openai_stream_adapter(session_id: str, user_input: str):
+    """
+    一个异步生成器，它调用我们内部的Tutor流，
+    并将输出格式实时转换为 OpenAI SSE 格式。
+    """
+    # 创建一个模拟的 OpenAI 响应 ID
+    response_id = f"chatcmpl-{uuid.uuid4()}"
+    response_created_time = int(time.time())
+
+    try:
+        tutor = tutor_manager.get_tutor(session_id)
+        
+        async for chunk in tutor.stream_message(user_input):
+            
+            if isinstance(chunk, str):
+                # 这是一个Token块
+                # 转换: {"type": "token", "data": "Hello"} -> data: {"choices": [{"delta": {"content": "Hello"}}]}
+                
+                # 构建 OpenAI SSE 块
+                openai_chunk = {
+                    "id": response_id,
+                    "object": "chat.completion.chunk",
+                    "created": response_created_time,
+                    "model": tutor.session.profile.profile_id, # 告诉前端这是哪个"模型"
+                    "choices": [{
+                        "index": 0,
+                        "delta": {"content": chunk},
+                        "finish_reason": None
+                    }]
+                }
+                # yield SSE 格式的字符串
+                yield f"data: {json.dumps(openai_chunk, ensure_ascii=False)}\n\n"
+            
+            elif isinstance(chunk, ResponseMessage):
+                # 这是流的末尾，ResponseMessage 对象
+                # 我们需要发送最后一个 "finish_reason": "stop" 的块
+                
+                final_chunk = {
+                    "id": response_id,
+                    "object": "chat.completion.chunk",
+                    "created": response_created_time,
+                    "model": tutor.session.profile.profile_id,
+                    "choices": [{
+                        "index": 0,
+                        "delta": {}, # 最后一个块没有内容
+                        "finish_reason": "stop" # 告诉前端流已结束
+                    }]
+                }
+                yield f"data: {json.dumps(final_chunk, ensure_ascii=False)}\n\n"
+        
+        # 发送 OpenAI 流的最终结束标志
+        yield "data: [DONE]\n\n"
+
+    except FileNotFoundError:
+        # 捕获 session_id 无效的情况
+        error_chunk = {
+            "error": {
+                "message": f"Session not found. Invalid 'API Key' (session_id): {session_id}",
+                "type": "invalid_request_error",
+                "code": "session_not_found"
+            }
+        }
+        yield f"data: {json.dumps(error_chunk, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+    except Exception as e:
+        # 捕获其他Tutor异常
+        print(f"Error during stream adapter: {e}")
+        error_chunk = {
+            "error": {
+                "message": f"An internal error occurred: {str(e)}",
+                "type": "internal_error",
+                "code": "tutor_error"
+            }
+        }
+        yield f"data: {json.dumps(error_chunk, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+
+@app.post("/v1/chat/completions", summary="[Adapter] 模拟OpenAI的流式聊天接口", tags=['Adapter'])
+async def adapter_chat_completions(
+    request: OpenAIRequest,
+    # 从 Header 中提取 "Authorization"
+    authorization: str = Header(..., description="Bearer <session_id>") 
+):
+    """
+    这是伪装成 OpenAI 的适配器。
+    它会从 Authorization 头中提取 session_id。
+    """
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Invalid Authorization header. Expected 'Bearer <session_id>'")
+    
+    session_id = authorization.split(" ")[1]
+    
+    user_input = ""
+    for msg in reversed(request.messages):
+        if msg.role == "user":
+            user_input = msg.content
+            break
+            
+    if not user_input:
+        raise HTTPException(status_code=400, detail="No user message found")
+    
+    return StreamingResponse(
+        openai_stream_adapter(session_id, user_input),
+        media_type="text/event-stream"
+    )
+
+
+
 
 
 # --- 用于直接运行的启动代码 ---
