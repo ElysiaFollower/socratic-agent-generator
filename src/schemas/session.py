@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 import uuid
 from datetime import datetime
 import pytz
@@ -58,3 +58,25 @@ class Session(BaseModel):
     
     def get_curriculum(self) -> SocraticCurriculum:
         return self.profile.curriculum
+    
+class SessionSummary(BaseModel):
+    """Provides a brief summary of a session, used for listings."""
+    session_id: str
+    session_name: str
+    profile_id: str
+    profile_name: str
+    topic_name: str
+    create_at: str
+    update_at: str
+    @model_validator(mode='before')
+    @classmethod
+    def flatten_profile_data(cls, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        before model_validate(), some data inside Profile need to be flattened
+        """
+        profile_data = data.get('profile', {})
+        if profile_data:
+            data['profile_id'] = profile_data.get('profile_id')
+            data['profile_name'] = profile_data.get('profile_name')
+            data['topic_name'] = profile_data.get('topic_name')
+        return data

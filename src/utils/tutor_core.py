@@ -22,6 +22,7 @@ from schemas.session import Session
 from schemas.profile import Profile
 from schemas.message import ResponseMessage
 from utils.TemplateAssembler import PromptAssembler
+from utils.SessionManager import SessionManager
 
 # evaluator prompt is relatively simple and static. just define here
 evaluator_prompt_template = """
@@ -82,24 +83,14 @@ class Tutor:
         """load tutor session by given session_id;
         return: Tutor instance"""
         llm = llm or get_default_llm()
-        session_file_path = SESSION_DATA_DIR / f"{session_id}.json"
-        if not session_file_path.exists():
-            raise FileNotFoundError(f"error: tutor session not found -> {session_file_path}")
-        
-        with open(session_file_path, 'r', encoding='utf-8') as f:
-            session_data = json.load(f)
-        session = Session.model_validate(session_data)
+        session = SessionManager.read_session(session_id)
         return cls(session, llm)
     
     @classmethod
     def create_new(cls, profile:Profile, session_name:str=DEFAULT_SESSION_NAME, output_language:str=DEFAULT_OUTPUT_LANGUAGE, llm:Any=None):
         "create a new tutor session"
         llm = llm or get_default_llm()
-        session = Session(
-            profile=profile,
-            session_name=session_name,
-            output_language=output_language,
-        )
+        session = SessionManager.create_session(profile, session_name, output_language)
         
         instance = cls(session, llm)
         instance.save()
@@ -110,9 +101,7 @@ class Tutor:
         self._save_history_to_session()
         self.session.update_at = datetime.now(pytz.utc).isoformat()
         
-        session_file_path = SESSION_DATA_DIR / f"{self.session.session_id}.json"
-        with open(session_file_path, 'w', encoding='utf-8') as f:
-            json.dump(self.session.model_dump(), f, ensure_ascii=False, indent=2)
+        SessionManager.save_session(self.session)
             
     def _restore_history_from_session(self)->ChatMessageHistory:
         """restore history from session"""
@@ -131,52 +120,6 @@ class Tutor:
         self.session.history = [
             {"type": msg.type, "content": msg.content} for msg in self.history.messages
         ]
-        
-# ----------------------------------------------------------------
-
-    # @overload
-    # def _load_tutor_profile(self, profile: Dict[str, Any]) -> None:
-    #     """load tutor profile from given content""" 
-    #     ...
-    # @overload
-    # def _load_tutor_profile(self, profile: Path) -> None:
-    #     """load tutor profile from file"""
-    #     ...
-    # def _load_tutor_profile(self, profile: Union[Path, Dict[str, Any]]) -> None:
-    #     "load tutor profile from given content or file"
-    #     if isinstance(profile, Path):
-    #         profile_path = profile
-    #         if profile_path is None or not profile_path.exists():
-    #             raise FileNotFoundError(f"error: tutor profile not found -> {profile_path}")
-            
-    #         with open(profile_path, 'r', encoding='utf-8') as f:
-    #             try:
-    #                 profile_data = json.load(f)
-    #             except json.JSONDecodeError:
-    #                 raise ValueError(f"error：unable to parse JSON file -> {profile_path}")
-    #     else:
-    #         profile_data = profile
-            
-    #     # check required keys(must given)
-    #     required_keys = ["prompt_template_string", "curriculum"]
-    #     if not all(key in profile_data for key in required_keys):
-    #         raise ValueError(f"error：profile requires the following fields: {required_keys}")
-            
-    #     self.topic_name = profile_data.get("topic_name", None)
-    #     self.target_audience = profile_data.get("target_audience", None)
-    #     self.persona_hints = profile_data.get("persona_hints", None)
-    #     self.domain_specific_constraints = profile_data.get("domain_specific_constraints", None)
-    #     self.learning_objectives = profile_data.get("learning_objectives", None)
-    #     self.curriculum = profile_data.get("curriculum", None)
-    #     self.prompt_template_string = profile_data.get("prompt_template_string", None)
-
-
-    
-    
-    def _rename(self, new_name: str):
-        """rename this session and save"""
-        self.session.session_name = new_name
-        self.save()
 
     def get_welcome_message(self) -> str:
         """生成欢迎语"""

@@ -1,6 +1,8 @@
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field, model_validator
 import uuid
+from datetime import datetime
+import pytz
 
 import sys
 from pathlib import Path
@@ -42,6 +44,11 @@ class Profile(BaseModel):
     
     prompt_template: str = Field(
         description="The template for the prompt to the LLM."
+    )
+    
+    create_at: str = Field(
+        description="The time when the session was created.",
+        default_factory=lambda: datetime.now(pytz.utc).isoformat()
     )
     
     def get(self, key: str, default: Any=None):
