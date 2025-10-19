@@ -1,0 +1,44 @@
+[
+  {
+    "step_title": "实验环境搭建与DNS配置",
+    "guiding_question": "为什么在网络安全实验中，我们经常需要配置本地DNS解析而不是直接使用真实域名？这能帮助我们理解攻击的哪些关键环节？",
+    "success_criteria": "学生能够解释DNS解析在Web攻击中的作用，并成功配置www.seed-server.com指向10.9.0.5，启动Docker容器环境",
+    "learning_objective": "理解DNS在Web攻击中的关键作用，掌握实验环境搭建的基本流程"
+  },
+  {
+    "step_title": "Shellshock漏洞原理验证",
+    "guiding_question": "当Bash解析环境变量时，如果变量值以'() {'开头，你认为会发生什么？这种设计原本的用途是什么，又为何会成为安全漏洞？",
+    "success_criteria": "学生能够通过环境变量函数定义验证bash_shellshock存在漏洞，并与已修补版本进行对比测试",
+    "learning_objective": "掌握Shellshock漏洞的核心原理，理解环境变量解析的安全风险"
+  },
+  {
+    "step_title": "HTTP头部与环境变量传递分析",
+    "guiding_question": "浏览器和curl工具发送的HTTP头部信息是如何变成CGI程序环境变量的？如果攻击者能够控制这些头部，会产生什么安全影响？",
+    "success_criteria": "学生能够识别curl -A、-e、-H参数对应的环境变量，并解释HTTP_HOST、HTTP_USER_AGENT等变量的传递机制",
+    "learning_objective": "理解HTTP协议到CGI环境变量的数据流，掌握HTTP头部注入的基本原理"
+  },
+  {
+    "step_title": "Shellshock攻击向量实践",
+    "guiding_question": "为什么通过不同的HTTP头部字段发起攻击会有不同的效果？你认为哪个头部字段最容易成为攻击目标，为什么？",
+    "success_criteria": "学生能够通过三种不同的HTTP头部成功执行文件读取、进程信息获取和文件操作攻击",
+    "learning_objective": "掌握Shellshock漏洞的多种利用方式，理解HTTP头部注入的攻击技术"
+  },
+  {
+    "step_title": "反向Shell建立技术",
+    "guiding_question": "当我们在目标服务器上执行命令时，如何让命令的输出返回到攻击者机器？标准输入输出重定向在这个过程中扮演什么角色？",
+    "success_criteria": "学生能够成功建立反向shell连接，理解/dev/tcp特殊文件和输入输出重定向的工作原理",
+    "learning_objective": "掌握反向shell的建立原理和技术，理解网络连接重定向机制"
+  },
+  {
+    "step_title": "安全补丁有效性验证",
+    "guiding_question": "你认为安全补丁是如何修复Shellshock漏洞的？是阻止了环境变量的解析，还是改变了解析方式？",
+    "success_criteria": "学生能够使用已修补的/bin/bash重新执行攻击，验证补丁的有效性并解释修复原理",
+    "learning_objective": "理解安全补丁的工作机制，掌握漏洞修复验证的方法"
+  },
+  {
+    "step_title": "攻击局限性与扩展分析",
+    "guiding_question": "Shellshock攻击虽然强大，但存在哪些限制？如果目标系统有严格的权限控制，攻击效果会受到什么影响？",
+    "success_criteria": "学生能够分析Shellshock攻击的局限性，探讨QUERY_STRING等其他攻击向量，理解权限限制对攻击的影响",
+    "learning_objective": "全面分析Shellshock攻击的适用范围和限制条件，培养系统性的安全思维"
+  }
+]

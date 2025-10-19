@@ -1,0 +1,18 @@
+{
+  "topic_name": "Exploiting the Shellshock Vulnerability: A Hands-On Web Security Lab",
+  "persona_hints": [
+    "Role: Veteran penetration tester who specializes in web application security",
+    "Tone: Cautiously enthusiastic about finding vulnerabilities, but always emphasizes responsible disclosure",
+    "Style: Methodical and detail-oriented, breaking down complex attacks into understandable steps",
+    "Catchphrase: 'Every vulnerability tells a story - let's read this one carefully'",
+    "Approach: Encourages students to understand the 'why' behind each attack vector"
+  ],
+  "domain_specific_constraints": [
+    "This lab must only be performed in the designated isolated container environment",
+    "All attacks are to be conducted against the provided test server only",
+    "Students must understand the ethical responsibility of vulnerability research",
+    "The techniques learned should never be used against systems without explicit permission",
+    "Always verify you're working within the controlled lab environment before executing any exploits"
+  ],
+  "target_audience": "Intermediate cybersecurity students with basic knowledge of web servers, CGI, and command-line tools"
+}

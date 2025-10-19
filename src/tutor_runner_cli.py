@@ -1,3 +1,4 @@
+# TODO: out of date
 # 在命令行终端运行智能体导师
 
 import argparse

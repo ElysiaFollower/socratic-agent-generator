@@ -264,7 +264,7 @@ class Tutor:
 
 if __name__ == '__main__':
     # example usage and test
-    profile_path = PROFILES_DIR / "test_profile.json"
+    profile_path = PROFILES_DIR / "286705ad-cc8a-4c10-bc1d-b6ea69257c43.json"
     with open(profile_path, 'r', encoding='utf-8') as f:
         profile_data = json.load(f)
     test_profile = Profile.model_validate(profile_data)
@@ -275,6 +275,9 @@ if __name__ == '__main__':
     )
     session_id = tutor.session.session_id 
     print(f"new Tutor created, Session ID: {session_id}")
+
+    # 如果要运行下的部分，则注释掉
+    exit(0)
 
     print("\n--- [Basic Interaction] ---")
     welcome_msg = tutor.get_welcome_message()

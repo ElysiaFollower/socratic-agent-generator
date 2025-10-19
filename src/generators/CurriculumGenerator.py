@@ -114,7 +114,7 @@ class CurriculumGenerator:
 if __name__ == "__main__":
     # example usages, run at root directory
     async def main():
-        with open("./data_raw/seed_buffer_overflow/lab_manual.md", "r") as f:
+        with open("./data_raw/ShellShock-Attack/lab_manual.md", "r") as f:
             lab_manual_content = f.read()
         
         from langchain_deepseek import ChatDeepSeek
