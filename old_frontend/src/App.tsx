@@ -1,19 +1,20 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { listProfiles, createSession, getWelcomeMessage, sendMessage, listSessions, renameSession, deleteSession, Session, getChatHistory, getState } from './api/tutor'
+import { listProfiles, createSession, getWelcomeMessage, sendMessage, sendMessageStream, listSessions, renameSession, deleteSession, Session, getState, Profile, SessionSummary, getSession, SocraticStep, extractCurriculumSteps } from './api/tutor'
 import './App.css'
 
 export default function App() {
-  const [profiles, setProfiles] = useState<string[]>([])
-  const [sessions, setSessions] = useState<Session[]>([])
+  const [profiles, setProfiles] = useState<Profile[]>([])
+  const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<{role: string; content: string}[]>([])
+  const [messages, setMessages] = useState<{role: string; content: string; isThinking?: boolean}[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showProfileSelector, setShowProfileSelector] = useState(false)
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null)
   const [editingName, setEditingName] = useState('')
   const [currentStep, setCurrentStep] = useState(0)
-  const [curriculum, setCurriculum] = useState<string[]>([])
+  const [curriculum, setCurriculum] = useState<SocraticStep[]>([])
+  const [currentProfile, setCurrentProfile] = useState<Profile | null>(null)
   
   // 添加引用来访问消息容器
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -37,6 +38,7 @@ export default function App() {
   async function loadProfiles() {
     try {
       const profileList = await listProfiles()
+      console.log('加载的Profile列表:', profileList)
       setProfiles(profileList)
     } catch (error) {
       console.error('加载配置文件失败:', error)
@@ -54,29 +56,42 @@ export default function App() {
     }
   }
 
-  async function startNewSession(profile: string) {
+  async function startNewSession(profile: Profile) {
+    console.log('开始创建新会话，Profile:', profile)
     setIsLoading(true)
     try {
-      const res = await createSession(profile)
+      const res = await createSession({
+        profile_id: profile.profile_id,
+        session_name: `${profile.profile_name} - ${new Date().toLocaleString()}`,
+        output_language: 'zh-CN'
+      })
+      console.log('创建会话成功，session_id:', res.session_id)
+      
       await loadSessions() // 重新加载会话列表
       setSessionId(res.session_id)
       setMessages([])
       setShowProfileSelector(false)
       
+      // 设置当前Profile和从Profile中提取curriculum
+      setCurrentProfile(profile)
+      const curriculumSteps = extractCurriculumSteps(profile.curriculum)
+      setCurriculum(curriculumSteps)
+      console.log('设置curriculum，步骤数:', curriculumSteps.length)
+      
       // 获取会话状态信息以初始化进度条
       try {
         const stateResponse = await getState(res.session_id)
-        setCurrentStep(stateResponse.step || 0)
-        setCurriculum(stateResponse.curriculum || [])
+        setCurrentStep(stateResponse.stepIndex || 0)
+        console.log('获取状态成功，当前步骤:', stateResponse.stepIndex)
       } catch (stateError) {
         console.error('获取新会话状态失败:', stateError)
         setCurrentStep(0)
-        setCurriculum([])
       }
       
       // 获取欢迎消息
       const welcome = await getWelcomeMessage(res.session_id)
-      setMessages([{role: 'assistant', content: welcome.welcome}])
+      setMessages([{role: 'assistant', content: welcome.welcome, isThinking: false}])
+      console.log('获取欢迎消息成功')
     } catch (error) {
       console.error('创建会话失败:', error)
     } finally {
@@ -84,40 +99,43 @@ export default function App() {
     }
   }
 
-  async function switchToSession(session: Session) {
+  async function switchToSession(session: SessionSummary) {
     setSessionId(session.session_id)
     setMessages([])
     setCurrentStep(0)
-    setCurriculum([])
     
     try {
+      // 获取会话详情以获取消息历史和Profile信息
+      const sessionDetail = await getSession(session.session_id)
+      
+      // 从Session中提取Profile和curriculum
+      if (sessionDetail.profile) {
+        setCurrentProfile(sessionDetail.profile)
+        const curriculumSteps = extractCurriculumSteps(sessionDetail.profile.curriculum)
+        setCurriculum(curriculumSteps)
+      } else {
+        setCurrentProfile(null)
+        setCurriculum([])
+      }
+      
       // 获取会话状态信息
       const stateResponse = await getState(session.session_id)
-      setCurrentStep(stateResponse.step || 0)
-      setCurriculum(stateResponse.curriculum || [])
+      setCurrentStep(stateResponse.stepIndex || 0)
       
-      // 先获取聊天历史
-      const historyResponse = await getChatHistory(session.session_id)
-      let chatHistory = historyResponse.messages || []
-      
-      // // 过滤掉第一条欢迎提示词消息
-      // if (chatHistory.length > 0 && chatHistory[0].role === 'user') {
-      //   const firstMessage = chatHistory[0].content
-      //   // 如果第一条用户消息包含欢迎提示词的特征，则跳过它
-      //   if (firstMessage.includes('作为一名苏格拉底式导师') &&第一条消息
-      //   }
-      // }
-      chatHistory = chatHistory.slice(1) // 移除第一条消息
-      
-      if (chatHistory.length > 0) {
-        // 如果有聊天历史，直接显示历史记录
+      if (sessionDetail.history && sessionDetail.history.length > 0) {
+        // 转换消息格式：将type字段转换为role字段
+        const chatHistory = sessionDetail.history.map((msg: {type: string; content: string; timestamp?: string}) => ({
+          role: msg.type === 'human' ? 'user' : 'assistant',
+          content: msg.content,
+          isThinking: false
+        }))
         setMessages(chatHistory)
         console.log(`加载了 ${chatHistory.length} 条历史消息`)
       } else {
         // 如果没有聊天历史，获取欢迎消息
         const welcome = await getWelcomeMessage(session.session_id)
         if (welcome.welcome) {
-          setMessages([{role: 'assistant', content: welcome.welcome}])
+          setMessages([{role: 'assistant', content: welcome.welcome, isThinking: false}])
         }
       }
     } catch (error) {
@@ -126,7 +144,7 @@ export default function App() {
       try {
         const welcome = await getWelcomeMessage(session.session_id)
         if (welcome.welcome) {
-          setMessages([{role: 'assistant', content: welcome.welcome}])
+          setMessages([{role: 'assistant', content: welcome.welcome, isThinking: false}])
         }
       } catch (welcomeError) {
         console.error('获取欢迎消息也失败:', welcomeError)
@@ -141,29 +159,79 @@ export default function App() {
     setInput('')
     
     setIsLoading(true)
+    
+    // 添加一个空的助手消息用于流式更新，初始显示思考状态
+    setMessages(prev => [...prev, {role: 'assistant', content: '', isThinking: true}])
+    
+    // 用于累积流式内容
+    let streamContent = ''
+    
     try {
-      const res = await sendMessage(sessionId, userMsg)
-      setMessages(prev => [...prev, {role: 'assistant', content: res.reply}])
-      
-      // 发送消息后更新学习进度
-      try {
-        const stateResponse = await getState(sessionId)
-        setCurrentStep(stateResponse.step || 0)
-        setCurriculum(stateResponse.curriculum || [])
-      } catch (stateError) {
-        console.error('更新学习进度失败:', stateError)
-      }
+      await sendMessageStream(
+        sessionId,
+        userMsg,
+        // onToken: 实时更新最后一条消息
+        (token: string) => {
+          streamContent += token
+          setMessages(prev => {
+            const newMessages = [...prev]
+            const lastMessage = newMessages[newMessages.length - 1]
+            if (lastMessage && lastMessage.role === 'assistant') {
+              lastMessage.content = streamContent
+              lastMessage.isThinking = false // 开始输出时停止思考状态
+            }
+            return newMessages
+          })
+          // 第一个token到达时隐藏加载状态
+          if (streamContent.length > 0 && isLoading) {
+            setIsLoading(false)
+          }
+        },
+        // onComplete: 流式完成
+        (response) => {
+          console.log('流式响应完成:', response)
+          setIsLoading(false)
+          
+          // 发送消息后更新学习进度
+          getState(sessionId).then(stateResponse => {
+            setCurrentStep(stateResponse.stepIndex || 0)
+          }).catch(stateError => {
+            console.error('更新学习进度失败:', stateError)
+          })
+        },
+        // onError: 错误处理
+        (error) => {
+          console.error('发送消息失败:', error)
+          setMessages(prev => {
+            const newMessages = [...prev]
+            const lastMessage = newMessages[newMessages.length - 1]
+            if (lastMessage && lastMessage.role === 'assistant') {
+              lastMessage.content = '抱歉，我遇到了一些问题。请稍后再试。'
+              lastMessage.isThinking = false
+            }
+            return newMessages
+          })
+          setIsLoading(false)
+        }
+      )
     } catch (error) {
       console.error('发送消息失败:', error)
-      setMessages(prev => [...prev, {role: 'assistant', content: '抱歉，我遇到了一些问题。请稍后再试。'}])
-    } finally {
+      setMessages(prev => {
+        const newMessages = [...prev]
+        const lastMessage = newMessages[newMessages.length - 1]
+        if (lastMessage && lastMessage.role === 'assistant') {
+          lastMessage.content = '抱歉，我遇到了一些问题。请稍后再试。'
+          lastMessage.isThinking = false
+        }
+        return newMessages
+      })
       setIsLoading(false)
     }
   }
 
   async function handleRenameSession(sessionId: string, newName: string) {
     try {
-      await renameSession(sessionId, newName)
+      await renameSession(sessionId, { session_name: newName })
       await loadSessions() // 重新加载会话列表
       setEditingSessionId(null)
       setEditingName('')
@@ -311,7 +379,7 @@ export default function App() {
             </h1>
             <p className="text-sm text-gray-600">
               {getCurrentSession() 
-                ? `课程: ${getCurrentSession()?.topic_name} | Profile: ${getCurrentSession()?.profile}` 
+                ? `课程: ${getCurrentSession()?.topic_name} | Profile: ${getCurrentSession()?.profile_id}` 
                 : '通过提问启发思考，引导深度学习'
               }
             </p>
@@ -331,7 +399,10 @@ export default function App() {
                 </div>
                 <div className="mt-2 text-xs text-gray-500">
                   {currentStep < curriculum.length ? (
-                    <span>当前: {curriculum[currentStep]?.substring(0, 100)}...</span>
+                    <div>
+                      <div className="font-medium">当前步骤: {curriculum[currentStep]?.step_title}</div>
+                      <div className="mt-1 text-gray-400">学习目标: {curriculum[currentStep]?.learning_objective}</div>
+                    </div>
                   ) : (
                     <span>🎉 恭喜！您已完成所有学习步骤</span>
                   )}
@@ -350,33 +421,44 @@ export default function App() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {messages.map((m, i) => (
-                <div key={i} className={m.role === 'user' ? 'text-right' : 'text-left'}>
-                  <div className={`inline-block max-w-3xl p-4 rounded-lg ${
-                    m.role === 'user' 
-                      ? 'bg-blue-600 text-white' 
-                      : 'bg-gray-100 text-gray-900'
-                  }`}>
-                    <div className="whitespace-pre-wrap">{m.content}</div>
-                    {m.role === 'assistant' && (
-                      <div className="text-xs mt-2 opacity-70">
-                        🤖 苏格拉底式导师
+                <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`flex max-w-4xl ${m.role === 'user' ? 'flex-row-reverse' : 'flex-row'} items-start gap-3`}>
+                    {/* 头像 */}
+                    <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                      m.role === 'user' 
+                        ? 'bg-blue-600 text-white' 
+                        : 'bg-gray-200 text-gray-700'
+                    }`}>
+                      {m.role === 'user' ? '👤' : '🤖'}
+                    </div>
+                    
+                    {/* 消息内容 */}
+                    <div className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
+                      <div className={`px-4 py-3 rounded-2xl max-w-2xl ${
+                        m.role === 'user' 
+                          ? 'bg-blue-600 text-white rounded-br-md' 
+                          : 'bg-gray-100 text-gray-900 rounded-bl-md'
+                      }`}>
+                        {m.role === 'assistant' && (m as any).isThinking ? (
+                          <div className="flex items-center space-x-2">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                            <span className="text-sm text-gray-600">导师正在思考...</span>
+                          </div>
+                        ) : (
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="text-left">
-                  <div className="inline-block p-3 bg-gray-100 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                      <span className="text-sm text-gray-600">导师正在思考...</span>
+                      {m.role === 'assistant' && !(m as any).isThinking && (
+                        <div className="text-xs text-gray-500 mt-1 ml-1">
+                          苏格拉底式导师
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
-              )}
+              ))}
               <div ref={messagesEndRef} />
             </div>
           )}
@@ -412,13 +494,14 @@ export default function App() {
             <div className="space-y-2 max-h-60 overflow-y-auto">
               {profiles.map(profile => (
                 <button
-                  key={profile}
+                  key={profile.profile_id}
                   onClick={() => startNewSession(profile)}
                   className="w-full text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
                   disabled={isLoading}
                 >
-                  <div className="font-medium">{profile.replace('.json', '').replace('_', ' ')}</div>
-                  <div className="text-sm text-gray-500">点击开始学习</div>
+                  <div className="font-medium">{profile.profile_name}</div>
+                  <div className="text-sm text-gray-500">目标受众: {profile.target_audience}</div>
+                  <div className="text-xs text-gray-400 mt-1">课程: {profile.topic_name} | 步骤数: {extractCurriculumSteps(profile.curriculum).length}</div>
                 </button>
               ))}
               
