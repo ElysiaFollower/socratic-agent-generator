@@ -6,7 +6,7 @@ export default function App() {
   const [profiles, setProfiles] = useState<Profile[]>([])
   const [sessions, setSessions] = useState<SessionSummary[]>([])
   const [sessionId, setSessionId] = useState<string | null>(null)
-  const [messages, setMessages] = useState<{role: string; content: string; isThinking?: boolean}[]>([])
+  const [messages, setMessages] = useState<{role: string; content: string; isThinking?: boolean; thinkingMessage?: string}[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [showProfileSelector, setShowProfileSelector] = useState(false)
@@ -15,6 +15,35 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState(0)
   const [curriculum, setCurriculum] = useState<SocraticStep[]>([])
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null)
+  
+  // 网络安全领域的有趣思考提示语
+  const thinkingMessages = [
+    "正在分析你的问题，就像黑客分析目标系统一样...",
+    "思考中... 顺便提醒，密码123456真的不安全哦 😄",
+    "让我想想... 你知道为什么程序员喜欢用咖啡吗？因为Java需要咖啡因！",
+    "正在处理你的问题... 就像防火墙过滤恶意流量一样仔细",
+    "思考中... 网络安全就像洋葱，有很多层防护 🧅",
+    "让我组织一下思路... 就像整理防火墙规则一样有条理",
+    "正在分析... 你知道最安全的密码是什么吗？'我不知道' 😂",
+    "思考中... 网络安全专家的一天：发现漏洞，修复漏洞，发现新漏洞...",
+    "让我想想... 为什么黑客总是穿黑色？因为这样看起来更专业！",
+    "正在处理... 就像加密算法一样，需要时间来保证质量",
+    "思考中... 你知道什么是网络安全吗？就是让坏人进不来，好人出得去",
+    "让我分析一下... 就像渗透测试一样，需要从多个角度思考",
+    "正在思考... 网络安全就像保险，你希望永远用不到，但必须要有",
+    "让我组织语言... 就像编写安全代码一样，每个细节都很重要",
+    "思考中... 为什么网络安全专家总是很忙？因为坏人从不休息！",
+    "正在分析... 就像漏洞扫描一样，需要全面而仔细",
+    "让我想想... 你知道最好的安全策略是什么吗？就是假设你已经被攻击了",
+    "思考中... 网络安全就像下棋，需要提前想好几步",
+    "正在处理... 就像安全审计一样，需要耐心和细致",
+    "让我思考一下... 为什么程序员喜欢用Linux？因为Windows太容易被黑了 😄"
+  ]
+  
+  // 获取随机思考提示语的函数
+  const getRandomThinkingMessage = () => {
+    return thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]
+  }
   
   // 添加引用来访问消息容器
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -161,7 +190,7 @@ export default function App() {
     setIsLoading(true)
     
     // 添加一个空的助手消息用于流式更新，初始显示思考状态
-    setMessages(prev => [...prev, {role: 'assistant', content: '', isThinking: true}])
+    setMessages(prev => [...prev, {role: 'assistant', content: '', isThinking: true, thinkingMessage: getRandomThinkingMessage()}])
     
     // 用于累积流式内容
     let streamContent = ''
@@ -428,23 +457,23 @@ export default function App() {
                     {/* 头像 */}
                     <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
                       m.role === 'user' 
-                        ? 'bg-blue-600 text-white' 
+                        ? 'bg-gray-200 text-gray-700' 
                         : 'bg-gray-200 text-gray-700'
                     }`}>
-                      {m.role === 'user' ? '👤' : '🤖'}
+                      {m.role === 'user' ? '😂' : '🤖'}
                     </div>
                     
                     {/* 消息内容 */}
                     <div className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}>
                       <div className={`px-4 py-3 rounded-2xl max-w-2xl ${
                         m.role === 'user' 
-                          ? 'bg-blue-600 text-white rounded-br-md' 
+                          ? 'bg-blue-400 text-white rounded-br-md' 
                           : 'bg-gray-100 text-gray-900 rounded-bl-md'
                       }`}>
                         {m.role === 'assistant' && (m as any).isThinking ? (
                           <div className="flex items-center space-x-2">
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                            <span className="text-sm text-gray-600">导师正在思考...</span>
+                            <span className="text-sm text-gray-600">{(m as any).thinkingMessage || '导师正在思考...'}</span>
                           </div>
                         ) : (
                           <div className="whitespace-pre-wrap text-sm leading-relaxed">{m.content}</div>
