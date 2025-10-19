@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { listProfiles, createSession, getWelcomeMessage, sendMessage, sendMessageStream, listSessions, renameSession, deleteSession, Session, getState, Profile, SessionSummary, getSession, SocraticStep, extractCurriculumSteps } from './api/tutor'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import './App.css'
 
 export default function App() {
@@ -15,6 +16,8 @@ export default function App() {
   const [currentStep, setCurrentStep] = useState(0)
   const [curriculum, setCurriculum] = useState<SocraticStep[]>([])
   const [currentProfile, setCurrentProfile] = useState<Profile | null>(null)
+  const [isMaximized, setIsMaximized] = useState(false)
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false)
   
   // 网络安全领域的有趣思考提示语
   const thinkingMessages = [
@@ -43,6 +46,19 @@ export default function App() {
   // 获取随机思考提示语的函数
   const getRandomThinkingMessage = () => {
     return thinkingMessages[Math.floor(Math.random() * thinkingMessages.length)]
+  }
+  
+  // 处理最大化状态切换
+  const handleMaximizeToggle = () => {
+    const newMaximizedState = !isMaximized
+    setIsMaximized(newMaximizedState)
+    
+    // 最大化时自动收起信息栏，还原时展开信息栏
+    if (newMaximizedState) {
+      setIsHeaderCollapsed(true)
+    } else {
+      setIsHeaderCollapsed(false)
+    }
   }
   
   // 添加引用来访问消息容器
@@ -301,7 +317,8 @@ export default function App() {
   return (
     <div className="h-screen flex bg-gray-50">
       {/* 侧边栏 */}
-      <aside className="w-80 bg-white border-r flex flex-col">
+      {!isMaximized && (
+        <aside className="w-80 bg-white border-r flex flex-col">
         {/* 新建会话按钮 */}
         <div className="p-4 border-b">
           <button 
@@ -397,21 +414,63 @@ export default function App() {
             </div>
           </div>
         </div>
-      </aside>
+        </aside>
+      )}
 
       {/* 主内容区域 */}
       <main className="flex-1 flex flex-col">
-        <header className="p-4 border-b bg-white">
-          <div className="max-w-4xl mx-auto">
-            <h1 className="text-xl font-semibold">
-              {getCurrentSession() ? getCurrentSession()?.session_name : '苏格拉底式AI导师'}
-            </h1>
-            <p className="text-sm text-gray-600">
-              {getCurrentSession() 
-                ? `课程: ${getCurrentSession()?.topic_name} | Profile: ${getCurrentSession()?.profile_id}` 
-                : '通过提问启发思考，引导深度学习'
-              }
-            </p>
+        <header className="border-b bg-white">
+          <div className={`${isMaximized ? '' : 'max-w-4xl mx-auto'} flex items-center justify-between p-4`}>
+            <div className="flex items-center gap-3">
+              <h1 className="text-xl font-semibold">
+                {getCurrentSession() ? getCurrentSession()?.session_name : '苏格拉底式AI导师'}
+              </h1>
+              
+              {/* 收起/展开按钮 */}
+              {getCurrentSession() && (
+                <button
+                  onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+                  className="p-1 hover:bg-gray-100 rounded transition-colors"
+                  title={isHeaderCollapsed ? "展开信息" : "收起信息"}
+                >
+                  {isHeaderCollapsed ? (
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  )}
+                </button>
+              )}
+            </div>
+            
+            {/* 最大化/还原按钮 */}
+            {getCurrentSession() && (
+              <button
+                onClick={handleMaximizeToggle}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                title={isMaximized ? "还原窗口" : "最大化对话"}
+              >
+                {isMaximized ? (
+                  <Minimize2 className="w-5 h-5 text-gray-600" />
+                ) : (
+                  <Maximize2 className="w-5 h-5 text-gray-600" />
+                )}
+              </button>
+            )}
+          </div>
+          
+          {/* 可收起的信息区域 */}
+          {!isHeaderCollapsed && (
+            <div className={`${isMaximized ? '' : 'max-w-4xl mx-auto'} px-4 pb-4 transition-all duration-300 ease-in-out`}>
+              <p className="text-sm text-gray-600 mb-4">
+                {getCurrentSession() 
+                  ? `课程: ${getCurrentSession()?.topic_name} | Profile: ${getCurrentSession()?.profile_id}` 
+                  : '通过提问启发思考，引导深度学习'
+                }
+              </p>
             
             {/* 进度条 */}
             {getCurrentSession() && curriculum.length > 0 && (
@@ -438,10 +497,11 @@ export default function App() {
                 </div>
               </div>
             )}
-          </div>
+            </div>
+          )}
         </header>
 
-        <section className="flex-1 overflow-auto p-6 max-w-4xl mx-auto w-full" ref={chatContainerRef}>
+        <section className={`flex-1 overflow-auto p-6 w-full ${isMaximized ? '' : 'max-w-4xl mx-auto'}`} ref={chatContainerRef}>
           {messages.length === 0 ? (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
@@ -494,7 +554,7 @@ export default function App() {
         </section>
 
         <footer className="p-4 border-t bg-white">
-          <div className="max-w-4xl mx-auto flex gap-2">
+          <div className={`${isMaximized ? '' : 'max-w-4xl mx-auto'} flex gap-2`}>
             <textarea 
               value={input} 
               onChange={e => setInput(e.target.value)}
