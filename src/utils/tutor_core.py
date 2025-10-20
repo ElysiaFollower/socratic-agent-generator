@@ -17,7 +17,8 @@ import sys
 from pathlib import Path
 # Add the src directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
-from config import SESSION_DATA_DIR, PROFILES_DIR, SUPPORTED_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME, TEMPERATURE, get_default_llm
+from copy import deepcopy
+from config import SESSION_DATA_DIR, PROFILES_DIR, SUPPORTED_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME, TEMPERATURE, get_default_llm, MAX_HISTORY_TOKENS
 from schemas.session import Session
 from schemas.profile import Profile
 from schemas.message import ResponseMessage
@@ -53,11 +54,15 @@ class Tutor:
         self.session = session
         self.llm = llm or get_default_llm()
         self.history = self._restore_history_from_session()
+        self.truncate_history_note = f"History is truncated under max_history_tokens: {MAX_HISTORY_TOKENS}"
+        self.current_history_tokens = None # 延迟到第一次invoke模型的时候计算，取消初始卡顿
+        self.truncated_history = deepcopy(self.history) # 延迟到第一次invoke的时候裁剪
         
         self.prompt_assembler = PromptAssembler(self.session.profile.prompt_template)
         
         main_prompt = ChatPromptTemplate.from_messages([
             ("system", "{system_prompt_with_state}"),
+            ("system", "{truncate_history_note}"),
             MessagesPlaceholder(variable_name="history"),
             ("user", "{input}"),
         ])
@@ -72,7 +77,7 @@ class Tutor:
         #主智能体链
         self.main_chain_with_history = RunnableWithMessageHistory(
             main_chain,
-            lambda sid: self.history, # session is implemented by ourself, ignore this parameter
+            lambda sid: self.truncated_history, # session is implemented by ourself, ignore this parameter
             input_messages_key="input",
             history_messages_key="history",
         )
@@ -121,6 +126,22 @@ class Tutor:
             {"type": msg.type, "content": msg.content} for msg in self.history.messages
         ]
 
+    def _get_current_history_tokens(self, history: ChatMessageHistory)->int:
+        tokens = 0;
+        for message in history.messages:
+            tokens += self.llm.get_num_tokens(message.content)
+        return tokens
+
+    def _truncate_history(self, history: ChatMessageHistory)->ChatMessageHistory:
+        """truncate history under max_history_tokens; return the truncated history"""
+        self.current_history_tokens = self.current_history_tokens or self._get_current_history_tokens(history)
+        while self.current_history_tokens + len(self.truncate_history_note)> MAX_HISTORY_TOKENS:
+            if not history.messages:
+                break # thus user can set max history tokens as 0 to disable history, but can still talk with tutor
+            poped_message = history.messages.pop(0)
+            self.current_history_tokens -= self.llm.get_num_tokens(poped_message.content)
+        return history
+
     def get_welcome_message(self) -> str:
         """生成欢迎语"""
         return f"你好！今天我们来挑战一下“{self.session.profile.topic_name}”。准备好了吗？"
@@ -132,7 +153,7 @@ class Tutor:
         mainly for testing; which is synchronous
         """
         # 需要维护当前进度状态,即SessionState.stepIndex
-        
+        self.truncated_history = self._truncate_history(self.truncated_history)
         if user_input == '希儿天下第一可爱': # 跳步机关(仅做特殊用途)
             print("--- (检测到作弊码，强制进入下一关) ---")
             self.session.state.stepIndex = min(self.session.state.stepIndex, self.session.get_curriculum().get_len()) + 1
@@ -178,8 +199,12 @@ class Tutor:
         # 调用主链
         response = self.main_chain_with_history.invoke({
             "system_prompt_with_state": formatted_system_prompt + additional_note, 
+            "truncate_history_note": self.truncate_history_note,
             "input": user_input,
         },  config={"configurable": {"session_id": self.session.session_id}})
+        self.history.add_user_message(user_input)
+        self.history.add_ai_message(response)
+        self.current_history_tokens += self.llm.get_num_tokens(user_input) + self.llm.get_num_tokens(response)
 
         # 每次处理完后自动保存
         self.save()
@@ -196,6 +221,7 @@ class Tutor:
         and finally yield complete ResponseMessage 
         """
         reply = ""
+        self.truncated_history = self._truncate_history(self.truncated_history)
         if user_input == '希儿天下第一可爱': # 跳步机关(仅做特殊用途)
             print("--- (检测到作弊码，强制进入下一关) ---")
             self.session.state.stepIndex = min(self.session.state.stepIndex, self.session.get_curriculum().get_len()) + 1
@@ -249,11 +275,15 @@ class Tutor:
         # ⭐ call main chain at stream mode and yield tokens
         async for chunk in self.main_chain_with_history.astream({
             "system_prompt_with_state": formatted_system_prompt + additional_note,
+            "truncate_history_note": self.truncate_history_note,
             "input": user_input,
         }, config={"configurable": {"session_id": self.session.session_id}}):
             reply += chunk
             yield chunk
             
+        self.history.add_user_message(user_input)
+        self.history.add_ai_message(reply)
+        self.current_history_tokens += self.llm.get_num_tokens(user_input) + self.llm.get_num_tokens(reply)
         self.save()
         yield ResponseMessage(
             reply=reply,

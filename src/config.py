@@ -50,6 +50,8 @@ def get_default_llm():
     from langchain_deepseek import ChatDeepSeek
     return ChatDeepSeek(model="deepseek-chat", temperature=TEMPERATURE)
 
+MAX_HISTORY_TOKENS: int = int(os.getenv('MAX_HISTORY_TOKENS', '60000')) # 估算
+
 # --- Output Language ---
 # A list of supported languages. The key is what the user sees (e.g., in a dropdown),
 # and the value is the precise instruction for the LLM.
