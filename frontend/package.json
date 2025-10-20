@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:prod": "vite build --mode production",
+    "serve:prod": "vite preview --host 0.0.0.0 --port 4173"
   },
   "dependencies": {
     "axios": "^1.4.0",
