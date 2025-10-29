@@ -132,7 +132,7 @@ class ProfileGenerateManager:
 if __name__ == "__main__":
     # example usage
     async def main():
-        with open(config.ROOT_DIR / "data_raw/seed_buffer_overflow/lab_manual.md", "r", encoding="utf-8") as f:
+        with open(config.ROOT_DIR / "data_raw/Spectre-Attack/lab_manual.md", "r", encoding="utf-8") as f:
             lab_manual_content = f.read()
         profile_manager = ProfileGenerateManager(lab_manual_content)
         curriculum, definition = await asyncio.gather(
