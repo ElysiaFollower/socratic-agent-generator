@@ -119,7 +119,10 @@ export async function sendMessageStream(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ 
+        // 对消息进行Base64编码
+        message: btoa(unescape(encodeURIComponent(message))) 
+      }),
     });
 
     if (!response.ok) {

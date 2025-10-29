@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 from typing import Dict, Any, List
 import asyncio
+import base64
 
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -145,8 +146,16 @@ async def stream_message(session_id: str, req: MessageRequest):
     """
     向导师发送消息并获取流式响应 (SSE)。
     """
+    try:
+        # 解码 Base64 消息 (为了防止用户消息被误认为对服务器的攻击，所以对其进行base64编码传输)
+        decoded_message = base64.b64decode(req.message).decode('utf-8')
+    except Exception as e:
+        # 如果解码失败，可能是一个普通请求，或者格式错误
+        print(f"Base64 decode failed: {e}, using original message.")
+        decoded_message = req.message # 作为后备
+        
     return StreamingResponse(
-        stream_generator(session_id, req.message),
+        stream_generator(session_id, decoded_message),
         media_type="text/event-stream"
     )
 
