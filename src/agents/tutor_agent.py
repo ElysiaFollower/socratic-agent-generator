@@ -8,10 +8,26 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from schemas.message import ResponseMessage
 from utils.TemplateAssembler import PromptAssembler
-from config import MAX_HISTORY_TOKENS, PROMPT_TEMPLATE_DIR
+from config import MAX_HISTORY_TOKENS
 
-with open(PROMPT_TEMPLATE_DIR / "evaluator_prompt.jinja2", "r") as f:
-    evaluator_prompt_template = f.read()
+evaluator_prompt_template = """
+<TASK>
+You are a strict, impartial assessment assistant. Your role is to determine if the <STUDENT'S RESPONSE> meets the <SUCCESS CRITERIA> for the given <TOPIC>.
+You MUST and ONLY answer with a single word: 'Yes' or 'No'. Do not provide any explanation, punctuation, or additional text.
+</TASK>
+
+<TOPIC>
+{step_title}
+</TOPIC>
+
+<SUCCESS CRITERIA>
+{success_criteria}
+</SUCCESS CRITERIA>
+
+<STUDENT'S RESPONSE>
+{user_input}
+</STUDENT'S RESPONSE>
+"""
 
 class TutorAgent:
     """

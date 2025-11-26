@@ -53,7 +53,7 @@ class ProfileGenerateManager:
         Returns:
             Dict[str, str]: persona
         """
-        persona = await self.persona_agent.generate(lab_manual_content)
+        persona = await self.persona_agent.generate(self.lab_manual_content)
         return persona
     
     async def compile_profile(self, curriculum: SocraticCurriculum, definition: TutorPersona, profile_name: Optional[str]=None) -> Profile:
