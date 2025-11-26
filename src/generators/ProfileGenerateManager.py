@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 import config
 from generators.CurriculumGenerator import CurriculumGenerator
-from generators.PersonaGenerator import PersonaGenerator
+from agents.persona_agent import PersonaAgent
 from utils.TemplateAssembler import BaseTemplateAssembler
 from schemas.profile import Profile
 from schemas.curriculum import SocraticCurriculum
@@ -36,7 +36,7 @@ class ProfileGenerateManager:
         self.llm = llm or config.get_default_llm()
         
         self.curriculum_generator = CurriculumGenerator(self.llm)
-        self.persona_generator = PersonaGenerator(self.llm)
+        self.persona_agent = PersonaAgent(self.llm)
         with open(config.PROMPT_TEMPLATE_DIR / 'master_prompt_system.jinja2') as f:
             self.promt_template_string = f.read()
         self.template_assembler = BaseTemplateAssembler(self.promt_template_string)
@@ -63,7 +63,7 @@ class ProfileGenerateManager:
         Returns:
             Dict[str, str]: persona
         """
-        persona = await self.persona_generator.generate(self.lab_manual_content)
+        persona = await self.persona_agent.generate(self.lab_manual_content)
         return persona
     
     async def compile_profile(self, curriculum: Optional[SocraticCurriculum]=None, definition: Optional[TutorPersona]=None, profile_name: Optional[str]=None) -> None:
