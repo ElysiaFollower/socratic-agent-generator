@@ -25,30 +25,32 @@ class SocraticStep(BaseModel):
     def get(self, key: str, default: Any=None):
         return getattr(self, key, default)
 
-# structure of curriculum.json
-class SocraticCurriculum(RootModel[List[SocraticStep]]): # may have some problem with pylance
-    """最终生成的完整苏格拉底教学大纲"""
-    root: List[SocraticStep] = Field(
-        description="按顺序排列的、构成整个实验的所有富信息教学节点。"
-    )
-    
+class SocraticCurriculum(BaseModel):
+    """A complete Socratic curriculum."""
+    curriculum_id: str = Field(default="", description="Unique identifier for the curriculum.")
+    steps: List[SocraticStep] = Field(description="A list of Socratic steps in the curriculum.")
+
     def get_step_title(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].step_title
+        """Returns the title of a step at a given index."""
+        return self.steps[stepIndex - 1].step_title
+
     def get_guiding_question(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].guiding_question
+        """Returns the guiding question of a step at a given index."""
+        return self.steps[stepIndex - 1].guiding_question
+
     def get_success_criteria(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].success_criteria
+        """Returns the success criteria of a step at a given index."""
+        return self.steps[stepIndex - 1].success_criteria
+
     def get_learning_objective(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].learning_objective
-    
+        """Returns the learning objective of a step at a given index."""
+        return self.steps[stepIndex - 1].learning_objective
+
     def get_step(self, stepIndex: int) -> SocraticStep:
-        "start from 1"
-        return self.root[stepIndex-1]
-    
+        """Returns a step at a given index."""
+        return self.steps[stepIndex - 1]
+
     def get_len(self) -> int:
-        return len(self.root)
+        """Returns the total number of steps in the curriculum."""
+        return len(self.steps)
     

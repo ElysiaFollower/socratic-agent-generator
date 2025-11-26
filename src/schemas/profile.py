@@ -45,6 +45,15 @@ class Profile(BaseModel):
     prompt_template: str = Field(
         description="The template for the prompt to the LLM."
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def adapt_old_curriculum_format(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            curriculum = data.get("curriculum")
+            if isinstance(curriculum, list):
+                data["curriculum"] = {"steps": curriculum}
+        return data
     
     create_at: str = Field(
         description="The time when the session was created.",

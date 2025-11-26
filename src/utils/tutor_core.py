@@ -175,10 +175,16 @@ class Tutor:
                 yield chunk
 
 if __name__ == '__main__':
+    import asyncio
     # example usage and test
     profile_path = PROFILES_DIR / "286705ad-cc8a-4c10-bc1d-b6ea69257c43.json"
     with open(profile_path, 'r', encoding='utf-8') as f:
         profile_data = json.load(f)
+
+    # Adapt old profile format to new schema for testing
+    if isinstance(profile_data.get("curriculum"), list):
+        profile_data["curriculum"] = {"steps": profile_data["curriculum"]}
+
     test_profile = Profile.model_validate(profile_data)
 
     tutor = Tutor.create_new(
