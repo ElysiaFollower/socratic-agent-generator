@@ -7,6 +7,7 @@ class TutorPersona(BaseModel):
     The complete, structured metadata for a lesson, automatically inferred
     from a lab manual. This will be saved as definition.json.
     """
+    persona_id: str = Field(default="", description="Unique identifier for the persona.")
     topic_name: str = Field(description="A concise and descriptive title for the lab/topic.")
 
     persona_hints: List[str] = Field(

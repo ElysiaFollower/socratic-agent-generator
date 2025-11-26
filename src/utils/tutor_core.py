@@ -1,99 +1,75 @@
-#该文件封装苏格拉底智能体得以运行的主要逻辑
 from dotenv import load_dotenv
 load_dotenv()
 
 import json
+import asyncio
 from pathlib import Path
-from typing import Dict, Any, List, Optional, overload, Union, AsyncGenerator
+from typing import Any, AsyncGenerator, Union
 from datetime import datetime
 import pytz
-# --- LangChain core components ---
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_community.chat_message_histories import ChatMessageHistory
-from langchain_core.output_parsers import StrOutputParser
-
 import sys
 from pathlib import Path
-# Add the src directory to sys.path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from copy import deepcopy
 from config import SESSION_DATA_DIR, PROFILES_DIR, SUPPORTED_LANGUAGES, DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME, TEMPERATURE, get_default_llm, MAX_HISTORY_TOKENS
 from schemas.session import Session
 from schemas.profile import Profile
 from schemas.message import ResponseMessage
-from utils.TemplateAssembler import PromptAssembler
+from agents.tutor_agent import TutorAgent
 from utils.SessionManager import SessionManager
-
-# evaluator prompt is relatively simple and static. just define here
-evaluator_prompt_template = """
-<TASK>
-You are a strict, impartial assessment assistant. Your role is to determine if the <STUDENT'S RESPONSE> meets the <SUCCESS CRITERIA> for the given <TOPIC>.
-You MUST and ONLY answer with a single word: 'Yes' or 'No'. Do not provide any explanation, punctuation, or additional text.
-</TASK>
-
-<TOPIC>
-{step_title}
-</TOPIC>
-
-<SUCCESS CRITERIA>
-{success_criteria}
-</SUCCESS CRITERIA>
-
-<STUDENT'S RESPONSE>
-{user_input}
-</STUDENT'S RESPONSE>
-"""
 
 class Tutor:
     """
-    一个Tutor实例对应一个独立的、可持久化的会话。拥有唯一的session_id
+    A Tutor instance corresponds to an independent, persistent session,
+    identified by a unique session_id.
     """
     def __init__(self, session: Session, llm: Any=None):
-        "init by given session"
+        """
+        Initializes the Tutor with a given session.
+
+        Args:
+            session: The session object for the tutor.
+            llm: The language model to use.
+        """
         self.session = session
         self.llm = llm or get_default_llm()
         self.history = self._restore_history_from_session()
-        self.truncate_history_note = f"History is truncated under max_history_tokens: {MAX_HISTORY_TOKENS}"
-        self.current_history_tokens = None # 延迟到第一次invoke模型的时候计算，取消初始卡顿
-        self.truncated_history = deepcopy(self.history) # 延迟到第一次invoke的时候裁剪
-        
-        self.prompt_assembler = PromptAssembler(self.session.profile.prompt_template)
-        
-        main_prompt = ChatPromptTemplate.from_messages([
-            ("system", "{system_prompt_with_state}"),
-            ("system", "{truncate_history_note}"),
-            MessagesPlaceholder(variable_name="history"),
-            ("user", "{input}"),
-        ])
-
-        evaluator_prompt = ChatPromptTemplate.from_template(evaluator_prompt_template)
-
-        #主智能体链(无对话记录)
-        main_chain = main_prompt | self.llm | StrOutputParser()
-        #评估器链
-        self.evaluator_chain = evaluator_prompt | self.llm | StrOutputParser()
-
-        #主智能体链
-        self.main_chain_with_history = RunnableWithMessageHistory(
-            main_chain,
-            lambda sid: self.truncated_history, # session is implemented by ourself, ignore this parameter
-            input_messages_key="input",
-            history_messages_key="history",
-        )
-        print("Tutor init success!")
+        self.current_history_tokens = None
+        self.truncated_history = deepcopy(self.history)
+        self.tutor_agent = TutorAgent(self.llm, self.session, self.truncated_history)
+        print("Tutor initialized successfully!")
         
     @classmethod
     def from_id(cls, session_id: str, llm: Any=None):
-        """load tutor session by given session_id;
-        return: Tutor instance"""
+        """
+        Loads a tutor session by its session_id.
+
+        Args:
+            session_id: The ID of the session to load.
+            llm: The language model to use.
+
+        Returns:
+            A Tutor instance.
+        """
         llm = llm or get_default_llm()
         session = SessionManager.read_session(session_id)
         return cls(session, llm)
     
     @classmethod
     def create_new(cls, profile:Profile, session_name:str=DEFAULT_SESSION_NAME, output_language:str=DEFAULT_OUTPUT_LANGUAGE, llm:Any=None):
-        "create a new tutor session"
+        """
+        Creates a new tutor session.
+
+        Args:
+            profile: The profile to use for the new session.
+            session_name: The name of the new session.
+            output_language: The output language for the new session.
+            llm: The language model to use.
+
+        Returns:
+            A new Tutor instance.
+        """
         llm = llm or get_default_llm()
         session = SessionManager.create_session(profile, session_name, output_language)
         
@@ -102,14 +78,13 @@ class Tutor:
         return instance
         
     def save(self)->None:
-        """save tutor session to disk"""
+        """Saves the tutor session to disk."""
         self._save_history_to_session()
         self.session.update_at = datetime.now(pytz.utc).isoformat()
-        
         SessionManager.save_session(self.session)
             
     def _restore_history_from_session(self)->ChatMessageHistory:
-        """restore history from session"""
+        """Restores the chat history from the session."""
         history = ChatMessageHistory()
         for msg in self.session.history:
             if(msg.get("type") == "human"):
@@ -121,113 +96,65 @@ class Tutor:
         return history     
         
     def _save_history_to_session(self)->None:
-        """save history to session"""
+        """Saves the chat history to the session."""
         self.session.history = [
             {"type": msg.type, "content": msg.content} for msg in self.history.messages
         ]
 
     def _get_current_history_tokens(self, history: ChatMessageHistory)->int:
+        """Calculates the number of tokens in the chat history."""
         tokens = 0;
         for message in history.messages:
             tokens += self.llm.get_num_tokens(message.content)
         return tokens
 
     def _truncate_history(self, history: ChatMessageHistory)->ChatMessageHistory:
-        """truncate history under max_history_tokens; return the truncated history"""
+        """Truncates the history to stay within the token limit."""
         self.current_history_tokens = self.current_history_tokens or self._get_current_history_tokens(history)
-        while self.current_history_tokens + len(self.truncate_history_note)> MAX_HISTORY_TOKENS:
+        while self.current_history_tokens + self.llm.get_num_tokens(f"History is truncated under max_history_tokens: {MAX_HISTORY_TOKENS}") > MAX_HISTORY_TOKENS:
             if not history.messages:
-                break # thus user can set max history tokens as 0 to disable history, but can still talk with tutor
+                break
             poped_message = history.messages.pop(0)
             self.current_history_tokens -= self.llm.get_num_tokens(poped_message.content)
         return history
 
     def get_welcome_message(self) -> str:
-        """生成欢迎语"""
-        return f"你好！今天我们来挑战一下“{self.session.profile.topic_name}”。准备好了吗？"
+        """Generates a welcome message."""
+        return f"Hello! Today, we're going to tackle the '{self.session.profile.topic_name}' challenge. Are you ready?"
         
     def process_message(self, user_input: str) -> ResponseMessage:
         """
-        处理单条用户消息，并返回导师的回复和最新状态。
-        跳步作弊码：'希儿天下第一可爱'
-        mainly for testing; which is synchronous
+        Processes a single user message and returns the tutor's response.
+        Mainly for testing; synchronous.
         """
-        # 需要维护当前进度状态,即SessionState.stepIndex
-        self.truncated_history = self._truncate_history(self.truncated_history)
-        if user_input == '希儿天下第一可爱': # 跳步机关(仅做特殊用途)
-            print("--- (检测到作弊码，强制进入下一关) ---")
-            self.session.state.stepIndex = min(self.session.state.stepIndex, self.session.get_curriculum().get_len()) + 1
-            self.save()
-            if self.session.state.stepIndex <= self.session.get_curriculum().get_len():
-                return ResponseMessage(
-                    reply=f"(真拿你没办法，我们直接来看下一步吧) : {self.session.get_curriculum().get_guiding_question(self.session.state.stepIndex)}",
-                    state=self.session.state,
-                    is_finished=False
-                )
+        async def run_sync():
+            final_response = None
+            async for chunk in self.stream_message(user_input):
+                if isinstance(chunk, ResponseMessage):
+                    final_response = chunk
+            return final_response
 
-        if self.session.state.stepIndex > self.session.get_curriculum().get_len():
-            return ResponseMessage(
-                reply="太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！",
-                state=self.session.state,
-                is_finished=True
-            )
-
-        cur_step_title = self.session.get_curriculum().get_step_title(self.session.state.stepIndex)
-        cur_success_criteria = self.session.get_curriculum().get_success_criteria(self.session.state.stepIndex)
-        
-        # 评估学生回答
-        evaluation_result = self.evaluator_chain.invoke({
-            "step_title": cur_step_title,
-            "success_criteria": cur_success_criteria,
-            "user_input": user_input
-        })
-
-        additional_note = ""
-        if evaluation_result.lower() == 'yes':
-            print("\n--- (导师在后台欣慰地点了点头，认为你已掌握，准备进入下一步) ---\n")
-            self.session.state.stepIndex += 1
-            additional_note = f"\n\n(user just passed last step. Please review and introduce current step)"
-            if self.session.state.stepIndex > self.session.get_curriculum().get_len():
-                return ResponseMessage(
-                    reply="太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！",
-                    state=self.session.state,
-                    is_finished=True
-                )
-        # 填充系统提示词模板
-        # 用加载的模板，填充动态的当前步骤描述
-        formatted_system_prompt = self.prompt_assembler.assemble(self.session.profile.curriculum, self.session.state.stepIndex, self.session.output_language)
-        # 调用主链
-        response = self.main_chain_with_history.invoke({
-            "system_prompt_with_state": formatted_system_prompt + additional_note, 
-            "truncate_history_note": self.truncate_history_note,
-            "input": user_input,
-        },  config={"configurable": {"session_id": self.session.session_id}})
-        self.history.add_user_message(user_input)
-        self.history.add_ai_message(response)
-        self.current_history_tokens += self.llm.get_num_tokens(user_input) + self.llm.get_num_tokens(response)
-
-        # 每次处理完后自动保存
-        self.save()
-
-        return ResponseMessage(
-            reply=response,
-            state=self.session.state,
-            is_finished=False
-        )
+        return asyncio.run(run_sync())
         
     async def stream_message(self, user_input: str) -> AsyncGenerator[Union[str, ResponseMessage], None]:
         """
-        yield ResponseMessage stream
-        and finally yield complete ResponseMessage 
+        Streams the tutor's response for a given user message.
+
+        Args:
+            user_input: The user's message.
+
+        Yields:
+            A stream of tokens and a final ResponseMessage object.
         """
         reply = ""
         self.truncated_history = self._truncate_history(self.truncated_history)
-        if user_input == '希儿天下第一可爱': # 跳步机关(仅做特殊用途)
-            print("--- (检测到作弊码，强制进入下一关) ---")
+
+        if user_input == 'seele_is_the_best_girl': # Cheat code to advance to the next step
+            print("--- (Cheat code detected, forcing next step) ---")
             self.session.state.stepIndex = min(self.session.state.stepIndex, self.session.get_curriculum().get_len()) + 1
             self.save()
             if self.session.state.stepIndex <= self.session.get_curriculum().get_len():
-                token = f"(真拿你没办法，我们直接来看下一步吧) : {self.session.get_curriculum().get_guiding_question(self.session.state.stepIndex)}"
+                token = f"(You got it, let's move on to the next step): {self.session.get_curriculum().get_guiding_question(self.session.state.stepIndex)}"
                 yield token
                 yield ResponseMessage(
                     reply=token,
@@ -235,68 +162,29 @@ class Tutor:
                     is_finished=False
                 )
                 return 
-        
-        if self.session.state.stepIndex > self.session.get_curriculum().get_len():
-            token = "太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！"
-            yield token
-            yield ResponseMessage(
-                reply=token,
-                state=self.session.state,
-                is_finished=True
-            )
-            return
-        
-        cur_step_title = self.session.get_curriculum().get_step_title(self.session.state.stepIndex)
-        cur_success_criteria = self.session.get_curriculum().get_success_criteria(self.session.state.stepIndex)
-        # evaluate
-        evaluation_result = await self.evaluator_chain.ainvoke({
-            "step_title": cur_step_title,
-            "success_criteria": cur_success_criteria,
-            "user_input": user_input
-        })
 
-        additional_note = ""
-        if evaluation_result.lower() == 'yes':
-            print("\n--- (导师在后台欣慰地点了点头，认为你已掌握，准备进入下一步) ---\n")
-            self.session.state.stepIndex += 1
-            additional_note = f"\n\n(user just passed last step. Please review and introduce current step)"
-            if self.session.state.stepIndex > self.session.get_curriculum().get_len():
-                token = "太棒了！你已经完成了本次的所有学习任务。期待与你进行下一次的探讨！"
-                yield token
-                yield ResponseMessage(
-                    reply=token,
-                    state=self.session.state,
-                    is_finished=True
-                )
-                return
-            
-        formatted_system_prompt = self.prompt_assembler.assemble(self.session.profile.curriculum, self.session.state.stepIndex, self.session.output_language)
-        
-        # ⭐ call main chain at stream mode and yield tokens
-        async for chunk in self.main_chain_with_history.astream({
-            "system_prompt_with_state": formatted_system_prompt + additional_note,
-            "truncate_history_note": self.truncate_history_note,
-            "input": user_input,
-        }, config={"configurable": {"session_id": self.session.session_id}}):
-            reply += chunk
-            yield chunk
-            
-        self.history.add_user_message(user_input)
-        self.history.add_ai_message(reply)
-        self.current_history_tokens += self.llm.get_num_tokens(user_input) + self.llm.get_num_tokens(reply)
-        self.save()
-        yield ResponseMessage(
-            reply=reply,
-            state=self.session.state,
-            is_finished=False
-        )
-
+        async for chunk in self.tutor_agent.stream_message(user_input, self.truncated_history):
+            if isinstance(chunk, str):
+                reply += chunk
+                yield chunk
+            elif isinstance(chunk, ResponseMessage):
+                self.history.add_user_message(user_input)
+                self.history.add_ai_message(reply)
+                self.current_history_tokens = (self.current_history_tokens or 0) + self.llm.get_num_tokens(user_input) + self.llm.get_num_tokens(reply)
+                self.save()
+                yield chunk
 
 if __name__ == '__main__':
+    import asyncio
     # example usage and test
     profile_path = PROFILES_DIR / "286705ad-cc8a-4c10-bc1d-b6ea69257c43.json"
     with open(profile_path, 'r', encoding='utf-8') as f:
         profile_data = json.load(f)
+
+    # Adapt old profile format to new schema for testing
+    if isinstance(profile_data.get("curriculum"), list):
+        profile_data["curriculum"] = {"steps": profile_data["curriculum"]}
+
     test_profile = Profile.model_validate(profile_data)
 
     tutor = Tutor.create_new(
@@ -307,7 +195,7 @@ if __name__ == '__main__':
     print(f"new Tutor created, Session ID: {session_id}")
 
     # 如果要运行下的部分，则注释掉
-    exit(0)
+    # exit(0)
 
     print("\n--- [Basic Interaction] ---")
     welcome_msg = tutor.get_welcome_message()
@@ -319,7 +207,7 @@ if __name__ == '__main__':
     response1 = tutor.process_message(user_input)
     print(f"🤖 Tutor Response: {response1.reply}")
     print(f"📊 Current State: Step {response1.state}, Finished: {response1.is_finished}")
-    user_input = "希儿天下第一可爱" # change step, check the action when step is not 1
+    user_input = "seele_is_the_best_girl" # change step, check the action when step is not 1
     print(f"👤 User Input: {user_input}")
     response2 = tutor.process_message(user_input)
     print(f"🤖 Tutor Response: {response2.reply}")
