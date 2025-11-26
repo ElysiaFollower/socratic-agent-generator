@@ -37,3 +37,10 @@ pytz>=2023.3                       # 时区处理库
 # 3. 安装依赖：pip install -r requirements.txt
 # 4. 配置环境变量：创建.env文件并添加DEEPSEEK_API_KEY
 # =============================================================================jinja2
+
+# Database and Auth
+sqlalchemy
+passlib
+bcrypt
+python-jose
+pyjwt
