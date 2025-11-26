@@ -1,23 +1,24 @@
-from typing import List, Dict, Any
-
-# --- LangChain & LLM ---
+from typing import Any
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-
 import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import MAX_INPUT_TOKENS
 from schemas.definition import TutorPersona
-
 import asyncio
 
-class PersonaGenerator:
+class PersonaAgent:
     """
-    Generate persona for tutor
-    given out persona_hints/target_audience in json format
+    Generates a persona for the tutor based on the lab manual content.
     """
     def __init__(self, llm: Any):
+        """
+        Initializes the PersonaAgent.
+
+        Args:
+            llm: The language model to use for generating the persona.
+        """
         self.llm = llm
         self.output_parser = JsonOutputParser(pydantic_object=TutorPersona)
         self.prompt = ChatPromptTemplate.from_messages([
@@ -40,17 +41,33 @@ class PersonaGenerator:
         self.chain = self.prompt | self.llm | self.output_parser
         
     def _create_excerpt(self, content: str, max_chars: int = 4000) -> str:
-        """Creates an excerpt of the content to avoid exceeding token limits."""
+        """
+        Creates an excerpt of the content to avoid exceeding token limits.
+
+        Args:
+            content: The content to create an excerpt from.
+            max_chars: The maximum number of characters for the excerpt.
+
+        Returns:
+            The excerpted content.
+        """
         if len(content) <= max_chars:
             return content
-        # Combine the beginning and end, which are often the most info-rich parts.
         return content[:max_chars//2] + "\n\n... (content truncated) ...\n\n" + content[-max_chars//2:]
 
  
     async def generate(self, lab_manual_content: str) -> TutorPersona:
         """
-        by given lab manual content, generate persona information for tutor (only the begining and the ending slice will be used)
-        like what a person he/she is, who he/she is trying to teach, what main concepts he/she is going to teach
+        Generates persona information for the tutor based on the lab manual content.
+
+        Args:
+            lab_manual_content: The content of the lab manual.
+
+        Returns:
+            A TutorPersona object containing the generated persona information.
+
+        Raises:
+            RuntimeError: If the persona generation fails.
         """
         print("🤖 Analyzing lab manual to generate definition.json...")
         content_excerpt = self._create_excerpt(lab_manual_content, max_chars=MAX_INPUT_TOKENS-1000)
@@ -67,8 +84,10 @@ class PersonaGenerator:
             raise RuntimeError(f"fail to generate definition: {str(e)}") from e
         
 if __name__ == "__main__":
-    #example usage; run at the root directory
     async def main():
+        """
+        Example usage of the PersonaAgent.
+        """
         with open("./data_raw/ShellShock-Attack/lab_manual.md", "r") as f:
             lab_manual_content = f.read()
         
@@ -77,9 +96,8 @@ if __name__ == "__main__":
         from dotenv import load_dotenv
         load_dotenv()  
         
-        generator = PersonaGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
-        definition =  await generator.generate(lab_manual_content)
+        agent = PersonaAgent(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
+        definition =  await agent.generate(lab_manual_content)
         print(definition.model_dump_json(indent=2))
     
-    asyncio.get_event_loop().run_until_complete(main())
-    
+    asyncio.run(main())
