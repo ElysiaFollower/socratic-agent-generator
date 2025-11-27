@@ -57,7 +57,7 @@ class Tutor:
         return cls(session, llm)
     
     @classmethod
-    def create_new(cls, profile:Profile, session_name:str=DEFAULT_SESSION_NAME, output_language:str=DEFAULT_OUTPUT_LANGUAGE, llm:Any=None):
+    def create_new(cls, profile:Profile, session_name:str=DEFAULT_SESSION_NAME, output_language:str=DEFAULT_OUTPUT_LANGUAGE, llm:Any=None, user_id:int=None):
         """
         Creates a new tutor session.
 
@@ -66,12 +66,13 @@ class Tutor:
             session_name: The name of the new session.
             output_language: The output language for the new session.
             llm: The language model to use.
+            user_id: The user id of the session.
 
         Returns:
             A new Tutor instance.
         """
         llm = llm or get_default_llm()
-        session = SessionManager.create_session(profile, session_name, output_language)
+        session = SessionManager.create_session(profile, session_name, output_language, user_id)
         
         instance = cls(session, llm)
         instance.save()

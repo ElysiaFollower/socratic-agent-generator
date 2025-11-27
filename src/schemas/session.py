@@ -28,6 +28,9 @@ class Session(BaseModel):
         description="The name of the session.",
         default=config.DEFAULT_SESSION_NAME
     )
+    user_id: int = Field(
+        description="The user id of the session."
+    )
     
     profile: Profile = Field(
         description="The profile of the session."

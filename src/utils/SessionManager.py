@@ -41,11 +41,12 @@ class SessionManager:
         return Session.model_validate(data)
 
     @staticmethod
-    def create_session(profile:Profile, session_name:str=DEFAULT_SESSION_NAME, output_language:str=DEFAULT_OUTPUT_LANGUAGE)-> Session:
+    def create_session(profile:Profile, session_name:str=DEFAULT_SESSION_NAME, output_language:str=DEFAULT_OUTPUT_LANGUAGE, user_id:int=None)-> Session:
         session = Session(
             profile=profile,
             session_name=session_name,
             output_language=output_language,
+            user_id=user_id
         )
         SessionManager.save_session(session)
         return session

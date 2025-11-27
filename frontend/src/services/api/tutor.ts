@@ -1,4 +1,5 @@
 import axios from 'axios'
+import authHeader from '../authHeader'
 
 export interface SocraticStep {
   step_title: string
@@ -91,17 +92,17 @@ export interface SessionState {
 }
 
 export async function listProfiles(): Promise<Profile[]> {
-  const res = await axios.get('/api/profiles') //获取所有可用的配置文件
+  const res = await axios.get('/api/profiles', { headers: authHeader() }) //获取所有可用的配置文件
   return res.data
 }
 
 export async function createSession(request: CreateSessionRequest): Promise<{session_id: string}> {
-  const res = await axios.post('/api/sessions/create', request)
+  const res = await axios.post('/api/sessions/create', request, { headers: authHeader() })
   return res.data
 }
 
 export async function getWelcomeMessage(sessionId: string): Promise<{welcome: string}> {
-  const res = await axios.get(`/api/tutor/${sessionId}/welcome`)
+  const res = await axios.get(`/api/tutor/${sessionId}/welcome`, { headers: authHeader() })
   return res.data
 }
 
@@ -118,6 +119,7 @@ export async function sendMessageStream(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authHeader()
       },
       body: JSON.stringify({ 
         // 对消息进行Base64编码
@@ -173,33 +175,33 @@ export async function sendMessageStream(
 // 注意：后端已改为流式接口，此同步接口可能不工作
 // 建议使用 sendMessageStream 替代
 export async function sendMessage(sessionId: string, message: string): Promise<SendMessageResponse> {
-  const res = await axios.post(`/api/sessions/${sessionId}/messages/stream`, { message });
+  const res = await axios.post(`/api/sessions/${sessionId}/messages/stream`, { message }, { headers: authHeader() });
   return res.data;
 }
 
 export async function getState(sessionId: string): Promise<SessionState> {
-  const res = await axios.get(`/api/tutor/${sessionId}/state`)
+  const res = await axios.get(`/api/tutor/${sessionId}/state`, { headers: authHeader() })
   return res.data
 }
 
 // 获取会话详情
 export async function getSession(sessionId: string): Promise<Session> {
-  const res = await axios.get(`/api/sessions/${sessionId}`)
+  const res = await axios.get(`/api/sessions/${sessionId}`, { headers: authHeader() })
   return res.data
 }
 
 export async function listSessions(): Promise<SessionSummary[]> {
-  const res = await axios.get('/api/sessions') //获取所有会话
+  const res = await axios.get('/api/sessions', { headers: authHeader() }) //获取所有会话
   return res.data
 }
 
 export async function renameSession(sessionId: string, request: RenameSessionRequest): Promise<{success: boolean, message: string}> {
-  const res = await axios.put(`/api/sessions/${sessionId}/rename`, request)
+  const res = await axios.put(`/api/sessions/${sessionId}/rename`, request, { headers: authHeader() })
   return res.data
 }
 
 export async function deleteSession(sessionId: string): Promise<{success: boolean, message: string}> {
-  const res = await axios.delete(`/api/sessions/${sessionId}`)
+  const res = await axios.delete(`/api/sessions/${sessionId}`, { headers: authHeader() })
   return res.data
 }
 

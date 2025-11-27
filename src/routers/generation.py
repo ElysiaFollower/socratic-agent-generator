@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from typing import List, Optional
 from pathlib import Path
 import uuid
@@ -13,6 +13,8 @@ from ..agents.persona_agent import PersonaAgent
 from ..generators.ProfileGenerateManager import ProfileGenerateManager
 from .. import config
 import asyncio
+from ..core.auth import main as auth
+from ..core.auth.schemas import user as user_schema
 
 router = APIRouter()
 
@@ -41,12 +43,16 @@ persona_manager = DataManager(PERSONAS_DIR, TutorPersona, "persona_id")
 profile_manager = DataManager(PROFILES_DIR, Profile, "profile_id")
 
 @router.post("/lab_manuals", summary="Upload a new lab manual.")
-async def upload_lab_manual(req: LabManualRequest):
+async def upload_lab_manual(req: LabManualRequest, current_user: user_schema.User = Depends(auth.get_current_user)):
+    if current_user.role not in [user_schema.Role.admin, user_schema.Role.teacher]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     lab_manual_id = lab_manual_manager.create(req.content)
     return {"lab_manual_id": lab_manual_id}
 
 @router.post("/curricula", summary="Generate a new curriculum from a lab manual.")
-async def generate_curriculum(req: CurriculumGenerationRequest):
+async def generate_curriculum(req: CurriculumGenerationRequest, current_user: user_schema.User = Depends(auth.get_current_user)):
+    if current_user.role not in [user_schema.Role.admin, user_schema.Role.teacher]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     lab_manual_content = lab_manual_manager.read(req.lab_manual_id)
     if not lab_manual_content:
         raise HTTPException(status_code=404, detail="Lab manual not found")
@@ -69,7 +75,9 @@ async def get_curriculum(curriculum_id: str):
     return curriculum
 
 @router.post("/personas", summary="Generate a new persona from a lab manual.")
-async def generate_persona(req: PersonaGenerationRequest):
+async def generate_persona(req: PersonaGenerationRequest, current_user: user_schema.User = Depends(auth.get_current_user)):
+    if current_user.role not in [user_schema.Role.admin, user_schema.Role.teacher]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     lab_manual_content = lab_manual_manager.read(req.lab_manual_id)
     if not lab_manual_content:
         raise HTTPException(status_code=404, detail="Lab manual not found")
@@ -92,7 +100,9 @@ async def get_persona(persona_id: str):
     return persona
 
 @router.post("/profiles", summary="Compile a new profile from a curriculum and persona.")
-async def compile_profile(req: ProfileCompilationRequest):
+async def compile_profile(req: ProfileCompilationRequest, current_user: user_schema.User = Depends(auth.get_current_user)):
+    if current_user.role not in [user_schema.Role.admin, user_schema.Role.teacher]:
+        raise HTTPException(status_code=403, detail="Not enough permissions")
     curriculum = curriculum_manager.read(req.curriculum_id)
     if not curriculum:
         raise HTTPException(status_code=404, detail="Curriculum not found")

@@ -39,7 +39,7 @@ class TutorManager:
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Failed to load session: {e}")
 
-    def create_tutor(self, profile: Profile, session_name: str, output_language: str) -> Tutor:
+    def create_tutor(self, profile: Profile, session_name: str, output_language: str, user_id: int) -> Tutor:
         """
         创建一个新的Tutor实例。
         Tutor.create_new 会自动持久化(save)到磁盘。
@@ -49,7 +49,8 @@ class TutorManager:
         tutor = Tutor.create_new(
             profile=profile,
             session_name=session_name,
-            output_language=output_language
+            output_language=output_language,
+            user_id=user_id
         )
         
         # 存入缓存

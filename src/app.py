@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from .config import CORS_ALLOWED_ORIGINS, API_HOST, API_PORT
 from .routers import generation, profiles, sessions
+from .core.auth.routers import users, auth, groups
 import base64
 import json
 import uuid
@@ -33,6 +34,9 @@ def health():
 app.include_router(generation.router, prefix="/api", tags=["Generation"])
 app.include_router(profiles.router, prefix="/api", tags=["Profiles"])
 app.include_router(sessions.router, prefix="/api", tags=["Sessions"])
+app.include_router(users.router, prefix="/api", tags=["Users"])
+app.include_router(auth.router, prefix="/api", tags=["Authentication"])
+app.include_router(groups.router, prefix="/api", tags=["Groups"])
 
 async def stream_generator(session_id: str, user_input: str):
     """
