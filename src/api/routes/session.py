@@ -1,0 +1,134 @@
+"""Session management routes.
+
+This module handles HTTP endpoints for learning session operations.
+"""
+
+from typing import List
+
+from fastapi import APIRouter, HTTPException
+
+from core.dependencies import ProfileManagerDep, SessionManagerDep, TutorManagerDep
+from core.exceptions import ProfileNotFoundError, SessionNotFoundError
+from schemas.message import CreateSessionRequest, RenameSessionRequest
+from schemas.session import Session, SessionSummary
+
+router = APIRouter(prefix="/api/sessions", tags=["Session"])
+
+
+@router.get("", response_model=List[SessionSummary], summary="获取所有会话元信息列表")
+def list_sessions(session_manager: SessionManagerDep) -> List[SessionSummary]:
+    """List all available sessions.
+
+    Args:
+        session_manager: Injected SessionManager instance.
+
+    Returns:
+        List of SessionSummary objects.
+    """
+    return session_manager.list_sessions()
+
+
+@router.post("/create", summary="创建一个新的会话")
+def create_session(
+    req: CreateSessionRequest,
+    profile_manager: ProfileManagerDep,
+    tutor_manager: TutorManagerDep,
+) -> dict:
+    """Create a new learning session.
+
+    Args:
+        req: CreateSessionRequest containing profile_id, session_name,
+            and output_language.
+        profile_manager: Injected ProfileManager instance.
+        tutor_manager: Injected TutorManager instance.
+
+    Returns:
+        Dictionary containing the session_id.
+
+    Raises:
+        HTTPException: 404 if profile not found.
+    """
+    try:
+        profile = profile_manager.read_profile(req.profile_id)
+    except ProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    tutor = tutor_manager.create_tutor(
+        profile=profile,
+        session_name=req.session_name,
+        output_language=req.output_language,
+    )
+    return {"session_id": tutor.session.session_id}
+
+
+@router.get("/{session_id}", response_model=Session, summary="获取一个会话的详细信息")
+def get_session(
+    session_id: str, session_manager: SessionManagerDep
+) -> Session:
+    """Get detailed information about a session.
+
+    Args:
+        session_id: The ID of the session.
+        session_manager: Injected SessionManager instance.
+
+    Returns:
+        Session object.
+
+    Raises:
+        HTTPException: 404 if session not found.
+    """
+    try:
+        return session_manager.read_session(session_id)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put("/{session_id}/rename", summary="重命名会话")
+def rename_session(
+    session_id: str,
+    req: RenameSessionRequest,
+    session_manager: SessionManagerDep,
+    tutor_manager: TutorManagerDep,
+) -> dict:
+    """Rename a session.
+
+    Args:
+        session_id: The ID of the session to rename.
+        req: RenameSessionRequest containing the new session_name.
+        session_manager: Injected SessionManager instance.
+        tutor_manager: Injected TutorManager instance.
+
+    Returns:
+        Success message.
+
+    Raises:
+        HTTPException: 404 if session not found.
+    """
+    try:
+        session_manager.rename_session(session_id, req.session_name)
+        tutor_manager.remove_from_cache(session_id)
+        return {"success": True, "message": "会话重命名成功"}
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/{session_id}", summary="删除会话")
+def delete_session(
+    session_id: str,
+    session_manager: SessionManagerDep,
+    tutor_manager: TutorManagerDep,
+) -> dict:
+    """Delete a session.
+
+    Args:
+        session_id: The ID of the session to delete.
+        session_manager: Injected SessionManager instance.
+        tutor_manager: Injected TutorManager instance.
+
+    Returns:
+        Success message.
+    """
+    tutor_manager.remove_from_cache(session_id)
+    session_manager.delete_session(session_id)
+    return {"success": True, "message": "会话删除成功"}
+

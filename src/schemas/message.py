@@ -1,60 +1,89 @@
-from typing import List, Dict, Any, Optional, Literal
+"""Message schema definitions.
+
+This module defines Pydantic models for API request and response messages.
+"""
+
+from typing import List, Literal
+
 from pydantic import BaseModel, Field
 
-import sys
-from pathlib import Path
-# Add the src directory to sys.path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+from config import DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME
 from schemas.session import SessionState
-import config
 
 class ResponseMessage(BaseModel):
+    """Response message from tutor after processing user input.
+
+    Attributes:
+        reply: The tutor's response message to the user.
+        state: The state of the session after this interaction.
+        is_finished: Whether the entire curriculum is completed.
     """
-    Encapsulates the data returned after processing a user message.
-    """
-    reply: str = Field(
-        description="The tutor's response message to the user."
-    )
+
+    reply: str = Field(description="The tutor's response message to the user.")
     state: SessionState = Field(
         description="The state of the session after this interaction."
     )
     is_finished: bool = Field(
         description="Whether the entire curriculum is completed.",
-        default=False
+        default=False,
     )
-    
-    
+
+
 class CreateSessionRequest(BaseModel):
-    """POST /sessions"""
-    profile_id: str = Field(description="the id of profile to load")
+    """Request model for creating a new session.
+
+    Used by POST /api/sessions/create endpoint.
+    """
+
+    profile_id: str = Field(description="The ID of the profile to load.")
     session_name: str = Field(
-        description="name of new session",
-        default=config.DEFAULT_SESSION_NAME
+        description="Name of the new session.",
+        default=DEFAULT_SESSION_NAME,
     )
     output_language: str = Field(
-        description="output language",
-        default=config.DEFAULT_OUTPUT_LANGUAGE
+        description="Output language for the session.",
+        default=DEFAULT_OUTPUT_LANGUAGE,
     )
 
+
 class MessageRequest(BaseModel):
-    message: str = Field(description="用户发送的文本消息")
+    """Request model for sending a message to the tutor.
+
+    The message is base64-encoded to prevent potential security issues.
+    """
+
+    message: str = Field(description="User's text message (base64-encoded).")
+
 
 class RenameSessionRequest(BaseModel):
-    "PUT /sessions/{id}/rename"
-    session_name: str = Field(description="会话的新名称")
-    
-    
-# --------- temp --------
+    """Request model for renaming a session.
+
+    Used by PUT /api/sessions/{id}/rename endpoint.
+    """
+
+    session_name: str = Field(description="New name for the session.")
+
+
+# --- OpenAI Adapter Schemas ---
+
 
 class OpenAIChatMessage(BaseModel):
-    """OpenAI 格式的消息体"""
+    """OpenAI-compatible chat message format."""
+
     role: Literal["user", "system", "assistant"]
     content: str
 
+
 class OpenAIRequest(BaseModel):
-    """OpenAI 格式的聊天请求体"""
+    """OpenAI-compatible chat completion request format.
+
+    Used by the /v1/chat/completions adapter endpoint.
+    """
+
     messages: List[OpenAIChatMessage]
-    model: str  # 前端会传来它当前选择的模型, e.g., "gpt-4"
-    stream: bool = True
-    # 我们暂时忽略其他字段
+    model: str = Field(
+        description="Model identifier (e.g., 'gpt-4'). "
+        "In this adapter, this is ignored."
+    )
+    stream: bool = Field(default=True, description="Whether to stream responses.")
     

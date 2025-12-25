@@ -44,16 +44,20 @@
    - 对话历史管理和 Token 截断
    - 流式和同步两种消息处理模式
 
-3. **RESTful API** (`app.py`)
-   - Profile 管理：列出、读取导师配置
-   - Session 管理：创建、删除、重命名学习会话
-   - 交互接口：流式消息发送、状态查询、欢迎消息
-   - OpenAI 适配器：兼容 OpenAI API 格式的聊天接口
+3. **RESTful API** (模块化路由架构)
+   - `api/routes/profile.py`：Profile 管理（列出、读取导师配置）
+   - `api/routes/session.py`：Session 管理（创建、删除、重命名学习会话）
+   - `api/routes/interaction.py`：交互接口（流式消息发送、状态查询、欢迎消息）
+   - `api/routes/adapter.py`：OpenAI 适配器（兼容 OpenAI API 格式的聊天接口）
+   - `core/dependencies.py`：依赖注入系统（单例模式确保缓存一致性）
+   - `core/exceptions.py`：统一异常处理
+   - `core/logging_config.py`：集中式日志配置
 
-4. **数据管理**
-   - `ProfileManager`：导师配置文件的读写和缓存
-   - `SessionManager`：学习会话的持久化和元数据管理
-   - `TutorManager`：活跃导师实例的内存缓存
+4. **数据管理** (`utils/`)
+   - `profile_manager.py`：导师配置文件的读写和缓存
+   - `session_manager.py`：学习会话的持久化和元数据管理
+   - `tutor_manager.py`：活跃导师实例的内存缓存
+   - `tutor_core.py`：苏格拉底智能体核心逻辑
 
 ### 前端服务 (`frontend/`)
 
@@ -151,7 +155,7 @@ python src/app.py
 后端服务将在 `http://localhost:8000` 启动。
 
 - API 文档：`http://localhost:8000/docs`（Swagger UI）
-- 健康检查：`http://localhost:8000/health`
+- 健康检查：`http://localhost:8000/api/health`
 
 #### 启动前端服务
 
@@ -172,25 +176,37 @@ npm run dev
 
 ### 创建自定义 AI 导师
 
-#### 方法一：自动生成（推荐）
+#### 方法一：交互式生成（推荐）
 
 1. **准备实验手册**：将你的技术实验手册（Markdown 格式）放入 `data_raw/` 目录
 
 2. **运行生成脚本**：
 
 ```bash
-python src/tutor_runner_cli.py
+# 使用默认的 example 目录
+python src/main.py
+
+# 或指定其他目录
+python src/main.py ShellShock-Attack
 ```
 
-3. **按提示操作**：
-   - 选择 `1. 生成新的导师配置`
-   - 输入实验手册文件名（例如：`my_lab.md`）
-   - 输入导师 ID（例如：`my_tutor`）
-   - 等待生成完成
+3. **交互式流程**：
+   - 程序自动从 `data_raw/{目录名}/lab_manual.md` 读取实验文档
+   - 自动生成 Persona（导师人设）和 Curriculum（教学大纲）
+   - 生成结果自动保存到 `data_raw/{目录名}/definition.json` 和 `curriculum.json`
+   - 可以编辑这两个文件进行人工调整
+   - 使用命令：
+     - `[rp]` 或 `regenerate-persona` - 重新生成 Persona
+     - `[rc]` 或 `regenerate-curriculum` - 重新生成 Curriculum
+     - `[c]` 或 `continue` - 继续生成 Profile 并保存
+     - `[q]` 或 `quit` - 退出程序
 
 4. **查看生成结果**：
-   - 导师配置将保存到 `data/tutor_profiles/{tutor_id}/`
-   - 包含 `profile.json`（完整配置）、`curriculum.json`（教学大纲）、`definition.json`（导师人格）
+   - 中间产物保存在 `data_raw/{目录名}/`：
+     - `definition.json`：导师人设（可编辑）
+     - `curriculum.json`：教学大纲（可编辑）
+   - 最终 Profile 保存在 `data/tutor_profiles/{目录名}/`：
+     - `{profile_id}.json`：完整的导师配置
 
 #### 方法二：手动创建
 
@@ -242,34 +258,58 @@ python src/tutor_runner_cli.py
 
 ### 使用 CLI 工具
 
-项目提供命令行工具 `tutor_runner_cli.py`，支持：
+#### 1. Profile 生成工具 (`main.py`)
+
+交互式生成导师配置：
 
 ```bash
-python src/tutor_runner_cli.py
+python src/main.py [目录名]
 ```
 
-功能菜单：
-1. **生成新的导师配置**：从实验手册自动生成
-2. **运行导师对话**：在终端中与导师对话（调试用）
-3. **查看所有导师**：列出已配置的导师
-4. **退出**
+#### 2. 导师对话工具 (`tutor_cli.py`)
+
+在终端中与导师对话（用于调试和批处理数据收集）：
+
+```bash
+# 列出所有可用的 Profile
+python src/tutor_cli.py --list
+
+# 使用 Profile ID 启动对话
+python src/tutor_cli.py --profile-id <profile_id>
+
+# 使用自定义 Profile 目录
+python src/tutor_cli.py --profile-id <profile_id> --profiles-dir ./custom_profiles
+
+# 自定义会话名称
+python src/tutor_cli.py --profile-id <profile_id> --session-name "我的会话"
+```
+
+**功能**：
+- 列出所有可用的 Profile
+- 创建新的学习会话
+- 交互式对话（输入 `q` 或 `exit` 退出）
+- 自动保存会话状态
 
 ## 🔌 API 文档
 
 ### 主要接口
 
-| 接口路径 | 方法 | 说明 |
-|---------|------|------|
-| `/api/profiles` | GET | 获取所有导师配置列表 |
-| `/api/profiles/{id}` | GET | 获取指定导师的完整配置 |
-| `/api/sessions` | POST | 创建新的学习会话 |
-| `/api/sessions` | GET | 获取所有会话列表 |
-| `/api/sessions/{id}` | DELETE | 删除指定会话 |
-| `/api/sessions/{id}/rename` | PUT | 重命名会话 |
-| `/api/sessions/{id}/messages/stream` | POST | 发送消息（流式响应） |
-| `/api/tutor/{id}/welcome` | GET | 获取欢迎消息 |
-| `/api/tutor/{id}/state` | GET | 获取学习进度状态 |
-| `/v1/chat/completions` | POST | OpenAI 兼容的聊天接口 |
+| 接口路径 | 方法 | 说明 | 模块 |
+|---------|------|------|------|
+| `/api/health` | GET | 健康检查 | `app.py` |
+| `/api/profiles` | GET | 获取所有导师配置列表 | `api/routes/profile.py` |
+| `/api/profiles/{profile_id}` | GET | 获取指定导师的完整配置 | `api/routes/profile.py` |
+| `/api/sessions` | GET | 获取所有会话列表 | `api/routes/session.py` |
+| `/api/sessions/create` | POST | 创建新的学习会话 | `api/routes/session.py` |
+| `/api/sessions/{session_id}` | GET | 获取会话详情 | `api/routes/session.py` |
+| `/api/sessions/{session_id}` | DELETE | 删除指定会话 | `api/routes/session.py` |
+| `/api/sessions/{session_id}/rename` | PUT | 重命名会话 | `api/routes/session.py` |
+| `/api/sessions/{session_id}/messages/stream` | POST | 发送消息（流式响应，SSE） | `api/routes/interaction.py` |
+| `/api/tutor/{session_id}/welcome` | GET | 获取欢迎消息 | `api/routes/interaction.py` |
+| `/api/tutor/{session_id}/state` | GET | 获取学习进度状态 | `api/routes/interaction.py` |
+| `/v1/chat/completions` | POST | OpenAI 兼容的聊天接口 | `api/routes/adapter.py` |
+
+> **注意**：所有 API 接口在 v2.0.0 重构后保持 100% 向后兼容，前端无需修改。
 
 ## 🛠️ 技术栈
 
@@ -381,13 +421,23 @@ npm install
 
 ## 📝 更新日志
 
-### v2.0.0 (2025-11-23)
-- ✨ 重构后端架构，引入 Manager 模式
-- 🚀 支持流式响应 (SSE)
-- 🔌 新增 OpenAI 兼容接口
-- 📊 改进学习进度跟踪
-- 🎨 优化前端 UI/UX
-- 💾 实现会话持久化和缓存机制
+### v2.0.0 (2025-12-25)
+- 🏗️ **架构重构**：模块化路由系统，遵循 Google Python Style Guide
+  - 从单文件 `app.py` 重构为模块化路由架构
+  - 新增 `core/` 模块：依赖注入、异常处理、日志配置
+  - 新增 `api/routes/` 模块：按功能分离路由
+  - 文件命名统一为 `snake_case`
+- 🔌 **API 增强**：
+  - 新增 `GET /api/profiles/{profile_id}` 端点
+  - 所有现有 API 保持 100% 向后兼容
+- 🎯 **依赖注入**：引入 FastAPI 依赖注入机制，实现单例模式
+- 🛡️ **异常处理**：统一的自定义异常类和错误处理逻辑
+- 📝 **日志系统**：集中式日志配置，统一日志格式
+- 🐛 **Bug 修复**：修复单例模式、流式响应错误处理等问题
+- 🔧 **代码质量**：完整的类型注解、文档字符串，符合 Google Python Style Guide
+- 🚀 **CLI 工具**：
+  - `main.py`：交互式 Profile 生成工具
+  - `tutor_cli.py`：命令行对话工具（支持调试和批处理）
 
 ### v1.0.0 (2025-09-12)
 - ✨ 初始版本发布

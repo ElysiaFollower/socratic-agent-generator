@@ -1,80 +1,102 @@
+"""Profile generation management module.
+
+This module manages the process of generating tutor profiles from lab manuals.
+The generated profile will be named with a unique id (by uuid4()).
+"""
+
+import asyncio
+import json
+import logging
+from typing import Any, Dict, List, Optional
+
 import dotenv
+from pathlib import Path
+
 dotenv.load_dotenv()
 
-import sys
-from pathlib import Path
-# Add the src directory to sys.path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
-import config
+from config import PROFILES_DIR, PROMPT_TEMPLATE_DIR, get_default_llm
 from generators.CurriculumGenerator import CurriculumGenerator
 from generators.PersonaGenerator import PersonaGenerator
-from utils.TemplateAssembler import BaseTemplateAssembler
-from schemas.profile import Profile
 from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
+from schemas.profile import Profile
+from utils.template_assembler import BaseTemplateAssembler
 
-from typing import Dict, List, Optional, Any
-import json
-import asyncio
+logger = logging.getLogger(__name__)
 
 
 class ProfileGenerateManager:
+    """Manages the process of generating tutor profiles.
+
+    This class coordinates the generation of curriculum, persona, and final
+    profile from a lab manual. The generated profile will be named with a
+    unique id (by uuid4()).
     """
-    manage the process of how a profile is generated.
-    the generated profile will be named with a unique id (by uuid4())
-    """
+
     def __init__(self, lab_manual_content: str, llm: Optional[Any] = None):
-        """init
+        """Initialize ProfileGenerateManager.
 
         Args:
-            lab_manual_content (str): must given, the manaul of the lab
-            llm (Any): if not given, use default value - example: langchain_deepseek.ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE)
+            lab_manual_content: The content of the lab manual (required).
+            llm: Optional LLM instance. If None, uses default LLM from config.
         """
         self.lab_manual_content = lab_manual_content
-        self.output_dir = config.PROFILES_DIR
+        self.output_dir = PROFILES_DIR
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.llm = llm or config.get_default_llm()
-        
+        self.llm = llm or get_default_llm()
+
         self.curriculum_generator = CurriculumGenerator(self.llm)
         self.persona_generator = PersonaGenerator(self.llm)
-        with open(config.PROMPT_TEMPLATE_DIR / 'master_prompt_system.jinja2') as f:
-            self.promt_template_string = f.read()
-        self.template_assembler = BaseTemplateAssembler(self.promt_template_string)
-    def change_lab_manual_content(self, lab_manual_content: str):
-        """change the lab manual this manager references
+        with open(PROMPT_TEMPLATE_DIR / "master_prompt_system.jinja2", encoding="utf-8") as f:
+            self.prompt_template_string = f.read()
+        self.template_assembler = BaseTemplateAssembler(self.prompt_template_string)
+    def change_lab_manual_content(self, lab_manual_content: str) -> None:
+        """Change the lab manual this manager references.
 
         Args:
-            lab_manual_content (str): content of lab manual
+            lab_manual_content: Content of lab manual.
         """
         self.lab_manual_content = lab_manual_content
-        
-    async def generate_curriculum(self)->SocraticCurriculum:
-        """generate curriculum by referencing lab manual
+
+    async def generate_curriculum(self) -> SocraticCurriculum:
+        """Generate curriculum by referencing lab manual.
 
         Returns:
-            List[Dict[str, str]]: list of steps
+            SocraticCurriculum object containing the generated curriculum.
         """
         curriculum = await self.curriculum_generator.generate(self.lab_manual_content)
         return curriculum
 
-    async def generate_persona(self)->TutorPersona:
-        """generate persona by referencing lab manual
+    async def generate_persona(self) -> TutorPersona:
+        """Generate persona by referencing lab manual.
 
         Returns:
-            Dict[str, str]: persona
+            TutorPersona object containing the generated persona.
         """
         persona = await self.persona_generator.generate(self.lab_manual_content)
         return persona
     
-    async def compile_profile(self, curriculum: Optional[SocraticCurriculum]=None, definition: Optional[TutorPersona]=None, profile_name: Optional[str]=None) -> None:
-        """compile the profile and save it to disk
-        curriculum and definition is readable and can be modified by user
-        but profile is not readable and not designed to be modified
+    async def compile_profile(
+        self,
+        curriculum: Optional[SocraticCurriculum] = None,
+        definition: Optional[TutorPersona] = None,
+        profile_name: Optional[str] = None,
+        output_dir: Optional[Path] = None,
+    ) -> Profile:
+        """Compile the profile and save it to disk.
+
+        Curriculum and definition are readable and can be modified by user,
+        but profile is not readable and not designed to be modified.
 
         Args:
-            curriculum (Optional[List[Dict[str, Any]]], optional): reviewed curriculum. Defaults: auto generated.
-            definition (Optional[Dict[str, Any]], optional): reviewed definition. Defaults: auto generated.
-            profile_name (Optional[str], optional): profile name. Defaults: topic_name.
+            curriculum: Reviewed curriculum. If None, auto-generated.
+            definition: Reviewed definition. If None, auto-generated.
+            profile_name: Profile name. If None, defaults to topic_name.
+            output_dir: Optional custom output directory. If None, uses
+                self.output_dir.
+
+        Returns:
+            The generated Profile object.
         """
         if curriculum is None and definition is None:
             curriculum, definition = await asyncio.gather(
@@ -94,13 +116,29 @@ class ProfileGenerateManager:
         profile = self._assemble_profile(curriculum, definition, base_template, profile_name)
         
         # save
-        self._save_profile(profile)
+        self._save_profile(profile, output_dir=output_dir)
+        
+        return profile
     
-    def _assemble_profile(self, curriculum: SocraticCurriculum, definition: TutorPersona, base_template: str, profile_name: Optional[str]) -> Profile:
+    def _assemble_profile(
+        self,
+        curriculum: SocraticCurriculum,
+        definition: TutorPersona,
+        base_template: str,
+        profile_name: Optional[str],
+    ) -> Profile:
+        """Assemble profile structure.
+
+        Args:
+            curriculum: SocraticCurriculum object.
+            definition: TutorPersona object.
+            base_template: Base prompt template string.
+            profile_name: Optional profile name.
+
+        Returns:
+            Profile object with auto-generated profile_id.
         """
-        define the structure of profile
-        """
-        # use topic_name as its default(init) value
+        # Use topic_name as its default(init) value
         # profile_id is auto generated
         return Profile(
             profile_name=profile_name,
@@ -108,38 +146,49 @@ class ProfileGenerateManager:
             persona_hints=definition.get_persona_hints(),
             target_audience=definition.get_target_audience(),
             curriculum=curriculum,
-            prompt_template=base_template
+            prompt_template=base_template,
         )
-    
-    def _save_profile(self, profile: Profile) -> None:
-        """save profile to disk
+
+    def _save_profile(self, profile: Profile, output_dir: Optional[Path] = None) -> None:
+        """Save profile to disk.
 
         Args:
-            profile (Dict[str, Any]): profile
+            profile: Profile object to save.
+            output_dir: Optional custom output directory. If None, uses
+                self.output_dir.
         """
-        profile_id = profile.get("profile_id", None)
-        if profile_id is None:
-            raise ValueError("profile_id is required")
-        output_path = self.output_dir / f"{profile_id}.json"
+        output_dir = output_dir or self.output_dir
+        output_dir.mkdir(parents=True, exist_ok=True)
         
-        with open(output_path, 'w', encoding='utf-8') as f:
+        profile_id = profile.profile_id
+        output_path = output_dir / f"{profile_id}.json"
+
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(profile.model_dump(), f, ensure_ascii=False, indent=2)
-        
-        print(f"Profile saved to {output_path}")
+
+        logger.info("Profile saved to %s", output_path)
 
         
         
 if __name__ == "__main__":
-    # example usage
+    # Debug/example usage
+    import config
+
     async def main():
-        with open(config.ROOT_DIR / "data_raw/Spectre-Attack/lab_manual.md", "r", encoding="utf-8") as f:
+        with open(
+            config.ROOT_DIR / "data_raw/Spectre-Attack/lab_manual.md",
+            "r",
+            encoding="utf-8",
+        ) as f:
             lab_manual_content = f.read()
         profile_manager = ProfileGenerateManager(lab_manual_content)
         curriculum, definition = await asyncio.gather(
             profile_manager.generate_curriculum(),
-            profile_manager.generate_persona()
+            profile_manager.generate_persona(),
         )
-        await profile_manager.compile_profile(curriculum=curriculum, definition=definition)
+        await profile_manager.compile_profile(
+            curriculum=curriculum, definition=definition
+        )
 
     asyncio.get_event_loop().run_until_complete(main())
         

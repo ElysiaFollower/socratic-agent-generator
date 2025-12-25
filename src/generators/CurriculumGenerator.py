@@ -1,32 +1,46 @@
-from typing import List, Dict, Any, Optional
+"""Curriculum generation module.
 
-# --- LangChain & LLM ---
-from langchain_core.prompts import ChatPromptTemplate
+This module generates Socratic curriculum from lab manuals through a
+two-phase process: Digest -> Transform.
+"""
+
+import asyncio
+import logging
+from typing import Any, Dict, List, Optional
+
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.prompts import ChatPromptTemplate
 
-import sys
-from pathlib import Path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
 from config import LESSON_DOMAIN
 from schemas.curriculum import SocraticCurriculum
 from schemas.others import DigestedManual
 
-import asyncio
+logger = logging.getLogger(__name__)
 
 class CurriculumGenerator:
-    """
-    一个能够读取实验文档并生成苏格拉底教学大纲的智能体。
-    它通过一个两阶段的流程来实现：Digest -> Transform。
+    """Generates Socratic curriculum from lab manuals.
+
+    This agent reads lab manuals and generates Socratic teaching curriculum
+    through a two-phase process: Digest -> Transform.
     """
     def __init__(self, llm: Any):
         self.llm = llm
 
     async def _digest_document(self, lab_manual_content: str) -> DigestedManual:
+        """Phase 1: Document parsing and structuring (The "Reader" Agent).
+
+        Transforms raw document into structured DigestedManual object.
+
+        Args:
+            lab_manual_content: The content of the lab manual.
+
+        Returns:
+            DigestedManual object containing structured tasks.
+
+        Raises:
+            RuntimeError: If document processing fails.
         """
-        阶段一：文档解析与结构化 (The "Reader" Agent)
-        将原始文档转化为结构化的DigestedManual对象。
-        """
-        print("⏳ [阶段1/2] 正在解析与结构化实验文档...")
+        logger.info("[Phase 1/2] Parsing and structuring lab document...")
         
         parser = JsonOutputParser(pydantic_object=DigestedManual)
         
@@ -49,19 +63,30 @@ class CurriculumGenerator:
             })
             
             result = DigestedManual.model_validate(digest_json)
-            print("✅ [阶段1/2] 文档结构化完成。")
+            logger.info("[Phase 1/2] Document structuring completed.")
             return result
-        
+
         except Exception as e:
-            raise RuntimeError(f"文档处理失败: {str(e)}") from e
+            raise RuntimeError(f"Document processing failed: {str(e)}") from e
             
 
-    async def _transform_to_socratic_curriculum(self, digest: DigestedManual) -> SocraticCurriculum:
+    async def _transform_to_socratic_curriculum(
+        self, digest: DigestedManual
+    ) -> SocraticCurriculum:
+        """Phase 2: Socratic transformation and refinement (The "Tutor" Agent).
+
+        Transforms structured task list into Socratic teaching curriculum.
+
+        Args:
+            digest: DigestedManual object containing structured tasks.
+
+        Returns:
+            SocraticCurriculum object containing the teaching curriculum.
+
+        Raises:
+            RuntimeError: If curriculum transformation fails.
         """
-        阶段二：苏格拉底式转化与精炼 (The "Tutor" Agent)
-        将结构化的任务列表，转化为循循善诱的教学大纲。
-        """
-        print("⏳ [阶段2/2] 正在将结构化任务转化为苏格拉底教学大纲...")
+        logger.info("[Phase 2/2] Transforming structured tasks to Socratic curriculum...")
         
         try:
             # 为了让LLM更好地理解，我们将Pydantic对象转回JSON字符串作为上下文
@@ -93,37 +118,45 @@ class CurriculumGenerator:
             })
 
             result = SocraticCurriculum.model_validate(result)
-            print("✅ [阶段2/2] 苏格拉底教学大纲生成完毕。")
+            logger.info("[Phase 2/2] Socratic curriculum generation completed.")
             return result
         except Exception as e:
-            raise RuntimeError(f"文档处理失败: {str(e)}") from e
+            raise RuntimeError(f"Document processing failed: {str(e)}") from e
        
 
     async def generate(self, lab_manual_content: str) -> SocraticCurriculum:
+        """Execute the complete two-phase process to generate final curriculum.
+
+        Args:
+            lab_manual_content: The content of the lab manual.
+
+        Returns:
+            SocraticCurriculum object containing the final teaching curriculum.
         """
-        执行完整的两阶段流程，生成最终的教学大纲。
-        """
-        # 阶段一：提炼和结构化信息
+        # Phase 1: Extract and structure information
         digested_manual = await self._digest_document(lab_manual_content)
-        
-        # 阶段二：将结构化信息转化为苏格拉底教学大纲
+
+        # Phase 2: Transform structured information into Socratic curriculum
         curriculum = await self._transform_to_socratic_curriculum(digested_manual)
-        
+
         return curriculum
     
 if __name__ == "__main__":
-    # example usages, run at root directory
+    # Debug/example usage; run at root directory
+    import config
+    from dotenv import load_dotenv
+    from langchain_deepseek import ChatDeepSeek
+
+    load_dotenv()
+
     async def main():
-        with open("./data_raw/ShellShock-Attack/lab_manual.md", "r") as f:
+        with open("./data_raw/ShellShock-Attack/lab_manual.md", "r", encoding="utf-8") as f:
             lab_manual_content = f.read()
-        
-        from langchain_deepseek import ChatDeepSeek
-        import config
-        from dotenv import load_dotenv
-        load_dotenv()
-        
-        generator = CurriculumGenerator(llm = ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE))
+
+        generator = CurriculumGenerator(
+            llm=ChatDeepSeek(model="deepseek-chat", temperature=config.TEMPERATURE)
+        )
         curriculum = await generator.generate(lab_manual_content)
-        print(curriculum.model_dump_json(indent=2))
-        
+        print(curriculum.model_dump_json(indent=2))  # Debug output
+
     asyncio.get_event_loop().run_until_complete(main())

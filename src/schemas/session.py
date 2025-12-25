@@ -1,16 +1,18 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, model_validator
+"""Session schema definitions.
+
+This module defines Session and SessionState data models for learning sessions.
+"""
+
 import uuid
 from datetime import datetime
-import pytz
+from typing import Any, Dict, List, Optional
 
-import sys
-from pathlib import Path
-# Add the src directory to sys.path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+import pytz
+from pydantic import BaseModel, Field, model_validator
+
+import config
 from schemas.curriculum import SocraticCurriculum
 from schemas.profile import Profile
-import config
 
 class SessionState(BaseModel):
     stepIndex: int = Field(

@@ -14,3 +14,6 @@ temp/
 data/session_data/*
 !data/session_data/.gitkeep
 
+_local/
+
+COMMIT_MESSAGE.txt

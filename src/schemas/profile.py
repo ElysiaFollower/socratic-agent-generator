@@ -1,13 +1,15 @@
-from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field, model_validator
+"""Profile schema definitions.
+
+This module defines the Profile data model for tutor profiles.
+"""
+
 import uuid
 from datetime import datetime
-import pytz
+from typing import Any, Dict, List, Optional
 
-import sys
-from pathlib import Path
-# Add the src directory to sys.path
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+import pytz
+from pydantic import BaseModel, Field, model_validator
+
 from schemas.curriculum import SocraticCurriculum
 
 class Profile(BaseModel):
