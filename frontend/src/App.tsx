@@ -25,6 +25,9 @@ import {
   Login,
   Register,
   InvitationCodeGenerator,
+  LabManualUploader,
+  ProfileGenerator,
+  ProfileGeneratorAdvanced,
 } from './components';
 import {
   createSession,
@@ -49,6 +52,16 @@ export default function App(): JSX.Element {
   const [showRegister, setShowRegister] = useState<boolean>(false);
   const [showInvitationGenerator, setShowInvitationGenerator] =
     useState<boolean>(false);
+  const [showLabManualUploader, setShowLabManualUploader] =
+    useState<boolean>(false);
+  const [showProfileGenerator, setShowProfileGenerator] =
+    useState<boolean>(false);
+  const [showProfileGeneratorAdvanced, setShowProfileGeneratorAdvanced] =
+    useState<boolean>(false);
+  const [labManualContent, setLabManualContent] = useState<string>('');
+  const [labManualFilename, setLabManualFilename] = useState<string | null>(
+    null,
+  );
 
   const {profiles, isLoading: profilesLoading, refresh: refreshProfiles} =
     useProfiles();
@@ -234,6 +247,30 @@ export default function App(): JSX.Element {
     }
   }, [logout]);
 
+  const handleUploadLabManual = useCallback(() => {
+    setShowLabManualUploader(true);
+  }, []);
+
+  const handleGenerateProfile = useCallback(() => {
+    setShowProfileGeneratorAdvanced(true);
+  }, []);
+
+  const handleLabManualUploadSuccess = useCallback(() => {
+    // Upload is now independent, just close the uploader
+    setShowLabManualUploader(false);
+  }, []);
+
+  const handleProfileGenerateSuccess = useCallback(
+    async (profile: Profile) => {
+      await refreshProfiles();
+      setShowProfileGenerator(false);
+      setShowProfileGeneratorAdvanced(false);
+      setLabManualContent('');
+      setLabManualFilename(null);
+    },
+    [refreshProfiles],
+  );
+
   // Listen for invitation generator open event
   React.useEffect(() => {
     const handleOpenInvitationGenerator = () => {
@@ -289,6 +326,8 @@ export default function App(): JSX.Element {
           onDeleteSession={handleDeleteSession}
           user={user}
           onLogout={handleLogout}
+          onUploadLabManual={handleUploadLabManual}
+          onGenerateProfile={handleGenerateProfile}
         />
       )}
 
@@ -344,6 +383,41 @@ export default function App(): JSX.Element {
       {showInvitationGenerator && (
         <InvitationCodeGenerator
           onClose={() => setShowInvitationGenerator(false)}
+        />
+      )}
+
+      {/* Lab Manual Uploader Modal */}
+      {showLabManualUploader && (
+        <LabManualUploader
+          onUploadSuccess={handleLabManualUploadSuccess}
+          onClose={() => {
+            setShowLabManualUploader(false);
+            setLabManualContent('');
+          }}
+        />
+      )}
+
+      {/* Profile Generator Modal (Legacy - for direct content input) */}
+      {showProfileGenerator && (
+        <ProfileGenerator
+          labManualContent={labManualContent}
+          labManualFilename={labManualFilename}
+          onGenerateSuccess={handleProfileGenerateSuccess}
+          onClose={() => {
+            setShowProfileGenerator(false);
+            setLabManualContent('');
+            setLabManualFilename(null);
+          }}
+        />
+      )}
+
+      {/* Advanced Profile Generator Modal */}
+      {showProfileGeneratorAdvanced && (
+        <ProfileGeneratorAdvanced
+          onGenerateSuccess={handleProfileGenerateSuccess}
+          onClose={() => {
+            setShowProfileGeneratorAdvanced(false);
+          }}
         />
       )}
       </div>

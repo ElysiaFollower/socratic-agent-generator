@@ -22,6 +22,8 @@ export interface SidebarProps {
   readonly onDeleteSession: (sessionId: string) => void;
   readonly user: User | null;
   readonly onLogout: () => void;
+  readonly onUploadLabManual?: () => void;
+  readonly onGenerateProfile?: () => void;
 }
 
 /**
@@ -41,6 +43,8 @@ export function Sidebar(props: SidebarProps): JSX.Element {
     onDeleteSession,
     user,
     onLogout,
+    onUploadLabManual,
+    onGenerateProfile,
   } = props;
 
   const [editingSessionId, setEditingSessionId] = React.useState<
@@ -140,9 +144,10 @@ export function Sidebar(props: SidebarProps): JSX.Element {
               生成邀请码
             </button>
             <button
+              onClick={onUploadLabManual}
               className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
               disabled={isLoading}
-              title="上传实验文档功能（待实现）"
+              title="上传实验文档"
             >
               <svg
                 className="w-4 h-4"
@@ -160,9 +165,10 @@ export function Sidebar(props: SidebarProps): JSX.Element {
               上传实验文档
             </button>
             <button
+              onClick={onGenerateProfile}
               className="w-full bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition-colors flex items-center justify-center gap-2 text-sm font-medium"
               disabled={isLoading}
-              title="生成Profile功能（待实现）"
+              title="生成Profile"
             >
               <svg
                 className="w-4 h-4"

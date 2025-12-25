@@ -6,6 +6,28 @@
 
 export * from './client';
 export * from './profiles';
+export {
+  uploadLabManual,
+  generateProfile,
+  listLabManuals,
+  getLabManualContent,
+  deleteLabManual,
+  getPersona,
+  savePersona,
+  getCurriculum,
+  saveCurriculum,
+  generatePersona,
+  generateCurriculum,
+  generateProfileFromLab,
+  type UploadLabManualRequest,
+  type UploadLabManualResponse,
+  type GenerateProfileRequest,
+  type LabManualInfo,
+  type LabManualContent,
+  type TutorPersona,
+  type SocraticStep,
+  type SocraticCurriculum,
+} from './profiles';
 export * from './sessions';
 export * from './tutor';
 export * from './health';

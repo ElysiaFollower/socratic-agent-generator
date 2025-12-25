@@ -133,13 +133,15 @@ class ProfileGenerateManager:
             curriculum: SocraticCurriculum object.
             definition: TutorPersona object.
             base_template: Base prompt template string.
-            profile_name: Optional profile name.
+            profile_name: Optional profile name. If provided, will be used directly.
+                If None, Profile.model_validator will use topic_name as fallback.
 
         Returns:
             Profile object with auto-generated profile_id.
         """
-        # Use topic_name as its default(init) value
         # profile_id is auto generated
+        # If profile_name is provided, use it; otherwise Profile.model_validator
+        # will use topic_name as fallback
         return Profile(
             profile_name=profile_name,
             topic_name=definition.get_topic_name(),
