@@ -7,7 +7,12 @@ All configuration values can be overridden via environment variables.
 
 import os
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # --- Directory Configuration ---
 
@@ -95,3 +100,8 @@ DEFAULT_OUTPUT_LANGUAGE: str = "Simplified Chinese"
 # Default session name if no name is specified
 # If topic name is available, it will be used instead
 DEFAULT_SESSION_NAME: str = "新会话"
+
+# --- Authentication Configuration ---
+
+# Admin token for admin registration (set via ADMIN_TOKEN environment variable)
+ADMIN_TOKEN: Optional[str] = os.getenv("ADMIN_TOKEN")

@@ -40,9 +40,11 @@ class ProfileManager:
 
         Note:
             Invalid profiles are skipped with a warning log message.
+            Scans all subdirectories recursively for profile files.
         """
         profile_list = []
-        for profile_file in self.profiles_dir.glob("*.json"):
+        # Use rglob to recursively search all subdirectories
+        for profile_file in self.profiles_dir.rglob("*.json"):
             try:
                 with open(profile_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -70,18 +72,33 @@ class ProfileManager:
 
         Raises:
             ProfileNotFoundError: If the profile does not exist.
-        """
-        profile_path = self.profiles_dir / f"{profile_id}.json"
-        if not profile_path.exists():
-            raise ProfileNotFoundError(profile_id)
 
-        try:
-            with open(profile_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            return Profile.model_validate(data)
-        except json.JSONDecodeError as e:
-            logger.error("Failed to parse profile %s: %s", profile_id, e)
-            raise ProfileNotFoundError(profile_id) from e
+        Note:
+            Searches recursively in all subdirectories for the profile file.
+        """
+        # First try direct path (for backward compatibility)
+        profile_path = self.profiles_dir / f"{profile_id}.json"
+        if profile_path.exists():
+            try:
+                with open(profile_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return Profile.model_validate(data)
+            except json.JSONDecodeError as e:
+                logger.error("Failed to parse profile %s: %s", profile_id, e)
+                raise ProfileNotFoundError(profile_id) from e
+
+        # If not found, search recursively in subdirectories
+        for profile_file in self.profiles_dir.rglob(f"{profile_id}.json"):
+            try:
+                with open(profile_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                return Profile.model_validate(data)
+            except json.JSONDecodeError as e:
+                logger.error("Failed to parse profile %s: %s", profile_id, e)
+                raise ProfileNotFoundError(profile_id) from e
+
+        # Profile not found
+        raise ProfileNotFoundError(profile_id)
 
     def save_profile(self, profile: Profile) -> Profile:
         """Save a profile to disk.

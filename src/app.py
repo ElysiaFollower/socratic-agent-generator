@@ -14,7 +14,7 @@ from config import (
     PROFILES_DIR,
     SESSION_DATA_DIR,
 )
-from api.routes import profile, session, interaction, adapter
+from api.routes import auth, profile, session, interaction, adapter
 
 # Setup logging
 setup_logging()
@@ -40,6 +40,7 @@ PROFILES_DIR.mkdir(parents=True, exist_ok=True)
 SESSION_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Register route handlers
+app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(session.router)
 app.include_router(interaction.router)

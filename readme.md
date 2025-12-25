@@ -183,7 +183,7 @@ npm run dev
 2. **运行生成脚本**：
 
 ```bash
-# 使用默认的 example 目录
+# 使用默认的 example 目录; 等价python src/main.py example
 python src/main.py
 
 # 或指定其他目录
