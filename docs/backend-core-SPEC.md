@@ -12,7 +12,8 @@
 - **数据存储**: JSON 文件系统存储
 - **依赖注入**: FastAPI Depends
 
-Google python style guide
+后端使用Google python style guide
+前端使用Google TypeScript style guide
 
 ### 1.2 项目结构
 
