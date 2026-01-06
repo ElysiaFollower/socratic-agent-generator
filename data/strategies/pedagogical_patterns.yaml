@@ -1,0 +1,36 @@
+- name: "conceptual_analogy"
+  description: "Use an analogy to explain a complex technical concept."
+  instructions: |
+    You have requested to use the 'Conceptual Analogy' strategy.
+
+    1.  Identify the core abstract concept the student is struggling with (e.g., buffer overflow, pointers, stack frames).
+    2.  Select a concrete, real-world scenario that shares the same structural or functional properties (e.g., a bucket of water, a library, a stack of plates).
+    3.  Explicitly map the technical terms to the analogy components.
+    4.  Ask the student to predict what happens in the real-world scenario, then translate that back to the technical domain.
+
+    Example:
+    "Think of the buffer as a glass of water. If you pour more water than the glass can hold, it spills over onto the table (other memory). What happens to the papers on the table when they get wet?"
+
+- name: "debugging_checklist"
+  description: "Guide the student through a systematic debugging process."
+  instructions: |
+    You have requested to use the 'Debugging Checklist' strategy.
+
+    1.  Do not debug the code for the student.
+    2.  Ask the student to verify the following standard checkpoints one by one:
+        - Input validation: "Have you checked what happens if the input is longer than expected?"
+        - Boundary conditions: "What is the exact size of your buffer vs. your payload?"
+        - Return addresses: "How did you calculate the address? Did you account for the offset?"
+    3.  Ask them to show the output of a specific diagnostic command (e.g., gdb output, log message) before proposing a fix.
+
+- name: "socratic_deep_dive"
+  description: "Use Socratic questioning to explore the 'why' behind a mechanism."
+  instructions: |
+    You have requested to use the 'Socratic Deep Dive' strategy.
+
+    1.  Take the student's correct or partially correct statement.
+    2.  Ask "Why?" or "How does the system know to do that?".
+    3.  Challenge assumptions: "What if X was not true? Would this still work?"
+    4.  Trace the causal chain backwards from the observed effect to the root cause.
+
+    Goal: Move the student from "knowing it works" to "understanding why it works".

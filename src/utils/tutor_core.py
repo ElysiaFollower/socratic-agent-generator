@@ -30,7 +30,7 @@ from schemas.message import ResponseMessage
 from schemas.profile import Profile
 from schemas.session import Session
 from utils.session_manager import SessionManager
-from utils.skills import LabManualSkill
+from utils.skills import LabManualSkill, PedagogicalStrategySkill
 from utils.template_assembler import PromptAssembler
 
 logger = logging.getLogger(__name__)
@@ -94,7 +94,12 @@ class Tutor:
 
         # Initialize skills
         self.lab_manual_skill = LabManualSkill(self.session.profile.topic_name)
-        tools = [self.lab_manual_skill.get_tool()]
+        self.pedagogy_skill = PedagogicalStrategySkill()
+
+        tools = [
+            self.lab_manual_skill.get_tool(),
+            self.pedagogy_skill.get_tool()
+        ]
 
         # Main prompt template
         main_prompt = ChatPromptTemplate.from_messages(

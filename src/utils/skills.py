@@ -15,6 +15,7 @@ from langchain_core.embeddings import Embeddings
 from langchain_core.tools import tool
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter
+import yaml
 
 from config import RAW_DATA_DIR, DATA_DIR
 
@@ -22,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 # Directory to store vector store indices
 VECTOR_STORE_DIR = DATA_DIR / "vector_stores"
+# Directory for pedagogical strategies
+STRATEGIES_FILE = DATA_DIR / "strategies" / "pedagogical_patterns.yaml"
 
 
 class LabManualSkill:
@@ -149,3 +152,63 @@ class LabManualSkill:
                 return f"Error occurred while searching lab manual: {e}"
 
         return consult_lab_manual
+
+
+class PedagogicalStrategySkill:
+    """Skill for retrieving specialized teaching strategies.
+
+    This skill acts as a 'Pedagogy Coach' that provides the Tutor with
+    structured scripts or patterns for handling specific teaching situations
+    (e.g., explaining complex concepts via analogy, conducting deep-dive debugging).
+    """
+
+    def __init__(self):
+        """Initialize the PedagogicalStrategySkill."""
+        self.strategies = self._load_strategies()
+
+    def _load_strategies(self) -> dict:
+        """Load teaching strategies from the YAML file."""
+        if not STRATEGIES_FILE.exists():
+            logger.warning("Pedagogical strategies file not found at %s", STRATEGIES_FILE)
+            return {}
+
+        try:
+            with open(STRATEGIES_FILE, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+                # Convert list to dict for easier lookup
+                return {item["name"]: item for item in data}
+        except Exception as e:
+            logger.error("Failed to load pedagogical strategies: %s", e)
+            return {}
+
+    def get_tool(self):
+        """Get the LangChain tool for consulting the pedagogy coach."""
+
+        @tool
+        def consult_pedagogy_coach(strategy_name: str) -> str:
+            """
+            Consult the Pedagogy Coach to get a specific teaching strategy script.
+
+            Available strategies:
+            - 'conceptual_analogy': Use when a student struggles with an abstract concept. Returns instructions on how to build a relevant analogy.
+            - 'debugging_checklist': Use when a student is stuck finding a bug. Returns a systematic checklist to guide the student (without giving the answer).
+            - 'socratic_deep_dive': Use when a student gives a correct but shallow answer. Returns questions to probe for deeper understanding.
+
+            Args:
+                strategy_name: The name of the strategy to retrieve (e.g., 'conceptual_analogy').
+
+            Returns:
+                Detailed instructions and examples for applying the chosen strategy.
+            """
+            strategy = self.strategies.get(strategy_name)
+            if not strategy:
+                valid_names = ", ".join(self.strategies.keys())
+                return f"Strategy '{strategy_name}' not found. Available strategies: {valid_names}"
+
+            return (
+                f"--- Strategy: {strategy['name']} ---\n"
+                f"Description: {strategy['description']}\n\n"
+                f"INSTRUCTIONS FOR THE AGENT:\n{strategy['instructions']}"
+            )
+
+        return consult_pedagogy_coach
