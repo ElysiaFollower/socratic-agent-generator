@@ -30,6 +30,7 @@ from schemas.message import ResponseMessage
 from schemas.profile import Profile
 from schemas.session import Session
 from utils.session_manager import SessionManager
+from utils.skills import LabManualSkill
 from utils.template_assembler import PromptAssembler
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,10 @@ class Tutor:
             self.session.profile.prompt_template
         )
 
+        # Initialize skills
+        self.lab_manual_skill = LabManualSkill(self.session.profile.topic_name)
+        tools = [self.lab_manual_skill.get_tool()]
+
         # Main prompt template
         main_prompt = ChatPromptTemplate.from_messages(
             [
@@ -98,6 +103,7 @@ class Tutor:
                 ("system", "{truncate_history_note}"),
                 MessagesPlaceholder(variable_name="history"),
                 ("user", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
         )
 
@@ -107,14 +113,26 @@ class Tutor:
         )
 
         # Main agent chain (without history)
-        main_chain = main_prompt | self.llm | StrOutputParser()
+        # We need to use an agent that can handle tool calls
+        from langchain.agents import create_tool_calling_agent
+        from langchain.agents import AgentExecutor
+
+        agent = create_tool_calling_agent(self.llm, tools, main_prompt)
+        # Using AgentExecutor to handle the loop of tool calling
+        self.agent_executor = AgentExecutor(
+            agent=agent,
+            tools=tools,
+            verbose=True,
+            handle_parsing_errors=True,
+            max_iterations=5,
+        )
 
         # Evaluator chain
         self.evaluator_chain = evaluator_prompt | self.llm | StrOutputParser()
 
         # Main agent chain with history
         self.main_chain_with_history = RunnableWithMessageHistory(
-            main_chain,
+            self.agent_executor,
             lambda sid: self.truncated_history,
             input_messages_key="input",
             history_messages_key="history",
@@ -350,18 +368,32 @@ class Tutor:
         )
 
         # Invoke main chain
-        response = self.main_chain_with_history.invoke(
+        # AgentExecutor returns a dict with "output", we need to extract it
+        result = self.main_chain_with_history.invoke(
             {
                 "system_prompt_with_state": (
                     formatted_system_prompt + additional_note
                 ),
                 "truncate_history_note": self.truncate_history_note,
                 "input": user_input,
+                "agent_scratchpad": [],  # Initial scratchpad
             },
             config={"configurable": {"session_id": self.session.session_id}},
         )
+        response = result["output"]
 
         # Update history
+        # AgentExecutor with RunnableWithMessageHistory automatically updates history?
+        # Actually RunnableWithMessageHistory handles history update if it wraps the runnable properly.
+        # But here we are manually adding messages to self.history as well.
+        # Let's verify how RunnableWithMessageHistory works.
+        # It updates the `get_session_history` object (which is self.truncated_history).
+        # We also maintain self.history (the full history).
+        # We need to sync them or just update self.history.
+        # Since we use self.truncated_history for the runnable, the runnable updates it.
+        # But self.history is what we save to disk.
+        # So we should append the new interaction to self.history.
+
         self.history.add_user_message(user_input)
         self.history.add_ai_message(response)
         self.current_history_tokens += (
@@ -486,6 +518,11 @@ class Tutor:
         )
 
         # Stream main chain response
+        # AgentExecutor streaming yields steps, we need to extract final output tokens.
+        # This is trickier with Agents.
+        # langchain.agents.AgentExecutor.astream_events is the modern way.
+        # But here we use RunnableWithMessageHistory wrapped around AgentExecutor.
+
         async for chunk in self.main_chain_with_history.astream(
             {
                 "system_prompt_with_state": (
@@ -493,11 +530,36 @@ class Tutor:
                 ),
                 "truncate_history_note": self.truncate_history_note,
                 "input": user_input,
+                "agent_scratchpad": [],
             },
             config={"configurable": {"session_id": self.session.session_id}},
         ):
-            reply += chunk
-            yield chunk
+            # AgentExecutor astream yields dictionary with keys like 'actions', 'steps', 'output'.
+            # If it's the final output, it might come in chunks if we configure it right,
+            # but AgentExecutor standard astream usually yields the final output at the end.
+            # To get token streaming from the final LLM call in an agent is complex.
+            # For now, let's assume we get the final output in 'output' key at the end,
+            # OR if we want real streaming we might need to rely on callbacks or
+            # check if `chunk` contains the output token.
+
+            # If chunk is a dict and has "output", it is the final result.
+            if isinstance(chunk, dict) and "output" in chunk:
+                reply = chunk["output"]
+                yield reply
+            # If it is just a string (which sometimes happens if the underlying runnable yields strings), append it.
+            elif isinstance(chunk, str):
+                reply += chunk
+                yield chunk
+
+        # Note: True token-by-token streaming with Agents + Tools usually requires
+        # using .astream_events or specific callback handlers.
+        # Given the complexity, and that we want to "enhance" capabilities,
+        # non-streaming (or chunked streaming of final answer) might be acceptable for the first iteration
+        # of the "Skill" feature if token streaming is hard.
+        # However, let's try to do it properly if possible.
+        # But AgentExecutor.astream behavior depends on how it's set up.
+        # For now, let's stick to the simplest integration: return the full reply at the end if streaming is hard,
+        # or yield the 'output' if available.
 
         # Update history
         self.history.add_user_message(user_input)

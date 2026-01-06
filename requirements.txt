@@ -16,6 +16,11 @@ langchain>=0.1.0                   # LangChain核心库
 langchain-core>=0.1.0              # LangChain核心组件
 langchain-community>=0.0.10        # LangChain社区扩展（包含ChatMessageHistory）
 langchain-deepseek>=0.0.1          # DeepSeek API集成
+langchain-huggingface>=0.0.1       # HuggingFace integration for embeddings
+
+# RAG & Embeddings
+faiss-cpu>=1.7.0                   # Vector store
+sentence-transformers>=2.2.0       # Embeddings model
 
 # 环境变量管理
 python-dotenv>=1.0.0               # 环境变量加载
