@@ -1,21 +1,21 @@
 """Skills module for Tutor.
 
 This module provides tools/skills that the Tutor can use.
-The primary skill currently implemented is the 'Technical Documentation Expert',
-which allows the Tutor to consult the lab manual for specific technical details,
-instructions, and definitions.
+It implements the Anthropic 'Agent Skills' pattern where skills are defined
+by filesystem directories containing `SKILL.md` files with metadata and instructions.
 """
 
 import logging
+import os
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict
 
+import frontmatter
 from langchain_community.vectorstores import FAISS
 from langchain_core.embeddings import Embeddings
 from langchain_core.tools import tool
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter
-import yaml
 
 from config import RAW_DATA_DIR, DATA_DIR
 
@@ -23,11 +23,49 @@ logger = logging.getLogger(__name__)
 
 # Directory to store vector store indices
 VECTOR_STORE_DIR = DATA_DIR / "vector_stores"
-# Directory for pedagogical strategies
-STRATEGIES_FILE = DATA_DIR / "strategies" / "pedagogical_patterns.yaml"
+# Base directory for skills
+SKILLS_DIR = DATA_DIR / "skills"
 
 
-class LabManualSkill:
+class BaseSkill:
+    """Base class for Agent Skills defined by SKILL.md."""
+
+    def __init__(self, skill_name: str):
+        """Initialize the skill.
+
+        Args:
+            skill_name: The name of the directory in data/skills/
+        """
+        self.skill_dir = SKILLS_DIR / skill_name
+        self.skill_file = self.skill_dir / "SKILL.md"
+        self.metadata = {}
+        self.instructions = ""
+        self._load_skill_definition()
+
+    def _load_skill_definition(self):
+        """Load metadata and instructions from SKILL.md."""
+        if not self.skill_file.exists():
+            logger.warning("Skill file not found at %s", self.skill_file)
+            return
+
+        try:
+            with open(self.skill_file, "r", encoding="utf-8") as f:
+                post = frontmatter.load(f)
+                self.metadata = post.metadata
+                self.instructions = post.content
+        except Exception as e:
+            logger.error("Failed to load skill definition for %s: %s", self.skill_dir.name, e)
+
+    @property
+    def name(self) -> str:
+        return self.metadata.get("name", "unknown_skill")
+
+    @property
+    def description(self) -> str:
+        return self.metadata.get("description", "No description provided.")
+
+
+class LabManualSkill(BaseSkill):
     """Skill for querying the lab manual using RAG.
 
     This skill acts as a technical expert that can be consulted by the Tutor
@@ -40,6 +78,7 @@ class LabManualSkill:
         Args:
             topic_name: The name of the topic (corresponds to directory in data_raw).
         """
+        super().__init__("lab_manual")
         self.topic_name = topic_name
         self.vector_store_path = VECTOR_STORE_DIR / topic_name
         self.lab_manual_path = RAW_DATA_DIR / topic_name / "lab_manual.md"
@@ -121,19 +160,23 @@ class LabManualSkill:
     def get_tool(self):
         """Get the LangChain tool for consulting the lab manual."""
 
-        @tool
+        # Define tool using metadata from SKILL.md if available
+        tool_name = self.name
+        tool_description = self.description
+
+        @tool(tool_name)
         def consult_lab_manual(query: str) -> str:
-            """
-            Consult the official lab manual to find specific technical details, definitions,
-            step-by-step instructions, or command syntax.
+            # Use the docstring from SKILL.md description as a fallback or hint
+            # But the @tool decorator uses the function's docstring for the LLM.
+            # We can dynamically set it, but for simplicity, we keep the docstring here
+            # and rely on the name/description passed to the tool constructor (via @tool or Tool class).
+            # LangChain's @tool decorator usually takes the function name/docstring.
+            # To use dynamic name/description, we need to return a StructuredTool.
 
-            Use this tool when:
-            1. You need to verify specific commands, file paths, or IP addresses mentioned in the lab.
-            2. The student asks for a definition or explanation of a technical concept covered in the manual.
-            3. You want to check the expected output of a step to guide the student correctly.
-
-            Do not guess. If you are unsure about a specific lab detail, use this tool to check.
             """
+            Consult the official lab manual for technical details.
+            """
+
             if not self.vector_store:
                 return "The lab manual is not available for this topic."
 
@@ -143,72 +186,76 @@ class LabManualSkill:
                 if not docs:
                     return "No relevant information found in the lab manual."
 
-                result = "\n\n".join(
-                    [f"--- Excerpt from Lab Manual ---\n{doc.page_content}" for doc in docs]
+                search_results = "\n\n".join(
+                    [f"--- Excerpt ---\n{doc.page_content}" for doc in docs]
                 )
-                return result
+
+                # Combine instructions from SKILL.md with the results
+                return (
+                    f"{self.instructions}\n\n"
+                    f"--- Search Results for '{query}' ---\n"
+                    f"{search_results}"
+                )
             except Exception as e:
                 logger.error("Error searching lab manual: %s", e)
                 return f"Error occurred while searching lab manual: {e}"
 
+        # Override name/description
+        consult_lab_manual.name = tool_name
+        consult_lab_manual.description = tool_description
+
         return consult_lab_manual
 
 
-class PedagogicalStrategySkill:
-    """Skill for retrieving specialized teaching strategies.
-
-    This skill acts as a 'Pedagogy Coach' that provides the Tutor with
-    structured scripts or patterns for handling specific teaching situations
-    (e.g., explaining complex concepts via analogy, conducting deep-dive debugging).
-    """
+class PedagogicalStrategySkill(BaseSkill):
+    """Skill for retrieving specialized teaching strategies."""
 
     def __init__(self):
         """Initialize the PedagogicalStrategySkill."""
-        self.strategies = self._load_strategies()
-
-    def _load_strategies(self) -> dict:
-        """Load teaching strategies from the YAML file."""
-        if not STRATEGIES_FILE.exists():
-            logger.warning("Pedagogical strategies file not found at %s", STRATEGIES_FILE)
-            return {}
-
-        try:
-            with open(STRATEGIES_FILE, "r", encoding="utf-8") as f:
-                data = yaml.safe_load(f)
-                # Convert list to dict for easier lookup
-                return {item["name"]: item for item in data}
-        except Exception as e:
-            logger.error("Failed to load pedagogical strategies: %s", e)
-            return {}
+        super().__init__("pedagogy")
+        self.strategies_dir = self.skill_dir / "strategies"
 
     def get_tool(self):
         """Get the LangChain tool for consulting the pedagogy coach."""
 
-        @tool
+        tool_name = self.name
+        tool_description = self.description
+
+        @tool(tool_name)
         def consult_pedagogy_coach(strategy_name: str) -> str:
             """
             Consult the Pedagogy Coach to get a specific teaching strategy script.
-
-            Available strategies:
-            - 'conceptual_analogy': Use when a student struggles with an abstract concept. Returns instructions on how to build a relevant analogy.
-            - 'debugging_checklist': Use when a student is stuck finding a bug. Returns a systematic checklist to guide the student (without giving the answer).
-            - 'socratic_deep_dive': Use when a student gives a correct but shallow answer. Returns questions to probe for deeper understanding.
-
-            Args:
-                strategy_name: The name of the strategy to retrieve (e.g., 'conceptual_analogy').
-
-            Returns:
-                Detailed instructions and examples for applying the chosen strategy.
             """
-            strategy = self.strategies.get(strategy_name)
-            if not strategy:
-                valid_names = ", ".join(self.strategies.keys())
-                return f"Strategy '{strategy_name}' not found. Available strategies: {valid_names}"
 
-            return (
-                f"--- Strategy: {strategy['name']} ---\n"
-                f"Description: {strategy['description']}\n\n"
-                f"INSTRUCTIONS FOR THE AGENT:\n{strategy['instructions']}"
-            )
+            # Sanitize strategy name to prevent path traversal
+            safe_name = os.path.basename(strategy_name)
+            if not safe_name.endswith(".md"):
+                safe_name += ".md"
+
+            strategy_file = self.strategies_dir / safe_name
+
+            if not strategy_file.exists():
+                # List available strategies
+                available = [f.stem for f in self.strategies_dir.glob("*.md")]
+                return (
+                    f"Strategy '{strategy_name}' not found. "
+                    f"Available strategies: {', '.join(available)}"
+                )
+
+            try:
+                with open(strategy_file, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                return (
+                    f"{self.instructions}\n\n"
+                    f"--- Strategy Content ---\n"
+                    f"{content}"
+                )
+            except Exception as e:
+                logger.error("Error reading strategy file: %s", e)
+                return f"Error reading strategy: {e}"
+
+        consult_pedagogy_coach.name = tool_name
+        consult_pedagogy_coach.description = tool_description
 
         return consult_pedagogy_coach
