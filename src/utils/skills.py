@@ -259,3 +259,68 @@ class PedagogicalStrategySkill(BaseSkill):
         consult_pedagogy_coach.description = tool_description
 
         return consult_pedagogy_coach
+
+
+class AssessmentSkill(BaseSkill):
+    """Skill for assessing student progress and managing curriculum flow."""
+
+    def __init__(self, session):
+        """Initialize the AssessmentSkill.
+
+        Args:
+            session: The Tutor session object (mutable).
+        """
+        super().__init__("assessment")
+        self.session = session
+
+    def get_tool(self):
+        """Get the tool for marking steps as complete."""
+
+        tool_name = self.name
+        tool_description = self.description
+
+        @tool(tool_name)
+        def complete_current_step(reason: str = "") -> str:
+            """
+            Mark the current learning step as complete.
+            Call this tool when the student has satisfied the success criteria.
+            """
+            current_step_idx = self.session.state.stepIndex
+            curriculum = self.session.get_curriculum()
+
+            if current_step_idx > curriculum.get_len():
+                return "The curriculum is already complete."
+
+            # Advance step
+            self.session.state.stepIndex += 1
+
+            # Save session state
+            # Note: The Tutor class usually saves after processing, but since this
+            # changes state that might be relevant immediately, we rely on the object reference.
+            # The Tutor's save() method will persist it to disk at the end of the turn.
+
+            # Check if finished
+            if self.session.state.stepIndex > curriculum.get_len():
+                return (
+                    "Step marked as complete.\n"
+                    "CONGRATULATIONS: The student has completed the entire curriculum.\n"
+                    "Wrap up the session."
+                )
+
+            # Get next step info
+            next_step_title = curriculum.get_step_title(self.session.state.stepIndex)
+            next_objective = curriculum.get_learning_objective(self.session.state.stepIndex)
+            next_question = curriculum.get_guiding_question(self.session.state.stepIndex)
+
+            return (
+                f"Step {current_step_idx} marked as complete.\n"
+                f"NEW STEP: {next_step_title}\n"
+                f"OBJECTIVE: {next_objective}\n"
+                f"GUIDING QUESTION: {next_question}\n\n"
+                f"INSTRUCTIONS: Congratulate the student and proceed to the new step."
+            )
+
+        complete_current_step.name = tool_name
+        complete_current_step.description = tool_description
+
+        return complete_current_step

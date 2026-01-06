@@ -30,33 +30,17 @@ from schemas.message import ResponseMessage
 from schemas.profile import Profile
 from schemas.session import Session
 from utils.session_manager import SessionManager
-from utils.skills import LabManualSkill, PedagogicalStrategySkill
+from utils.skills import (
+    AssessmentSkill,
+    LabManualSkill,
+    PedagogicalStrategySkill,
+)
 from utils.template_assembler import PromptAssembler
 
 logger = logging.getLogger(__name__)
 
 # SessionManager instance for Tutor class methods
 _session_manager = SessionManager()
-
-# Evaluator prompt template - relatively simple and static
-EVALUATOR_PROMPT_TEMPLATE = """
-<TASK>
-You are a strict, impartial assessment assistant. Your role is to determine if the <STUDENT'S RESPONSE> meets the <SUCCESS CRITERIA> for the given <TOPIC>.
-You MUST and ONLY answer with a single word: 'Yes' or 'No'. Do not provide any explanation, punctuation, or additional text.
-</TASK>
-
-<TOPIC>
-{step_title}
-</TOPIC>
-
-<SUCCESS CRITERIA>
-{success_criteria}
-</SUCCESS CRITERIA>
-
-<STUDENT'S RESPONSE>
-{user_input}
-</STUDENT'S RESPONSE>
-"""
 
 # Cheat code for skipping steps (for testing purposes only)
 CHEAT_CODE = "希儿天下第一可爱"
@@ -95,10 +79,12 @@ class Tutor:
         # Initialize skills
         self.lab_manual_skill = LabManualSkill(self.session.profile.topic_name)
         self.pedagogy_skill = PedagogicalStrategySkill()
+        self.assessment_skill = AssessmentSkill(self.session)
 
         tools = [
             self.lab_manual_skill.get_tool(),
-            self.pedagogy_skill.get_tool()
+            self.pedagogy_skill.get_tool(),
+            self.assessment_skill.get_tool(),
         ]
 
         # Main prompt template
@@ -110,11 +96,6 @@ class Tutor:
                 ("user", "{input}"),
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
-        )
-
-        # Evaluator prompt template
-        evaluator_prompt = ChatPromptTemplate.from_template(
-            EVALUATOR_PROMPT_TEMPLATE
         )
 
         # Main agent chain (without history)
@@ -131,9 +112,6 @@ class Tutor:
             handle_parsing_errors=True,
             max_iterations=5,
         )
-
-        # Evaluator chain
-        self.evaluator_chain = evaluator_prompt | self.llm | StrOutputParser()
 
         # Main agent chain with history
         self.main_chain_with_history = RunnableWithMessageHistory(
@@ -325,46 +303,6 @@ class Tutor:
                 is_finished=True,
             )
 
-        # Get current step information
-        cur_step_title = self.session.get_curriculum().get_step_title(
-            self.session.state.stepIndex
-        )
-        cur_success_criteria = (
-            self.session.get_curriculum().get_success_criteria(
-                self.session.state.stepIndex
-            )
-        )
-
-        # Evaluate student response
-        evaluation_result = self.evaluator_chain.invoke(
-            {
-                "step_title": cur_step_title,
-                "success_criteria": cur_success_criteria,
-                "user_input": user_input,
-            }
-        )
-
-        additional_note = ""
-        if evaluation_result.lower() == "yes":
-            logger.info("Student passed step %d", self.session.state.stepIndex)
-            self.session.state.stepIndex += 1
-            additional_note = (
-                "\n\n(user just passed last step. "
-                "Please review and introduce current step)"
-            )
-            if (
-                self.session.state.stepIndex
-                > self.session.get_curriculum().get_len()
-            ):
-                return ResponseMessage(
-                    reply=(
-                        "太棒了！你已经完成了本次的所有学习任务。"
-                        "期待与你进行下一次的探讨！"
-                    ),
-                    state=self.session.state,
-                    is_finished=True,
-                )
-
         # Assemble system prompt with current step
         formatted_system_prompt = self.prompt_assembler.assemble(
             self.session.profile.curriculum,
@@ -376,9 +314,7 @@ class Tutor:
         # AgentExecutor returns a dict with "output", we need to extract it
         result = self.main_chain_with_history.invoke(
             {
-                "system_prompt_with_state": (
-                    formatted_system_prompt + additional_note
-                ),
+                "system_prompt_with_state": formatted_system_prompt,
                 "truncate_history_note": self.truncate_history_note,
                 "input": user_input,
                 "agent_scratchpad": [],  # Initial scratchpad
@@ -472,49 +408,6 @@ class Tutor:
             )
             return
 
-        # Get current step information
-        cur_step_title = self.session.get_curriculum().get_step_title(
-            self.session.state.stepIndex
-        )
-        cur_success_criteria = (
-            self.session.get_curriculum().get_success_criteria(
-                self.session.state.stepIndex
-            )
-        )
-
-        # Evaluate student response
-        evaluation_result = await self.evaluator_chain.ainvoke(
-            {
-                "step_title": cur_step_title,
-                "success_criteria": cur_success_criteria,
-                "user_input": user_input,
-            }
-        )
-
-        additional_note = ""
-        if evaluation_result.lower() == "yes":
-            logger.info("Student passed step %d", self.session.state.stepIndex)
-            self.session.state.stepIndex += 1
-            additional_note = (
-                "\n\n(user just passed last step. "
-                "Please review and introduce current step)"
-            )
-            if (
-                self.session.state.stepIndex
-                > self.session.get_curriculum().get_len()
-            ):
-                token = (
-                    "太棒了！你已经完成了本次的所有学习任务。"
-                    "期待与你进行下一次的探讨！"
-                )
-                yield token
-                yield ResponseMessage(
-                    reply=token,
-                    state=self.session.state,
-                    is_finished=True,
-                )
-                return
-
         # Assemble system prompt with current step
         formatted_system_prompt = self.prompt_assembler.assemble(
             self.session.profile.curriculum,
@@ -530,9 +423,7 @@ class Tutor:
 
         async for chunk in self.main_chain_with_history.astream(
             {
-                "system_prompt_with_state": (
-                    formatted_system_prompt + additional_note
-                ),
+                "system_prompt_with_state": formatted_system_prompt,
                 "truncate_history_note": self.truncate_history_note,
                 "input": user_input,
                 "agent_scratchpad": [],
