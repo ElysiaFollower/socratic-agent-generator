@@ -1,17 +1,16 @@
 """Skills module for Tutor.
 
-This module provides tools/skills that the Tutor can use, such as RAG-based
-lab manual querying.
+This module provides tools/skills that the Tutor can use.
+The primary skill currently implemented is the 'Technical Documentation Expert',
+which allows the Tutor to consult the lab manual for specific technical details,
+instructions, and definitions.
 """
 
 import logging
-import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import FAISS
-from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
 from langchain_core.tools import tool
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -26,7 +25,11 @@ VECTOR_STORE_DIR = DATA_DIR / "vector_stores"
 
 
 class LabManualSkill:
-    """Skill for querying the lab manual using RAG."""
+    """Skill for querying the lab manual using RAG.
+
+    This skill acts as a technical expert that can be consulted by the Tutor
+    to retrieve ground-truth information about the lab.
+    """
 
     def __init__(self, topic_name: str):
         """Initialize the LabManualSkill.
@@ -113,17 +116,23 @@ class LabManualSkill:
             return None
 
     def get_tool(self):
-        """Get the LangChain tool for querying the lab manual."""
+        """Get the LangChain tool for consulting the lab manual."""
 
         @tool
-        def search_lab_manual(query: str) -> str:
+        def consult_lab_manual(query: str) -> str:
             """
-            Search the lab manual for information relevant to the query.
-            Use this tool when the user asks specific questions about the lab steps,
-            definitions, commands, or details that might be found in the lab manual.
+            Consult the official lab manual to find specific technical details, definitions,
+            step-by-step instructions, or command syntax.
+
+            Use this tool when:
+            1. You need to verify specific commands, file paths, or IP addresses mentioned in the lab.
+            2. The student asks for a definition or explanation of a technical concept covered in the manual.
+            3. You want to check the expected output of a step to guide the student correctly.
+
+            Do not guess. If you are unsure about a specific lab detail, use this tool to check.
             """
             if not self.vector_store:
-                return "Sorry, the lab manual is not available for this topic."
+                return "The lab manual is not available for this topic."
 
             try:
                 # Retrieve top 3 relevant chunks
@@ -132,11 +141,11 @@ class LabManualSkill:
                     return "No relevant information found in the lab manual."
 
                 result = "\n\n".join(
-                    [f"--- Excerpt ---\n{doc.page_content}" for doc in docs]
+                    [f"--- Excerpt from Lab Manual ---\n{doc.page_content}" for doc in docs]
                 )
                 return result
             except Exception as e:
                 logger.error("Error searching lab manual: %s", e)
                 return f"Error occurred while searching lab manual: {e}"
 
-        return search_lab_manual
+        return consult_lab_manual
