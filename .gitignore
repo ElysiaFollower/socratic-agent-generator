@@ -14,6 +14,10 @@ temp/
 data/session_data/*
 !data/session_data/.gitkeep
 
+# ignore user data (contains password hashes)
+data/users/users.json
+data/users/invitation_codes/codes.json
+
 _local/
 
 COMMIT_MESSAGE.txt
