@@ -80,13 +80,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
 
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Stack spacing={1} sx={{ mt: 2 }}>
-          <Tooltip title='生成邀请码' placement='right'>
+          <Tooltip title='邀请码管理' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenInvitationPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='生成邀请码'
+                aria-label='邀请码管理'
                 color={activePanel === "invitation" ? "primary" : "default"}
                 sx={railButtonSx}
               >

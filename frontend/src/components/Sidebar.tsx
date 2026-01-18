@@ -209,7 +209,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Key fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='生成邀请码'
+                  primary='邀请码管理'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>
@@ -252,24 +252,30 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         </Box>
       </PermissionGuard>
 
-      <Box sx={{ p: 2, borderBottom: "1px solid var(--color-border)" }}>
-        <Button
-          onClick={onNewSession}
-          variant='contained'
-          color='primary'
-          fullWidth
-          startIcon={<Add />}
-          disabled={isLoading}
-        >
-          新建会话
-        </Button>
-      </Box>
-
       <Box sx={{ flex: 1, overflowY: "auto" }}>
         <Box sx={{ p: 2 }}>
-          <Typography variant='subtitle2' color='text.secondary' sx={{ mb: 1 }}>
-            历史会话
-          </Typography>
+          <Stack
+            direction='row'
+            alignItems='center'
+            justifyContent='space-between'
+            sx={{ mb: 1 }}
+          >
+            <Typography variant='subtitle2' color='text.secondary'>
+              历史会话
+            </Typography>
+            <Tooltip title='新建对话'>
+              <span>
+                <IconButton
+                  onClick={onNewSession}
+                  size='small'
+                  aria-label='新建对话'
+                  disabled={isLoading}
+                >
+                  <Add fontSize='small' />
+                </IconButton>
+              </span>
+            </Tooltip>
+          </Stack>
           <List dense sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {sessions.map((session) => (
               <ListItem
@@ -277,7 +283,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                 disablePadding
                 sx={{
                   border: "1px solid var(--color-border)",
-                  borderRadius: 2,
+                  borderRadius: 1,
                   "& .session-actions": {
                     opacity: 0,
                     transition: "opacity 150ms ease",
@@ -321,7 +327,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   selected={currentSessionId === session.session_id}
                   onClick={() => onSelectSession(session)}
                   sx={{
-                    borderRadius: 2,
+                    borderRadius: 1,
                     alignItems: "flex-start",
                     "&.Mui-selected": {
                       bgcolor: "rgba(37, 99, 235, 0.08)",

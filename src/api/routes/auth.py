@@ -21,6 +21,8 @@ from schemas.user import (
     CurrentUserResponse,
     GenerateInvitationCodeRequest,
     GenerateInvitationCodeResponse,
+    InvitationCodeInfo,
+    InvitationCodeListResponse,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
@@ -409,3 +411,45 @@ def generate_invitation_code(
             detail=f"Failed to generate invitation code: {str(e)}",
         )
 
+
+@router.get(
+    "/invitation-codes",
+    response_model=InvitationCodeListResponse,
+    summary="列出邀请码（管理员/教师）",
+)
+def list_invitation_codes(
+    current_user: User = Depends(get_current_user),
+    user_manager: UserManager = Depends(get_user_manager),
+) -> InvitationCodeListResponse:
+    """List invitation codes created by the current user.
+
+    Args:
+        current_user: Current authenticated user from dependency.
+        user_manager: Injected UserManager instance.
+
+    Returns:
+        InvitationCodeListResponse with invitation code list.
+    """
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can list invitation codes.",
+        )
+
+    codes = user_manager.list_invitation_codes(created_by=current_user.username)
+    results: list[InvitationCodeInfo] = []
+
+    for code in codes:
+        results.append(
+            InvitationCodeInfo(
+                invitation_code=code.get("code", ""),
+                role=code.get("role", ""),
+                created_by=code.get("created_by", ""),
+                created_at=code.get("created_at", ""),
+                expires_at=code.get("expires_at"),
+                used=bool(code.get("used", False)),
+                used_at=code.get("used_at"),
+            )
+        )
+
+    return InvitationCodeListResponse(invitation_codes=results)

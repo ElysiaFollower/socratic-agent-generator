@@ -233,3 +233,23 @@ export interface GenerateInvitationCodeResponse {
   readonly expires_in_days: number;
   readonly expires_at: string;
 }
+
+/**
+ * Invitation code info.
+ */
+export interface InvitationCodeInfo {
+  readonly invitation_code: string;
+  readonly role: 'teacher' | 'student';
+  readonly created_by: string;
+  readonly created_at: string;
+  readonly expires_at?: string | null;
+  readonly used: boolean;
+  readonly used_at?: string | null;
+}
+
+/**
+ * Invitation code list response.
+ */
+export interface InvitationCodeListResponse {
+  readonly invitation_codes: readonly InvitationCodeInfo[];
+}

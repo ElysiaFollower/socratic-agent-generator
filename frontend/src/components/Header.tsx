@@ -93,7 +93,7 @@ export function Header(props: HeaderProps): JSX.Element {
 
   const panelTitles: Record<ToolPanelView, string> = {
     chat: '苏格拉底式AI导师',
-    invitation: '生成邀请码',
+    invitation: '邀请码管理',
     'lab-manual': '实验文档管理',
     profile: '生成Profile',
   };

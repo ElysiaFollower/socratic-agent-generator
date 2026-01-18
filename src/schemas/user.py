@@ -107,3 +107,28 @@ class GenerateInvitationCodeResponse(BaseModel):
     expires_at: str = Field(description="Expiration timestamp (ISO 8601).")
 
 
+class InvitationCodeInfo(BaseModel):
+    """Invitation code info model."""
+
+    invitation_code: str = Field(description="Invitation code value.")
+    role: str = Field(description="Role for which the code is valid.")
+    created_by: str = Field(description="Username of the creator.")
+    created_at: str = Field(description="Creation timestamp (ISO 8601).")
+    expires_at: Optional[str] = Field(
+        default=None,
+        description="Expiration timestamp (ISO 8601).",
+    )
+    used: bool = Field(description="Whether the code has been used.")
+    used_at: Optional[str] = Field(
+        default=None,
+        description="Timestamp when the code was used (ISO 8601).",
+    )
+
+
+class InvitationCodeListResponse(BaseModel):
+    """Response model for invitation code listing."""
+
+    invitation_codes: list[InvitationCodeInfo] = Field(
+        description="Invitation codes created by the user.",
+    )
+

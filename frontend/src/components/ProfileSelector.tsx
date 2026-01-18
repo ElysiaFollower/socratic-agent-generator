@@ -4,7 +4,7 @@
  * This component displays a modal with available profiles for selection.
  */
 
-import React from 'react';
+import React, {useMemo, useState} from 'react';
 import {
   Box,
   Card,
@@ -16,6 +16,7 @@ import {
   DialogTitle,
   Grid,
   Button,
+  TextField,
   Typography,
 } from '@mui/material';
 import {School} from '@mui/icons-material';
@@ -40,14 +41,44 @@ export interface ProfileSelectorProps {
  */
 export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
   const {profiles, isLoading, onSelect, onClose} = props;
+  const [searchText, setSearchText] = useState<string>('');
+
+  const filteredProfiles = useMemo(() => {
+    const query = searchText.trim().toLowerCase();
+    if (!query) {
+      return profiles;
+    }
+
+    return profiles.filter((profile) => {
+      const fields = [
+        profile.profile_name,
+        profile.topic_name,
+        profile.target_audience,
+        profile.lab_name,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+      return fields.includes(query);
+    });
+  }, [profiles, searchText]);
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth="md">
       <DialogTitle>选择学习课程</DialogTitle>
       <DialogContent dividers>
-        {profiles.length > 0 ? (
+        <Box sx={{mb: 2}}>
+          <TextField
+            value={searchText}
+            onChange={(event) => setSearchText(event.target.value)}
+            placeholder="搜索课程名称、主题或受众"
+            size="small"
+            fullWidth
+          />
+        </Box>
+        {filteredProfiles.length > 0 ? (
           <Grid container spacing={2}>
-            {profiles.map((profile) => (
+            {filteredProfiles.map((profile) => (
               <Grid item xs={12} md={6} key={profile.profile_id}>
                 <Card variant="outlined">
                   <CardActionArea
@@ -73,6 +104,14 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
               </Grid>
             ))}
           </Grid>
+        ) : profiles.length > 0 ? (
+          <Box sx={{py: 6, textAlign: 'center', color: 'text.secondary'}}>
+            <School sx={{fontSize: 48, color: 'var(--color-border)'}} />
+            <Typography variant="h6" sx={{mt: 2}}>
+              未找到匹配的课程
+            </Typography>
+            <Typography variant="body2">请尝试其他关键词</Typography>
+          </Box>
         ) : (
           <Box sx={{py: 6, textAlign: 'center', color: 'text.secondary'}}>
             <School sx={{fontSize: 48, color: 'var(--color-border)'}} />
