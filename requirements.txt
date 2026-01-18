@@ -5,6 +5,7 @@
 # 核心依赖
 pydantic>=2.0.0                    # 数据验证和序列化
 pyyaml>=6.0                        # YAML配置文件解析
+python-frontmatter>=1.0.0          # Metadata parsing from markdown files
 
 # Web框架
 fastapi>=0.100.0                   # 现代Python Web框架
@@ -16,6 +17,11 @@ langchain>=0.1.0                   # LangChain核心库
 langchain-core>=0.1.0              # LangChain核心组件
 langchain-community>=0.0.10        # LangChain社区扩展（包含ChatMessageHistory）
 langchain-deepseek>=0.0.1          # DeepSeek API集成
+langchain-huggingface>=0.0.1       # HuggingFace integration for embeddings
+
+# RAG & Embeddings
+faiss-cpu>=1.7.0                   # Vector store
+sentence-transformers>=2.2.0       # Embeddings model
 
 # 环境变量管理
 python-dotenv>=1.0.0               # 环境变量加载
@@ -29,7 +35,7 @@ bcrypt>=3.1.0,<5.0.0               # bcrypt库（兼容passlib的版本）
 python-jose[cryptography]>=3.3.0   # JWT token生成和验证
 
 # 模板引擎
-# jinja2>=3.1.0
+jinja2>=3.1.0
 
 # 开发工具（可选）
 # pytest>=7.0.0                    # 测试框架

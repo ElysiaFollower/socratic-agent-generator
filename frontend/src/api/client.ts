@@ -4,13 +4,17 @@
  * This module provides a configured axios instance and HTTP client utilities.
  */
 
-import axios, {AxiosInstance, AxiosError, InternalAxiosRequestConfig} from 'axios';
-import {getAuthToken} from './auth';
+import axios, {
+  AxiosInstance,
+  AxiosError,
+  InternalAxiosRequestConfig,
+} from "axios";
+import { getAuthToken } from "./auth";
 
 /**
  * Base API URL - defaults to empty string for relative URLs.
  */
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 /**
  * Configured axios instance for API requests.
@@ -18,9 +22,9 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const apiClient: AxiosInstance = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
-  timeout: 30000, // 30 seconds
+  timeout: 300000, // 300 seconds
 });
 
 /**
@@ -47,7 +51,7 @@ apiClient.interceptors.request.use(
  */
 export function handleApiError(error: unknown): string {
   if (axios.isAxiosError(error)) {
-    const axiosError = error as AxiosError<{detail?: string}>;
+    const axiosError = error as AxiosError<{ detail?: string }>;
     if (axiosError.response?.data?.detail) {
       return axiosError.response.data.detail;
     }
@@ -58,6 +62,5 @@ export function handleApiError(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
   }
-  return '未知错误';
+  return "未知错误";
 }
-

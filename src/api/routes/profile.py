@@ -6,13 +6,13 @@ This module handles HTTP endpoints for tutor profile operations.
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Body, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, UploadFile, status
 
 import json
 from pathlib import Path
 
 from api.routes.auth import get_current_user
-from config import RAW_DATA_DIR
+from config import PROFILES_DIR, RAW_DATA_DIR
 from core.dependencies import ProfileManagerDep
 from core.exceptions import ProfileNotFoundError
 from generators.ProfileGenerateManager import ProfileGenerateManager
@@ -21,6 +21,7 @@ from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
 from schemas.profile import Profile
 from schemas.user import User
+from utils.skills import build_lab_manual_index
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +41,10 @@ class GenerateProfileRequest(BaseModel):
     filename: Optional[str] = Field(
         default=None,
         description="Original filename of the uploaded lab manual (for auto-generating profile_name).",
+    )
+    lab_name: Optional[str] = Field(
+        default=None,
+        description="Optional lab directory name for RAG indexing and profile storage.",
     )
 
 
@@ -238,6 +243,7 @@ async def upload_lab_manual(
     file: UploadFile = File(..., description="Lab manual file (markdown or text)"),
     lab_name: str = Form(..., description="Lab directory name in data_raw"),
     current_user: User = Depends(get_current_user),
+    background_tasks: BackgroundTasks = None,
 ) -> dict:
     """Upload a lab manual file and save it to data_raw directory.
 
@@ -322,12 +328,16 @@ async def upload_lab_manual(
             len(content_str),
         )
 
+        if background_tasks is not None:
+            background_tasks.add_task(build_lab_manual_index, lab_name)
+
         return {
             "success": True,
             "message": "Lab manual uploaded successfully",
             "lab_name": lab_name,
             "saved_path": str(lab_manual_path.relative_to(RAW_DATA_DIR.parent)),
             "size": len(content_str),
+            "rag_status": "building",
         }
     except UnicodeDecodeError:
         raise HTTPException(
@@ -380,6 +390,17 @@ async def generate_profile(
         )
 
     try:
+        lab_name = None
+        if req.lab_name:
+            import re
+
+            lab_name = re.sub(r"[^\w\-_\.]", "_", req.lab_name.strip())
+            if not lab_name:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Lab name contains only invalid characters.",
+                )
+
         # Auto-generate profile_name if not provided
         if not req.profile_name:
             import uuid
@@ -411,7 +432,12 @@ async def generate_profile(
         profile_generator = ProfileGenerateManager(req.lab_manual_content)
 
         # Generate profile with auto-generated or provided profile_name
-        profile = await profile_generator.compile_profile(profile_name=profile_name)
+        output_dir = PROFILES_DIR / lab_name if lab_name else None
+        profile = await profile_generator.compile_profile(
+            profile_name=profile_name,
+            lab_name=lab_name,
+            output_dir=output_dir,
+        )
 
         logger.info(
             "Profile generated successfully: %s (profile_id: %s)",
@@ -875,6 +901,8 @@ async def generate_profile_from_lab(
             curriculum=curriculum,
             definition=persona,
             profile_name=profile_name,
+            lab_name=lab_name,
+            output_dir=PROFILES_DIR / lab_name,
         )
 
         logger.info(
@@ -891,4 +919,3 @@ async def generate_profile_from_lab(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to generate profile: {str(e)}",
         )
-

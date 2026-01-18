@@ -31,6 +31,11 @@ class Profile(BaseModel):
     topic_name: str = Field(
         description="The name of the topic."
     )
+
+    lab_name: Optional[str] = Field(
+        default=None,
+        description="The lab manual directory name for RAG indexing.",
+    )
     
     persona_hints: List[str] = Field(
         description="A list of creative and fitting clues to define the tutor's persona (role, tone, style, catchphrase)."

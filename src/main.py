@@ -329,6 +329,7 @@ async def interactive_generation(lab_dir_name: str = "example") -> None:
                     curriculum=curriculum,
                     definition=persona,
                     profile_name=lab_dir_name,
+                    lab_name=lab_dir_name,
                     output_dir=output_dir,
                 )
 
