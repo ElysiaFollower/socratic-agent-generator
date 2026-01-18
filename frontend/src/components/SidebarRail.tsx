@@ -49,14 +49,14 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
     width: 40,
     height: 40,
     transition: "background-color 150ms ease, color 150ms ease",
-    "&:hover": { bgcolor: "var(--color-surface-muted)" },
+    "&:hover": { bgcolor: "var(--color-surface)" },
   } as const;
 
   return (
     <Box
       sx={{
         width: 48,
-        bgcolor: "var(--color-surface)",
+        bgcolor: "var(--color-surface-muted)",
         borderRight: "1px solid var(--color-border)",
         display: "flex",
         flexDirection: "column",

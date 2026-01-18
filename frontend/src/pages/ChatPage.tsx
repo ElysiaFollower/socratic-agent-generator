@@ -66,9 +66,21 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [activePanel, setActivePanel] = useState<ToolPanelView>("chat");
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
-  const [sidebarWidth, setSidebarWidth] = useState<number>(320);
-  const sidebarMinWidth = 240;
-  const sidebarMaxWidth = 420;
+  const sidebarMinRatio = 0.1;
+  const sidebarMaxRatio = 0.3;
+  const sidebarDefaultRatio = 0.15;
+  const viewportWidth = typeof window === "undefined" ? 0 : window.innerWidth;
+  const sidebarMinWidth = Math.round(viewportWidth * sidebarMinRatio);
+  const sidebarMaxWidth = Math.round(viewportWidth * sidebarMaxRatio);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    if (typeof window === "undefined") {
+      return 0;
+    }
+    const targetWidth = Math.round(window.innerWidth * sidebarDefaultRatio);
+    const minWidth = Math.round(window.innerWidth * sidebarMinRatio);
+    const maxWidth = Math.round(window.innerWidth * sidebarMaxRatio);
+    return Math.min(maxWidth, Math.max(minWidth, targetWidth));
+  });
   const resizeState = useRef<{
     startX: number;
     startWidth: number;
@@ -89,10 +101,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     if (!user) {
       return [];
     }
-    // TODO: Filter sessions based on user role when backend supports it:
-    // - Admin: all sessions
-    // - Teacher: only sessions created by teacher (need creator_id in SessionSummary)
-    // - Student: only sessions created by student (need creator_id in SessionSummary)
+
     return allSessions;
   }, [allSessions, user]);
 
@@ -210,7 +219,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const handleRenameSession = useCallback(
     async (sessionIdToRename: string, newName: string) => {
       try {
-        await renameSession(sessionIdToRename, newName);
+        await renameSession(sessionIdToRename, { session_name: newName });
         await refreshSessions();
       } catch (error) {
         console.error("Failed to rename session:", error);

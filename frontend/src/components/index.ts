@@ -20,3 +20,4 @@ export * from './PermissionGuard';
 export * from './InvitationCodeGenerator';
 export * from './SettingsModal';
 export * from './SidebarRail';
+export * from './SessionHistoryList';

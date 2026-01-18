@@ -54,7 +54,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
         }}
       >
         <Stack spacing={1} alignItems='center'>
-          <WavingHand sx={{ fontSize: 32, color: "var(--color-secondary)" }} />
+          <WavingHand sx={{ fontSize: 32, color: "text.secondary" }} />
           <Typography variant='h6'>欢迎来到苏格拉底式学习</Typography>
           <Typography variant='body2'>
             选择一个会话开始你的学习之旅，或者创建一个新会话。
