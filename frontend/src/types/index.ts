@@ -155,6 +155,11 @@ export interface HealthCheckResponse {
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 /**
+ * Main workspace panel views.
+ */
+export type ToolPanelView = 'chat' | 'invitation' | 'lab-manual' | 'profile';
+
+/**
  * Represents a user in the system.
  */
 export interface User {

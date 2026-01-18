@@ -6,7 +6,7 @@
 
 import React, {useState, useCallback, useEffect, useRef, useMemo} from 'react';
 import {Box} from '@mui/material';
-import {Profile, SessionSummary, ChatMessage} from '../types';
+import {Profile, SessionSummary, ChatMessage, ToolPanelView} from '../types';
 import {
   useProfiles,
   useSessions,
@@ -22,7 +22,6 @@ import {
   ProfileSelector,
   InvitationCodeGenerator,
   LabManualUploader,
-  ProfileGenerator,
   ProfileGeneratorAdvanced,
   SettingsModal,
   SidebarRail,
@@ -57,18 +56,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
   const [inputValue, setInputValue] = useState<string>('');
-  const [showInvitationGenerator, setShowInvitationGenerator] =
-    useState<boolean>(false);
-  const [showLabManualUploader, setShowLabManualUploader] =
-    useState<boolean>(false);
-  const [showProfileGenerator, setShowProfileGenerator] =
-    useState<boolean>(false);
-  const [showProfileGeneratorAdvanced, setShowProfileGeneratorAdvanced] =
-    useState<boolean>(false);
-  const [labManualContent, setLabManualContent] = useState<string>('');
-  const [labManualFilename, setLabManualFilename] = useState<string | null>(
-    null,
-  );
+  const [activePanel, setActivePanel] = useState<ToolPanelView>('chat');
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(320);
@@ -124,6 +112,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         setSessionId(res.session_id);
         setMessages([]);
         setShowProfileSelector(false);
+        setActivePanel('chat');
 
         sessionState.setProfile(profile);
 
@@ -148,6 +137,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     async (session: SessionSummary) => {
       setSessionId(session.session_id);
       setMessages([]);
+      setActivePanel('chat');
 
       try {
         const sessionDetail = await getSession(session.session_id);
@@ -250,43 +240,24 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     }
   }, [logout]);
 
-  const handleUploadLabManual = useCallback(() => {
-    setShowLabManualUploader(true);
+  const handleOpenInvitationPanel = useCallback(() => {
+    setActivePanel('invitation');
   }, []);
 
-  const handleGenerateProfile = useCallback(() => {
-    setShowProfileGeneratorAdvanced(true);
+  const handleOpenLabManualPanel = useCallback(() => {
+    setActivePanel('lab-manual');
   }, []);
 
-  const handleLabManualUploadSuccess = useCallback(() => {
-    // Upload is now independent, just close the uploader
-    setShowLabManualUploader(false);
+  const handleOpenProfilePanel = useCallback(() => {
+    setActivePanel('profile');
   }, []);
 
   const handleProfileGenerateSuccess = useCallback(
-    async (profile: Profile) => {
+    async (_profile: Profile) => {
       await refreshProfiles();
-      setShowProfileGenerator(false);
-      setShowProfileGeneratorAdvanced(false);
-      setLabManualContent('');
-      setLabManualFilename(null);
     },
     [refreshProfiles],
   );
-
-  // Listen for invitation generator open event
-  useEffect(() => {
-    const handleOpenInvitationGenerator = () => {
-      setShowInvitationGenerator(true);
-    };
-    window.addEventListener('openInvitationGenerator', handleOpenInvitationGenerator);
-    return () => {
-      window.removeEventListener(
-        'openInvitationGenerator',
-        handleOpenInvitationGenerator,
-      );
-    };
-  }, []);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -343,16 +314,25 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setShowSettings(true);
   }, []);
 
+  const isChatView = activePanel === 'chat';
+  const contentMaxWidth = isMaximized ? '100%' : isChatView ? 960 : '100%';
+
   return (
     <Box sx={{height: '100vh', display: 'flex', bgcolor: 'var(--color-bg)', color: 'var(--text-primary)'}}>
       {/* Sidebar */}
       {!isMaximized && (
         <Box sx={{display: 'flex', height: '100%'}}>
-          <SidebarRail
-            isCollapsed={isSidebarCollapsed}
-            onToggle={handleToggleSidebar}
-          />
-          {!isSidebarCollapsed && (
+          {isSidebarCollapsed ? (
+            <SidebarRail
+              isCollapsed={isSidebarCollapsed}
+              onToggle={handleToggleSidebar}
+              isLoading={profilesLoading || chatLoading}
+              activePanel={activePanel}
+              onOpenInvitationPanel={handleOpenInvitationPanel}
+              onOpenLabManualPanel={handleOpenLabManualPanel}
+              onOpenProfilePanel={handleOpenProfilePanel}
+            />
+          ) : (
             <Box
               sx={{position: 'relative', height: '100%'}}
               style={{
@@ -370,9 +350,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 onRenameSession={handleRenameSession}
                 onDeleteSession={handleDeleteSession}
                 user={user}
-                onLogout={handleLogout}
-                onUploadLabManual={handleUploadLabManual}
-                onGenerateProfile={handleGenerateProfile}
+                activePanel={activePanel}
+                onCollapse={handleToggleSidebar}
+                onOpenInvitationPanel={handleOpenInvitationPanel}
+                onOpenLabManualPanel={handleOpenLabManualPanel}
+                onOpenProfilePanel={handleOpenProfilePanel}
               />
               <Box
                 sx={{
@@ -403,6 +385,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           curriculum={sessionState.curriculum}
           onToggleMaximize={handleMaximizeToggle}
           onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+          activePanel={activePanel}
           user={user}
           themeMode={themeMode}
           onToggleTheme={onToggleTheme}
@@ -413,32 +396,53 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         <Box
           sx={{
             flex: 1,
-            overflow: 'auto',
+            overflow: 'hidden',
             px: 3,
             py: 3,
             width: '100%',
-            maxWidth: isMaximized ? '100%' : 960,
+            maxWidth: contentMaxWidth,
             mx: isMaximized ? 0 : 'auto',
           }}
         >
-          <MessageList messages={messages} />
+          {isChatView ? (
+            <Box sx={{height: '100%', overflow: 'auto'}}>
+              <MessageList messages={messages} />
+            </Box>
+          ) : (
+            <Box sx={{height: '100%', overflow: 'auto'}}>
+              {activePanel === 'invitation' && (
+                <InvitationCodeGenerator variant="panel" />
+              )}
+              {activePanel === 'lab-manual' && (
+                <LabManualUploader variant="panel" />
+              )}
+              {activePanel === 'profile' && (
+                <ProfileGeneratorAdvanced
+                  variant="panel"
+                  onGenerateSuccess={handleProfileGenerateSuccess}
+                />
+              )}
+            </Box>
+          )}
         </Box>
 
-        <Box sx={{px: 3, py: 2, borderTop: '1px solid var(--color-border)', bgcolor: 'var(--color-surface)'}}>
-          <Box sx={{maxWidth: isMaximized ? '100%' : 960, mx: isMaximized ? 0 : 'auto'}}>
-            <ChatInput
-              value={inputValue}
-              disabled={!sessionId || chatLoading}
-              placeholder={
-                sessionId
-                  ? '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
-                  : '请先选择一个会话开始学习'
-              }
-              onChange={handleInputChange}
-              onSend={handleSend}
-            />
+        {isChatView && (
+          <Box sx={{px: 3, py: 2, borderTop: '1px solid var(--color-border)', bgcolor: 'var(--color-surface)'}}>
+            <Box sx={{maxWidth: contentMaxWidth, mx: isMaximized ? 0 : 'auto'}}>
+              <ChatInput
+                value={inputValue}
+                disabled={!sessionId || chatLoading}
+                placeholder={
+                  sessionId
+                    ? '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
+                    : '请先选择一个会话开始学习'
+                }
+                onChange={handleInputChange}
+                onSend={handleSend}
+              />
+            </Box>
           </Box>
-        </Box>
+        )}
       </Box>
 
       {/* Profile Selector Modal */}
@@ -455,48 +459,6 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
       />
-
-      {/* Invitation Code Generator Modal */}
-      {showInvitationGenerator && (
-        <InvitationCodeGenerator
-          onClose={() => setShowInvitationGenerator(false)}
-        />
-      )}
-
-      {/* Lab Manual Uploader Modal */}
-      {showLabManualUploader && (
-        <LabManualUploader
-          onUploadSuccess={handleLabManualUploadSuccess}
-          onClose={() => {
-            setShowLabManualUploader(false);
-            setLabManualContent('');
-          }}
-        />
-      )}
-
-      {/* Profile Generator Modal (Legacy - for direct content input) */}
-      {showProfileGenerator && (
-        <ProfileGenerator
-          labManualContent={labManualContent}
-          labManualFilename={labManualFilename}
-          onGenerateSuccess={handleProfileGenerateSuccess}
-          onClose={() => {
-            setShowProfileGenerator(false);
-            setLabManualContent('');
-            setLabManualFilename(null);
-          }}
-        />
-      )}
-
-      {/* Advanced Profile Generator Modal */}
-      {showProfileGeneratorAdvanced && (
-        <ProfileGeneratorAdvanced
-          onGenerateSuccess={handleProfileGenerateSuccess}
-          onClose={() => {
-            setShowProfileGeneratorAdvanced(false);
-          }}
-        />
-      )}
     </Box>
   );
 }

@@ -30,7 +30,7 @@ import {
   OpenInFull,
   Settings,
 } from '@mui/icons-material';
-import {SessionSummary, SocraticStep, User} from '../types';
+import {SessionSummary, SocraticStep, ToolPanelView, User} from '../types';
 import {ProgressBar} from './ProgressBar';
 
 /**
@@ -44,6 +44,7 @@ export interface HeaderProps {
   readonly curriculum: readonly SocraticStep[];
   readonly onToggleMaximize: () => void;
   readonly onToggleCollapse: () => void;
+  readonly activePanel: ToolPanelView;
   readonly user: User | null;
   readonly themeMode: 'light' | 'dark';
   readonly onToggleTheme: () => void;
@@ -66,6 +67,7 @@ export function Header(props: HeaderProps): JSX.Element {
     curriculum,
     onToggleMaximize,
     onToggleCollapse,
+    activePanel,
     user,
     themeMode,
     onToggleTheme,
@@ -89,6 +91,20 @@ export function Header(props: HeaderProps): JSX.Element {
   const avatarBgColor =
     avatarColors[avatarLetter.charCodeAt(0) % avatarColors.length];
 
+  const panelTitles: Record<ToolPanelView, string> = {
+    chat: '苏格拉底式AI导师',
+    invitation: '生成邀请码',
+    'lab-manual': '实验文档管理',
+    profile: '生成Profile',
+  };
+
+  const displayTitle =
+    activePanel === 'chat'
+      ? currentSession?.session_name || panelTitles.chat
+      : panelTitles[activePanel];
+
+  const showSessionDetails = activePanel === 'chat' && Boolean(currentSession);
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget);
   };
@@ -102,10 +118,8 @@ export function Header(props: HeaderProps): JSX.Element {
       <AppBar position="static" color="transparent" elevation={0}>
         <Toolbar sx={{gap: 2, justifyContent: 'space-between'}}>
           <Stack direction="row" alignItems="center" spacing={2}>
-            <Typography variant="h6">
-              {currentSession ? currentSession.session_name : '苏格拉底式AI导师'}
-            </Typography>
-            {currentSession && (
+            <Typography variant="h6">{displayTitle}</Typography>
+            {showSessionDetails && (
               <Tooltip title={isCollapsed ? '展开信息' : '收起信息'}>
                 <IconButton onClick={onToggleCollapse} size="small">
                   {isCollapsed ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
@@ -145,18 +159,18 @@ export function Header(props: HeaderProps): JSX.Element {
         </Toolbar>
       </AppBar>
 
-      <Collapse in={!isCollapsed} timeout={200}>
-        <Box sx={{px: 3, pb: 2}}>
-          <Typography variant="body2" color="text.secondary" sx={{mb: currentSession ? 2 : 0}}>
-            {currentSession
-              ? `课程: ${currentSession.topic_name} | Profile: ${currentSession.profile_id}`
-              : '通过提问启发思考，引导深度学习'}
-          </Typography>
-          {currentSession && curriculum.length > 0 && (
-            <ProgressBar currentStep={currentStep} curriculum={curriculum} />
-          )}
-        </Box>
-      </Collapse>
+      {showSessionDetails && (
+        <Collapse in={!isCollapsed} timeout={200}>
+          <Box sx={{px: 3, pb: 2}}>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+              {`课程: ${currentSession?.topic_name} | Profile: ${currentSession?.profile_id}`}
+            </Typography>
+            {curriculum.length > 0 && (
+              <ProgressBar currentStep={currentStep} curriculum={curriculum} />
+            )}
+          </Box>
+        </Collapse>
+      )}
 
       <Menu
         anchorEl={menuAnchor}

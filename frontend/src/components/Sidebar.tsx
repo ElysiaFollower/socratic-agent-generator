@@ -5,7 +5,7 @@
  * controls for creating new sessions and managing existing ones.
  */
 
-import React from 'react';
+import React from "react";
 import {
   Box,
   Button,
@@ -13,24 +13,26 @@ import {
   List,
   ListItem,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Stack,
   TextField,
   Tooltip,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Add,
+  ChevronLeft,
   Delete,
   Description,
   Edit,
   Key,
-  Logout,
   UploadFile,
   Forum,
-} from '@mui/icons-material';
-import {SessionSummary, User} from '../types';
-import {PermissionGuard} from './PermissionGuard';
+} from "@mui/icons-material";
+import { alpha, Theme } from "@mui/material/styles";
+import { SessionSummary, ToolPanelView, User } from "../types";
+import { PermissionGuard } from "./PermissionGuard";
 
 /**
  * Props for Sidebar component.
@@ -44,9 +46,11 @@ export interface SidebarProps {
   readonly onRenameSession: (sessionId: string, newName: string) => void;
   readonly onDeleteSession: (sessionId: string) => void;
   readonly user: User | null;
-  readonly onLogout: () => void;
-  readonly onUploadLabManual?: () => void;
-  readonly onGenerateProfile?: () => void;
+  readonly activePanel: ToolPanelView;
+  readonly onCollapse: () => void;
+  readonly onOpenInvitationPanel: () => void;
+  readonly onOpenLabManualPanel: () => void;
+  readonly onOpenProfilePanel: () => void;
   readonly className?: string;
 }
 
@@ -66,113 +70,193 @@ export function Sidebar(props: SidebarProps): JSX.Element {
     onRenameSession,
     onDeleteSession,
     user,
-    onLogout,
-    onUploadLabManual,
-    onGenerateProfile,
+    activePanel,
+    onCollapse,
+    onOpenInvitationPanel,
+    onOpenLabManualPanel,
+    onOpenProfilePanel,
     className,
   } = props;
 
-  const [editingSessionId, setEditingSessionId] = React.useState<
-    string | null
-  >(null);
-  const [editingName, setEditingName] = React.useState<string>('');
+  const [editingSessionId, setEditingSessionId] = React.useState<string | null>(
+    null,
+  );
+  const [editingName, setEditingName] = React.useState<string>("");
 
   const handleRename = (sessionId: string, newName: string) => {
     if (newName.trim()) {
       onRenameSession(sessionId, newName.trim());
     }
     setEditingSessionId(null);
-    setEditingName('');
+    setEditingName("");
   };
 
   const handleDelete = (sessionId: string) => {
-    if (window.confirm('确定要删除这个会话吗？')) {
+    if (window.confirm("确定要删除这个会话吗？")) {
       onDeleteSession(sessionId);
     }
   };
 
   const getRoleDisplayName = (role: string): string => {
     const roleMap: Record<string, string> = {
-      admin: '管理员',
-      teacher: '教师',
-      student: '学生',
+      admin: "管理员",
+      teacher: "教师",
+      student: "学生",
     };
     return roleMap[role] || role;
+  };
+
+  const actionItemSx = (theme: Theme) => {
+    const hoverBg = alpha(
+      theme.palette.text.primary,
+      theme.palette.mode === "dark" ? 0.12 : 0.06,
+    );
+
+    return {
+      borderRadius: 2,
+      px: 1.5,
+      py: 1,
+      minHeight: 36,
+      alignItems: "center",
+      justifyContent: "flex-start",
+      textAlign: "left",
+      transition: "background-color 150ms ease, color 150ms ease",
+      "& .MuiListItemIcon-root": {
+        minWidth: 32,
+        color: "text.secondary",
+      },
+      "&:hover": { bgcolor: hoverBg },
+      "&.Mui-selected": {
+        bgcolor: hoverBg,
+        "& .MuiListItemText-primary": { fontWeight: 600 },
+        "& .MuiListItemIcon-root": { color: "text.primary" },
+      },
+      "&.Mui-selected:hover": { bgcolor: hoverBg },
+    } as const;
   };
 
   return (
     <Box
       className={className}
       sx={{
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        bgcolor: 'var(--color-surface)',
-        borderRight: '1px solid var(--color-border)',
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        bgcolor: "var(--color-surface)",
+        borderRight: "1px solid var(--color-border)",
       }}
     >
       {user && (
-        <Box sx={{p: 2, borderBottom: '1px solid var(--color-border)', bgcolor: 'var(--color-surface-muted)'}}>
-          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
-            <Box sx={{minWidth: 0}}>
-              <Typography variant="subtitle2" noWrap>
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: "1px solid var(--color-border)",
+            bgcolor: "var(--color-surface-muted)",
+          }}
+        >
+          <Stack
+            direction='row'
+            alignItems='center'
+            justifyContent='space-between'
+            spacing={1}
+          >
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant='subtitle2' noWrap>
                 {user.display_name || user.username}
               </Typography>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant='caption' color='text.secondary'>
                 {getRoleDisplayName(user.role)}
               </Typography>
             </Box>
-            <Tooltip title="登出">
-              <IconButton onClick={onLogout} size="small">
-                <Logout fontSize="small" />
+            <Tooltip title='收缩侧边栏'>
+              <IconButton
+                onClick={onCollapse}
+                size='small'
+                aria-label='收缩侧边栏'
+              >
+                <ChevronLeft fontSize='small' />
               </IconButton>
             </Tooltip>
           </Stack>
         </Box>
       )}
 
-      <PermissionGuard requiredRoles={['admin', 'teacher']}>
-        <Box sx={{p: 2, borderBottom: '1px solid var(--color-border)', bgcolor: 'var(--color-surface-muted)'}}>
-          <Typography variant="overline" color="text.secondary">
-            {user?.role === 'admin' ? '管理员功能' : '教师功能'}
+      <PermissionGuard requiredRoles={["admin", "teacher"]}>
+        <Box
+          sx={{
+            p: 2,
+            borderBottom: "1px solid var(--color-border)",
+            bgcolor: "var(--color-surface-muted)",
+          }}
+        >
+          <Typography variant='overline' color='text.secondary'>
+            {user?.role === "admin" ? "管理员功能" : "教师功能"}
           </Typography>
-          <Stack spacing={1} sx={{mt: 1}}>
-            <Button
-              onClick={() => {
-                const event = new CustomEvent('openInvitationGenerator');
-                window.dispatchEvent(event);
-              }}
-              variant="contained"
-              startIcon={<Key />}
-              disabled={isLoading}
-            >
-              生成邀请码
-            </Button>
-            <Button
-              onClick={onUploadLabManual}
-              variant="contained"
-              startIcon={<UploadFile />}
-              disabled={isLoading}
-            >
-              上传实验文档
-            </Button>
-            <Button
-              onClick={onGenerateProfile}
-              variant="contained"
-              startIcon={<Description />}
-              disabled={isLoading}
-            >
-              生成Profile
-            </Button>
-          </Stack>
+          <List
+            dense
+            disablePadding
+            sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 0.5 }}
+          >
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={onOpenInvitationPanel}
+                disabled={isLoading}
+                selected={activePanel === "invitation"}
+                disableRipple
+                sx={actionItemSx}
+              >
+                <ListItemIcon>
+                  <Key fontSize='small' />
+                </ListItemIcon>
+                <ListItemText
+                  primary='生成邀请码'
+                  primaryTypographyProps={{ variant: "body2" }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={onOpenLabManualPanel}
+                disabled={isLoading}
+                selected={activePanel === "lab-manual"}
+                disableRipple
+                sx={actionItemSx}
+              >
+                <ListItemIcon>
+                  <UploadFile fontSize='small' />
+                </ListItemIcon>
+                <ListItemText
+                  primary='上传实验文档'
+                  primaryTypographyProps={{ variant: "body2" }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={onOpenProfilePanel}
+                disabled={isLoading}
+                selected={activePanel === "profile"}
+                disableRipple
+                sx={actionItemSx}
+              >
+                <ListItemIcon>
+                  <Description fontSize='small' />
+                </ListItemIcon>
+                <ListItemText
+                  primary='生成Profile'
+                  primaryTypographyProps={{ variant: "body2" }}
+                />
+              </ListItemButton>
+            </ListItem>
+          </List>
         </Box>
       </PermissionGuard>
 
-      <Box sx={{p: 2, borderBottom: '1px solid var(--color-border)'}}>
+      <Box sx={{ p: 2, borderBottom: "1px solid var(--color-border)" }}>
         <Button
           onClick={onNewSession}
-          variant="contained"
-          color="primary"
+          variant='contained'
+          color='primary'
           fullWidth
           startIcon={<Add />}
           disabled={isLoading}
@@ -181,46 +265,53 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         </Button>
       </Box>
 
-      <Box sx={{flex: 1, overflowY: 'auto'}}>
-        <Box sx={{p: 2}}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{mb: 1}}>
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
+        <Box sx={{ p: 2 }}>
+          <Typography variant='subtitle2' color='text.secondary' sx={{ mb: 1 }}>
             历史会话
           </Typography>
-          <List dense sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
+          <List dense sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {sessions.map((session) => (
               <ListItem
                 key={session.session_id}
                 disablePadding
                 sx={{
-                  border: '1px solid var(--color-border)',
+                  border: "1px solid var(--color-border)",
                   borderRadius: 2,
-                  '& .session-actions': {opacity: 0, transition: 'opacity 150ms ease'},
-                  '&:hover .session-actions': {opacity: 1},
+                  "& .session-actions": {
+                    opacity: 0,
+                    transition: "opacity 150ms ease",
+                  },
+                  "&:hover .session-actions": { opacity: 1 },
                 }}
                 secondaryAction={
-                  <Stack direction="row" spacing={0.5} className="session-actions">
-                    <Tooltip title="重命名">
+                  <Stack
+                    direction='row'
+                    spacing={0.5}
+                    className='session-actions'
+                  >
+                    <Tooltip title='重命名'>
                       <IconButton
-                        size="small"
+                        size='small'
                         onClick={(event) => {
                           event.stopPropagation();
                           setEditingSessionId(session.session_id);
                           setEditingName(session.session_name);
                         }}
                       >
-                        <Edit fontSize="small" />
+                        <Edit fontSize='small' />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="删除">
+                    <Tooltip title='删除'>
                       <IconButton
-                        size="small"
+                        size='small'
                         onClick={(event) => {
                           event.stopPropagation();
                           handleDelete(session.session_id);
                         }}
-                        color="error"
+                        color='error'
                       >
-                        <Delete fontSize="small" />
+                        <Delete fontSize='small' />
                       </IconButton>
                     </Tooltip>
                   </Stack>
@@ -231,9 +322,9 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   onClick={() => onSelectSession(session)}
                   sx={{
                     borderRadius: 2,
-                    alignItems: 'flex-start',
-                    '&.Mui-selected': {
-                      bgcolor: 'rgba(37, 99, 235, 0.08)',
+                    alignItems: "flex-start",
+                    "&.Mui-selected": {
+                      bgcolor: "rgba(37, 99, 235, 0.08)",
                     },
                   }}
                 >
@@ -241,14 +332,16 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                     <TextField
                       value={editingName}
                       onChange={(event) => setEditingName(event.target.value)}
-                      onBlur={() => handleRename(session.session_id, editingName)}
+                      onBlur={() =>
+                        handleRename(session.session_id, editingName)
+                      }
                       onKeyDown={(event) => {
-                        if (event.key === 'Enter') {
+                        if (event.key === "Enter") {
                           event.preventDefault();
                           handleRename(session.session_id, editingName);
                         }
                       }}
-                      size="small"
+                      size='small'
                       autoFocus
                       onClick={(event) => event.stopPropagation()}
                       fullWidth
@@ -257,8 +350,8 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                     <ListItemText
                       primary={session.session_name}
                       secondary={session.topic_name}
-                      primaryTypographyProps={{noWrap: true, fontWeight: 600}}
-                      secondaryTypographyProps={{noWrap: true}}
+                      primaryTypographyProps={{ noWrap: true, fontWeight: 600 }}
+                      secondaryTypographyProps={{ noWrap: true }}
                     />
                   )}
                 </ListItemButton>
@@ -266,12 +359,12 @@ export function Sidebar(props: SidebarProps): JSX.Element {
             ))}
 
             {sessions.length === 0 && (
-              <Box sx={{py: 6, textAlign: 'center', color: 'text.secondary'}}>
-                <Forum sx={{fontSize: 36, color: 'var(--color-border)'}} />
-                <Typography variant="body2" sx={{mt: 1}}>
+              <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+                <Forum sx={{ fontSize: 36, color: "var(--color-border)" }} />
+                <Typography variant='body2' sx={{ mt: 1 }}>
                   还没有任何会话
                 </Typography>
-                <Typography variant="caption">
+                <Typography variant='caption'>
                   点击上方按钮开始新的学习之旅
                 </Typography>
               </Box>
