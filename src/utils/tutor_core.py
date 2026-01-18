@@ -77,7 +77,10 @@ class Tutor:
         )
 
         # Initialize skills
-        self.lab_manual_skill = LabManualSkill(self.session.profile.topic_name)
+        self.lab_manual_skill = LabManualSkill(
+            self.session.profile.topic_name,
+            lab_name=self.session.profile.lab_name,
+        )
         self.pedagogy_skill = PedagogicalStrategySkill()
         self.assessment_skill = AssessmentSkill(self.session)
 

@@ -72,16 +72,24 @@ class LabManualSkill(BaseSkill):
     to retrieve ground-truth information about the lab.
     """
 
-    def __init__(self, topic_name: str):
+    def __init__(self, topic_name: str, lab_name: Optional[str] = None):
         """Initialize the LabManualSkill.
 
         Args:
-            topic_name: The name of the topic (corresponds to directory in data_raw).
+            topic_name: The name of the topic (used for display and fallback).
+            lab_name: The lab manual directory name in data_raw.
         """
         super().__init__("lab_manual")
         self.topic_name = topic_name
-        self.vector_store_path = VECTOR_STORE_DIR / topic_name
-        self.lab_manual_path = RAW_DATA_DIR / topic_name / "lab_manual.md"
+        self.lab_name = lab_name or topic_name
+        self.vector_store_path = (
+            VECTOR_STORE_DIR / self.lab_name if self.lab_name else None
+        )
+        self.lab_manual_path = (
+            RAW_DATA_DIR / self.lab_name / "lab_manual.md"
+            if self.lab_name
+            else None
+        )
         self.embeddings = self._get_embeddings()
         self.vector_store = self._load_or_create_vector_store()
 
@@ -94,18 +102,22 @@ class LabManualSkill(BaseSkill):
 
     def _load_or_create_vector_store(self) -> Optional[FAISS]:
         """Load the vector store if it exists, otherwise create it."""
+        if not self.lab_name or not self.lab_manual_path:
+            logger.warning("Lab name is not set; cannot load lab manual.")
+            return None
+
         if not self.lab_manual_path.exists():
             logger.warning(
                 "Lab manual not found for topic: %s at %s",
-                self.topic_name,
+                self.lab_name,
                 self.lab_manual_path,
             )
             return None
 
-        if self.vector_store_path.exists():
+        if self.vector_store_path and self.vector_store_path.exists():
             try:
                 logger.info(
-                    "Loading vector store for topic: %s", self.topic_name
+                    "Loading vector store for lab: %s", self.lab_name
                 )
                 return FAISS.load_local(
                     str(self.vector_store_path),
@@ -121,10 +133,10 @@ class LabManualSkill(BaseSkill):
 
     def _create_vector_store(self) -> Optional[FAISS]:
         """Create a new vector store from the lab manual."""
-        if not self.lab_manual_path.exists():
+        if not self.lab_manual_path or not self.lab_manual_path.exists():
             return None
 
-        logger.info("Creating vector store for topic: %s", self.topic_name)
+        logger.info("Creating vector store for lab: %s", self.lab_name)
         try:
             # Read the file directly to handle potential encoding issues or just use TextLoader
             with open(self.lab_manual_path, "r", encoding="utf-8") as f:
@@ -145,6 +157,8 @@ class LabManualSkill(BaseSkill):
             vector_store = FAISS.from_documents(docs, self.embeddings)
 
             # Save vector store
+            if not self.vector_store_path:
+                return None
             self.vector_store_path.parent.mkdir(parents=True, exist_ok=True)
             vector_store.save_local(str(self.vector_store_path))
             return vector_store
@@ -152,7 +166,7 @@ class LabManualSkill(BaseSkill):
         except Exception as e:
             logger.error(
                 "Failed to create vector store for topic %s: %s",
-                self.topic_name,
+                self.lab_name,
                 e,
             )
             return None
@@ -205,6 +219,16 @@ class LabManualSkill(BaseSkill):
         consult_lab_manual.description = tool_description
 
         return consult_lab_manual
+
+
+def build_lab_manual_index(lab_name: str) -> bool:
+    """Build or load a lab manual vector store for a given lab name."""
+    try:
+        skill = LabManualSkill(topic_name=lab_name, lab_name=lab_name)
+        return skill.vector_store is not None
+    except Exception as e:
+        logger.error("Failed to build lab manual index for %s: %s", lab_name, e)
+        return False
 
 
 class PedagogicalStrategySkill(BaseSkill):

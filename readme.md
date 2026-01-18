@@ -208,6 +208,10 @@ python src/main.py ShellShock-Attack
    - 最终 Profile 保存在 `data/tutor_profiles/{目录名}/`：
      - `{profile_id}.json`：完整的导师配置
 
+> **RAG 向量索引说明**：
+> - 上传/保存实验手册后，会异步构建该手册的向量索引，存放在 `data/vector_stores/{lab_name}`。
+> - 生成的 Profile 会记录 `lab_name` 用于检索，多个 Profile 可共享同一份向量索引。
+
 #### 方法二：手动创建
 
 1. 在 `data/tutor_profiles/` 下创建新目录，例如 `my_tutor/`
@@ -460,4 +464,3 @@ npm install
 ---
 
 **Made with ❤️ by the Socratic Agent Generator Team**
-

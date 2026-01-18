@@ -34,6 +34,7 @@ export interface Profile {
   readonly profile_id: string;
   readonly profile_name?: string; // Optional, defaults to topic_name if empty
   readonly topic_name: string;
+  readonly lab_name?: string;
   readonly persona_hints: readonly string[];
   readonly target_audience: string;
   readonly curriculum: CurriculumData;
@@ -227,4 +228,3 @@ export interface GenerateInvitationCodeResponse {
   readonly expires_in_days: number;
   readonly expires_at: string;
 }
-

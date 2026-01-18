@@ -81,6 +81,7 @@ class ProfileGenerateManager:
         curriculum: Optional[SocraticCurriculum] = None,
         definition: Optional[TutorPersona] = None,
         profile_name: Optional[str] = None,
+        lab_name: Optional[str] = None,
         output_dir: Optional[Path] = None,
     ) -> Profile:
         """Compile the profile and save it to disk.
@@ -113,7 +114,13 @@ class ProfileGenerateManager:
         base_template = self.template_assembler.assemble(definition, curriculum)
         
         # generate profile
-        profile = self._assemble_profile(curriculum, definition, base_template, profile_name)
+        profile = self._assemble_profile(
+            curriculum,
+            definition,
+            base_template,
+            profile_name,
+            lab_name,
+        )
         
         # save
         self._save_profile(profile, output_dir=output_dir)
@@ -126,6 +133,7 @@ class ProfileGenerateManager:
         definition: TutorPersona,
         base_template: str,
         profile_name: Optional[str],
+        lab_name: Optional[str],
     ) -> Profile:
         """Assemble profile structure.
 
@@ -145,6 +153,7 @@ class ProfileGenerateManager:
         return Profile(
             profile_name=profile_name,
             topic_name=definition.get_topic_name(),
+            lab_name=lab_name,
             persona_hints=definition.get_persona_hints(),
             target_audience=definition.get_target_audience(),
             curriculum=curriculum,
@@ -189,7 +198,9 @@ if __name__ == "__main__":
             profile_manager.generate_persona(),
         )
         await profile_manager.compile_profile(
-            curriculum=curriculum, definition=definition
+            curriculum=curriculum,
+            definition=definition,
+            lab_name="Spectre-Attack",
         )
 
     asyncio.get_event_loop().run_until_complete(main())
