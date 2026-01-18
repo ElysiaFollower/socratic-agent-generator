@@ -228,7 +228,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <UploadFile fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='上传实验文档'
+                  primary='实验文档管理'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

@@ -94,13 +94,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='上传实验文档' placement='right'>
+          <Tooltip title='实验文档管理' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenLabManualPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='上传实验文档'
+                aria-label='实验文档管理上传实验文档'
                 color={activePanel === "lab-manual" ? "primary" : "default"}
                 sx={railButtonSx}
               >
