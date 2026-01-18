@@ -155,6 +155,11 @@ export interface HealthCheckResponse {
 export type UserRole = 'admin' | 'teacher' | 'student';
 
 /**
+ * Main workspace panel views.
+ */
+export type ToolPanelView = 'chat' | 'invitation' | 'lab-manual' | 'profile';
+
+/**
  * Represents a user in the system.
  */
 export interface User {
@@ -227,4 +232,24 @@ export interface GenerateInvitationCodeResponse {
   readonly created_by: string;
   readonly expires_in_days: number;
   readonly expires_at: string;
+}
+
+/**
+ * Invitation code info.
+ */
+export interface InvitationCodeInfo {
+  readonly invitation_code: string;
+  readonly role: 'teacher' | 'student';
+  readonly created_by: string;
+  readonly created_at: string;
+  readonly expires_at?: string | null;
+  readonly used: boolean;
+  readonly used_at?: string | null;
+}
+
+/**
+ * Invitation code list response.
+ */
+export interface InvitationCodeListResponse {
+  readonly invitation_codes: readonly InvitationCodeInfo[];
 }

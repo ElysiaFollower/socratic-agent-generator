@@ -4,7 +4,9 @@
  * This component provides a textarea for user input with send functionality.
  */
 
-import React from 'react';
+import React from "react";
+import { Box, IconButton, TextField } from "@mui/material";
+import { SendOutlined } from "@mui/icons-material";
 
 /**
  * Props for ChatInput component.
@@ -24,40 +26,81 @@ export interface ChatInputProps {
  * @returns React component
  */
 export function ChatInput(props: ChatInputProps): JSX.Element {
-  const {value, disabled, placeholder, onChange, onSend} = props;
+  const { value, disabled, placeholder, onChange, onSend } = props;
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onSend();
     }
   };
 
   return (
-    <div className="flex gap-2">
-      <textarea
+    <Box
+      sx={{
+        position: "relative",
+        mt: 1,
+        width: "100%",
+        maxWidth: { xs: "100%", md: "70%" },
+        mx: "auto",
+      }}
+    >
+      <TextField
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onKeyPress={handleKeyPress}
-        rows={2}
-        className="flex-1 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onKeyDown={handleKeyDown}
+        multiline
+        minRows={1}
+        maxRows={6}
+        fullWidth
         placeholder={
-          placeholder ||
-          '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
+          placeholder || "输入你的想法或问题... (Enter发送，Shift+Enter换行)"
         }
         disabled={disabled}
+        variant='outlined'
+        sx={{
+          "& .MuiOutlinedInput-root": {
+            borderRadius: "24px",
+            backgroundColor: "var(--color-surface)",
+            color: "var(--text-primary)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
+            "& fieldset": {
+              borderColor: "transparent",
+            },
+            "&:hover fieldset": {
+              borderColor: "transparent",
+            },
+            "&.Mui-focused fieldset": {
+              borderColor: "transparent",
+            },
+          },
+          "& .MuiInputBase-input": {
+            paddingRight: "56px",
+          },
+          "& .MuiInputBase-input::placeholder": {
+            color: "var(--text-muted)",
+            opacity: 1,
+          },
+          marginBottom: "20px",
+        }}
       />
-      <button
+      <IconButton
         onClick={onSend}
-        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
         disabled={disabled || !value.trim()}
+        sx={{
+          backgroundColor: "var(--color-primary)",
+          color: "#ffffff",
+          position: "absolute",
+          right: "16px",
+          bottom: "28px",
+          boxShadow: "0 6px 16px rgba(37, 99, 235, 0.25)",
+          "&:hover": {
+            backgroundColor: "var(--color-secondary)",
+          },
+        }}
       >
-        发送
-      </button>
-    </div>
+        <SendOutlined />
+      </IconButton>
+    </Box>
   );
 }
-
-
-
-

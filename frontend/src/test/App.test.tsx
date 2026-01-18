@@ -6,7 +6,9 @@
 
 import {describe, it, expect, vi} from 'vitest';
 import {render, screen} from '@testing-library/react';
+import {MemoryRouter} from 'react-router-dom';
 import App from '../App';
+import {AuthProvider} from '../contexts/AuthContext';
 
 // Mock the API modules
 vi.mock('../api/profiles', () => ({
@@ -18,12 +20,19 @@ vi.mock('../api/sessions', () => ({
 }));
 
 describe('App', () => {
-  it('should render without crashing', () => {
-    render(<App />);
-    expect(screen.getByText(/苏格拉底式AI导师/i)).toBeInTheDocument();
+  it('should render login page when unauthenticated', async () => {
+    render(
+      <AuthProvider>
+        <MemoryRouter initialEntries={['/']}>
+          <App />
+        </MemoryRouter>
+      </AuthProvider>,
+    );
+    expect(
+      await screen.findByText(/登录到苏格拉底式AI导师系统/i),
+    ).toBeInTheDocument();
   });
 });
-
 
 
 

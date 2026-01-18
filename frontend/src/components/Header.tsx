@@ -5,8 +5,32 @@
  */
 
 import React from 'react';
-import {Maximize2, Minimize2} from 'lucide-react';
-import {SessionSummary, SocraticStep, User} from '../types';
+import {
+  AppBar,
+  Avatar,
+  Box,
+  Collapse,
+  Divider,
+  IconButton,
+  ListItemIcon,
+  Menu,
+  MenuItem,
+  Stack,
+  Toolbar,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import {
+  Brightness4,
+  Brightness7,
+  CloseFullscreen,
+  ExpandLess,
+  ExpandMore,
+  Logout,
+  OpenInFull,
+  Settings,
+} from '@mui/icons-material';
+import {SessionSummary, SocraticStep, ToolPanelView, User} from '../types';
 import {ProgressBar} from './ProgressBar';
 
 /**
@@ -20,7 +44,12 @@ export interface HeaderProps {
   readonly curriculum: readonly SocraticStep[];
   readonly onToggleMaximize: () => void;
   readonly onToggleCollapse: () => void;
+  readonly activePanel: ToolPanelView;
   readonly user: User | null;
+  readonly themeMode: 'light' | 'dark';
+  readonly onToggleTheme: () => void;
+  readonly onLogout: () => void;
+  readonly onOpenSettings: () => void;
 }
 
 /**
@@ -38,95 +67,142 @@ export function Header(props: HeaderProps): JSX.Element {
     curriculum,
     onToggleMaximize,
     onToggleCollapse,
+    activePanel,
     user,
+    themeMode,
+    onToggleTheme,
+    onLogout,
+    onOpenSettings,
   } = props;
 
+  const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
+  const isMenuOpen = Boolean(menuAnchor);
+
+  const displayName = user?.display_name || user?.username || '用户';
+  const avatarLetter = displayName.trim().charAt(0).toUpperCase() || 'U';
+  const avatarColors = [
+    '#2563eb',
+    '#0ea5e9',
+    '#10b981',
+    '#f59e0b',
+    '#ef4444',
+    '#6366f1',
+  ];
+  const avatarBgColor =
+    avatarColors[avatarLetter.charCodeAt(0) % avatarColors.length];
+
+  const panelTitles: Record<ToolPanelView, string> = {
+    chat: '苏格拉底式AI导师',
+    invitation: '邀请码管理',
+    'lab-manual': '实验文档管理',
+    profile: '生成Profile',
+  };
+
+  const displayTitle =
+    activePanel === 'chat'
+      ? currentSession?.session_name || panelTitles.chat
+      : panelTitles[activePanel];
+
+  const showSessionDetails = activePanel === 'chat' && Boolean(currentSession);
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchor(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null);
+  };
+
   return (
-    <header className="border-b bg-white">
-      <div
-        className={`${isMaximized ? '' : 'max-w-4xl mx-auto'} flex items-center justify-between p-4`}
-      >
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-semibold">
-            {currentSession
-              ? currentSession.session_name
-              : '苏格拉底式AI导师'}
-          </h1>
-
-          {/* Collapse/Expand Button */}
-          {currentSession && (
-            <button
-              onClick={onToggleCollapse}
-              className="p-1 hover:bg-gray-100 rounded transition-colors"
-              title={isCollapsed ? '展开信息' : '收起信息'}
-            >
-              {isCollapsed ? (
-                <svg
-                  className="w-4 h-4 text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M19 9l-7 7-7-7"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-4 h-4 text-gray-500"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M5 15l7-7 7 7"
-                  />
-                </svg>
-              )}
-            </button>
-          )}
-        </div>
-
-        {/* Maximize/Restore Button */}
-        {currentSession && (
-          <button
-            onClick={onToggleMaximize}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            title={isMaximized ? '还原窗口' : '最大化对话'}
-          >
-            {isMaximized ? (
-              <Minimize2 className="w-5 h-5 text-gray-600" />
-            ) : (
-              <Maximize2 className="w-5 h-5 text-gray-600" />
+    <Box component="header" sx={{borderBottom: '1px solid var(--color-border)', bgcolor: 'var(--color-surface)'}}>
+      <AppBar position="static" color="transparent" elevation={0}>
+        <Toolbar sx={{gap: 2, justifyContent: 'space-between'}}>
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <Typography variant="h6">{displayTitle}</Typography>
+            {showSessionDetails && (
+              <Tooltip title={isCollapsed ? '展开信息' : '收起信息'}>
+                <IconButton onClick={onToggleCollapse} size="small">
+                  {isCollapsed ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
+                </IconButton>
+              </Tooltip>
             )}
-          </button>
-        )}
-      </div>
+          </Stack>
+          <Stack direction="row" spacing={1} alignItems="center">
+            {currentSession && (
+              <Tooltip title={isMaximized ? '还原窗口' : '最大化对话'}>
+                <IconButton onClick={onToggleMaximize}>
+                  {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title={themeMode === 'dark' ? '切换为浅色' : '切换为深色'}>
+              <IconButton onClick={onToggleTheme}>
+                {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={displayName}>
+              <IconButton onClick={handleMenuOpen}>
+                <Avatar
+                  sx={{
+                    bgcolor: avatarBgColor,
+                    width: 36,
+                    height: 36,
+                    fontSize: 14,
+                    fontWeight: 600,
+                  }}
+                >
+                  {avatarLetter}
+                </Avatar>
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Toolbar>
+      </AppBar>
 
-      {/* Collapsible Info Area */}
-      {!isCollapsed && (
-        <div
-          className={`${isMaximized ? '' : 'max-w-4xl mx-auto'} px-4 pb-4 transition-all duration-300 ease-in-out`}
-        >
-          <p className="text-sm text-gray-600 mb-4">
-            {currentSession
-              ? `课程: ${currentSession.topic_name} | Profile: ${currentSession.profile_id}`
-              : '通过提问启发思考，引导深度学习'}
-          </p>
-
-          {/* Progress Bar */}
-          {currentSession && curriculum.length > 0 && (
-            <ProgressBar currentStep={currentStep} curriculum={curriculum} />
-          )}
-        </div>
+      {showSessionDetails && (
+        <Collapse in={!isCollapsed} timeout={200}>
+          <Box sx={{px: 3, pb: 2}}>
+            <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
+              {`课程: ${currentSession?.topic_name} | Profile: ${currentSession?.profile_id}`}
+            </Typography>
+            {curriculum.length > 0 && (
+              <ProgressBar currentStep={currentStep} curriculum={curriculum} />
+            )}
+          </Box>
+        </Collapse>
       )}
-    </header>
+
+      <Menu
+        anchorEl={menuAnchor}
+        open={isMenuOpen}
+        onClose={handleMenuClose}
+        anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
+        transformOrigin={{vertical: 'top', horizontal: 'right'}}
+      >
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            onOpenSettings();
+          }}
+        >
+          <ListItemIcon>
+            <Settings fontSize="small" />
+          </ListItemIcon>
+          设置
+        </MenuItem>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            onLogout();
+          }}
+        >
+          <ListItemIcon>
+            <Logout fontSize="small" />
+          </ListItemIcon>
+          登出
+        </MenuItem>
+      </Menu>
+    </Box>
   );
 }
-

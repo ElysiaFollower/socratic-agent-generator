@@ -30,6 +30,11 @@ class Session(BaseModel):
         description="The name of the session.",
         default=config.DEFAULT_SESSION_NAME
     )
+
+    owner_id: Optional[str] = Field(
+        default=None,
+        description="The user_id of the session owner.",
+    )
     
     profile: Profile = Field(
         description="The profile of the session."
@@ -65,6 +70,7 @@ class SessionSummary(BaseModel):
     """Provides a brief summary of a session, used for listings."""
     session_id: str
     session_name: str
+    owner_id: Optional[str] = None
     profile_id: str
     profile_name: str
     topic_name: str

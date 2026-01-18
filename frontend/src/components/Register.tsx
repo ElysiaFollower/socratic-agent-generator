@@ -6,6 +6,19 @@
  */
 
 import React, {useState, FormEvent} from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import {useAuth} from '../hooks';
 import {RegisterRequest, UserRole} from '../types';
 import {register as apiRegister} from '../api';
@@ -82,8 +95,7 @@ export function Register(props: RegisterProps): JSX.Element {
         display_name: displayName.trim() || undefined,
         email: email.trim() || undefined,
         admin_token: role === 'admin' ? adminToken.trim() : undefined,
-        invitation_code:
-          role !== 'admin' ? invitationCode.trim() : undefined,
+        invitation_code: role !== 'admin' ? invitationCode.trim() : undefined,
       };
 
       await apiRegister(request);
@@ -121,202 +133,137 @@ export function Register(props: RegisterProps): JSX.Element {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            注册新账户
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            创建您的账户以开始使用
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div
-              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'var(--color-bg)',
+        px: 2,
+        py: 4,
+      }}
+    >
+      <Paper variant="outlined" sx={{p: 4, width: '100%', maxWidth: 520}}>
+        <Stack spacing={3}>
+          <Box textAlign="center">
+            <Typography variant="h5" sx={{fontWeight: 700}}>
+              注册新账户
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>
+              创建您的账户以开始使用
+            </Typography>
+          </Box>
 
-          <div className="rounded-md shadow-sm space-y-4">
-            {/* Username */}
-            <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700">
-                用户名 *
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="用户名"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
+          {error && <Alert severity="error">{error}</Alert>}
 
-            {/* Password */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                密码 *
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="密码（至少6位）"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            {/* Confirm Password */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                确认密码 *
-              </label>
-              <input
-                id="confirmPassword"
-                name="confirmPassword"
-                type="password"
-                required
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="再次输入密码"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            {/* Role Selection */}
-            <div>
-              <label htmlFor="role" className="block text-sm font-medium text-gray-700">
-                身份 *
-              </label>
-              <select
-                id="role"
-                name="role"
-                required
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                value={role}
-                onChange={(e) => setRole(e.target.value as UserRole)}
-                disabled={isLoading}
-              >
-                <option value="student">学生</option>
-                <option value="teacher">教师</option>
-                <option value="admin">管理员</option>
-              </select>
-            </div>
-
-            {/* Display Name */}
-            <div>
-              <label htmlFor="displayName" className="block text-sm font-medium text-gray-700">
-                显示名称
-              </label>
-              <input
-                id="displayName"
-                name="displayName"
-                type="text"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="显示名称（可选）"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            {/* Email */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                邮箱
-              </label>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="邮箱地址（可选）"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-
-            {/* Admin Token */}
-            {role === 'admin' && (
-              <div>
-                <label htmlFor="adminToken" className="block text-sm font-medium text-gray-700">
-                  管理员令牌 *
-                </label>
-                <input
-                  id="adminToken"
-                  name="adminToken"
-                  type="password"
-                  required={role === 'admin'}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="管理员令牌（从.env文件获取）"
-                  value={adminToken}
-                  onChange={(e) => setAdminToken(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
-            )}
-
-            {/* Invitation Code */}
-            {role !== 'admin' && (
-              <div>
-                <label htmlFor="invitationCode" className="block text-sm font-medium text-gray-700">
-                  邀请码 * {role === 'teacher' ? '（需要管理员提供）' : '（需要教师或管理员提供）'}
-                </label>
-                <input
-                  id="invitationCode"
-                  name="invitationCode"
-                  type="text"
-                  required={role !== 'admin'}
-                  className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                  placeholder="邀请码"
-                  value={invitationCode}
-                  onChange={(e) => setInvitationCode(e.target.value)}
-                  disabled={isLoading}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <button
-              type="submit"
+          <Stack component="form" spacing={2} onSubmit={handleSubmit}>
+            <TextField
+              id="username"
+              label="用户名"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? '注册中...' : '注册'}
-            </button>
+              fullWidth
+              required
+            />
+            <TextField
+              id="password"
+              label="密码"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+              fullWidth
+              required
+              helperText="至少 6 位"
+            />
+            <TextField
+              id="confirmPassword"
+              label="确认密码"
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              disabled={isLoading}
+              fullWidth
+              required
+            />
 
-            {onSwitchToLogin && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={onSwitchToLogin}
-                  className="text-sm text-indigo-600 hover:text-indigo-500"
-                  disabled={isLoading}
-                >
-                  已有账户？立即登录
-                </button>
-              </div>
+            <FormControl fullWidth required disabled={isLoading}>
+              <InputLabel id="role-label">身份</InputLabel>
+              <Select
+                labelId="role-label"
+                id="role"
+                value={role}
+                label="身份"
+                onChange={(e) => {
+                  setRole(e.target.value as UserRole);
+                  setAdminToken('');
+                  setInvitationCode('');
+                }}
+              >
+                <MenuItem value="student">学生</MenuItem>
+                <MenuItem value="teacher">教师</MenuItem>
+                <MenuItem value="admin">管理员</MenuItem>
+              </Select>
+            </FormControl>
+
+            <TextField
+              id="displayName"
+              label="显示名称（可选）"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              disabled={isLoading}
+              fullWidth
+            />
+            <TextField
+              id="email"
+              label="邮箱（可选）"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
+              fullWidth
+            />
+
+            {role === 'admin' && (
+              <TextField
+                id="adminToken"
+                label="管理员令牌"
+                type="password"
+                value={adminToken}
+                onChange={(e) => setAdminToken(e.target.value)}
+                disabled={isLoading}
+                fullWidth
+                required
+                helperText="从 .env 文件获取"
+              />
             )}
-          </div>
-        </form>
-      </div>
-    </div>
+
+            {role !== 'admin' && (
+              <TextField
+                id="invitationCode"
+                label={`邀请码${role === 'teacher' ? '（需要管理员提供）' : '（需要教师或管理员提供）'}`}
+                value={invitationCode}
+                onChange={(e) => setInvitationCode(e.target.value)}
+                disabled={isLoading}
+                fullWidth
+                required
+              />
+            )}
+
+            <Button type="submit" variant="contained" disabled={isLoading}>
+              {isLoading ? '注册中...' : '注册'}
+            </Button>
+          </Stack>
+
+          {onSwitchToLogin && (
+            <Button variant="text" onClick={onSwitchToLogin} disabled={isLoading}>
+              已有账户？立即登录
+            </Button>
+          )}
+        </Stack>
+      </Paper>
+    </Box>
   );
 }
-
-

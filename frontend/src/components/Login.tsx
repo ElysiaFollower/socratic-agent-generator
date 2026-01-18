@@ -6,6 +6,15 @@
  */
 
 import React, {useState, FormEvent} from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import {useAuth} from '../hooks';
 import {LoginRequest} from '../types';
 
@@ -61,85 +70,69 @@ export function Login(props: LoginProps): JSX.Element {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            登录到苏格拉底式AI导师系统
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            请输入您的用户名和密码
-          </p>
-        </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {error && (
-            <div
-              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded"
-              role="alert"
-            >
-              {error}
-            </div>
-          )}
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="username" className="sr-only">
-                用户名
-              </label>
-              <input
-                id="username"
-                name="username"
-                type="text"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="用户名"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <label htmlFor="password" className="sr-only">
-                密码
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="密码"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        bgcolor: 'var(--color-bg)',
+        px: 2,
+      }}
+    >
+      <Paper variant="outlined" sx={{p: 4, width: '100%', maxWidth: 420}}>
+        <Stack spacing={3}>
+          <Box textAlign="center">
+            <Typography variant="h5" sx={{fontWeight: 700}}>
+              登录到苏格拉底式AI导师系统
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{mt: 1}}>
+              请输入您的用户名和密码
+            </Typography>
+          </Box>
 
-          <div className="space-y-3">
-            <button
-              type="submit"
+          {error && <Alert severity="error">{error}</Alert>}
+
+          <Stack component="form" spacing={2} onSubmit={handleSubmit}>
+            <TextField
+              id="username"
+              label="用户名"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              fullWidth
+              required
+            />
+            <TextField
+              id="password"
+              label="密码"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
+              fullWidth
+              required
+            />
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={isLoading}
             >
               {isLoading ? '登录中...' : '登录'}
-            </button>
+            </Button>
+          </Stack>
 
-            {onSwitchToRegister && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={onSwitchToRegister}
-                  className="text-sm text-indigo-600 hover:text-indigo-500"
-                  disabled={isLoading}
-                >
-                  还没有账户？立即注册
-                </button>
-              </div>
-            )}
-          </div>
-        </form>
-      </div>
-    </div>
+          {onSwitchToRegister && (
+            <Button
+              variant="text"
+              onClick={onSwitchToRegister}
+              disabled={isLoading}
+            >
+              还没有账户？立即注册
+            </Button>
+          )}
+        </Stack>
+      </Paper>
+    </Box>
   );
 }
-

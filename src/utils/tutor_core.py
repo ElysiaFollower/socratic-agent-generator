@@ -126,12 +126,15 @@ class Tutor:
         logger.info("Tutor initialized for session: %s", session.session_id)
 
     @classmethod
-    def from_id(cls, session_id: str, llm: Any = None) -> "Tutor":
+    def from_id(
+        cls, session_id: str, owner_id: str = None, llm: Any = None
+    ) -> "Tutor":
         """Load tutor session by session_id.
 
         Args:
-            session_id: The ID of the session to load.
-            llm: Optional LLM instance. If None, uses default LLM from config.
+        session_id: The ID of the session to load.
+        owner_id: Optional user_id to scope session lookup.
+        llm: Optional LLM instance. If None, uses default LLM from config.
 
         Returns:
             Tutor instance.
@@ -140,13 +143,14 @@ class Tutor:
             SessionNotFoundError: If session does not exist.
         """
         llm = llm or get_default_llm()
-        session = _session_manager.read_session(session_id)
+        session = _session_manager.read_session(session_id, owner_id=owner_id)
         return cls(session, llm)
 
     @classmethod
     def create_new(
         cls,
         profile: Profile,
+        owner_id: str,
         session_name: str = DEFAULT_SESSION_NAME,
         output_language: str = DEFAULT_OUTPUT_LANGUAGE,
         llm: Any = None,
@@ -154,7 +158,8 @@ class Tutor:
         """Create a new tutor session.
 
         Args:
-            profile: Profile to use for this tutor.
+        profile: Profile to use for this tutor.
+        owner_id: user_id of the session owner.
             session_name: Name of the session. Defaults to DEFAULT_SESSION_NAME.
             output_language: Output language. Defaults to DEFAULT_OUTPUT_LANGUAGE.
             llm: Optional LLM instance. If None, uses default LLM from config.
@@ -164,7 +169,7 @@ class Tutor:
         """
         llm = llm or get_default_llm()
         session = _session_manager.create_session(
-            profile, session_name, output_language
+            profile, owner_id, session_name, output_language
         )
 
         instance = cls(session, llm)

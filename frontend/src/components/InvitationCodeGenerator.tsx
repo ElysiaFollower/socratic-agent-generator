@@ -5,16 +5,38 @@
  * following Google TypeScript Style Guide.
  */
 
-import React, {useState, FormEvent} from 'react';
-import {useAuth} from '../hooks';
-import {GenerateInvitationCodeRequest, UserRole} from '../types';
-import {generateInvitationCode} from '../api';
+import React, { useState, FormEvent, useCallback, useEffect } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Stack,
+  TextField,
+  Typography,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
+import { ContentCopy } from "@mui/icons-material";
+import { useAuth } from "../hooks";
+import { GenerateInvitationCodeRequest, InvitationCodeInfo } from "../types";
+import { generateInvitationCode, listInvitationCodes } from "../api";
 
 /**
  * Props for InvitationCodeGenerator component.
  */
 interface InvitationCodeGeneratorProps {
   readonly onClose?: () => void;
+  readonly variant?: "dialog" | "panel";
 }
 
 /**
@@ -26,32 +48,37 @@ interface InvitationCodeGeneratorProps {
 export function InvitationCodeGenerator(
   props: InvitationCodeGeneratorProps,
 ): JSX.Element {
-  const {onClose} = props;
-  const {user} = useAuth();
-  const [role, setRole] = useState<'teacher' | 'student'>('student');
+  const { onClose, variant = "dialog" } = props;
+  const { user } = useAuth();
+  const [role, setRole] = useState<"teacher" | "student">("student");
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedCode, setGeneratedCode] = useState<string | null>(null);
-  const [codeDetails, setCodeDetails] = useState<{
+  const [successInfo, setSuccessInfo] = useState<{
+    code: string;
     role: string;
     expiresAt: string;
   } | null>(null);
+  const [invitationCodes, setInvitationCodes] = useState<
+    readonly InvitationCodeInfo[]
+  >([]);
+  const [isLoadingCodes, setIsLoadingCodes] = useState<boolean>(false);
 
   /**
    * Handles form submission.
    *
    * @param event - Form submit event
    */
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (event?: FormEvent<HTMLFormElement>) => {
+    if (event) {
+      event.preventDefault();
+    }
     setError(null);
-    setGeneratedCode(null);
-    setCodeDetails(null);
+    setSuccessInfo(null);
 
     // Check permissions
-    if (user?.role === 'teacher' && role === 'teacher') {
-      setError('教师只能为学生生成邀请码');
+    if (user?.role === "teacher" && role === "teacher") {
+      setError("教师只能为学生生成邀请码");
       return;
     }
 
@@ -62,14 +89,15 @@ export function InvitationCodeGenerator(
         expires_in_days: expiresInDays,
       };
       const response = await generateInvitationCode(request);
-      setGeneratedCode(response.invitation_code);
-      setCodeDetails({
-        role: response.role === 'teacher' ? '教师' : '学生',
-        expiresAt: new Date(response.expires_at).toLocaleString('zh-CN'),
+      setSuccessInfo({
+        code: response.invitation_code,
+        role: response.role === "teacher" ? "教师" : "学生",
+        expiresAt: new Date(response.expires_at).toLocaleString("zh-CN"),
       });
+      await loadInvitationCodes();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : '生成邀请码失败，请重试';
+        err instanceof Error ? err.message : "生成邀请码失败，请重试";
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -77,208 +105,276 @@ export function InvitationCodeGenerator(
   };
 
   /**
+   * Loads invitation codes created by the current user.
+   */
+  const loadInvitationCodes = useCallback(async () => {
+    setIsLoadingCodes(true);
+    try {
+      const response = await listInvitationCodes();
+      setInvitationCodes(response.invitation_codes);
+    } catch (err) {
+      console.error("Failed to load invitation codes:", err);
+    } finally {
+      setIsLoadingCodes(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadInvitationCodes();
+  }, [loadInvitationCodes]);
+
+  /**
    * Copies invitation code to clipboard.
    */
-  const copyToClipboard = async () => {
-    if (generatedCode) {
-      try {
-        await navigator.clipboard.writeText(generatedCode);
-        // Show temporary success message
-        const button = document.getElementById('copy-button');
-        if (button) {
-          const originalText = button.textContent;
-          button.textContent = '已复制！';
-          setTimeout(() => {
-            if (button) {
-              button.textContent = originalText;
-            }
-          }, 2000);
-        }
-      } catch (err) {
-        console.error('Failed to copy to clipboard:', err);
-      }
+  const copyToClipboard = async (code: string) => {
+    if (!code) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
     }
   };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-900">生成邀请码</h2>
-            {onClose && (
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            )}
-          </div>
-
-          {error && (
-            <div
-              className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-4"
-              role="alert"
+  const content = (
+    <Stack spacing={2}>
+      {error && <Alert severity='error'>{error}</Alert>}
+      <Box component='form' onSubmit={handleSubmit}>
+        <Stack spacing={2}>
+          <FormControl fullWidth disabled={isLoading}>
+            <InputLabel id='role-select-label'>邀请对象</InputLabel>
+            <Select
+              labelId='role-select-label'
+              id='role'
+              value={role}
+              label='邀请对象'
+              onChange={(e) => setRole(e.target.value as "teacher" | "student")}
             >
-              {error}
-            </div>
-          )}
+              <MenuItem value='student'>学生</MenuItem>
+              {user?.role === "admin" && (
+                <MenuItem value='teacher'>教师</MenuItem>
+              )}
+            </Select>
+          </FormControl>
+          <TextField
+            id='expires'
+            label='有效期（天）'
+            type='number'
+            inputProps={{ min: 1, max: 365 }}
+            value={expiresInDays}
+            onChange={(e) => setExpiresInDays(Number(e.target.value))}
+            disabled={isLoading}
+            helperText='设置邀请码的有效期，默认 30 天'
+          />
+        </Stack>
+      </Box>
+    </Stack>
+  );
 
-          {generatedCode ? (
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-sm font-medium text-green-800 mb-2">
-                  邀请码生成成功！
-                </p>
-                <div className="space-y-2">
-                  <div>
-                    <label className="text-xs text-gray-600">角色</label>
-                    <p className="text-sm font-medium">{codeDetails?.role}</p>
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-600">过期时间</label>
-                    <p className="text-sm font-medium">{codeDetails?.expiresAt}</p>
-                  </div>
-                </div>
-              </div>
+  const statusChip = (used: boolean) => (
+    <Chip
+      size='small'
+      color={used ? "default" : "success"}
+      label={used ? "已使用" : "未使用"}
+      variant={used ? "outlined" : "filled"}
+    />
+  );
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  邀请码
-                </label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={generatedCode}
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-gray-50 font-mono text-sm"
-                  />
-                  <button
-                    id="copy-button"
-                    onClick={copyToClipboard}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+  const renderInvitationCodeList = () => (
+    <Stack spacing={1.5}>
+      <Stack direction='row' justifyContent='space-between' alignItems='center'>
+        <Typography variant='subtitle2'>我的邀请码</Typography>
+        <Button onClick={loadInvitationCodes} size='small' color='inherit'>
+          刷新
+        </Button>
+      </Stack>
+      {isLoadingCodes ? (
+        <Stack direction='row' spacing={1} alignItems='center'>
+          <CircularProgress size={16} />
+          <Typography variant='body2' color='text.secondary'>
+            加载中...
+          </Typography>
+        </Stack>
+      ) : invitationCodes.length === 0 ? (
+        <Typography variant='body2' color='text.secondary'>
+          暂无邀请码记录
+        </Typography>
+      ) : (
+        <Stack spacing={1}>
+          {invitationCodes.map((code) => (
+            <Box
+              key={code.invitation_code}
+              sx={{
+                border: "1px solid var(--color-border)",
+                borderRadius: 1,
+                p: 1.5,
+                bgcolor: "var(--color-surface)",
+              }}
+            >
+              <Stack spacing={1}>
+                <Stack
+                  direction='row'
+                  alignItems='center'
+                  justifyContent='space-between'
+                >
+                  <Typography
+                    variant='body2'
+                    color={code.used ? "text.secondary" : "text.primary"}
+                    sx={{
+                      fontWeight: 600,
+                      textDecoration: code.used ? "line-through" : "none",
+                    }}
                   >
-                    复制
-                  </button>
-                </div>
-                <p className="mt-2 text-xs text-gray-500">
-                  请妥善保管此邀请码，它将用于{codeDetails?.role}注册。
-                </p>
-              </div>
+                    {code.invitation_code}
+                  </Typography>
+                  <Stack direction='row' spacing={1} alignItems='center'>
+                    {!code.used && (
+                      <Tooltip title='复制邀请码'>
+                        <IconButton
+                          size='small'
+                          aria-label='复制邀请码'
+                          onClick={() => copyToClipboard(code.invitation_code)}
+                        >
+                          <ContentCopy fontSize='small' />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {statusChip(code.used)}
+                  </Stack>
+                </Stack>
+                <Stack direction='row' spacing={2} flexWrap='wrap'>
+                  <Typography variant='caption' color='text.secondary'>
+                    角色: {code.role === "teacher" ? "教师" : "学生"}
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    创建时间:{" "}
+                    {new Date(code.created_at).toLocaleString("zh-CN")}
+                  </Typography>
+                  <Typography variant='caption' color='text.secondary'>
+                    到期时间:{" "}
+                    {code.used
+                      ? "-"
+                      : code.expires_at
+                        ? new Date(code.expires_at).toLocaleString("zh-CN")
+                        : "-"}
+                  </Typography>
+                </Stack>
+              </Stack>
+            </Box>
+          ))}
+        </Stack>
+      )}
+    </Stack>
+  );
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    setGeneratedCode(null);
-                    setCodeDetails(null);
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                >
-                  生成新的
-                </button>
-                {onClose && (
-                  <button
-                    onClick={onClose}
-                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    完成
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label
-                  htmlFor="role"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  角色 *
-                </label>
-                <select
-                  id="role"
-                  name="role"
-                  required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={role}
-                  onChange={(e) =>
-                    setRole(e.target.value as 'teacher' | 'student')
-                  }
-                  disabled={isLoading || user?.role === 'teacher'}
-                >
-                  {user?.role === 'admin' && (
-                    <option value="teacher">教师</option>
-                  )}
-                  <option value="student">学生</option>
-                </select>
-                {user?.role === 'teacher' && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    教师只能为学生生成邀请码
-                  </p>
-                )}
-              </div>
+  const actions = (
+    <>
+      {onClose && (
+        <Button onClick={onClose} color='inherit' disabled={isLoading}>
+          取消
+        </Button>
+      )}
+      <Button
+        onClick={() => handleSubmit()}
+        variant='contained'
+        disabled={isLoading}
+      >
+        {isLoading ? "生成中..." : "生成邀请码"}
+      </Button>
+    </>
+  );
 
-              <div>
-                <label
-                  htmlFor="expiresInDays"
-                  className="block text-sm font-medium text-gray-700 mb-2"
-                >
-                  有效期（天）*
-                </label>
-                <input
-                  id="expiresInDays"
-                  name="expiresInDays"
-                  type="number"
-                  required
-                  min={1}
-                  max={365}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={expiresInDays}
-                  onChange={(e) => setExpiresInDays(parseInt(e.target.value, 10))}
-                  disabled={isLoading}
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  邀请码将在指定天数后过期（1-365天）
-                </p>
-              </div>
+  const handleSuccessClose = () => {
+    setSuccessInfo(null);
+  };
 
-              <div className="flex gap-2 pt-2">
-                {onClose && (
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition-colors"
-                    disabled={isLoading}
-                  >
-                    取消
-                  </button>
-                )}
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLoading ? '生成中...' : '生成邀请码'}
-                </button>
-              </div>
-            </form>
-          )}
-        </div>
-      </div>
-    </div>
+  const successDialog = (
+    <Dialog
+      open={Boolean(successInfo)}
+      onClose={handleSuccessClose}
+      fullWidth
+      maxWidth='sm'
+    >
+      <DialogTitle>邀请码生成成功</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2}>
+          <Typography variant='body2' color='text.secondary'>
+            请复制并发送给对应角色完成注册。
+          </Typography>
+          <Box>
+            <Typography variant='caption' color='text.secondary'>
+              角色
+            </Typography>
+            <Typography variant='body2'>{successInfo?.role}</Typography>
+          </Box>
+          <Box>
+            <Typography variant='caption' color='text.secondary'>
+              过期时间
+            </Typography>
+            <Typography variant='body2'>{successInfo?.expiresAt}</Typography>
+          </Box>
+          <Box>
+            <Typography
+              variant='caption'
+              color='text.secondary'
+              sx={{ mb: 1, display: "block" }}
+            >
+              邀请码
+            </Typography>
+            <Stack direction='row' spacing={1}>
+              <TextField
+                value={successInfo?.code ?? ""}
+                fullWidth
+                InputProps={{ readOnly: true }}
+                size='small'
+              />
+              <Button
+                variant='contained'
+                onClick={() => copyToClipboard(successInfo?.code ?? "")}
+              >
+                复制
+              </Button>
+            </Stack>
+          </Box>
+        </Stack>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (variant === "panel") {
+    return (
+      <>
+        <Stack spacing={3}>
+          {content}
+          <Stack
+            direction='row'
+            spacing={1}
+            justifyContent='flex-end'
+            sx={{ pt: 1 }}
+          >
+            {actions}
+          </Stack>
+          {renderInvitationCodeList()}
+        </Stack>
+        {successDialog}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Dialog open onClose={onClose} fullWidth maxWidth='sm'>
+        <DialogTitle>邀请码管理</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={3}>
+            {content}
+            {renderInvitationCodeList()}
+          </Stack>
+        </DialogContent>
+        <DialogActions>{actions}</DialogActions>
+      </Dialog>
+      {successDialog}
+    </>
   );
 }
-

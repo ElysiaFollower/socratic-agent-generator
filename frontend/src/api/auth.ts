@@ -14,6 +14,7 @@ import {
   RegisterResponse,
   GenerateInvitationCodeRequest,
   GenerateInvitationCodeResponse,
+  InvitationCodeListResponse,
   User,
 } from '../types';
 
@@ -222,3 +223,28 @@ export async function generateInvitationCode(
   }
 }
 
+/**
+ * Lists invitation codes created by the current user.
+ *
+ * @returns Promise resolving to invitation code list response
+ * @throws Error if listing fails
+ */
+export async function listInvitationCodes(): Promise<InvitationCodeListResponse> {
+  try {
+    const token = getAuthToken();
+    if (!token) {
+      throw new Error('未找到认证令牌');
+    }
+    const response = await apiClient.get<InvitationCodeListResponse>(
+      '/api/auth/invitation-codes',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`加载邀请码失败: ${handleApiError(error)}`);
+  }
+}

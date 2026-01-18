@@ -6,6 +6,8 @@
  */
 
 import React, {ReactNode} from 'react';
+import {Box, Typography} from '@mui/material';
+import {Navigate} from 'react-router-dom';
 import {useAuth} from '../hooks';
 import {UserRole} from '../types';
 import {Login} from './Login';
@@ -17,6 +19,7 @@ interface ProtectedRouteProps {
   readonly children: ReactNode;
   readonly requiredRoles?: readonly UserRole[];
   readonly fallback?: ReactNode;
+  readonly redirectTo?: string;
 }
 
 /**
@@ -29,39 +32,43 @@ interface ProtectedRouteProps {
  * @returns React component
  */
 export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
-  const {children, requiredRoles, fallback} = props;
+  const {children, requiredRoles, fallback, redirectTo} = props;
   const {isAuthenticated, isLoading, hasAnyRole} = useAuth();
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">加载中...</div>
-      </div>
+      <Box sx={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+        <Typography color="text.secondary">加载中...</Typography>
+      </Box>
     );
   }
 
   if (!isAuthenticated) {
-    return fallback ? <>{fallback}</> : <Login />;
+    if (fallback) {
+      return <>{fallback}</>;
+    }
+    if (redirectTo) {
+      return <Navigate to={redirectTo} replace />;
+    }
+    return <Login />;
   }
 
   if (requiredRoles && requiredRoles.length > 0) {
     if (!hasAnyRole(requiredRoles)) {
       return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+        <Box sx={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+          <Box textAlign="center">
+            <Typography variant="h5" sx={{fontWeight: 700, mb: 1}}>
               权限不足
-            </h2>
-            <p className="text-gray-600">
+            </Typography>
+            <Typography color="text.secondary">
               您没有访问此页面的权限。请联系管理员。
-            </p>
-          </div>
-        </div>
+            </Typography>
+          </Box>
+        </Box>
       );
     }
   }
 
   return <>{children}</>;
 }
-
-

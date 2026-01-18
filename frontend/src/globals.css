@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+
+:root {
+  color-scheme: light;
+  --font-body: 'Fira Sans', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Fira Code', ui-monospace, SFMono-Regular, monospace;
+  --color-primary: #2563eb;
+  --color-secondary: #3b82f6;
+  --color-accent: #f97316;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f5f9;
+  --color-border: #e2e8f0;
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --focus-ring: #93c5fd;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #0b1220;
+  --color-surface: #111827;
+  --color-surface-muted: #1f2937;
+  --color-border: #263043;
+  --text-primary: #e2e8f0;
+  --text-secondary: #cbd5f5;
+  --text-muted: #94a3b8;
+  --focus-ring: #60a5fa;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}

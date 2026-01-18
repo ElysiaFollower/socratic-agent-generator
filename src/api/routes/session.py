@@ -5,18 +5,23 @@ This module handles HTTP endpoints for learning session operations.
 
 from typing import List
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from api.routes.auth import get_current_user
 from core.dependencies import ProfileManagerDep, SessionManagerDep, TutorManagerDep
 from core.exceptions import ProfileNotFoundError, SessionNotFoundError
 from schemas.message import CreateSessionRequest, RenameSessionRequest
 from schemas.session import Session, SessionSummary
+from schemas.user import User
 
 router = APIRouter(prefix="/api/sessions", tags=["Session"])
 
 
 @router.get("", response_model=List[SessionSummary], summary="获取所有会话元信息列表")
-def list_sessions(session_manager: SessionManagerDep) -> List[SessionSummary]:
+def list_sessions(
+    session_manager: SessionManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> List[SessionSummary]:
     """List all available sessions.
 
     Args:
@@ -25,7 +30,7 @@ def list_sessions(session_manager: SessionManagerDep) -> List[SessionSummary]:
     Returns:
         List of SessionSummary objects.
     """
-    return session_manager.list_sessions()
+    return session_manager.list_sessions(current_user.user_id)
 
 
 @router.post("/create", summary="创建一个新的会话")
@@ -33,6 +38,7 @@ def create_session(
     req: CreateSessionRequest,
     profile_manager: ProfileManagerDep,
     tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Create a new learning session.
 
@@ -57,13 +63,16 @@ def create_session(
         profile=profile,
         session_name=req.session_name,
         output_language=req.output_language,
+        owner_id=current_user.user_id,
     )
     return {"session_id": tutor.session.session_id}
 
 
 @router.get("/{session_id}", response_model=Session, summary="获取一个会话的详细信息")
 def get_session(
-    session_id: str, session_manager: SessionManagerDep
+    session_id: str,
+    session_manager: SessionManagerDep,
+    current_user: User = Depends(get_current_user),
 ) -> Session:
     """Get detailed information about a session.
 
@@ -78,7 +87,9 @@ def get_session(
         HTTPException: 404 if session not found.
     """
     try:
-        return session_manager.read_session(session_id)
+        return session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
@@ -89,6 +100,7 @@ def rename_session(
     req: RenameSessionRequest,
     session_manager: SessionManagerDep,
     tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Rename a session.
 
@@ -105,8 +117,12 @@ def rename_session(
         HTTPException: 404 if session not found.
     """
     try:
-        session_manager.rename_session(session_id, req.session_name)
-        tutor_manager.remove_from_cache(session_id)
+        session_manager.rename_session(
+            session_id, req.session_name, owner_id=current_user.user_id
+        )
+        tutor_manager.remove_from_cache(
+            session_id, owner_id=current_user.user_id
+        )
         return {"success": True, "message": "会话重命名成功"}
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -117,6 +133,7 @@ def delete_session(
     session_id: str,
     session_manager: SessionManagerDep,
     tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Delete a session.
 
@@ -128,7 +145,10 @@ def delete_session(
     Returns:
         Success message.
     """
-    tutor_manager.remove_from_cache(session_id)
-    session_manager.delete_session(session_id)
+    tutor_manager.remove_from_cache(
+        session_id, owner_id=current_user.user_id
+    )
+    session_manager.delete_session(
+        session_id, owner_id=current_user.user_id
+    )
     return {"success": True, "message": "会话删除成功"}
-

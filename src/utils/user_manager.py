@@ -106,6 +106,26 @@ class UserManager:
         with open(INVITATION_CODES_FILE, "w", encoding="utf-8") as f:
             json.dump(codes, f, ensure_ascii=False, indent=2)
 
+    def list_invitation_codes(self, created_by: Optional[str] = None) -> List[dict]:
+        """List invitation codes with optional creator filtering.
+
+        Args:
+            created_by: Optional username to filter invitation codes.
+
+        Returns:
+            List of invitation code dictionaries including the code.
+        """
+        codes = self._load_invitation_codes()
+        results: List[dict] = []
+
+        for code, data in codes.items():
+            if created_by and data.get("created_by") != created_by:
+                continue
+            results.append({"code": code, **data})
+
+        results.sort(key=lambda item: item.get("created_at", ""), reverse=True)
+        return results
+
     def hash_password(self, password: str) -> str:
         """Hash a password using bcrypt.
 
@@ -330,9 +350,13 @@ class UserManager:
         Args:
             code: Invitation code to mark as used.
         """
+        from datetime import datetime
+
+        import pytz
+
         codes = self._load_invitation_codes()
         if code in codes:
             codes[code]["used"] = True
+            codes[code]["used_at"] = datetime.now(pytz.utc).isoformat()
             self._save_invitation_codes(codes)
-
 
