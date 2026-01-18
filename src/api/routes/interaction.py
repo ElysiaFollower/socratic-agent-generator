@@ -8,11 +8,13 @@ import json
 import logging
 from typing import Dict, Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 
+from api.routes.auth import get_current_user
 from core.dependencies import TutorManagerDep
 from schemas.message import MessageRequest, ResponseMessage
+from schemas.user import User
 from utils import tutor_manager
 
 logger = logging.getLogger(__name__)
@@ -22,7 +24,9 @@ router = APIRouter(tags=["Interaction"])
 
 @router.get("/api/tutor/{session_id}/welcome", summary="获取会话的欢迎语")
 def get_welcome_message(
-    session_id: str, tutor_manager: TutorManagerDep
+    session_id: str,
+    tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
 ) -> dict:
     """Get the welcome message for a session.
 
@@ -37,12 +41,18 @@ def get_welcome_message(
         HTTPException: 404 if session not found, 500 if internal error.
     """
     # tutor_manager.get_tutor() already raises HTTPException on error
-    tutor = tutor_manager.get_tutor(session_id)
+    tutor = tutor_manager.get_tutor(
+        session_id, owner_id=current_user.user_id
+    )
     return {"welcome": tutor.get_welcome_message()}
 
 
 @router.get("/api/tutor/{session_id}/state", summary="获取会话的当前状态")
-def get_state(session_id: str, tutor_manager: TutorManagerDep) -> Dict[str, Any]:
+def get_state(
+    session_id: str,
+    tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
     """Get the current progress state of a session.
 
     Args:
@@ -56,7 +66,9 @@ def get_state(session_id: str, tutor_manager: TutorManagerDep) -> Dict[str, Any]
         HTTPException: 404 if session not found, 500 if internal error.
     """
     # tutor_manager.get_tutor() already raises HTTPException on error
-    tutor = tutor_manager.get_tutor(session_id)
+    tutor = tutor_manager.get_tutor(
+        session_id, owner_id=current_user.user_id
+    )
     total_steps = tutor.session.get_curriculum().get_len()
     current_step = tutor.session.state.stepIndex
 
@@ -70,6 +82,7 @@ def get_state(session_id: str, tutor_manager: TutorManagerDep) -> Dict[str, Any]
 async def _stream_generator(
     session_id: str,
     user_input: str,
+    owner_id: str,
     tutor_manager: tutor_manager.TutorManager,
 ):
     """Stream generator for processing Tutor's async streaming responses.
@@ -86,7 +99,9 @@ async def _stream_generator(
         # tutor_manager.get_tutor() raises HTTPException, but we're in a generator
         # so we need to catch it and convert to error message
         try:
-            tutor = tutor_manager.get_tutor(session_id)
+            tutor = tutor_manager.get_tutor(
+                session_id, owner_id=owner_id
+            )
         except HTTPException as e:
             # HTTPException from get_tutor, convert to error message
             error_msg = e.detail
@@ -126,6 +141,7 @@ async def stream_message(
     session_id: str,
     req: MessageRequest,
     tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
 ) -> StreamingResponse:
     """Send a message and get streaming response (SSE).
 
@@ -150,7 +166,11 @@ async def stream_message(
         decoded_message = req.message
 
     return StreamingResponse(
-        _stream_generator(session_id, decoded_message, tutor_manager),
+        _stream_generator(
+            session_id,
+            decoded_message,
+            current_user.user_id,
+            tutor_manager,
+        ),
         media_type="text/event-stream",
     )
-

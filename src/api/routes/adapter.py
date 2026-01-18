@@ -45,7 +45,7 @@ async def _openai_stream_adapter(
         # tutor_manager.get_tutor() raises HTTPException, but we're in a generator
         # so we need to catch it and convert to error message
         try:
-            tutor = tutor_manager_instance.get_tutor(session_id)
+            tutor = tutor_manager_instance.get_tutor(session_id, owner_id=None)
         except HTTPException as e:
             # HTTPException from get_tutor, convert to OpenAI error format
             error_msg = e.detail
@@ -176,4 +176,3 @@ async def adapter_chat_completions(
         _openai_stream_adapter(session_id, user_input, tutor_manager_instance=tutor_manager),
         media_type="text/event-stream",
     )
-

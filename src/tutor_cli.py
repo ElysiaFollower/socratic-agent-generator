@@ -133,6 +133,7 @@ def cli_main() -> None:
         tutor = Tutor.create_new(
             profile=profile,
             session_name=args.session_name,
+            owner_id="cli",
         )
         print(f"✅ 会话已创建: {tutor.session.session_id}\n")
     except Exception as e:

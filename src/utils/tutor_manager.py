@@ -27,7 +27,11 @@ class TutorManager:
         self.active_tutors: Dict[str, Tutor] = {}
         logger.info("TutorManager initialized")
 
-    def get_tutor(self, session_id: str) -> Tutor:
+    def _cache_key(self, session_id: str, owner_id: str = None) -> str:
+        """Build cache key using owner_id and session_id."""
+        return f"{owner_id or 'global'}:{session_id}"
+
+    def get_tutor(self, session_id: str, owner_id: str = None) -> Tutor:
         """Get a Tutor instance for the given session.
 
         This method first checks the in-memory cache. If not found, it loads
@@ -35,6 +39,7 @@ class TutorManager:
 
         Args:
             session_id: The ID of the session.
+            owner_id: Optional user_id to scope session lookup.
 
         Returns:
             Tutor instance for the session.
@@ -43,16 +48,16 @@ class TutorManager:
             HTTPException: If the session cannot be loaded (404) or if there
                 is an internal error (500).
         """
-        # Check cache first
-        if session_id in self.active_tutors:
-            logger.debug("Cache hit for session: %s", session_id)
-            return self.active_tutors[session_id]
+        cache_key = self._cache_key(session_id, owner_id)
+        if cache_key in self.active_tutors:
+            logger.debug("Cache hit for session: %s", cache_key)
+            return self.active_tutors[cache_key]
 
         # Cache miss - load from disk
         logger.info("Cache miss. Loading tutor for session: %s", session_id)
         try:
-            tutor = Tutor.from_id(session_id)
-            self.active_tutors[session_id] = tutor
+            tutor = Tutor.from_id(session_id, owner_id=owner_id)
+            self.active_tutors[cache_key] = tutor
             return tutor
         except SessionNotFoundError as e:
             logger.warning("Session not found: %s", session_id)
@@ -64,7 +69,11 @@ class TutorManager:
             )
 
     def create_tutor(
-        self, profile: Profile, session_name: str, output_language: str
+        self,
+        profile: Profile,
+        session_name: str,
+        output_language: str,
+        owner_id: str,
     ) -> Tutor:
         """Create a new Tutor instance.
 
@@ -75,6 +84,7 @@ class TutorManager:
             profile: The Profile to use for this tutor.
             session_name: Name of the session.
             output_language: Output language for the tutor.
+            owner_id: user_id of the session owner.
 
         Returns:
             The created Tutor instance.
@@ -84,17 +94,19 @@ class TutorManager:
             profile=profile,
             session_name=session_name,
             output_language=output_language,
+            owner_id=owner_id,
         )
 
         # Add to cache
-        self.active_tutors[tutor.session.session_id] = tutor
+        cache_key = self._cache_key(tutor.session.session_id, owner_id)
+        self.active_tutors[cache_key] = tutor
         logger.info(
             "Created and cached tutor for session: %s",
             tutor.session.session_id,
         )
         return tutor
 
-    def remove_from_cache(self, session_id: str) -> None:
+    def remove_from_cache(self, session_id: str, owner_id: str = None) -> None:
         """Remove a Tutor instance from the cache.
 
         This is typically called when a session is deleted or renamed.
@@ -102,8 +114,9 @@ class TutorManager:
 
         Args:
             session_id: The ID of the session to remove from cache.
+            owner_id: Optional user_id to scope cache key.
         """
-        if session_id in self.active_tutors:
-            del self.active_tutors[session_id]
-            logger.info("Removed tutor from cache: %s", session_id)
-
+        cache_key = self._cache_key(session_id, owner_id)
+        if cache_key in self.active_tutors:
+            del self.active_tutors[cache_key]
+            logger.info("Removed tutor from cache: %s", cache_key)

@@ -6,6 +6,7 @@
  */
 
 import {apiClient, handleApiError} from './client';
+import {getAuthToken} from './auth';
 import {
   SessionState,
   WelcomeMessageResponse,
@@ -91,12 +92,14 @@ export async function sendMessageStream(
       unescape(encodeURIComponent(message)),
     );
 
+    const token = getAuthToken();
     const response = await fetch(
       `/api/sessions/${sessionId}/messages/stream`,
       {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? {Authorization: `Bearer ${token}`} : {}),
         },
         body: JSON.stringify({message: encodedMessage}),
       },
@@ -149,7 +152,5 @@ export async function sendMessageStream(
     );
   }
 }
-
-
 
 
