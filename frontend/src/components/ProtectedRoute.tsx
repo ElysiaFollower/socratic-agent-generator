@@ -7,6 +7,7 @@
 
 import React, {ReactNode} from 'react';
 import {Box, Typography} from '@mui/material';
+import {Navigate} from 'react-router-dom';
 import {useAuth} from '../hooks';
 import {UserRole} from '../types';
 import {Login} from './Login';
@@ -18,6 +19,7 @@ interface ProtectedRouteProps {
   readonly children: ReactNode;
   readonly requiredRoles?: readonly UserRole[];
   readonly fallback?: ReactNode;
+  readonly redirectTo?: string;
 }
 
 /**
@@ -30,7 +32,7 @@ interface ProtectedRouteProps {
  * @returns React component
  */
 export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
-  const {children, requiredRoles, fallback} = props;
+  const {children, requiredRoles, fallback, redirectTo} = props;
   const {isAuthenticated, isLoading, hasAnyRole} = useAuth();
 
   if (isLoading) {
@@ -42,7 +44,13 @@ export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
   }
 
   if (!isAuthenticated) {
-    return fallback ? <>{fallback}</> : <Login />;
+    if (fallback) {
+      return <>{fallback}</>;
+    }
+    if (redirectTo) {
+      return <Navigate to={redirectTo} replace />;
+    }
+    return <Login />;
   }
 
   if (requiredRoles && requiredRoles.length > 0) {
@@ -64,4 +72,3 @@ export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
 
   return <>{children}</>;
 }
-
