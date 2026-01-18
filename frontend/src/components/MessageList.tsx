@@ -6,6 +6,15 @@
  */
 
 import React from 'react';
+import {
+  Avatar,
+  Box,
+  CircularProgress,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
+import {PersonOutline, SmartToy, WavingHand} from '@mui/icons-material';
 import {ChatMessage} from '../types';
 
 /**
@@ -35,78 +44,92 @@ export function MessageList(props: MessageListProps): JSX.Element {
 
   if (messages.length === 0) {
     return (
-      <div className="flex items-center justify-center h-full text-gray-500">
-        <div className="text-center">
-          <h3 className="text-lg mb-2">👋 欢迎来到苏格拉底式学习</h3>
-          <p>选择一个会话开始你的学习之旅，或者创建一个新会话</p>
-        </div>
-      </div>
+      <Box
+        sx={{
+          height: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'text.secondary',
+        }}
+      >
+        <Stack spacing={1} alignItems="center">
+          <WavingHand sx={{fontSize: 32, color: 'var(--color-secondary)'}} />
+          <Typography variant="h6">欢迎来到苏格拉底式学习</Typography>
+          <Typography variant="body2">
+            选择一个会话开始你的学习之旅，或者创建一个新会话。
+          </Typography>
+        </Stack>
+      </Box>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {messages.map((message, index) => (
-        <div
-          key={index}
-          className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-        >
-          <div
-            className={`flex max-w-4xl ${
-              message.role === 'user' ? 'flex-row-reverse' : 'flex-row'
-            } items-start gap-3`}
+    <Stack spacing={3}>
+      {messages.map((message, index) => {
+        const isUser = message.role === 'user';
+        return (
+          <Box
+            key={index}
+            sx={{display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start'}}
           >
-            {/* Avatar */}
-            <div
-              className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                message.role === 'user'
-                  ? 'bg-gray-200 text-gray-700'
-                  : 'bg-gray-200 text-gray-700'
-              }`}
+            <Stack
+              direction={isUser ? 'row-reverse' : 'row'}
+              spacing={1.5}
+              alignItems="flex-start"
+              sx={{maxWidth: '80%'}}
             >
-              {message.role === 'user' ? '😂' : '🤖'}
-            </div>
-
-            {/* Message Content */}
-            <div
-              className={`flex flex-col ${
-                message.role === 'user' ? 'items-end' : 'items-start'
-              }`}
-            >
-              <div
-                className={`px-4 py-3 rounded-2xl max-w-2xl ${
-                  message.role === 'user'
-                    ? 'bg-blue-400 text-white rounded-br-md'
-                    : 'bg-gray-100 text-gray-900 rounded-bl-md'
-                }`}
+              <Avatar
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor: isUser ? 'var(--color-surface-muted)' : 'var(--color-surface-muted)',
+                  color: 'var(--text-secondary)',
+                }}
               >
-                {message.role === 'assistant' && message.isThinking ? (
-                  <div className="flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                    <span className="text-sm text-gray-600">
-                      {message.thinkingMessage || '导师正在思考...'}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {message.content}
-                  </div>
+                {isUser ? <PersonOutline fontSize="small" /> : <SmartToy fontSize="small" />}
+              </Avatar>
+              <Box sx={{display: 'flex', flexDirection: 'column', alignItems: isUser ? 'flex-end' : 'flex-start'}}>
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    px: 2,
+                    py: 1.5,
+                    borderRadius: 3,
+                    borderTopRightRadius: isUser ? 6 : 3,
+                    borderTopLeftRadius: isUser ? 3 : 6,
+                    bgcolor: isUser ? 'var(--color-primary)' : 'var(--color-surface-muted)',
+                    color: isUser ? '#ffffff' : 'var(--text-primary)',
+                    maxWidth: 560,
+                  }}
+                >
+                  {message.role === 'assistant' && message.isThinking ? (
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <CircularProgress size={14} />
+                      <Typography variant="body2" color="text.secondary">
+                        {message.thinkingMessage || '导师正在思考...'}
+                      </Typography>
+                    </Stack>
+                  ) : (
+                    <Typography variant="body2" sx={{whiteSpace: 'pre-wrap', lineHeight: 1.7}}>
+                      {message.content}
+                    </Typography>
+                  )}
+                </Paper>
+                {message.role === 'assistant' && !message.isThinking && (
+                  <Typography variant="caption" color="text.secondary" sx={{mt: 0.5}}>
+                    苏格拉底式导师
+                  </Typography>
                 )}
-              </div>
-              {message.role === 'assistant' && !message.isThinking && (
-                <div className="text-xs text-gray-500 mt-1 ml-1">
-                  苏格拉底式导师
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      ))}
+              </Box>
+            </Stack>
+          </Box>
+        );
+      })}
       <div ref={messagesEndRef} />
-    </div>
+    </Stack>
   );
 }
-
 
 
 

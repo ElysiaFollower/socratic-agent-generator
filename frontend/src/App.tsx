@@ -5,7 +5,8 @@
  * and coordinating between different modules.
  */
 
-import React, {useState, useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useEffect, useRef, useMemo} from 'react';
+import {Box, CssBaseline, ThemeProvider, Typography} from '@mui/material';
 import {Profile, SessionSummary, ChatMessage} from './types';
 import {
   useProfiles,
@@ -21,13 +22,14 @@ import {
   Header,
   ProfileSelector,
   ProtectedRoute,
-  PermissionGuard,
   Login,
   Register,
   InvitationCodeGenerator,
   LabManualUploader,
   ProfileGenerator,
   ProfileGeneratorAdvanced,
+  SettingsModal,
+  SidebarRail,
 } from './components';
 import {
   createSession,
@@ -36,6 +38,7 @@ import {
   renameSession,
   deleteSession,
 } from './api';
+import {createAppTheme} from './theme';
 
 /**
  * Main App component.
@@ -62,16 +65,42 @@ export default function App(): JSX.Element {
   const [labManualFilename, setLabManualFilename] = useState<string | null>(
     null,
   );
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
+    if (typeof window === 'undefined') {
+      return 'light';
+    }
+    const stored = window.localStorage.getItem('theme-mode');
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
+    if (
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches
+    ) {
+      return 'dark';
+    }
+    return 'light';
+  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(320);
+  const sidebarMinWidth = 240;
+  const sidebarMaxWidth = 420;
+  const resizeState = useRef<{
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
   const {profiles, isLoading: profilesLoading, refresh: refreshProfiles} =
     useProfiles();
   const {sessions: allSessions, refresh: refreshSessions} = useSessions();
   const sessionState = useSessionState(sessionId);
+  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
 
   // Filter sessions based on user role
   // Note: This requires backend support to include creator/owner information in SessionSummary
   // For now, all users see all sessions until backend adds user_id/creator_id field
-  const sessions = React.useMemo(() => {
+  const sessions = useMemo(() => {
     if (!user) {
       return [];
     }
@@ -81,6 +110,15 @@ export default function App(): JSX.Element {
     // - Student: only sessions created by student (need creator_id in SessionSummary)
     return allSessions;
   }, [allSessions, user]);
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', themeMode);
+    }
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('theme-mode', themeMode);
+    }
+  }, [themeMode]);
 
   const handleStateUpdate = useCallback(() => {
     void sessionState.refresh();
@@ -227,6 +265,34 @@ export default function App(): JSX.Element {
     }
   }, [isMaximized]);
 
+  const handleToggleTheme = useCallback(() => {
+    setThemeMode((prev) => (prev === 'light' ? 'dark' : 'light'));
+  }, []);
+
+  const handleOpenSettings = useCallback(() => {
+    setShowSettings(true);
+  }, []);
+
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed((prev) => !prev);
+  }, []);
+
+  const handleResizeStart = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (isSidebarCollapsed) {
+        return;
+      }
+      resizeState.current = {
+        startX: event.clientX,
+        startWidth: sidebarWidth,
+      };
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+      event.preventDefault();
+    },
+    [isSidebarCollapsed, sidebarWidth],
+  );
+
   const handleInputChange = useCallback((value: string) => {
     setInputValue(value);
   }, []);
@@ -272,7 +338,7 @@ export default function App(): JSX.Element {
   );
 
   // Listen for invitation generator open event
-  React.useEffect(() => {
+  useEffect(() => {
     const handleOpenInvitationGenerator = () => {
       setShowInvitationGenerator(true);
     };
@@ -285,89 +351,159 @@ export default function App(): JSX.Element {
     };
   }, []);
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-600">加载中...</div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!resizeState.current) {
+        return;
+      }
+      const deltaX = event.clientX - resizeState.current.startX;
+      const nextWidth = Math.min(
+        sidebarMaxWidth,
+        Math.max(sidebarMinWidth, resizeState.current.startWidth + deltaX),
+      );
+      setSidebarWidth(nextWidth);
+    };
 
-  // Show login/register if not authenticated
-  if (!authLoading && !isAuthenticated) {
+    const handleMouseUp = () => {
+      if (!resizeState.current) {
+        return;
+      }
+      resizeState.current = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [sidebarMaxWidth, sidebarMinWidth]);
+
+  let content: JSX.Element;
+  if (authLoading) {
+    content = (
+      <Box sx={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+        <Typography color="text.secondary">加载中...</Typography>
+      </Box>
+    );
+  } else if (!isAuthenticated) {
     if (showRegister) {
-      return (
+      content = (
         <Register
           onRegisterSuccess={() => setShowRegister(false)}
           onSwitchToLogin={() => setShowRegister(false)}
         />
       );
+    } else {
+      content = (
+        <Login
+          onLoginSuccess={() => setShowRegister(false)}
+          onSwitchToRegister={() => setShowRegister(true)}
+        />
+      );
     }
-    return (
-      <Login
-        onLoginSuccess={() => setShowRegister(false)}
-        onSwitchToRegister={() => setShowRegister(true)}
-      />
-    );
-  }
-
-  return (
-    <ProtectedRoute>
-      <div className="h-screen flex bg-gray-50">
-      {/* Sidebar */}
-      {!isMaximized && (
-        <Sidebar
-          sessions={sessions}
-          currentSessionId={sessionId}
-          isLoading={profilesLoading || chatLoading}
-          onNewSession={handleNewSession}
-          onSelectSession={handleSwitchToSession}
-          onRenameSession={handleRenameSession}
-          onDeleteSession={handleDeleteSession}
-          user={user}
-          onLogout={handleLogout}
-          onUploadLabManual={handleUploadLabManual}
-          onGenerateProfile={handleGenerateProfile}
-        />
-      )}
-
-      {/* Main Content Area */}
-      <main className="flex-1 flex flex-col">
-        <Header
-          currentSession={currentSession}
-          isMaximized={isMaximized}
-          isCollapsed={isHeaderCollapsed}
-          currentStep={sessionState.currentStep}
-          curriculum={sessionState.curriculum}
-          onToggleMaximize={handleMaximizeToggle}
-          onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
-          user={user}
-        />
-
-        <section
-          className={`flex-1 overflow-auto p-6 w-full ${
-            isMaximized ? '' : 'max-w-4xl mx-auto'
-          }`}
-        >
-          <MessageList messages={messages} />
-        </section>
-
-        <footer className="p-4 border-t bg-white">
-          <div className={`${isMaximized ? '' : 'max-w-4xl mx-auto'}`}>
-            <ChatInput
-              value={inputValue}
-              disabled={!sessionId || chatLoading}
-              placeholder={
-                sessionId
-                  ? '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
-                  : '请先选择一个会话开始学习'
-              }
-              onChange={handleInputChange}
-              onSend={handleSend}
+  } else {
+    content = (
+      <ProtectedRoute>
+        <Box sx={{height: '100vh', display: 'flex', bgcolor: 'var(--color-bg)', color: 'var(--text-primary)'}}>
+          {/* Sidebar */}
+          {!isMaximized && (
+          <Box sx={{display: 'flex', height: '100%'}}>
+            <SidebarRail
+              isCollapsed={isSidebarCollapsed}
+              onToggle={handleToggleSidebar}
             />
-          </div>
-        </footer>
-      </main>
+            {!isSidebarCollapsed && (
+              <Box
+                sx={{position: 'relative', height: '100%'}}
+                style={{
+                  width: sidebarWidth,
+                  minWidth: sidebarMinWidth,
+                  maxWidth: sidebarMaxWidth,
+                }}
+              >
+                <Sidebar
+                  sessions={sessions}
+                  currentSessionId={sessionId}
+                  isLoading={profilesLoading || chatLoading}
+                  onNewSession={handleNewSession}
+                  onSelectSession={handleSwitchToSession}
+                  onRenameSession={handleRenameSession}
+                  onDeleteSession={handleDeleteSession}
+                  user={user}
+                  onLogout={handleLogout}
+                  onUploadLabManual={handleUploadLabManual}
+                  onGenerateProfile={handleGenerateProfile}
+                />
+                <Box
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    right: 0,
+                    height: '100%',
+                    width: 6,
+                    cursor: 'col-resize',
+                    bgcolor: 'transparent',
+                    '&:hover': {bgcolor: 'var(--color-surface-muted)'},
+                  }}
+                  onMouseDown={handleResizeStart}
+                  title="拖动调整宽度"
+                />
+              </Box>
+            )}
+          </Box>
+        )}
+
+        {/* Main Content Area */}
+        <Box component="main" sx={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+          <Header
+            currentSession={currentSession}
+            isMaximized={isMaximized}
+            isCollapsed={isHeaderCollapsed}
+            currentStep={sessionState.currentStep}
+            curriculum={sessionState.curriculum}
+            onToggleMaximize={handleMaximizeToggle}
+            onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+            user={user}
+            themeMode={themeMode}
+            onToggleTheme={handleToggleTheme}
+            onLogout={handleLogout}
+            onOpenSettings={handleOpenSettings}
+          />
+
+          <Box
+            sx={{
+              flex: 1,
+              overflow: 'auto',
+              px: 3,
+              py: 3,
+              width: '100%',
+              maxWidth: isMaximized ? '100%' : 960,
+              mx: isMaximized ? 0 : 'auto',
+            }}
+          >
+            <MessageList messages={messages} />
+          </Box>
+
+          <Box sx={{px: 3, py: 2, borderTop: '1px solid var(--color-border)', bgcolor: 'var(--color-surface)'}}>
+            <Box sx={{maxWidth: isMaximized ? '100%' : 960, mx: isMaximized ? 0 : 'auto'}}>
+              <ChatInput
+                value={inputValue}
+                disabled={!sessionId || chatLoading}
+                placeholder={
+                  sessionId
+                    ? '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
+                    : '请先选择一个会话开始学习'
+                }
+                onChange={handleInputChange}
+                onSend={handleSend}
+              />
+            </Box>
+          </Box>
+        </Box>
 
       {/* Profile Selector Modal */}
       {showProfileSelector && (
@@ -378,6 +514,11 @@ export default function App(): JSX.Element {
           onClose={() => setShowProfileSelector(false)}
         />
       )}
+
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
 
       {/* Invitation Code Generator Modal */}
       {showInvitationGenerator && (
@@ -420,7 +561,15 @@ export default function App(): JSX.Element {
           }}
         />
       )}
-      </div>
-    </ProtectedRoute>
+        </Box>
+      </ProtectedRoute>
+    );
+  }
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {content}
+    </ThemeProvider>
   );
 }

@@ -18,4 +18,5 @@ export * from './Register';
 export * from './ProtectedRoute';
 export * from './PermissionGuard';
 export * from './InvitationCodeGenerator';
-
+export * from './SettingsModal';
+export * from './SidebarRail';

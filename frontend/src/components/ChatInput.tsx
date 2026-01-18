@@ -5,6 +5,8 @@
  */
 
 import React from 'react';
+import {Box, Button, Stack, TextField} from '@mui/material';
+import {Send} from '@mui/icons-material';
 
 /**
  * Props for ChatInput component.
@@ -26,7 +28,7 @@ export interface ChatInputProps {
 export function ChatInput(props: ChatInputProps): JSX.Element {
   const {value, disabled, placeholder, onChange, onSend} = props;
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSend();
@@ -34,30 +36,33 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
   };
 
   return (
-    <div className="flex gap-2">
-      <textarea
+    <Stack direction="row" spacing={2} alignItems="stretch">
+      <TextField
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        onKeyPress={handleKeyPress}
-        rows={2}
-        className="flex-1 p-3 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onKeyDown={handleKeyDown}
+        multiline
+        minRows={2}
+        fullWidth
         placeholder={
           placeholder ||
           '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
         }
         disabled={disabled}
       />
-      <button
+      <Button
         onClick={onSend}
-        className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+        variant="contained"
+        color="primary"
         disabled={disabled || !value.trim()}
+        endIcon={<Send />}
+        sx={{px: 3, minWidth: 120}}
       >
         发送
-      </button>
-    </div>
+      </Button>
+    </Stack>
   );
 }
-
 
 
 

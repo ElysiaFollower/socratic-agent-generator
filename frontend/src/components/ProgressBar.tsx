@@ -5,6 +5,7 @@
  */
 
 import React from 'react';
+import {Box, LinearProgress, Stack, Typography} from '@mui/material';
 import {SocraticStep} from '../types';
 
 /**
@@ -33,38 +34,50 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
     100,
   );
 
+  const activeStep = curriculum[currentStep];
+
   return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between text-sm text-gray-600 mb-2">
-        <span>学习进度</span>
-        <span>
+    <Box sx={{mt: 2}}>
+      <Stack direction="row" justifyContent="space-between" sx={{mb: 1}}>
+        <Typography variant="caption" color="text.secondary">
+          学习进度
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
           {currentStep} / {curriculum.length}
-        </span>
-      </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
-        <div
-          className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-          style={{width: `${progressPercentage}%`}}
-        ></div>
-      </div>
-      <div className="mt-2 text-xs text-gray-500">
+        </Typography>
+      </Stack>
+      <LinearProgress
+        variant="determinate"
+        value={progressPercentage}
+        sx={{
+          height: 6,
+          borderRadius: 3,
+          bgcolor: 'var(--color-surface-muted)',
+          '& .MuiLinearProgress-bar': {
+            borderRadius: 3,
+            bgcolor: 'var(--color-primary)',
+          },
+        }}
+      />
+      <Box sx={{mt: 1}}>
         {currentStep < curriculum.length ? (
-          <div>
-            <div className="font-medium">
-              当前步骤: {curriculum[currentStep]?.step_title}
-            </div>
-            <div className="mt-1 text-gray-400">
-              学习目标: {curriculum[currentStep]?.learning_objective}
-            </div>
-          </div>
+          <>
+            <Typography variant="caption" sx={{fontWeight: 600}}>
+              当前步骤: {activeStep?.step_title}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{display: 'block', mt: 0.5}}>
+              学习目标: {activeStep?.learning_objective}
+            </Typography>
+          </>
         ) : (
-          <span>🎉 恭喜！您已完成所有学习步骤</span>
+          <Typography variant="caption" color="text.secondary">
+            学习流程已完成。
+          </Typography>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }
-
 
 
 
