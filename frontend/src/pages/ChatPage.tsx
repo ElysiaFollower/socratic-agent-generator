@@ -4,16 +4,22 @@
  * This component renders the main chat workspace.
  */
 
-import React, {useState, useCallback, useEffect, useRef, useMemo} from 'react';
-import {Box} from '@mui/material';
-import {Profile, SessionSummary, ChatMessage, ToolPanelView} from '../types';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+  useMemo,
+} from "react";
+import { Box } from "@mui/material";
+import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
 import {
   useProfiles,
   useSessions,
   useChat,
   useSessionState,
   useAuth,
-} from '../hooks';
+} from "../hooks";
 import {
   Sidebar,
   MessageList,
@@ -25,20 +31,20 @@ import {
   ProfileGeneratorAdvanced,
   SettingsModal,
   SidebarRail,
-} from '../components';
+} from "../components";
 import {
   createSession,
   getSession,
   getWelcomeMessage,
   renameSession,
   deleteSession,
-} from '../api';
+} from "../api";
 
 /**
  * Props for ChatPage component.
  */
 interface ChatPageProps {
-  readonly themeMode: 'light' | 'dark';
+  readonly themeMode: "light" | "dark";
   readonly onToggleTheme: () => void;
 }
 
@@ -49,14 +55,15 @@ interface ChatPageProps {
  * @returns React component
  */
 export function ChatPage(props: ChatPageProps): JSX.Element {
-  const {themeMode, onToggleTheme} = props;
-  const {user, logout} = useAuth();
+  const { themeMode, onToggleTheme } = props;
+  const { user, logout } = useAuth();
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [showProfileSelector, setShowProfileSelector] = useState<boolean>(false);
+  const [showProfileSelector, setShowProfileSelector] =
+    useState<boolean>(false);
   const [isMaximized, setIsMaximized] = useState<boolean>(false);
   const [isHeaderCollapsed, setIsHeaderCollapsed] = useState<boolean>(false);
-  const [inputValue, setInputValue] = useState<string>('');
-  const [activePanel, setActivePanel] = useState<ToolPanelView>('chat');
+  const [inputValue, setInputValue] = useState<string>("");
+  const [activePanel, setActivePanel] = useState<ToolPanelView>("chat");
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [sidebarWidth, setSidebarWidth] = useState<number>(320);
@@ -67,9 +74,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     startWidth: number;
   } | null>(null);
 
-  const {profiles, isLoading: profilesLoading, refresh: refreshProfiles} =
-    useProfiles();
-  const {sessions: allSessions, refresh: refreshSessions} = useSessions();
+  const {
+    profiles,
+    isLoading: profilesLoading,
+    refresh: refreshProfiles,
+  } = useProfiles();
+  const { sessions: allSessions, refresh: refreshSessions } = useSessions();
   const sessionState = useSessionState(sessionId);
 
   // Filter sessions based on user role
@@ -90,10 +100,15 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     void sessionState.refresh();
   }, [sessionState]);
 
-  const {messages, isLoading: chatLoading, sendMessage, setMessages} =
-    useChat(sessionId, handleStateUpdate);
+  const {
+    messages,
+    isLoading: chatLoading,
+    sendMessage,
+    setMessages,
+  } = useChat(sessionId, handleStateUpdate);
 
-  const currentSession = sessions.find((s) => s.session_id === sessionId) || null;
+  const currentSession =
+    sessions.find((s) => s.session_id === sessionId) || null;
 
   const handleNewSession = useCallback(() => {
     setShowProfileSelector(true);
@@ -105,29 +120,29 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         const res = await createSession({
           profile_id: profile.profile_id,
           session_name: `${profile.profile_name || profile.topic_name} - ${new Date().toLocaleString()}`,
-          output_language: 'zh-CN',
+          output_language: "zh-CN",
         });
 
         await refreshSessions();
         setSessionId(res.session_id);
         setMessages([]);
         setShowProfileSelector(false);
-        setActivePanel('chat');
+        setActivePanel("chat");
 
         sessionState.setProfile(profile);
 
         try {
           await sessionState.refresh();
         } catch (stateError) {
-          console.error('Failed to get new session state:', stateError);
+          console.error("Failed to get new session state:", stateError);
         }
 
         const welcome = await getWelcomeMessage(res.session_id);
         setMessages([
-          {role: 'assistant', content: welcome.welcome, isThinking: false},
+          { role: "assistant", content: welcome.welcome, isThinking: false },
         ]);
       } catch (error) {
-        console.error('Failed to create session:', error);
+        console.error("Failed to create session:", error);
       }
     },
     [refreshSessions, sessionState, setMessages],
@@ -137,7 +152,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     async (session: SessionSummary) => {
       setSessionId(session.session_id);
       setMessages([]);
-      setActivePanel('chat');
+      setActivePanel("chat");
 
       try {
         const sessionDetail = await getSession(session.session_id);
@@ -153,7 +168,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         if (sessionDetail.history && sessionDetail.history.length > 0) {
           const chatHistory: ChatMessage[] = sessionDetail.history.map(
             (msg) => ({
-              role: msg.type === 'human' ? 'user' : 'assistant',
+              role: msg.type === "human" ? "user" : "assistant",
               content: msg.content,
               isThinking: false,
             }),
@@ -164,7 +179,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           if (welcome.welcome) {
             setMessages([
               {
-                role: 'assistant',
+                role: "assistant",
                 content: welcome.welcome,
                 isThinking: false,
               },
@@ -172,20 +187,20 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           }
         }
       } catch (error) {
-        console.error('Failed to switch session:', error);
+        console.error("Failed to switch session:", error);
         try {
           const welcome = await getWelcomeMessage(session.session_id);
           if (welcome.welcome) {
             setMessages([
               {
-                role: 'assistant',
+                role: "assistant",
                 content: welcome.welcome,
                 isThinking: false,
               },
             ]);
           }
         } catch (welcomeError) {
-          console.error('Failed to get welcome message:', welcomeError);
+          console.error("Failed to get welcome message:", welcomeError);
         }
       }
     },
@@ -198,7 +213,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         await renameSession(sessionIdToRename, newName);
         await refreshSessions();
       } catch (error) {
-        console.error('Failed to rename session:', error);
+        console.error("Failed to rename session:", error);
       }
     },
     [refreshSessions],
@@ -214,7 +229,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           setMessages([]);
         }
       } catch (error) {
-        console.error('Failed to delete session:', error);
+        console.error("Failed to delete session:", error);
       }
     },
     [refreshSessions, sessionId, setMessages],
@@ -229,27 +244,27 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       return;
     }
     await sendMessage(inputValue.trim());
-    setInputValue('');
+    setInputValue("");
   }, [inputValue, sendMessage]);
 
   const handleLogout = useCallback(async () => {
     try {
       await logout();
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error("Logout failed:", error);
     }
   }, [logout]);
 
   const handleOpenInvitationPanel = useCallback(() => {
-    setActivePanel('invitation');
+    setActivePanel("invitation");
   }, []);
 
   const handleOpenLabManualPanel = useCallback(() => {
-    setActivePanel('lab-manual');
+    setActivePanel("lab-manual");
   }, []);
 
   const handleOpenProfilePanel = useCallback(() => {
-    setActivePanel('profile');
+    setActivePanel("profile");
   }, []);
 
   const handleProfileGenerateSuccess = useCallback(
@@ -277,16 +292,16 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         return;
       }
       resizeState.current = null;
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseup', handleMouseUp);
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
     };
   }, [sidebarMaxWidth, sidebarMinWidth]);
 
@@ -298,8 +313,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       startX: event.clientX,
       startWidth: sidebarWidth,
     };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
   };
 
   const handleToggleSidebar = useCallback(() => {
@@ -314,14 +329,21 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setShowSettings(true);
   }, []);
 
-  const isChatView = activePanel === 'chat';
-  const contentMaxWidth = isMaximized ? '100%' : isChatView ? 960 : '100%';
+  const isChatView = activePanel === "chat";
+  const contentMaxWidth = isMaximized ? "100%" : isChatView ? "80%" : "100%";
 
   return (
-    <Box sx={{height: '100vh', display: 'flex', bgcolor: 'var(--color-bg)', color: 'var(--text-primary)'}}>
+    <Box
+      sx={{
+        height: "100vh",
+        display: "flex",
+        bgcolor: "var(--color-bg)",
+        color: "var(--text-primary)",
+      }}
+    >
       {/* Sidebar */}
       {!isMaximized && (
-        <Box sx={{display: 'flex', height: '100%'}}>
+        <Box sx={{ display: "flex", height: "100%" }}>
           {isSidebarCollapsed ? (
             <SidebarRail
               isCollapsed={isSidebarCollapsed}
@@ -334,7 +356,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             />
           ) : (
             <Box
-              sx={{position: 'relative', height: '100%'}}
+              sx={{ position: "relative", height: "100%" }}
               style={{
                 width: sidebarWidth,
                 minWidth: sidebarMinWidth,
@@ -358,17 +380,17 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               />
               <Box
                 sx={{
-                  position: 'absolute',
+                  position: "absolute",
                   top: 0,
                   right: 0,
-                  height: '100%',
+                  height: "100%",
                   width: 6,
-                  cursor: 'col-resize',
-                  bgcolor: 'transparent',
-                  '&:hover': {bgcolor: 'var(--color-surface-muted)'},
+                  cursor: "col-resize",
+                  bgcolor: "transparent",
+                  "&:hover": { bgcolor: "var(--color-surface-muted)" },
                 }}
                 onMouseDown={handleResizeStart}
-                title="拖动调整宽度"
+                title='拖动调整宽度'
               />
             </Box>
           )}
@@ -376,7 +398,15 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       )}
 
       {/* Main Content Area */}
-      <Box component="main" sx={{flex: 1, display: 'flex', flexDirection: 'column'}}>
+      <Box
+        component='main'
+        sx={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: "var(--color-surface)",
+        }}
+      >
         <Header
           currentSession={currentSession}
           isMaximized={isMaximized}
@@ -396,29 +426,29 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         <Box
           sx={{
             flex: 1,
-            overflow: 'hidden',
+            overflow: "hidden",
             px: 3,
             py: 3,
-            width: '100%',
+            width: "100%",
             maxWidth: contentMaxWidth,
-            mx: isMaximized ? 0 : 'auto',
+            mx: isMaximized ? 0 : "auto",
           }}
         >
           {isChatView ? (
-            <Box sx={{height: '100%', overflow: 'auto'}}>
+            <Box sx={{ height: "100%", overflow: "auto", width: "100%" }}>
               <MessageList messages={messages} />
             </Box>
           ) : (
-            <Box sx={{height: '100%', overflow: 'auto'}}>
-              {activePanel === 'invitation' && (
-                <InvitationCodeGenerator variant="panel" />
+            <Box sx={{ height: "100%", overflow: "auto" }}>
+              {activePanel === "invitation" && (
+                <InvitationCodeGenerator variant='panel' />
               )}
-              {activePanel === 'lab-manual' && (
-                <LabManualUploader variant="panel" />
+              {activePanel === "lab-manual" && (
+                <LabManualUploader variant='panel' />
               )}
-              {activePanel === 'profile' && (
+              {activePanel === "profile" && (
                 <ProfileGeneratorAdvanced
-                  variant="panel"
+                  variant='panel'
                   onGenerateSuccess={handleProfileGenerateSuccess}
                 />
               )}
@@ -427,15 +457,23 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         </Box>
 
         {isChatView && (
-          <Box sx={{px: 3, py: 2, borderTop: '1px solid var(--color-border)', bgcolor: 'var(--color-surface)'}}>
-            <Box sx={{maxWidth: contentMaxWidth, mx: isMaximized ? 0 : 'auto'}}>
+          <Box
+            sx={{
+              px: 3,
+              py: 2,
+              bgcolor: "var(--color-surface)",
+            }}
+          >
+            <Box
+              sx={{ maxWidth: contentMaxWidth, mx: isMaximized ? 0 : "auto" }}
+            >
               <ChatInput
                 value={inputValue}
                 disabled={!sessionId || chatLoading}
                 placeholder={
                   sessionId
-                    ? '输入你的想法或问题... (Enter发送，Shift+Enter换行)'
-                    : '请先选择一个会话开始学习'
+                    ? "输入你的想法或问题... (Enter发送，Shift+Enter换行)"
+                    : "请先选择一个会话开始学习"
                 }
                 onChange={handleInputChange}
                 onSend={handleSend}
