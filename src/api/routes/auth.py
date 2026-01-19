@@ -33,6 +33,7 @@ from utils.user_manager import (
     UserManager,
     UserNotFoundError as UserManagerNotFoundError,
 )
+from core.dependencies import UserManagerDep
 
 router = APIRouter(prefix="/api/auth", tags=["Auth"])
 
@@ -43,21 +44,6 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 # HTTP Bearer token security
 security = HTTPBearer()
-
-# Singleton instance for UserManager
-_user_manager_instance: Optional[UserManager] = None
-
-
-def get_user_manager() -> UserManager:
-    """Get UserManager singleton instance.
-
-    Returns:
-        UserManager instance (singleton).
-    """
-    global _user_manager_instance
-    if _user_manager_instance is None:
-        _user_manager_instance = UserManager()
-    return _user_manager_instance
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
@@ -111,7 +97,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)) 
 
 def get_current_user(
     token_payload: dict = Depends(verify_token),
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: UserManagerDep = None,
 ) -> User:
     """Get current authenticated user.
 
@@ -143,7 +129,7 @@ def get_current_user(
 @router.post("/register", summary="用户注册")
 def register(
     req: RegisterRequest,
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: UserManagerDep = None,
 ) -> dict:
     """Register a new user.
 
@@ -257,7 +243,7 @@ def register(
 @router.post("/login", summary="用户登录")
 def login(
     req: LoginRequest,
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: UserManagerDep = None,
 ) -> LoginResponse:
     """Login with username and password.
 
@@ -336,7 +322,7 @@ def get_current_user_info(
 def generate_invitation_code(
     req: GenerateInvitationCodeRequest,
     current_user: User = Depends(get_current_user),
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: UserManagerDep = None,
 ) -> GenerateInvitationCodeResponse:
     """Generate an invitation code for teacher or student registration.
 
@@ -414,7 +400,7 @@ def generate_invitation_code(
 )
 def list_invitation_codes(
     current_user: User = Depends(get_current_user),
-    user_manager: UserManager = Depends(get_user_manager),
+    user_manager: UserManagerDep = None,
 ) -> InvitationCodeListResponse:
     """List invitation codes created by the current user.
 

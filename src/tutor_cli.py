@@ -7,9 +7,8 @@ by allowing users to interact with tutor sessions via command line.
 import argparse
 import logging
 import sys
-from pathlib import Path
 
-from config import PROFILES_DIR
+from core.database import SessionLocal
 from utils.profile_manager import ProfileManager
 from utils.tutor_core import Tutor
 from utils.session_manager import SessionManager
@@ -23,12 +22,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def load_profile(profile_id: str, profiles_dir: Path = None) -> Profile:
+def load_profile(profile_id: str) -> Profile:
     """Load a profile by ID.
 
     Args:
         profile_id: The profile ID to load.
-        profiles_dir: Optional custom profiles directory.
 
     Returns:
         Profile object.
@@ -36,21 +34,25 @@ def load_profile(profile_id: str, profiles_dir: Path = None) -> Profile:
     Raises:
         FileNotFoundError: If profile not found.
     """
-    manager = ProfileManager(profiles_dir=profiles_dir)
+    db = SessionLocal()
     try:
-        return manager.read_profile(profile_id)
-    except Exception as e:
-        raise FileNotFoundError(f"无法加载Profile '{profile_id}': {e}")
+        manager = ProfileManager(db)
+        try:
+            return manager.read_profile(profile_id)
+        except Exception as e:
+            raise FileNotFoundError(f"无法加载Profile '{profile_id}': {e}")
+    finally:
+        db.close()
 
 
-def list_profiles(profiles_dir: Path = None) -> None:
-    """List all available profiles.
-
-    Args:
-        profiles_dir: Optional custom profiles directory.
-    """
-    manager = ProfileManager(profiles_dir=profiles_dir)
-    profiles = manager.list_profiles()
+def list_profiles() -> None:
+    """List all available profiles."""
+    db = SessionLocal()
+    try:
+        manager = ProfileManager(db)
+        profiles = manager.list_profiles()
+    finally:
+        db.close()
 
     if not profiles:
         print("未找到任何Profile。")
@@ -89,11 +91,6 @@ def cli_main() -> None:
         help="要使用的Profile ID（必需，除非使用--list）",
     )
     parser.add_argument(
-        "--profiles-dir",
-        type=str,
-        help="自定义Profile目录路径（可选）",
-    )
-    parser.add_argument(
         "--list",
         action="store_true",
         help="列出所有可用的Profile",
@@ -109,8 +106,7 @@ def cli_main() -> None:
 
     # Handle list command
     if args.list:
-        profiles_dir = Path(args.profiles_dir) if args.profiles_dir else None
-        list_profiles(profiles_dir=profiles_dir)
+        list_profiles()
         return
 
     # Validate profile-id
@@ -119,8 +115,7 @@ def cli_main() -> None:
 
     # Load profile
     try:
-        profiles_dir = Path(args.profiles_dir) if args.profiles_dir else None
-        profile = load_profile(args.profile_id, profiles_dir=profiles_dir)
+        profile = load_profile(args.profile_id)
         print(f"\n✅ 已加载Profile: {profile.topic_name}")
     except FileNotFoundError as e:
         print(f"\n❌ 错误: {e}")

@@ -14,7 +14,7 @@ from pathlib import Path
 
 dotenv.load_dotenv()
 
-from config import PROFILES_DIR, PROMPT_TEMPLATE_DIR, get_default_llm
+from config import PROMPT_TEMPLATE_DIR, get_default_llm
 from generators.CurriculumGenerator import CurriculumGenerator
 from generators.PersonaGenerator import PersonaGenerator
 from schemas.curriculum import SocraticCurriculum
@@ -41,8 +41,6 @@ class ProfileGenerateManager:
             llm: Optional LLM instance. If None, uses default LLM from config.
         """
         self.lab_manual_content = lab_manual_content
-        self.output_dir = PROFILES_DIR
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.llm = llm or get_default_llm()
 
         self.curriculum_generator = CurriculumGenerator(self.llm)
@@ -145,8 +143,16 @@ class ProfileGenerateManager:
         )
 
     def _save_profile(self, profile: Profile, output_dir: Optional[Path] = None) -> None:
-        """Save profile to disk (JSON)."""
-        output_dir = output_dir or self.output_dir
+        """Save profile to disk (JSON).
+        
+        Args:
+            profile: The Profile object to save.
+            output_dir: Output directory. Must be provided, otherwise no file is saved.
+        """
+        if output_dir is None:
+            logger.warning("output_dir not provided, skipping file save")
+            return
+            
         output_dir.mkdir(parents=True, exist_ok=True)
         
         profile_id = profile.profile_id

@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 
 from api.routes.auth import get_current_user
-from config import PROFILES_DIR, RAW_DATA_DIR
+from config import RAW_DATA_DIR
 from core.dependencies import ProfileManagerDep, DocumentManagerDep
 from core.exceptions import ProfileNotFoundError
 from generators.ProfileGenerateManager import ProfileGenerateManager
@@ -54,6 +54,15 @@ class RenameProfileRequest(BaseModel):
     profile_name: str = Field(
         description="New profile name.",
         min_length=1,
+    )
+
+
+class GenerateProfileFromLabRequest(BaseModel):
+    """Request schema for generating a profile from an existing lab."""
+
+    profile_name: Optional[str] = Field(
+        default=None,
+        description="Optional name for the profile. If None, auto-generated from username + lab_name + uuid.",
     )
 
 

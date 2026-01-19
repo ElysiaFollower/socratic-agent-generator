@@ -1,8 +1,11 @@
 from schemas.profile import Profile
 from schemas.session import Session, SessionState
 from schemas.curriculum import SocraticCurriculum
+from schemas.user import User
 from models.profile import ProfileModel
 from models.session import SessionModel
+from models.user import UserModel
+from models.invitation_code import InvitationCodeModel
 
 def profile_to_model(profile: Profile, document_id: int = None) -> ProfileModel:
     """Convert Pydantic Profile to SQLAlchemy ProfileModel."""
@@ -74,4 +77,44 @@ def model_to_session(model: SessionModel, profile: Profile = None) -> Session:
         output_language=model.output_language,
         create_at=model.create_at,
         update_at=model.update_at,
+    )
+
+
+def user_to_model(user: User) -> UserModel:
+    """Convert Pydantic User to SQLAlchemy UserModel.
+
+    Args:
+        user: The User Pydantic object.
+
+    Returns:
+        UserModel instance.
+    """
+    return UserModel(
+        user_id=user.user_id,
+        username=user.username,
+        password_hash=user.password_hash,
+        role=user.role,
+        display_name=user.display_name,
+        email=user.email,
+        create_at=user.create_at,
+    )
+
+
+def model_to_user(model: UserModel) -> User:
+    """Convert SQLAlchemy UserModel to Pydantic User.
+
+    Args:
+        model: The UserModel instance.
+
+    Returns:
+        User Pydantic object.
+    """
+    return User(
+        user_id=model.user_id,
+        username=model.username,
+        password_hash=model.password_hash,
+        role=model.role,
+        display_name=model.display_name,
+        email=model.email,
+        create_at=model.create_at,
     )

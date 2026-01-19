@@ -14,6 +14,7 @@ from utils import profile_manager
 from utils import session_manager
 from utils import tutor_manager
 from utils import document_manager
+from utils import user_manager
 
 # Singleton for TutorManager (memory cache)
 _tutor_manager_instance: tutor_manager.TutorManager = None
@@ -67,6 +68,18 @@ def get_tutor_manager() -> tutor_manager.TutorManager:
     return _tutor_manager_instance
 
 
+def get_user_manager(db: Session = Depends(get_db)) -> user_manager.UserManager:
+    """Get UserManager instance with request-scoped DB session.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        UserManager instance.
+    """
+    return user_manager.UserManager(db)
+
+
 # Type aliases for dependency injection
 ProfileManagerDep = Annotated[
     profile_manager.ProfileManager, Depends(get_profile_manager)
@@ -79,4 +92,7 @@ DocumentManagerDep = Annotated[
 ]
 TutorManagerDep = Annotated[
     tutor_manager.TutorManager, Depends(get_tutor_manager)
+]
+UserManagerDep = Annotated[
+    user_manager.UserManager, Depends(get_user_manager)
 ]

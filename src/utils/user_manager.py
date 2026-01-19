@@ -4,32 +4,25 @@ This module provides user management functionality including user storage,
 password hashing, invitation code generation, and user authentication.
 """
 
-import hashlib
-import json
 import logging
 import secrets
-from pathlib import Path
-from typing import Dict, List, Optional
+from datetime import datetime, timedelta
+from typing import List, Optional
 
 import bcrypt
+import pytz
+from sqlalchemy.orm import Session
 
-from config import DATA_DIR
 from schemas.user import User
+from models.user import UserModel
+from models.invitation_code import InvitationCodeModel
+from utils.converters import user_to_model, model_to_user
 
 logger = logging.getLogger(__name__)
 
 # Use bcrypt directly instead of passlib to avoid initialization issues
 # Bcrypt rounds for password hashing (higher = more secure but slower)
 BCRYPT_ROUNDS = 12
-
-# Users data directory
-USERS_DIR_NAME = "users"
-USERS_DIR = DATA_DIR / USERS_DIR_NAME
-USERS_FILE = USERS_DIR / "users.json"
-
-# Invitation codes directory
-INVITATION_CODES_DIR = USERS_DIR / "invitation_codes"
-INVITATION_CODES_FILE = INVITATION_CODES_DIR / "codes.json"
 
 
 class UserNotFoundError(Exception):
@@ -51,91 +44,15 @@ class InvalidInvitationCodeError(Exception):
 
 
 class UserManager:
-    """Manages user data persistence and operations."""
+    """Manages user data persistence and operations using SQLAlchemy."""
 
-    def __init__(self):
-        """Initialize UserManager and ensure directories exist."""
-        USERS_DIR.mkdir(parents=True, exist_ok=True)
-        INVITATION_CODES_DIR.mkdir(parents=True, exist_ok=True)
-        if not USERS_FILE.exists():
-            self._save_users({})
-
-    def _load_users(self) -> Dict[str, dict]:
-        """Load users from JSON file.
-
-        Returns:
-            Dictionary mapping username to user data.
-        """
-        if not USERS_FILE.exists():
-            return {}
-        try:
-            with open(USERS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}
-
-    def _save_users(self, users: Dict[str, dict]) -> None:
-        """Save users to JSON file.
+    def __init__(self, db: Session):
+        """Initialize UserManager.
 
         Args:
-            users: Dictionary mapping username to user data.
+            db: SQLAlchemy Session.
         """
-        with open(USERS_FILE, "w", encoding="utf-8") as f:
-            json.dump(users, f, ensure_ascii=False, indent=2)
-
-    def _load_invitation_codes(self) -> Dict[str, dict]:
-        """Load invitation codes from JSON file.
-
-        Returns:
-            Dictionary mapping invitation code to code data.
-        """
-        if not INVITATION_CODES_FILE.exists():
-            return {}
-        try:
-            with open(INVITATION_CODES_FILE, "r", encoding="utf-8") as f:
-                codes = json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}
-        changed = False
-        for data in codes.values():
-            if "used" in data:
-                data.pop("used", None)
-                changed = True
-            if "used_at" in data:
-                data.pop("used_at", None)
-                changed = True
-        if changed:
-            self._save_invitation_codes(codes)
-        return codes
-
-    def _save_invitation_codes(self, codes: Dict[str, dict]) -> None:
-        """Save invitation codes to JSON file.
-
-        Args:
-            codes: Dictionary mapping invitation code to code data.
-        """
-        with open(INVITATION_CODES_FILE, "w", encoding="utf-8") as f:
-            json.dump(codes, f, ensure_ascii=False, indent=2)
-
-    def list_invitation_codes(self, created_by: Optional[str] = None) -> List[dict]:
-        """List invitation codes with optional creator filtering.
-
-        Args:
-            created_by: Optional username to filter invitation codes.
-
-        Returns:
-            List of invitation code dictionaries including the code.
-        """
-        codes = self._load_invitation_codes()
-        results: List[dict] = []
-
-        for code, data in codes.items():
-            if created_by and data.get("created_by") != created_by:
-                continue
-            results.append({"code": code, **data})
-
-        results.sort(key=lambda item: item.get("created_at", ""), reverse=True)
-        return results
+        self.db = db
 
     def hash_password(self, password: str) -> str:
         """Hash a password using bcrypt.
@@ -228,8 +145,9 @@ class UserManager:
         Raises:
             UserAlreadyExistsError: If username already exists.
         """
-        users = self._load_users()
-        if username in users:
+        # Check if user already exists
+        existing = self.db.query(UserModel).filter(UserModel.username == username).first()
+        if existing:
             raise UserAlreadyExistsError(f"User '{username}' already exists")
 
         password_hash = self.hash_password(password)
@@ -241,8 +159,13 @@ class UserManager:
             email=email,
         )
 
-        users[username] = user.model_dump()
-        self._save_users(users)
+        # Save to database
+        model = user_to_model(user)
+        self.db.add(model)
+        self.db.commit()
+        self.db.refresh(model)
+        
+        logger.info("Created user: %s", username)
         return user
 
     def get_user_by_username(self, username: str) -> Optional[User]:
@@ -254,10 +177,9 @@ class UserManager:
         Returns:
             User object if found, None otherwise.
         """
-        users = self._load_users()
-        user_data = users.get(username)
-        if user_data:
-            return User(**user_data)
+        model = self.db.query(UserModel).filter(UserModel.username == username).first()
+        if model:
+            return model_to_user(model)
         return None
 
     def get_user_by_id(self, user_id: str) -> Optional[User]:
@@ -269,10 +191,9 @@ class UserManager:
         Returns:
             User object if found, None otherwise.
         """
-        users = self._load_users()
-        for user_data in users.values():
-            if user_data.get("user_id") == user_id:
-                return User(**user_data)
+        model = self.db.query(UserModel).filter(UserModel.user_id == user_id).first()
+        if model:
+            return model_to_user(model)
         return None
 
     def list_users(self) -> List[User]:
@@ -281,8 +202,8 @@ class UserManager:
         Returns:
             List of User objects.
         """
-        users = self._load_users()
-        return [User(**user_data) for user_data in users.values()]
+        models = self.db.query(UserModel).all()
+        return [model_to_user(m) for m in models]
 
     def generate_invitation_code(
         self, role: str, created_by: str, expires_in_days: int = 30
@@ -297,23 +218,49 @@ class UserManager:
         Returns:
             Generated invitation code.
         """
-        from datetime import datetime, timedelta
-
-        import pytz
-
         code = secrets.token_urlsafe(32)
-        codes = self._load_invitation_codes()
-
         expires_at = datetime.now(pytz.utc) + timedelta(days=expires_in_days)
-        codes[code] = {
-            "role": role,
-            "created_by": created_by,
-            "created_at": datetime.now(pytz.utc).isoformat(),
-            "expires_at": expires_at.isoformat(),
-        }
-
-        self._save_invitation_codes(codes)
+        
+        model = InvitationCodeModel(
+            code=code,
+            role=role,
+            created_by=created_by,
+            created_at=datetime.now(pytz.utc).isoformat(),
+            expires_at=expires_at.isoformat(),
+        )
+        
+        self.db.add(model)
+        self.db.commit()
+        
+        logger.info("Generated invitation code for role: %s", role)
         return code
+
+    def list_invitation_codes(self, created_by: Optional[str] = None) -> List[dict]:
+        """List invitation codes with optional creator filtering.
+
+        Args:
+            created_by: Optional username to filter invitation codes.
+
+        Returns:
+            List of invitation code dictionaries including the code.
+        """
+        query = self.db.query(InvitationCodeModel)
+        if created_by:
+            query = query.filter(InvitationCodeModel.created_by == created_by)
+        
+        models = query.order_by(InvitationCodeModel.created_at.desc()).all()
+        
+        results = []
+        for model in models:
+            results.append({
+                "code": model.code,
+                "role": model.role,
+                "created_by": model.created_by,
+                "created_at": model.created_at,
+                "expires_at": model.expires_at,
+            })
+        
+        return results
 
     def validate_invitation_code(
         self, code: str, required_role: str
@@ -327,25 +274,21 @@ class UserManager:
         Returns:
             Tuple of (is_valid, error_message).
         """
-        codes = self._load_invitation_codes()
-        code_data = codes.get(code)
-
-        if not code_data:
+        model = self.db.query(InvitationCodeModel).filter(
+            InvitationCodeModel.code == code
+        ).first()
+        
+        if not model:
             return False, "Invalid invitation code"
 
-        if code_data.get("role") != required_role:
+        if model.role != required_role:
             return (
                 False,
-                f"Invitation code is for role '{code_data.get('role')}', not '{required_role}'",
+                f"Invitation code is for role '{model.role}', not '{required_role}'",
             )
 
-        from datetime import datetime
-
-        import pytz
-
-        expires_at_str = code_data.get("expires_at")
-        if expires_at_str:
-            expires_at = datetime.fromisoformat(expires_at_str.replace("Z", "+00:00"))
+        if model.expires_at:
+            expires_at = datetime.fromisoformat(model.expires_at.replace("Z", "+00:00"))
             if datetime.now(pytz.utc) > expires_at:
                 return False, "Invitation code has expired"
 
