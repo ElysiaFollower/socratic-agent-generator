@@ -13,7 +13,7 @@ import logging
 import asyncio
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, AsyncGenerator, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union
 
 import pytz
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -23,6 +23,8 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from config import (
     DEFAULT_OUTPUT_LANGUAGE,
     DEFAULT_SESSION_NAME,
+    EVALUATION_FALLBACK_THRESHOLD,
+    EVALUATION_PASS_THRESHOLD,
     LANGCHAIN_MAX_ITERATIONS,
     LANGCHAIN_VERBOSE,
     MAX_HISTORY_TOKENS,
@@ -38,6 +40,7 @@ from utils.skills import (
     LabManualSkill,
     PedagogicalStrategySkill,
 )
+from utils.step_evaluator import EvaluationResult, StepEvaluator
 from utils.template_assembler import PromptAssembler
 
 logger = logging.getLogger(__name__)
@@ -84,6 +87,14 @@ class Tutor:
         )
         self.pedagogy_skill = PedagogicalStrategySkill()
         self.assessment_skill = AssessmentSkill(self.session)
+
+        # Initialize step evaluator
+        self.evaluator = StepEvaluator()
+
+        # Evaluation state lock (prevents next conversation while evaluation pending)
+        # Use lazy initialization to avoid creating lock in sync context
+        self.evaluation_pending: bool = False
+        self._evaluation_lock: Optional[asyncio.Lock] = None
 
         tools = [
             self.lab_manual_skill.get_tool(),
@@ -273,6 +284,183 @@ class Tutor:
             self.current_history_tokens or 0
         ) + message_tokens
 
+    def extract_step_context(self, max_tokens: int = 2000) -> List[Dict[str, str]]:
+        """Extract conversation context for evaluation.
+
+        Uses simplified approach: extracts from all history (does not track
+        step start index). The evaluator can determine current step through
+        success_criteria.
+
+        Args:
+            max_tokens: Maximum token limit for context.
+
+        Returns:
+            List of conversation messages with role and content.
+        """
+        # Extract from all history (simplified approach)
+        messages = self.history.messages
+
+        # Convert to dictionary format
+        context = []
+        current_tokens = 0
+        for msg in messages:
+            msg_tokens = self.llm.get_num_tokens(msg.content)
+            if current_tokens + msg_tokens > max_tokens:
+                break
+            role = (
+                "user"
+                if msg.__class__.__name__ == "HumanMessage"
+                else "assistant"
+            )
+            context.append({"role": role, "content": msg.content})
+            current_tokens += msg_tokens
+
+        return context
+
+    def _ensure_evaluation_lock(self) -> None:
+        """Ensure evaluation lock is created.
+
+        Creates the lock lazily in an async context to avoid RuntimeError
+        when Tutor is initialized in a sync context.
+        """
+        if self._evaluation_lock is None:
+            self._evaluation_lock = asyncio.Lock()
+
+    def _get_current_step_info(self) -> Dict[str, Any]:
+        """Get current step information for evaluation.
+
+        Returns:
+            Dictionary containing step information (step_title, learning_objective,
+            success_criteria).
+        """
+        curriculum = self.session.get_curriculum()
+        step_index = self.session.state.stepIndex
+
+        return {
+            "step_title": curriculum.get_step_title(step_index),
+            "learning_objective": curriculum.get_learning_objective(step_index),
+            "success_criteria": curriculum.get_success_criteria(step_index),
+        }
+
+    async def _evaluate_step_async(
+        self,
+        step_info: Dict[str, Any],
+        conversation_context: List[Dict[str, str]],
+        user_input: str,
+    ) -> EvaluationResult:
+        """Asynchronously evaluate step.
+
+        Args:
+            step_info: Current step information.
+            conversation_context: Conversation context.
+            user_input: Latest user input.
+
+        Returns:
+            EvaluationResult object.
+        """
+        try:
+            # Call independent evaluator
+            result = await self.evaluator.evaluate(
+                step_info=step_info,
+                conversation_context=conversation_context,
+                user_input=user_input,
+            )
+
+            # If confidence is low, use fallback (don't advance step, let main
+            # LLM decide through AssessmentSkill)
+            if result.confidence < EVALUATION_FALLBACK_THRESHOLD:
+                logger.warning(
+                    "Evaluator confidence low (%.2f < %.2f), using "
+                    "AssessmentSkill fallback",
+                    result.confidence,
+                    EVALUATION_FALLBACK_THRESHOLD,
+                )
+                # Return conservative result (confidence=0, not passed)
+                return EvaluationResult(confidence=0.0)
+
+            return result
+        except Exception as e:
+            logger.error("Evaluator call failed: %s", e, exc_info=True)
+            # Return conservative result, let main LLM decide through
+            # AssessmentSkill
+            return EvaluationResult(confidence=0.0)
+
+    async def _generate_transition_message(
+        self,
+    ) -> AsyncGenerator[str, None]:
+        """Generate step transition guidance message.
+
+        Uses main LLM with full context to naturally summarize and transition.
+        The LLM can naturally summarize previous conversation (e.g., "I think
+        you've mastered this round, let's move to the next stage").
+
+        Yields:
+            Tokens of the transition message.
+        """
+        curriculum = self.session.get_curriculum()
+        current_step_idx = self.session.state.stepIndex
+
+        if current_step_idx > curriculum.get_len():
+            # Curriculum completed
+            message = (
+                "太棒了！你已经完成了本次的所有学习任务。"
+                "期待与你进行下一次的探讨！"
+            )
+            yield message
+            return
+
+        # Assemble system prompt (contains new stepIndex information)
+        formatted_system_prompt = self.prompt_assembler.assemble(
+            self.session.profile.curriculum,
+            current_step_idx,  # New step index
+            self.session.output_language,
+            skills=[
+                self.lab_manual_skill,
+                self.pedagogy_skill,
+                self.assessment_skill,
+            ],
+        )
+
+        # Generate transition message (using main LLM, based on full context)
+        # Main LLM will see:
+        # 1. New stepIndex (system prompt contains new step information)
+        # 2. Full conversation history (including just now's reply and user answer)
+        # 3. Can naturally summarize and transition previous conversation
+
+        transition_input = "好的，让我们继续学习下一部分内容。"
+
+        reply = ""
+        async for event in self.main_chain_with_history.astream_events(
+            {
+                "system_prompt_with_state": formatted_system_prompt,
+                "truncate_history_note": self.truncate_history_note,
+                "input": transition_input,
+                "agent_scratchpad": [],
+            },
+            config={"configurable": {"session_id": self.session.session_id}},
+            version="v2",
+        ):
+            event_name = event.get("event", "")
+            if event_name in ("on_llm_stream", "on_chat_model_stream"):
+                chunk = event.get("data", {}).get("chunk")
+                if chunk:
+                    token = None
+                    if hasattr(chunk, "content"):
+                        token = chunk.content
+                    elif isinstance(chunk, str):
+                        token = chunk
+                    elif isinstance(chunk, dict):
+                        token = chunk.get("content")
+
+                    if token:
+                        reply += token
+                        yield token
+
+        # Add transition message to history
+        if reply:
+            self._add_message_to_history(transition_input, "human")
+            self._add_message_to_history(reply, "ai")
+
     def get_welcome_message(self) -> str:
         """Generate welcome message for the session."""
         topic_name = self.session.profile.topic_name
@@ -352,7 +540,17 @@ class Tutor:
     async def stream_message(
         self, user_input: str
     ) -> AsyncGenerator[Union[str, ResponseMessage], None]:
-        """Process a user message and stream the response."""
+        """Process a user message and stream the response.
+
+        Implements asynchronous evaluation mechanism:
+        1. Check evaluation lock (if evaluation pending, wait or reject)
+        2. Set evaluation lock at start (prevents next conversation)
+        3. Extract context and start async evaluation
+        4. Generate and stream reply normally
+        5. Wait for evaluation to complete
+        6. Clear evaluation lock
+        7. If evaluation passed, generate transition message
+        """
         reply = ""
         self.truncated_history = self._truncate_history(self.truncated_history)
 
@@ -385,75 +583,136 @@ class Tutor:
             )
             return
 
-        formatted_system_prompt = self.prompt_assembler.assemble(
-            self.session.profile.curriculum,
-            self.session.state.stepIndex,
-            self.session.output_language,
-            skills=[
-                self.lab_manual_skill,
-                self.pedagogy_skill,
-                self.assessment_skill,
-            ],
-        )
+        # Ensure evaluation lock is created (lazy initialization)
+        self._ensure_evaluation_lock()
 
-        # Add user message to history with incremental token counting
-        self._add_message_to_history(user_input, "human")
-        
-        # Start async save task (non-blocking, will complete in background)
-        save_task = asyncio.create_task(self.async_save())
+        # Check evaluation lock (if evaluation pending, wait or reject)
+        async with self._evaluation_lock:
+            if self.evaluation_pending:
+                waiting_msg = (
+                    "请稍候，正在评估您的回答，请稍后再试..."
+                )
+                yield waiting_msg
+                yield ResponseMessage(
+                    reply=waiting_msg,
+                    state=self.session.state,
+                    is_finished=False,
+                )
+                return
 
-        # Stream response immediately (optimized for TTFT)
-        reply = ""
+            # Set evaluation lock (at evaluation start)
+            self.evaluation_pending = True
+
         try:
-            async for event in self.main_chain_with_history.astream_events(
-                {
-                    "system_prompt_with_state": formatted_system_prompt,
-                    "truncate_history_note": self.truncate_history_note,
-                    "input": user_input,
-                    "agent_scratchpad": [],
-                },
-                config={"configurable": {"session_id": self.session.session_id}},
-                version="v2",
-            ):
-                event_name = event.get("event", "")
-                if event_name in ("on_llm_stream", "on_chat_model_stream"):
-                    chunk = event.get("data", {}).get("chunk")
-                    if chunk:
-                        token = None
-                        if hasattr(chunk, "content"):
-                            token = chunk.content
-                        elif isinstance(chunk, str):
-                            token = chunk
-                        elif isinstance(chunk, dict):
-                            token = chunk.get("content")
+            # Extract context and current step info
+            conversation_context = self.extract_step_context()
+            step_info = self._get_current_step_info()
 
-                        if token:
-                            reply += token
-                            yield token
-                elif event_name == "on_chain_end":
-                    output = event.get("data", {}).get("output", "")
-                    if output and isinstance(output, str) and not reply:
-                        reply = output
-                        yield output
-        except Exception as e:
-            logger.error("Streaming failed: %s", e, exc_info=True)
-            # If streaming failed and no reply was collected, set a fallback message
-            if not reply:
-                reply = "抱歉，我在生成回复时遇到了问题。请稍后再试。"
-                yield reply
+            # Start async evaluation task (non-blocking)
+            evaluation_task = asyncio.create_task(
+                self._evaluate_step_async(step_info, conversation_context, user_input)
+            )
 
-        # Add AI response to history with incremental token counting
-        # Only add non-empty replies to history
-        if reply:
-            self._add_message_to_history(reply, "ai")
-        
-        # Ensure save task completes and save final state
-        try:
-            await save_task
+            formatted_system_prompt = self.prompt_assembler.assemble(
+                self.session.profile.curriculum,
+                self.session.state.stepIndex,
+                self.session.output_language,
+                skills=[
+                    self.lab_manual_skill,
+                    self.pedagogy_skill,
+                    self.assessment_skill,
+                ],
+            )
+
+            # Add user message to history with incremental token counting
+            self._add_message_to_history(user_input, "human")
+
+            # Start async save task (non-blocking, will complete in background)
+            save_task = asyncio.create_task(self.async_save())
+
+            # Stream response immediately (optimized for TTFT)
+            reply = ""
+            try:
+                async for event in self.main_chain_with_history.astream_events(
+                    {
+                        "system_prompt_with_state": formatted_system_prompt,
+                        "truncate_history_note": self.truncate_history_note,
+                        "input": user_input,
+                        "agent_scratchpad": [],
+                    },
+                    config={"configurable": {"session_id": self.session.session_id}},
+                    version="v2",
+                ):
+                    event_name = event.get("event", "")
+                    if event_name in ("on_llm_stream", "on_chat_model_stream"):
+                        chunk = event.get("data", {}).get("chunk")
+                        if chunk:
+                            token = None
+                            if hasattr(chunk, "content"):
+                                token = chunk.content
+                            elif isinstance(chunk, str):
+                                token = chunk
+                            elif isinstance(chunk, dict):
+                                token = chunk.get("content")
+
+                            if token:
+                                reply += token
+                                yield token
+                    elif event_name == "on_chain_end":
+                        output = event.get("data", {}).get("output", "")
+                        if output and isinstance(output, str) and not reply:
+                            reply = output
+                            yield output
+            except Exception as e:
+                logger.error("Streaming failed: %s", e, exc_info=True)
+                # If streaming failed and no reply was collected, set a fallback message
+                if not reply:
+                    reply = "抱歉，我在生成回复时遇到了问题。请稍后再试。"
+                    yield reply
+
+            # Add AI response to history with incremental token counting
+            # Only add non-empty replies to history
+            if reply:
+                self._add_message_to_history(reply, "ai")
+
+            # Wait for evaluation to complete
+            evaluation_result = await evaluation_task
+
+            # Clear evaluation lock (at evaluation completion)
+            async with self._evaluation_lock:
+                self.evaluation_pending = False
+
+            # If evaluation passed, generate transition message
+            if evaluation_result.passed:
+                logger.info(
+                    "Step evaluation passed: step=%d, confidence=%.2f, threshold=%.2f",
+                    self.session.state.stepIndex,
+                    evaluation_result.confidence,
+                    EVALUATION_PASS_THRESHOLD,
+                )
+                # Advance step
+                self.session.state.stepIndex += 1
+                await self.async_save()
+
+                # Generate transition message
+                async for token in self._generate_transition_message():
+                    yield token
+
+            # Ensure save task completes and save final state
+            try:
+                await save_task
+            except Exception as e:
+                logger.warning("Background save task failed: %s", e)
+
+            await self.async_save()
+
         except Exception as e:
-            logger.warning("Background save task failed: %s", e)
-        
-        await self.async_save()
+            # Ensure lock is cleared on exception
+            if self._evaluation_lock is not None:
+                async with self._evaluation_lock:
+                    self.evaluation_pending = False
+            logger.error("Error in stream_message: %s", e, exc_info=True)
+            raise
 
         yield ResponseMessage(
             reply=reply,
