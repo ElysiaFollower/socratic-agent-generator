@@ -58,6 +58,25 @@ def warmup_embeddings_on_startup() -> None:
     warmup_embeddings()
 
 
+@app.get("/", summary="API 根路径", tags=["Info"])
+def root() -> dict:
+    """API 根路径，返回 API 信息和文档链接。
+
+    Returns:
+        Dictionary with API information and documentation links.
+    """
+    return {
+        "name": "Socratic Agent API",
+        "version": "2.0.0",
+        "description": "后端API服务，用于驱动苏格拉底式AI导师前端。",
+        "docs": {
+            "swagger": "/docs",
+            "redoc": "/redoc",
+        },
+        "health": "/api/health",
+    }
+
+
 @app.get("/api/health", summary="健康检查", tags=["Health"])
 def health() -> dict:
     """Health check endpoint.
