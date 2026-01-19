@@ -8,7 +8,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import {
-  Alert,
   Box,
   Button,
   ButtonBase,
@@ -46,6 +45,7 @@ import {
   type SocraticCurriculum,
 } from "../api";
 import { Profile } from "../types";
+import { useNotification } from "../hooks";
 
 /**
  * Props for ProfileGeneratorAdvanced component.
@@ -68,6 +68,7 @@ export function ProfileGeneratorAdvanced(
   props: ProfileGeneratorAdvancedProps,
 ): JSX.Element {
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
+  const { notifyError } = useNotification();
   const [currentStep, setCurrentStep] = useState<Step>("select");
   const [labManuals, setLabManuals] = useState<readonly LabManualInfo[]>([]);
   const [isLoadingManuals, setIsLoadingManuals] = useState<boolean>(true);
@@ -113,6 +114,30 @@ export function ProfileGeneratorAdvanced(
   useEffect(() => {
     void loadLabManuals();
   }, [loadLabManuals]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    notifyError(error);
+    setError(null);
+  }, [error, notifyError]);
+
+  useEffect(() => {
+    if (!personaError) {
+      return;
+    }
+    notifyError(personaError);
+    setPersonaError(null);
+  }, [personaError, notifyError]);
+
+  useEffect(() => {
+    if (!curriculumError) {
+      return;
+    }
+    notifyError(curriculumError);
+    setCurriculumError(null);
+  }, [curriculumError, notifyError]);
 
   /**
    * Handles lab selection.
@@ -459,8 +484,6 @@ export function ProfileGeneratorAdvanced(
         </Step>
       </Stepper>
 
-      {error && <Alert severity='error'>{error}</Alert>}
-
       {currentStep === "select" && (
         <Stack spacing={2}>
           <Typography variant='h6'>选择实验文档</Typography>
@@ -472,9 +495,18 @@ export function ProfileGeneratorAdvanced(
               </Typography>
             </Stack>
           ) : labManuals.length === 0 ? (
-            <Alert severity='info'>
-              暂无实验文档，请先在实验文档管理中上传文档。
-            </Alert>
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: "1px dashed var(--color-border)",
+                bgcolor: "var(--color-surface-muted)",
+              }}
+            >
+              <Typography variant='body2' color='text.secondary'>
+                暂无实验文档，请先在实验文档管理中上传文档。
+              </Typography>
+            </Box>
           ) : (
             <Stack spacing={1.5}>
               {labManuals.map((lab) => (
@@ -641,12 +673,6 @@ export function ProfileGeneratorAdvanced(
                 </Stack>
                 <Divider sx={{ my: 2 }} />
 
-                {personaError && (
-                  <Alert severity='error' sx={{ mb: 2 }}>
-                    {personaError}
-                  </Alert>
-                )}
-
                 {persona ? (
                   <Stack spacing={2}>
                     <TextField
@@ -745,12 +771,6 @@ export function ProfileGeneratorAdvanced(
                   </Stack>
                 </Stack>
                 <Divider sx={{ my: 2 }} />
-
-                {curriculumError && (
-                  <Alert severity='error' sx={{ mb: 2 }}>
-                    {curriculumError}
-                  </Alert>
-                )}
 
                 {curriculum && curriculum.root ? (
                   <Stack spacing={2}>

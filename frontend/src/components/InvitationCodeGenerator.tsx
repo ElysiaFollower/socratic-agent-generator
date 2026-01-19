@@ -7,7 +7,6 @@
 
 import React, { useState, FormEvent, useCallback, useEffect } from "react";
 import {
-  Alert,
   Box,
   Button,
   Dialog,
@@ -27,7 +26,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { ContentCopy } from "@mui/icons-material";
-import { useAuth } from "../hooks";
+import { useAuth, useNotification } from "../hooks";
 import { GenerateInvitationCodeRequest, InvitationCodeInfo } from "../types";
 import { generateInvitationCode, listInvitationCodes } from "../api";
 
@@ -50,6 +49,7 @@ export function InvitationCodeGenerator(
 ): JSX.Element {
   const { onClose, variant = "dialog" } = props;
   const { user } = useAuth();
+  const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const [role, setRole] = useState<"teacher" | "student">("student");
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -63,6 +63,14 @@ export function InvitationCodeGenerator(
     readonly InvitationCodeInfo[]
   >([]);
   const [isLoadingCodes, setIsLoadingCodes] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    notifyError(error);
+    setError(null);
+  }, [error, notifyError]);
 
   /**
    * Handles form submission.
@@ -78,7 +86,7 @@ export function InvitationCodeGenerator(
 
     // Check permissions
     if (user?.role === "teacher" && role === "teacher") {
-      setError("教师只能为学生生成邀请码");
+      notifyWarning("教师只能为学生生成邀请码");
       return;
     }
 
@@ -113,11 +121,13 @@ export function InvitationCodeGenerator(
       const response = await listInvitationCodes();
       setInvitationCodes(response.invitation_codes);
     } catch (err) {
-      console.error("Failed to load invitation codes:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "加载邀请码失败";
+      notifyError(errorMessage);
     } finally {
       setIsLoadingCodes(false);
     }
-  }, []);
+  }, [notifyError]);
 
   useEffect(() => {
     void loadInvitationCodes();
@@ -132,14 +142,16 @@ export function InvitationCodeGenerator(
     }
     try {
       await navigator.clipboard.writeText(code);
+      notifySuccess("邀请码已复制");
     } catch (err) {
-      console.error("Failed to copy to clipboard:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "复制失败，请重试";
+      notifyError(errorMessage);
     }
   };
 
   const content = (
     <Stack spacing={2}>
-      {error && <Alert severity='error'>{error}</Alert>}
       <Box component='form' onSubmit={handleSubmit} sx={{ pt: 2 }}>
         <Stack spacing={2}>
           <FormControl fullWidth disabled={isLoading}>

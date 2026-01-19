@@ -13,7 +13,6 @@ import React, {
   useCallback,
 } from "react";
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
@@ -55,6 +54,7 @@ import {
   type LabManualInfo,
   type LabManualContent,
 } from "../api";
+import { useConfirmDialog, useNotification } from "../hooks";
 
 /**
  * Props for LabManualPanel component.
@@ -73,6 +73,8 @@ interface LabManualPanelProps {
  */
 export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   const { onUploadSuccess, onClose, variant = "dialog" } = props;
+  const { notifyError, notifySuccess } = useNotification();
+  const { confirm } = useConfirmDialog();
 
   // Upload state
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -130,6 +132,26 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   useEffect(() => {
     void loadLabManuals();
   }, [loadLabManuals]);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    notifyError(error);
+    setError(null);
+  }, [error, notifyError]);
+
+  useEffect(() => {
+    if (!uploadResponse) {
+      return;
+    }
+    notifySuccess(
+      `上传成功：${uploadResponse.lab_name} (${(
+        uploadResponse.size / 1024
+      ).toFixed(2)} KB)`,
+    );
+    setUploadResponse(null);
+  }, [uploadResponse, notifySuccess]);
 
   /**
    * Applies a selected file.
@@ -266,11 +288,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
    * Handles deleting a lab manual.
    */
   const handleDelete = async (labName: string) => {
-    if (
-      !confirm(
-        `确定要删除实验文档 "${labName}" 吗？此操作将删除整个实验目录及其所有内容，无法撤销。`,
-      )
-    ) {
+    const shouldDelete = await confirm({
+      title: "删除实验文档",
+      description: `确定要删除实验文档 "${labName}" 吗？此操作将删除整个实验目录及其所有内容，无法撤销。`,
+      confirmLabel: "删除",
+      confirmColor: "error",
+    });
+    if (!shouldDelete) {
       return;
     }
 
@@ -279,6 +303,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     try {
       await deleteLabManual(labName);
       await loadLabManuals();
+      notifySuccess(`已删除实验文档：${labName}`);
       if (viewingLabName === labName) {
         setViewingLabName(null);
         setViewingContent(null);
@@ -338,8 +363,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
 
   const body = (
     <Stack spacing={3} sx={{ pt: 2 }}>
-      {error && <Alert severity='error'>{error}</Alert>}
-
       <Stack spacing={2} component='form' onSubmit={handleSubmit}>
         <Stack direction={"row"} alignItems='center' spacing={0.5}>
           <AttachFile fontSize='small' />
@@ -476,13 +499,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             将作为实验名称创建 data_raw/{labName || "实验名称"}/lab_manual.md
           </Typography>
         </Stack>
-
-        {uploadResponse && (
-          <Alert severity='success'>
-            上传成功：{uploadResponse.lab_name} (
-            {(uploadResponse.size / 1024).toFixed(2)} KB)
-          </Alert>
-        )}
 
         <Stack direction='row' spacing={1} alignItems='center'>
           {onClose && (

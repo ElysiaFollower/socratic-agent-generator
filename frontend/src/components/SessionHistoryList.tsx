@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { Add, Delete, Edit, Forum, MoreVert } from "@mui/icons-material";
 import { SessionSummary } from "../types";
+import { useConfirmDialog } from "../hooks";
 
 /**
  * Props for SessionHistoryList component.
@@ -54,6 +55,7 @@ export function SessionHistoryList(
     onRenameSession,
     onDeleteSession,
   } = props;
+  const { confirm } = useConfirmDialog();
 
   const [editingSessionId, setEditingSessionId] = React.useState<string | null>(
     null,
@@ -78,8 +80,14 @@ export function SessionHistoryList(
     setEditingOriginalName("");
   };
 
-  const handleDelete = (sessionId: string) => {
-    if (window.confirm("确定要删除这个会话吗？")) {
+  const handleDelete = async (sessionId: string) => {
+    const shouldDelete = await confirm({
+      title: "删除会话",
+      description: "确定要删除这个会话吗？该操作无法撤销。",
+      confirmLabel: "删除",
+      confirmColor: "error",
+    });
+    if (shouldDelete) {
       onDeleteSession(sessionId);
     }
   };

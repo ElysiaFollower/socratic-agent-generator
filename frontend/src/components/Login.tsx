@@ -7,7 +7,6 @@
 
 import React, {useState, FormEvent} from 'react';
 import {
-  Alert,
   Box,
   Button,
   Paper,
@@ -15,7 +14,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import {useAuth} from '../hooks';
+import {useAuth, useNotification} from '../hooks';
 import {LoginRequest} from '../types';
 
 /**
@@ -35,9 +34,9 @@ interface LoginProps {
 export function Login(props: LoginProps): JSX.Element {
   const {onLoginSuccess, onSwitchToRegister} = props;
   const {login, isLoading} = useAuth();
+  const {notifyError, notifyWarning} = useNotification();
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
 
   /**
    * Handles form submission.
@@ -46,10 +45,9 @@ export function Login(props: LoginProps): JSX.Element {
    */
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
 
     if (!username.trim() || !password.trim()) {
-      setError('请输入用户名和密码');
+      notifyWarning('请输入用户名和密码');
       return;
     }
 
@@ -65,7 +63,7 @@ export function Login(props: LoginProps): JSX.Element {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : '登录失败，请重试';
-      setError(errorMessage);
+      notifyError(errorMessage);
     }
   };
 
@@ -90,8 +88,6 @@ export function Login(props: LoginProps): JSX.Element {
               请输入您的用户名和密码
             </Typography>
           </Box>
-
-          {error && <Alert severity="error">{error}</Alert>}
 
           <Stack component="form" spacing={2} onSubmit={handleSubmit}>
             <TextField

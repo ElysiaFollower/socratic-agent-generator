@@ -6,7 +6,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   CircularProgress,
@@ -32,7 +31,7 @@ import {
   type RenameProfileRequest,
 } from "../api";
 import { extractCurriculumSteps } from "../utils/curriculum";
-import { useNotification } from "../hooks";
+import { useConfirmDialog, useNotification } from "../hooks";
 import { ProfileGeneratorAdvanced } from "./ProfileGeneratorAdvanced";
 
 /**
@@ -56,11 +55,11 @@ export function ProfileManagerPanel(
   props: ProfileManagerPanelProps,
 ): JSX.Element {
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
-  const { notifyError, notifySuccess } = useNotification();
+  const { notifyError, notifySuccess, notifyWarning } = useNotification();
+  const { confirm } = useConfirmDialog();
   const [activeTab, setActiveTab] = useState<TabKey>("generate");
   const [profiles, setProfiles] = useState<readonly Profile[]>([]);
   const [isLoadingProfiles, setIsLoadingProfiles] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>("");
   const [deletingProfileId, setDeletingProfileId] = useState<string | null>(
     null,
@@ -68,22 +67,20 @@ export function ProfileManagerPanel(
   const [renamingProfile, setRenamingProfile] = useState<Profile | null>(null);
   const [renameValue, setRenameValue] = useState<string>("");
   const [isRenaming, setIsRenaming] = useState<boolean>(false);
-  const [renameError, setRenameError] = useState<string | null>(null);
 
   const loadProfiles = useCallback(async () => {
     setIsLoadingProfiles(true);
-    setError(null);
     try {
       const list = await listProfiles();
       setProfiles(list);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "加载Profile列表失败";
-      setError(errorMessage);
+      notifyError(errorMessage);
     } finally {
       setIsLoadingProfiles(false);
     }
-  }, []);
+  }, [notifyError]);
 
   useEffect(() => {
     if (activeTab === "manage") {
@@ -113,11 +110,16 @@ export function ProfileManagerPanel(
 
   const handleTabChange = (_event: React.SyntheticEvent, value: TabKey) => {
     setActiveTab(value);
-    setError(null);
   };
 
   const handleDelete = async (profileId: string) => {
-    if (!confirm("确定要删除该Profile吗？此操作无法撤销。")) {
+    const shouldDelete = await confirm({
+      title: "删除Profile",
+      description: "确定要删除该Profile吗？此操作无法撤销。",
+      confirmLabel: "删除",
+      confirmColor: "error",
+    });
+    if (!shouldDelete) {
       return;
     }
     setDeletingProfileId(profileId);
@@ -137,7 +139,6 @@ export function ProfileManagerPanel(
   const handleOpenRename = (profile: Profile) => {
     setRenamingProfile(profile);
     setRenameValue(profile.profile_name || profile.topic_name || "");
-    setRenameError(null);
   };
 
   const handleRenameConfirm = async () => {
@@ -146,7 +147,7 @@ export function ProfileManagerPanel(
     }
     const nextName = renameValue.trim();
     if (!nextName) {
-      setRenameError("Profile名称不能为空");
+      notifyWarning("Profile名称不能为空");
       return;
     }
     setIsRenaming(true);
@@ -159,7 +160,7 @@ export function ProfileManagerPanel(
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "重命名失败，请重试";
-      setRenameError(errorMessage);
+      notifyError(errorMessage);
     } finally {
       setIsRenaming(false);
     }
@@ -264,8 +265,6 @@ export function ProfileManagerPanel(
         <Tab value='manage' label='管理Profile' />
       </Tabs>
 
-      {error && <Alert severity='error'>{error}</Alert>}
-
       {activeTab === "generate" && (
         <ProfileGeneratorAdvanced
           variant='panel'
@@ -299,7 +298,6 @@ export function ProfileManagerPanel(
           <DialogTitle>重命名Profile</DialogTitle>
           <DialogContent dividers>
             <Stack spacing={2}>
-              {renameError && <Alert severity='error'>{renameError}</Alert>}
               <TextField
                 label='Profile名称'
                 value={renameValue}
@@ -347,7 +345,6 @@ export function ProfileManagerPanel(
         <DialogTitle>重命名Profile</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            {renameError && <Alert severity='error'>{renameError}</Alert>}
             <TextField
               label='Profile名称'
               value={renameValue}
