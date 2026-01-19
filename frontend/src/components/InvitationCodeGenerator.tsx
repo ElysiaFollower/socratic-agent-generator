@@ -141,7 +141,32 @@ export function InvitationCodeGenerator(
       return;
     }
     try {
-      await navigator.clipboard.writeText(code);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+        notifySuccess("邀请码已复制");
+        return;
+      }
+
+      if (typeof document === "undefined") {
+        throw new Error("复制失败，请手动复制");
+      }
+
+      const textArea = document.createElement("textarea");
+      textArea.value = code;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textArea);
+
+      if (!success) {
+        throw new Error("复制失败，请手动复制");
+      }
       notifySuccess("邀请码已复制");
     } catch (err) {
       const errorMessage =

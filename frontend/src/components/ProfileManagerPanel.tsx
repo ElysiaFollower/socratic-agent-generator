@@ -170,7 +170,7 @@ export function ProfileManagerPanel(
     if (onGenerateSuccess) {
       onGenerateSuccess(profile);
     }
-    void loadProfiles();
+    setActiveTab("manage");
   };
 
   const manageBody = (

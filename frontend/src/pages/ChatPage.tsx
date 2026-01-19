@@ -462,12 +462,30 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         >
           {isChatView ? (
             <Box
-              sx={{ height: "100%", overflow: "auto", width: "100%", py: 2 }}
+              sx={{
+                height: "100%",
+                overflow: "auto",
+                width: "100%",
+                py: 2,
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": {
+                  display: "none",
+                },
+              }}
             >
               <MessageList messages={messages} />
             </Box>
           ) : (
-            <Box sx={{ height: "100%", overflow: "auto" }}>
+            <Box
+              sx={{
+                height: "100%",
+                overflow: "auto",
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": {
+                  display: "none",
+                },
+              }}
+            >
               {activePanel === "invitation" && (
                 <InvitationCodeGenerator variant='panel' />
               )}

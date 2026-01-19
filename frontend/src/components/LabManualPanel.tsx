@@ -434,6 +434,17 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                 size='small'
                 value={labNameDraft}
                 onChange={(event) => setLabNameDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleSaveLabName();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    handleCancelLabName();
+                  }
+                }}
+                autoFocus
                 disabled={isLoading}
                 sx={{ minWidth: { xs: "100%", sm: 260 } }}
               />
@@ -445,26 +456,22 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             <Stack direction='row' spacing={1} alignItems='center'>
               {isEditingLabName ? (
                 <>
-                  <Tooltip title='保存' arrow>
-                    <IconButton
-                      size='small'
-                      onClick={handleSaveLabName}
-                      disabled={isLoading}
-                      aria-label='保存文件名'
-                    >
-                      <Check fontSize='small' />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title='取消' arrow>
-                    <IconButton
-                      size='small'
-                      onClick={handleCancelLabName}
-                      disabled={isLoading}
-                      aria-label='取消编辑文件名'
-                    >
-                      <Close fontSize='small' />
-                    </IconButton>
-                  </Tooltip>
+                  <IconButton
+                    size='small'
+                    onClick={handleSaveLabName}
+                    disabled={isLoading}
+                    aria-label='保存文件名'
+                  >
+                    <Check fontSize='small' />
+                  </IconButton>
+                  <IconButton
+                    size='small'
+                    onClick={handleCancelLabName}
+                    disabled={isLoading}
+                    aria-label='取消编辑文件名'
+                  >
+                    <Close fontSize='small' />
+                  </IconButton>
                 </>
               ) : (
                 <Tooltip title='编辑名称' arrow>
