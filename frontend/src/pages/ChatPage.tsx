@@ -439,6 +439,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           isCollapsed={isHeaderCollapsed}
           currentStep={sessionState.currentStep}
           curriculum={sessionState.curriculum}
+          isProgressLoading={sessionState.isLoading}
           onToggleMaximize={handleMaximizeToggle}
           onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
           activePanel={activePanel}

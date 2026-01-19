@@ -27,7 +27,9 @@ import {
   ExpandLess,
   ExpandMore,
   Logout,
+  MenuBookOutlined,
   OpenInFull,
+  BadgeOutlined,
   Settings,
 } from '@mui/icons-material';
 import {SessionSummary, SocraticStep, ToolPanelView, User} from '../types';
@@ -42,6 +44,7 @@ export interface HeaderProps {
   readonly isCollapsed: boolean;
   readonly currentStep: number;
   readonly curriculum: readonly SocraticStep[];
+  readonly isProgressLoading: boolean;
   readonly onToggleMaximize: () => void;
   readonly onToggleCollapse: () => void;
   readonly activePanel: ToolPanelView;
@@ -65,6 +68,7 @@ export function Header(props: HeaderProps): JSX.Element {
     isCollapsed,
     currentStep,
     curriculum,
+    isProgressLoading,
     onToggleMaximize,
     onToggleCollapse,
     activePanel,
@@ -162,12 +166,81 @@ export function Header(props: HeaderProps): JSX.Element {
       {showSessionDetails && (
         <Collapse in={!isCollapsed} timeout={200}>
           <Box sx={{px: 3, pb: 2}}>
-            <Typography variant="body2" color="text.secondary" sx={{mb: 2}}>
-              {`课程: ${currentSession?.topic_name} | Profile: ${currentSession?.profile_id}`}
-            </Typography>
-            {curriculum.length > 0 && (
-              <ProgressBar currentStep={currentStep} curriculum={curriculum} />
-            )}
+            <Stack
+              direction="row"
+              spacing={2}
+              alignItems="center"
+              flexWrap="wrap"
+              sx={{mb: 2}}
+            >
+              <Stack direction="row" spacing={1} alignItems="center" sx={{minWidth: 0}}>
+                <Tooltip title="课程" arrow>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      bgcolor: 'var(--color-surface-muted)',
+                      color: 'primary.main',
+                    }}
+                  >
+                    <MenuBookOutlined fontSize="small" />
+                  </Box>
+                </Tooltip>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    maxWidth: '46vw',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {currentSession?.topic_name || '-'}
+                </Typography>
+              </Stack>
+              <Divider orientation="vertical" flexItem />
+              <Stack direction="row" spacing={1} alignItems="center" sx={{minWidth: 0}}>
+                <Tooltip title="Profile" arrow>
+                  <Box
+                    component="span"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      bgcolor: 'var(--color-surface-muted)',
+                      color: 'secondary.main',
+                    }}
+                  >
+                    <BadgeOutlined fontSize="small" />
+                  </Box>
+                </Tooltip>
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 600,
+                    color: 'text.primary',
+                    fontFamily: 'var(--font-mono)',
+                  }}
+                >
+                  {currentSession?.profile_id || '-'}
+                </Typography>
+              </Stack>
+            </Stack>
+            <ProgressBar
+              currentStep={currentStep}
+              curriculum={curriculum}
+              isLoading={isProgressLoading}
+            />
           </Box>
         </Collapse>
       )}
