@@ -19,6 +19,8 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 
 from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR
+from core.database import SessionLocal
+from utils.document_manager import DocumentManager
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +72,7 @@ class BaseSkill:
     def _load_skill_definition(self):
         """Load metadata and instructions from SKILL.md."""
         if not self.skill_file.exists():
-            logger.warning("Skill file not found at %s", self.skill_file)
+            # logger.warning("Skill file not found at %s", self.skill_file)
             return
 
         try:
@@ -102,20 +104,15 @@ class LabManualSkill(BaseSkill):
 
         Args:
             topic_name: The name of the topic (used for display and fallback).
-            lab_name: The lab manual directory name in data_raw.
+            lab_name: The lab manual directory name in data_raw (or doc_name in DB).
         """
         super().__init__("lab_manual")
         self.topic_name = topic_name
         self.lab_name = lab_name or topic_name
-        self.vector_store_path = (
-            VECTOR_STORE_DIR / self.lab_name if self.lab_name else None
-        )
-        self.lab_manual_path = (
-            RAW_DATA_DIR / self.lab_name / "lab_manual.md"
-            if self.lab_name
-            else None
-        )
         self.embeddings = self._get_embeddings()
+
+        # Resolve vector store path from DB
+        self.vector_store_path = self._resolve_vector_store_path()
         self.vector_store = self._load_or_create_vector_store()
 
     def _get_embeddings(self) -> Embeddings:
@@ -127,24 +124,32 @@ class LabManualSkill(BaseSkill):
                     _EMBEDDINGS_CACHE = _load_embeddings()
         return _EMBEDDINGS_CACHE
 
+    def _resolve_vector_store_path(self) -> Optional[Path]:
+        """Resolve vector store path using DocumentManager."""
+        if not self.lab_name:
+            return None
+
+        with SessionLocal() as db:
+            dm = DocumentManager(db)
+            doc = dm.get_document_by_name(self.lab_name)
+            if doc and doc.index_path:
+                return Path(doc.index_path)
+
+        # Fallback to default convention if not in DB or index_path not set
+        # This allows backward compatibility or auto-healing
+        return VECTOR_STORE_DIR / self.lab_name
+
     def _load_or_create_vector_store(self) -> Optional[FAISS]:
         """Load the vector store if it exists, otherwise create it."""
-        if not self.lab_name or not self.lab_manual_path:
+        if not self.lab_name:
             logger.warning("Lab name is not set; cannot load lab manual.")
             return None
 
-        if not self.lab_manual_path.exists():
-            logger.warning(
-                "Lab manual not found for topic: %s at %s",
-                self.lab_name,
-                self.lab_manual_path,
-            )
-            return None
-
+        # Check if vector store exists at resolved path
         if self.vector_store_path and self.vector_store_path.exists():
             try:
                 logger.info(
-                    "Loading vector store for lab: %s", self.lab_name
+                    "Loading vector store for lab: %s from %s", self.lab_name, self.vector_store_path
                 )
                 vector_store = FAISS.load_local(
                     str(self.vector_store_path),
@@ -161,16 +166,32 @@ class LabManualSkill(BaseSkill):
 
     def _create_vector_store(self) -> Optional[FAISS]:
         """Create a new vector store from the lab manual."""
-        if not self.lab_manual_path or not self.lab_manual_path.exists():
+        # Need to find lab manual file.
+        # Ideally query DB, but for now check default location or DB
+
+        lab_manual_path = None
+        with SessionLocal() as db:
+            dm = DocumentManager(db)
+            doc = dm.get_document_by_name(self.lab_name)
+            if doc and doc.storage_path:
+                lab_manual_path = Path(doc.storage_path) # Assumes relative to CWD or absolute
+                if not lab_manual_path.exists():
+                     # Try relative to project root if relative path stored
+                     lab_manual_path = Path(".").resolve() / doc.storage_path
+
+        # Fallback
+        if not lab_manual_path or not lab_manual_path.exists():
+             lab_manual_path = RAW_DATA_DIR / self.lab_name / "lab_manual.md"
+
+        if not lab_manual_path.exists():
+            logger.warning("Lab manual file not found: %s", lab_manual_path)
             return None
 
         logger.info("Creating vector store for lab: %s", self.lab_name)
         try:
-            # Read the file directly to handle potential encoding issues or just use TextLoader
-            with open(self.lab_manual_path, "r", encoding="utf-8") as f:
+            with open(lab_manual_path, "r", encoding="utf-8") as f:
                 text = f.read()
 
-            # Split by markdown headers
             headers_to_split_on = [
                 ("#", "Header 1"),
                 ("##", "Header 2"),
@@ -181,14 +202,28 @@ class LabManualSkill(BaseSkill):
             )
             docs = markdown_splitter.split_text(text)
 
-            # Create vector store
             vector_store = FAISS.from_documents(docs, self.embeddings)
 
             # Save vector store
-            if not self.vector_store_path:
-                return None
-            self.vector_store_path.parent.mkdir(parents=True, exist_ok=True)
-            vector_store.save_local(str(self.vector_store_path))
+            save_path = self.vector_store_path or (VECTOR_STORE_DIR / self.lab_name)
+            save_path.mkdir(parents=True, exist_ok=True)
+            vector_store.save_local(str(save_path))
+
+            # Update DB with index path
+            with SessionLocal() as db:
+                dm = DocumentManager(db)
+                # Ensure doc exists
+                doc = dm.get_document_by_name(self.lab_name)
+                if not doc:
+                     # Create if missing (auto-registration)
+                     doc = dm.create_document(
+                         doc_name=self.lab_name,
+                         filename=lab_manual_path.name,
+                         storage_path=str(lab_manual_path)
+                     )
+
+                dm.update_index_path(self.lab_name, str(save_path))
+
             return vector_store
 
         except Exception as e:
@@ -202,19 +237,11 @@ class LabManualSkill(BaseSkill):
     def get_tool(self):
         """Get the LangChain tool for consulting the lab manual."""
 
-        # Define tool using metadata from SKILL.md if available
         tool_name = self.name
         tool_description = self.description
 
         @tool(tool_name)
         def consult_lab_manual(query: str) -> str:
-            # Use the docstring from SKILL.md description as a fallback or hint
-            # But the @tool decorator uses the function's docstring for the LLM.
-            # We can dynamically set it, but for simplicity, we keep the docstring here
-            # and rely on the name/description passed to the tool constructor (via @tool or Tool class).
-            # LangChain's @tool decorator usually takes the function name/docstring.
-            # To use dynamic name/description, we need to return a StructuredTool.
-
             """
             Consult the official lab manual for technical details.
             """
@@ -223,7 +250,6 @@ class LabManualSkill(BaseSkill):
                 return "The lab manual is not available for this topic."
 
             try:
-                # Retrieve top 3 relevant chunks
                 docs = self.vector_store.similarity_search(query, k=3)
                 if not docs:
                     return "No relevant information found in the lab manual."
@@ -232,7 +258,6 @@ class LabManualSkill(BaseSkill):
                     [f"--- Excerpt ---\n{doc.page_content}" for doc in docs]
                 )
 
-                # Combine instructions from SKILL.md with the results
                 return (
                     f"{self.instructions}\n\n"
                     f"--- Search Results for '{query}' ---\n"
@@ -242,7 +267,6 @@ class LabManualSkill(BaseSkill):
                 logger.error("Error searching lab manual: %s", e)
                 return f"Error occurred while searching lab manual: {e}"
 
-        # Override name/description
         consult_lab_manual.name = tool_name
         consult_lab_manual.description = tool_description
 
@@ -253,6 +277,9 @@ def build_lab_manual_index(lab_name: str) -> bool:
     """Build or load a lab manual vector store for a given lab name."""
     try:
         skill = LabManualSkill(topic_name=lab_name, lab_name=lab_name)
+        # Force recreation if needed?
+        # The constructor calls _load_or_create. If it exists, it loads.
+        # If we want to rebuild, we might need a force flag, but for now "ensure exists" is fine.
         return skill.vector_store is not None
     except Exception as e:
         logger.error("Failed to build lab manual index for %s: %s", lab_name, e)
@@ -279,7 +306,6 @@ class PedagogicalStrategySkill(BaseSkill):
             Consult the Pedagogy Coach to get a specific teaching strategy script.
             """
 
-            # Sanitize strategy name to prevent path traversal
             safe_name = os.path.basename(strategy_name)
             if not safe_name.endswith(".md"):
                 safe_name += ".md"
@@ -287,7 +313,6 @@ class PedagogicalStrategySkill(BaseSkill):
             strategy_file = self.strategies_dir / safe_name
 
             if not strategy_file.exists():
-                # List available strategies
                 available = [f.stem for f in self.strategies_dir.glob("*.md")]
                 return (
                     f"Strategy '{strategy_name}' not found. "
@@ -345,11 +370,6 @@ class AssessmentSkill(BaseSkill):
 
             # Advance step
             self.session.state.stepIndex += 1
-
-            # Save session state
-            # Note: The Tutor class usually saves after processing, but since this
-            # changes state that might be relevant immediately, we rely on the object reference.
-            # The Tutor's save() method will persist it to disk at the end of the turn.
 
             # Check if finished
             if self.session.state.stepIndex > curriculum.get_len():

@@ -2,47 +2,57 @@
 
 This module provides dependency injection functions for FastAPI routes,
 following Google Python Style Guide and FastAPI best practices.
-
-Note: Manager instances are singletons to maintain cache consistency
-across requests.
 """
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import Depends
+from sqlalchemy.orm import Session
 
+from core.database import get_db
 from utils import profile_manager
 from utils import session_manager
 from utils import tutor_manager
+from utils import document_manager
 
-# Singleton instances for managers (to maintain cache consistency)
-_profile_manager_instance: Optional[profile_manager.ProfileManager] = None
-_session_manager_instance: Optional[session_manager.SessionManager] = None
-_tutor_manager_instance: Optional[tutor_manager.TutorManager] = None
-
-
-def get_profile_manager() -> profile_manager.ProfileManager:
-    """Get ProfileManager singleton instance.
-
-    Returns:
-        ProfileManager instance (singleton).
-    """
-    global _profile_manager_instance
-    if _profile_manager_instance is None:
-        _profile_manager_instance = profile_manager.ProfileManager()
-    return _profile_manager_instance
+# Singleton for TutorManager (memory cache)
+_tutor_manager_instance: tutor_manager.TutorManager = None
 
 
-def get_session_manager() -> session_manager.SessionManager:
-    """Get SessionManager singleton instance.
+def get_profile_manager(db: Session = Depends(get_db)) -> profile_manager.ProfileManager:
+    """Get ProfileManager instance with request-scoped DB session.
+
+    Args:
+        db: Database session.
 
     Returns:
-        SessionManager instance (singleton).
+        ProfileManager instance.
     """
-    global _session_manager_instance
-    if _session_manager_instance is None:
-        _session_manager_instance = session_manager.SessionManager()
-    return _session_manager_instance
+    return profile_manager.ProfileManager(db)
+
+
+def get_session_manager(db: Session = Depends(get_db)) -> session_manager.SessionManager:
+    """Get SessionManager instance with request-scoped DB session.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        SessionManager instance.
+    """
+    return session_manager.SessionManager(db)
+
+
+def get_document_manager(db: Session = Depends(get_db)) -> document_manager.DocumentManager:
+    """Get DocumentManager instance with request-scoped DB session.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        DocumentManager instance.
+    """
+    return document_manager.DocumentManager(db)
 
 
 def get_tutor_manager() -> tutor_manager.TutorManager:
@@ -64,7 +74,9 @@ ProfileManagerDep = Annotated[
 SessionManagerDep = Annotated[
     session_manager.SessionManager, Depends(get_session_manager)
 ]
+DocumentManagerDep = Annotated[
+    document_manager.DocumentManager, Depends(get_document_manager)
+]
 TutorManagerDep = Annotated[
     tutor_manager.TutorManager, Depends(get_tutor_manager)
 ]
-

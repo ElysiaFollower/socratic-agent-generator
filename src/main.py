@@ -15,6 +15,9 @@ from config import RAW_DATA_DIR, DATA_DIR
 from generators.ProfileGenerateManager import ProfileGenerateManager
 from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
+from core.database import SessionLocal
+from utils.profile_manager import ProfileManager
+from utils.document_manager import DocumentManager
 
 # Setup logging
 logging.basicConfig(
@@ -319,29 +322,41 @@ async def interactive_generation(lab_dir_name: str = "example") -> None:
                 print("⚠️  未找到Curriculum文件，使用内存中的版本")
 
             # Compile and save profile
-            print("\n⏳ 正在组装Profile并保存...")
+            print("\n⏳ 正在组装Profile并保存到数据库...")
             try:
-                # Determine output directory: data/tutor_profiles/{lab_dir_name}
-                output_dir = DATA_DIR / "tutor_profiles" / lab_dir_name
-                output_dir.mkdir(parents=True, exist_ok=True)
-
+                # Compile profile (do not save to file)
                 profile = await manager.compile_profile(
                     curriculum=curriculum,
                     definition=persona,
                     profile_name=lab_dir_name,
                     lab_name=lab_dir_name,
-                    output_dir=output_dir,
+                    output_dir=None,
                 )
 
+                # Save to DB
+                with SessionLocal() as db:
+                    # Create document record if needed
+                    doc_manager = DocumentManager(db)
+                    existing_doc = doc_manager.get_document_by_name(lab_dir_name)
+                    if not existing_doc:
+                        doc_manager.create_document(
+                            doc_name=lab_dir_name,
+                            filename="lab_manual.md",
+                            storage_path=f"data_raw/{lab_dir_name}/lab_manual.md",
+                            meta_info={"source": "cli_generated"}
+                        )
+
+                    profile_manager = ProfileManager(db)
+                    profile_manager.save_profile(profile)
+
                 print("\n" + "=" * 70)
-                print("✅ Profile生成成功！")
+                print("✅ Profile生成并保存成功！")
                 print("=" * 70)
                 print(f"Profile ID: {profile.profile_id}")
                 print(f"主题名称: {profile.topic_name}")
-                print(f"保存位置: {output_dir / f'{profile.profile_id}.json'}")
+                print(f"存储方式: SQLite Database")
                 print("=" * 70 + "\n")
 
-                logger.info("Profile已保存到: %s", output_dir)
                 # Continue loop instead of returning, user can press 'q' to exit
                 continue
 
