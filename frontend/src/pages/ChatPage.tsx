@@ -19,6 +19,7 @@ import {
   useChat,
   useSessionState,
   useAuth,
+  useNotification,
 } from "../hooks";
 import {
   Sidebar,
@@ -57,6 +58,7 @@ interface ChatPageProps {
 export function ChatPage(props: ChatPageProps): JSX.Element {
   const { themeMode, onToggleTheme } = props;
   const { user, logout } = useAuth();
+  const { notifySuccess, notifyError } = useNotification();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showProfileSelector, setShowProfileSelector] =
     useState<boolean>(false);
@@ -137,6 +139,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         setMessages([]);
         setShowProfileSelector(false);
         setActivePanel("chat");
+        notifySuccess("对话创建成功");
 
         sessionState.setProfile(profile);
 
@@ -152,9 +155,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         ]);
       } catch (error) {
         console.error("Failed to create session:", error);
+        notifyError(
+          error instanceof Error ? error.message : "创建对话失败，请重试",
+        );
       }
     },
-    [refreshSessions, sessionState, setMessages],
+    [notifyError, notifySuccess, refreshSessions, sessionState, setMessages],
   );
 
   const handleSwitchToSession = useCallback(
