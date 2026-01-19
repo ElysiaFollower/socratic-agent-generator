@@ -21,3 +21,6 @@ data/users/invitation_codes/codes.json
 _local/
 
 COMMIT_MESSAGE.txt
+
+# HuggingFace models cache (stored in project directory)
+models/

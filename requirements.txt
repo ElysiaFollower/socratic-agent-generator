@@ -22,6 +22,8 @@ langchain-huggingface>=0.0.1       # HuggingFace integration for embeddings
 # RAG & Embeddings
 faiss-cpu>=1.7.0                   # Vector store
 sentence-transformers>=2.2.0       # Embeddings model
+huggingface-hub>=0.16.0            # HuggingFace Hub client for model downloads
+hf_transfer>=0.1.0                 # Optional: Fast model downloads (recommended, enables HF_HUB_ENABLE_HF_TRANSFER)
 
 # 环境变量管理
 python-dotenv>=1.0.0               # 环境变量加载

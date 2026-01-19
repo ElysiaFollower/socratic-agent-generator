@@ -39,6 +39,18 @@ SESSION_DATA_DIR = DATA_DIR / SESSION_DATA_DIR_NAME
 PROMPT_TEMPLATE_DIR_NAME = "templates"
 PROMPT_TEMPLATE_DIR = ROOT_DIR / "src" / PROMPT_TEMPLATE_DIR_NAME
 
+# HuggingFace models cache directory (can be overridden via HF_MODELS_DIR env var)
+# Models will be stored in project directory for transparency and portability
+HF_MODELS_DIR_NAME = os.getenv("HF_MODELS_DIR", "models")
+HF_MODELS_DIR = ROOT_DIR / HF_MODELS_DIR_NAME
+
+# --- Model Configuration ---
+# List of all HuggingFace models used in this project
+# Format: {"model_name": "description"}
+REQUIRED_MODELS: Dict[str, str] = {
+    "sentence-transformers/all-MiniLM-L6-v2": "Embeddings model for RAG (Lab Manual Skill)",
+}
+
 # --- API Server Configuration ---
 
 API_HOST: str = os.getenv("API_HOST", "0.0.0.0")

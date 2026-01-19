@@ -17,7 +17,7 @@ from langchain_core.tools import tool
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 
-from config import RAW_DATA_DIR, DATA_DIR
+from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +96,13 @@ class LabManualSkill(BaseSkill):
     def _get_embeddings(self) -> Embeddings:
         """Get the embeddings model."""
         # Use a small, efficient model suitable for CPU
+        # Store models in project directory for transparency and portability
+        model_cache_dir = str(HF_MODELS_DIR)
+        HF_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+        
         return HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name="sentence-transformers/all-MiniLM-L6-v2",
+            cache_folder=model_cache_dir
         )
 
     def _load_or_create_vector_store(self) -> Optional[FAISS]:
