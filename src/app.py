@@ -11,8 +11,6 @@ from config import (
     CORS_ALLOWED_ORIGINS,
     API_HOST,
     API_PORT,
-    PROFILES_DIR,
-    SESSION_DATA_DIR,
 )
 from api.routes import auth, profile, session, interaction, adapter
 from utils.model_manager import check_and_download_models
@@ -36,10 +34,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Ensure directories exist
-PROFILES_DIR.mkdir(parents=True, exist_ok=True)
-SESSION_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 # Note: Model checking is done synchronously before starting the server
 # See the __main__ block below for the actual model check

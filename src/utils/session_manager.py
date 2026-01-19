@@ -1,141 +1,100 @@
 """Session management module.
 
-This module handles loading, listing, and persistence of learning sessions.
+This module handles loading, listing, and persistence of learning sessions using SQLite.
 """
 
-import json
 import logging
-from pathlib import Path
 from typing import List, Optional
 
+from sqlalchemy.orm import Session as DBSession, joinedload
+
 from core.exceptions import SessionNotFoundError
-from config import (
-    SESSION_DATA_DIR,
-    DEFAULT_OUTPUT_LANGUAGE,
-    DEFAULT_SESSION_NAME,
-)
+from config import DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME
+from models.session import SessionModel
+from models.profile import ProfileModel
 from schemas.session import Session, SessionSummary
 from schemas.profile import Profile
+from utils.converters import session_to_model, model_to_session, profile_to_model
 
 logger = logging.getLogger(__name__)
 
 
 class SessionManager:
-    """Manages session file system operations.
+    """Manages session operations using SQLAlchemy."""
 
-    This class handles loading, listing, creating, saving, renaming, and
-    deleting learning sessions from the file system.
-    """
-
-    def __init__(self, session_data_dir: Path = None):
+    def __init__(self, db: DBSession):
         """Initialize SessionManager.
 
         Args:
-            session_data_dir: Optional custom directory for session data.
-                If None, uses SESSION_DATA_DIR from config.
+            db: SQLAlchemy Session.
         """
-        self.session_data_dir = session_data_dir or SESSION_DATA_DIR
-        self.session_data_dir.mkdir(parents=True, exist_ok=True)
-
-    def _get_user_dir(self, owner_id: str) -> Path:
-        """Get (and create) the session directory for a specific user."""
-        user_dir = self.session_data_dir / owner_id
-        user_dir.mkdir(parents=True, exist_ok=True)
-        return user_dir
-
-    def _get_session_path(self, owner_id: str, session_id: str) -> Path:
-        """Get the file path for a specific session."""
-        return self._get_user_dir(owner_id) / f"{session_id}.json"
-
-    def _infer_owner_id(self, session_path: Path) -> Optional[str]:
-        """Infer owner_id from session path."""
-        if session_path.parent == self.session_data_dir:
-            return None
-        return session_path.parent.name
-
-    def _resolve_session_path(
-        self, session_id: str, owner_id: Optional[str] = None
-    ) -> Optional[Path]:
-        """Resolve session file path by owner_id or by scanning."""
-        if owner_id:
-            candidate = self._get_session_path(owner_id, session_id)
-            return candidate if candidate.exists() else None
-
-        legacy_path = self.session_data_dir / f"{session_id}.json"
-        if legacy_path.exists():
-            return legacy_path
-
-        for user_dir in self.session_data_dir.iterdir():
-            if not user_dir.is_dir():
-                continue
-            candidate = user_dir / f"{session_id}.json"
-            if candidate.exists():
-                return candidate
-        return None
+        self.db = db
 
     def list_sessions(self, owner_id: str) -> List[SessionSummary]:
         """List all available sessions for a specific user.
 
         Returns:
-            List of SessionSummary objects, sorted by creation time
-            (newest first).
-
-        Note:
-            Invalid sessions are skipped with a warning log message.
+            List of SessionSummary objects, sorted by creation time (newest first).
         """
         if not owner_id:
             raise ValueError("owner_id is required to list sessions")
 
-        session_list = []
-        session_dir = self._get_user_dir(owner_id)
-        for session_file in session_dir.glob("*.json"):
-            try:
-                with open(session_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    session_list.append(SessionSummary.model_validate(data))
-            except (json.JSONDecodeError, Exception) as e:
-                logger.warning(
-                    "Skipping session %s due to error: %s",
-                    session_file.name,
-                    e,
-                )
+        # Eager load profile to get name/topic
+        models = (
+            self.db.query(SessionModel)
+            .options(joinedload(SessionModel.profile))
+            .filter(SessionModel.owner_id == owner_id)
+            .order_by(SessionModel.create_at.desc())
+            .all()
+        )
+
+        summaries = []
+        for m in models:
+            # Handle case where profile might be missing (should be cascade deleted but just in case)
+            if not m.profile:
+                logger.warning("Session %s has no linked profile, skipping", m.session_id)
                 continue
 
-        # Sort by creation time, newest first
-        session_list.sort(key=lambda s: s.create_at, reverse=True)
-        return session_list
+            summaries.append(
+                SessionSummary(
+                    session_id=m.session_id,
+                    session_name=m.session_name,
+                    owner_id=m.owner_id,
+                    profile_id=m.profile.profile_id,
+                    profile_name=m.profile.profile_name,
+                    topic_name=m.profile.topic_name,
+                    create_at=m.create_at,
+                    update_at=m.update_at or m.create_at
+                )
+            )
+        return summaries
+
+    def _get_model(self, session_id: str, owner_id: Optional[str] = None) -> SessionModel:
+        """Helper to get ORM model."""
+        query = self.db.query(SessionModel).options(joinedload(SessionModel.profile)).filter(SessionModel.session_id == session_id)
+        if owner_id:
+            query = query.filter(SessionModel.owner_id == owner_id)
+
+        model = query.first()
+        if not model:
+            raise SessionNotFoundError(session_id)
+        return model
 
     def read_session(self, session_id: str, owner_id: Optional[str] = None) -> Session:
-        """Read a session from disk.
+        """Read a session from DB.
 
         Args:
             session_id: The ID of the session to read.
+            owner_id: Optional owner_id validation.
 
         Returns:
             Session object.
 
         Raises:
-            SessionNotFoundError: If the session does not exist.
+            SessionNotFoundError: If the session does not exist or owner mismatch.
         """
-        session_path = self._resolve_session_path(session_id, owner_id)
-        if not session_path:
-            raise SessionNotFoundError(session_id)
-
-        try:
-            with open(session_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            session = Session.model_validate(data)
-            inferred_owner_id = self._infer_owner_id(session_path)
-            if session.owner_id is None and inferred_owner_id:
-                session.owner_id = inferred_owner_id
-            if owner_id and session.owner_id and session.owner_id != owner_id:
-                raise SessionNotFoundError(session_id)
-            if owner_id and session.owner_id is None:
-                session.owner_id = owner_id
-            return session
-        except json.JSONDecodeError as e:
-            logger.error("Failed to parse session %s: %s", session_id, e)
-            raise SessionNotFoundError(session_id) from e
+        model = self._get_model(session_id, owner_id)
+        return model_to_session(model)
 
     def create_session(
         self,
@@ -148,10 +107,9 @@ class SessionManager:
 
         Args:
             profile: The Profile to use for this session.
-            session_name: Name of the session. Defaults to
-                DEFAULT_SESSION_NAME.
-            output_language: Output language for the session. Defaults to
-                DEFAULT_OUTPUT_LANGUAGE.
+            owner_id: User ID.
+            session_name: Name of the session.
+            output_language: Output language.
 
         Returns:
             The created Session object.
@@ -159,13 +117,27 @@ class SessionManager:
         if not owner_id:
             raise ValueError("owner_id is required to create a session")
 
+        # Create session Pydantic object
         session = Session(
             profile=profile,
             session_name=session_name,
             output_language=output_language,
             owner_id=owner_id,
         )
-        self.save_session(session)
+
+        # Convert to model
+        # Note: We don't need to insert Profile again if it exists.
+        # session_to_model uses profile.profile_id.
+        model = session_to_model(session)
+
+        self.db.add(model)
+        self.db.commit()
+
+        # We assume profile exists in DB because Session requires a valid profile_id.
+        # If profile wasn't saved, this would fail foreign key constraint.
+        # But `profile` argument is a full object.
+        # Caller should ensure profile is saved.
+
         logger.info("Created session: %s", session.session_id)
         return session
 
@@ -181,13 +153,13 @@ class SessionManager:
         Raises:
             SessionNotFoundError: If the session does not exist.
         """
-        session = self.read_session(session_id, owner_id=owner_id)
-        session.session_name = session_name
-        self.save_session(session)
+        model = self._get_model(session_id, owner_id)
+        model.session_name = session_name
+        self.db.commit()
         logger.info("Renamed session %s to %s", session_id, session_name)
 
     def save_session(self, session: Session, owner_id: Optional[str] = None) -> None:
-        """Save a session to disk.
+        """Save a session to DB.
 
         Args:
             session: The Session object to save.
@@ -196,27 +168,45 @@ class SessionManager:
         if not resolved_owner_id:
             raise ValueError("owner_id is required to save a session")
 
-        session.owner_id = resolved_owner_id
-        session_path = self._get_session_path(
-            resolved_owner_id, session.session_id
-        )
-        with open(session_path, "w", encoding="utf-8") as f:
-            json.dump(session.model_dump(), f, ensure_ascii=False, indent=2)
+        existing = self.db.query(SessionModel).filter(SessionModel.session_id == session.session_id).first()
+
+        # We reuse session_to_model, but need to be careful not to overwrite create_at if we don't want to.
+        # But simpler to just update fields.
+        new_model_data = session_to_model(session)
+
+        if existing:
+            existing.session_name = new_model_data.session_name
+            existing.owner_id = resolved_owner_id # Should match
+            existing.state = new_model_data.state
+            existing.history = new_model_data.history
+            existing.output_language = new_model_data.output_language
+            existing.update_at = new_model_data.update_at
+            # profile_id should not change usually
+        else:
+            new_model_data.owner_id = resolved_owner_id
+            self.db.add(new_model_data)
+
+        self.db.commit()
         logger.debug("Saved session: %s", session.session_id)
 
     def delete_session(self, session_id: str, owner_id: str) -> None:
-        """Delete a session file from disk.
+        """Delete a session from DB.
 
         Args:
             session_id: The ID of the session to delete.
 
         Note:
-            If the session does not exist, this method does nothing.
+            If the session does not exist, this method does nothing (or raises error if we used _get_model).
         """
         if not owner_id:
             raise ValueError("owner_id is required to delete a session")
 
-        session_path = self._get_session_path(owner_id, session_id)
-        if session_path.exists():
-            session_path.unlink()
+        try:
+            model = self._get_model(session_id, owner_id)
+            self.db.delete(model)
+            self.db.commit()
             logger.info("Deleted session: %s", session_id)
+        except SessionNotFoundError:
+            # Legacy behavior: silent if not found?
+            # The interface doc says "If the session does not exist, this method does nothing."
+            pass

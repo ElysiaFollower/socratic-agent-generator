@@ -14,7 +14,7 @@ from pathlib import Path
 
 dotenv.load_dotenv()
 
-from config import PROFILES_DIR, PROMPT_TEMPLATE_DIR, get_default_llm
+from config import PROMPT_TEMPLATE_DIR, get_default_llm
 from generators.CurriculumGenerator import CurriculumGenerator
 from generators.PersonaGenerator import PersonaGenerator
 from schemas.curriculum import SocraticCurriculum
@@ -41,8 +41,6 @@ class ProfileGenerateManager:
             llm: Optional LLM instance. If None, uses default LLM from config.
         """
         self.lab_manual_content = lab_manual_content
-        self.output_dir = PROFILES_DIR
-        self.output_dir.mkdir(parents=True, exist_ok=True)
         self.llm = llm or get_default_llm()
 
         self.curriculum_generator = CurriculumGenerator(self.llm)
@@ -84,17 +82,14 @@ class ProfileGenerateManager:
         lab_name: Optional[str] = None,
         output_dir: Optional[Path] = None,
     ) -> Profile:
-        """Compile the profile and save it to disk.
-
-        Curriculum and definition are readable and can be modified by user,
-        but profile is not readable and not designed to be modified.
+        """Compile the profile.
 
         Args:
             curriculum: Reviewed curriculum. If None, auto-generated.
             definition: Reviewed definition. If None, auto-generated.
             profile_name: Profile name. If None, defaults to topic_name.
-            output_dir: Optional custom output directory. If None, uses
-                self.output_dir.
+            output_dir: Optional custom output directory. If provided, saves to JSON file.
+                        If None, DOES NOT save to file.
 
         Returns:
             The generated Profile object.
@@ -122,8 +117,9 @@ class ProfileGenerateManager:
             lab_name,
         )
         
-        # save
-        self._save_profile(profile, output_dir=output_dir)
+        # save only if output_dir is provided (Backwards compatibility for JSON file usage)
+        if output_dir:
+            self._save_profile(profile, output_dir=output_dir)
         
         return profile
     
@@ -135,21 +131,7 @@ class ProfileGenerateManager:
         profile_name: Optional[str],
         lab_name: Optional[str],
     ) -> Profile:
-        """Assemble profile structure.
-
-        Args:
-            curriculum: SocraticCurriculum object.
-            definition: TutorPersona object.
-            base_template: Base prompt template string.
-            profile_name: Optional profile name. If provided, will be used directly.
-                If None, Profile.model_validator will use topic_name as fallback.
-
-        Returns:
-            Profile object with auto-generated profile_id.
-        """
-        # profile_id is auto generated
-        # If profile_name is provided, use it; otherwise Profile.model_validator
-        # will use topic_name as fallback
+        """Assemble profile structure."""
         return Profile(
             profile_name=profile_name,
             topic_name=definition.get_topic_name(),
@@ -161,14 +143,16 @@ class ProfileGenerateManager:
         )
 
     def _save_profile(self, profile: Profile, output_dir: Optional[Path] = None) -> None:
-        """Save profile to disk.
-
+        """Save profile to disk (JSON).
+        
         Args:
-            profile: Profile object to save.
-            output_dir: Optional custom output directory. If None, uses
-                self.output_dir.
+            profile: The Profile object to save.
+            output_dir: Output directory. Must be provided, otherwise no file is saved.
         """
-        output_dir = output_dir or self.output_dir
+        if output_dir is None:
+            logger.warning("output_dir not provided, skipping file save")
+            return
+            
         output_dir.mkdir(parents=True, exist_ok=True)
         
         profile_id = profile.profile_id
@@ -179,32 +163,31 @@ class ProfileGenerateManager:
 
         logger.info("Profile saved to %s", output_path)
 
-        
-        
 if __name__ == "__main__":
     # Debug/example usage
     import config
 
     async def main():
-        with open(
-            config.ROOT_DIR / "data_raw/Spectre-Attack/lab_manual.md",
-            "r",
-            encoding="utf-8",
-        ) as f:
-            lab_manual_content = f.read()
-        profile_manager = ProfileGenerateManager(lab_manual_content)
-        curriculum, definition = await asyncio.gather(
-            profile_manager.generate_curriculum(),
-            profile_manager.generate_persona(),
-        )
-        await profile_manager.compile_profile(
-            curriculum=curriculum,
-            definition=definition,
-            lab_name="Spectre-Attack",
-        )
+        # This debug script still uses file saving logic if path is provided
+        try:
+            with open(
+                config.ROOT_DIR / "data_raw/Spectre-Attack/lab_manual.md",
+                "r",
+                encoding="utf-8",
+            ) as f:
+                lab_manual_content = f.read()
+            profile_manager = ProfileGenerateManager(lab_manual_content)
+            curriculum, definition = await asyncio.gather(
+                profile_manager.generate_curriculum(),
+                profile_manager.generate_persona(),
+            )
+            await profile_manager.compile_profile(
+                curriculum=curriculum,
+                definition=definition,
+                lab_name="Spectre-Attack",
+                output_dir=config.PROFILES_DIR # Pass dir to save
+            )
+        except Exception as e:
+            print(f"Error: {e}")
 
-    asyncio.get_event_loop().run_until_complete(main())
-        
-            
-        
-        
+    asyncio.run(main())
