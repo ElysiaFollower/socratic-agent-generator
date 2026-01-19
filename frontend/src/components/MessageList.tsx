@@ -15,6 +15,8 @@ import {
   Typography,
 } from "@mui/material";
 import { PersonOutline, SmartToy, WavingHand } from "@mui/icons-material";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ChatMessage } from "../types";
 
 /**
@@ -68,6 +70,60 @@ export function MessageList(props: MessageListProps): JSX.Element {
     <Stack spacing={2} sx={{ width: "100%", px: 0 }}>
       {messages.map((message, index) => {
         const isUser = message.role === "user";
+        const markdownStyles = {
+          "& p": { m: 0, mb: 1, lineHeight: 1.7 },
+          "& p:last-child": { mb: 0 },
+          "& ul, & ol": { pl: 2, my: 1, listStylePosition: "outside" },
+          "& ul": { listStyleType: "disc" },
+          "& ol": { listStyleType: "decimal" },
+          "& li": { mb: 0.5 },
+          "& code": {
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: "0.85em",
+            px: 0.6,
+            py: 0.2,
+            borderRadius: 0.75,
+            bgcolor: isUser
+              ? "rgba(255, 255, 255, 0.2)"
+              : "var(--color-surface)",
+          },
+          "& pre": {
+            m: 0,
+            mb: 1,
+            p: 1.5,
+            borderRadius: 1,
+            overflowX: "auto",
+            bgcolor: isUser
+              ? "rgba(255, 255, 255, 0.14)"
+              : "var(--color-surface)",
+          },
+          "& pre code": {
+            bgcolor: "transparent",
+            p: 0,
+          },
+          "& blockquote": {
+            m: 0,
+            mb: 1,
+            pl: 1.5,
+            borderLeft: "3px solid var(--color-border)",
+            color: isUser ? "rgba(255, 255, 255, 0.9)" : "text.secondary",
+          },
+          "& a": {
+            color: isUser ? "rgba(255, 255, 255, 0.95)" : "inherit",
+            textDecoration: "underline",
+          },
+          "& table": {
+            width: "100%",
+            borderCollapse: "collapse",
+            my: 1,
+          },
+          "& th, & td": {
+            border: "1px solid var(--color-border)",
+            px: 1,
+            py: 0.5,
+          },
+        } as const;
         return (
           <Box
             key={index}
@@ -128,12 +184,11 @@ export function MessageList(props: MessageListProps): JSX.Element {
                       </Typography>
                     </Stack>
                   ) : (
-                    <Typography
-                      variant='body2'
-                      sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}
-                    >
-                      {message.content}
-                    </Typography>
+                    <Box sx={markdownStyles}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </Box>
                   )}
                 </Paper>
               </Box>
