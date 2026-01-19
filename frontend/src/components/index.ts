@@ -10,7 +10,7 @@ export * from "./ChatInput";
 export * from "./ProgressBar";
 export * from "./Header";
 export * from "./ProfileSelector";
-export * from "./LabManualUploader";
+export * from "./LabManualPanel";
 export * from "./ProfileGeneratorAdvanced";
 export * from "./ProfileManagerPanel";
 export * from "./Login";

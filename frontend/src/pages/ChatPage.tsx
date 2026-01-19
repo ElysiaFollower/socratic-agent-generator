@@ -28,7 +28,7 @@ import {
   Header,
   ProfileSelector,
   InvitationCodeGenerator,
-  LabManualUploader,
+  LabManualPanel,
   ProfileManagerPanel,
   SettingsModal,
   SidebarRail,
@@ -461,7 +461,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 <InvitationCodeGenerator variant='panel' />
               )}
               {activePanel === "lab-manual" && (
-                <LabManualUploader variant='panel' />
+                <LabManualPanel variant='panel' />
               )}
               {activePanel === "profile" && (
                 <ProfileManagerPanel
