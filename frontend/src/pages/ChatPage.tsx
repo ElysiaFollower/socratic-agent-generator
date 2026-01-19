@@ -29,7 +29,7 @@ import {
   ProfileSelector,
   InvitationCodeGenerator,
   LabManualUploader,
-  ProfileGeneratorAdvanced,
+  ProfileManagerPanel,
   SettingsModal,
   SidebarRail,
 } from "../components";
@@ -443,14 +443,16 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             flex: 1,
             overflow: "hidden",
             px: 3,
-            py: 3,
+            py: 0,
             width: "100%",
             maxWidth: contentMaxWidth,
             mx: isMaximized ? 0 : "auto",
           }}
         >
           {isChatView ? (
-            <Box sx={{ height: "100%", overflow: "auto", width: "100%" }}>
+            <Box
+              sx={{ height: "100%", overflow: "auto", width: "100%", py: 2 }}
+            >
               <MessageList messages={messages} />
             </Box>
           ) : (
@@ -462,7 +464,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 <LabManualUploader variant='panel' />
               )}
               {activePanel === "profile" && (
-                <ProfileGeneratorAdvanced
+                <ProfileManagerPanel
                   variant='panel'
                   onGenerateSuccess={handleProfileGenerateSuccess}
                 />

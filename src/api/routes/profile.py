@@ -48,6 +48,15 @@ class GenerateProfileRequest(BaseModel):
     )
 
 
+class RenameProfileRequest(BaseModel):
+    """Request schema for renaming a profile."""
+
+    profile_name: str = Field(
+        description="New profile name.",
+        min_length=1,
+    )
+
+
 @router.get("", response_model=List[Profile], summary="获取所有可用的导师配置列表")
 def list_profiles(profile_manager: ProfileManagerDep) -> List[Profile]:
     """List all available tutor profiles.
@@ -236,6 +245,67 @@ def get_profile(profile_id: str, profile_manager: ProfileManagerDep) -> Profile:
         return profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put(
+    "/{profile_id}/rename",
+    response_model=Profile,
+    summary="重命名Profile",
+)
+def rename_profile(
+    profile_id: str,
+    req: RenameProfileRequest,
+    profile_manager: ProfileManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Profile:
+    """Rename a profile.
+
+    Only admins and teachers can rename profiles.
+    """
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can rename profiles.",
+        )
+
+    profile_name = req.profile_name.strip()
+    if not profile_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Profile name cannot be empty.",
+        )
+
+    try:
+        return profile_manager.rename_profile(profile_id, profile_name)
+    except ProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete(
+    "/{profile_id}",
+    summary="删除Profile",
+)
+def delete_profile(
+    profile_id: str,
+    profile_manager: ProfileManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Delete a profile.
+
+    Only admins and teachers can delete profiles.
+    """
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can delete profiles.",
+        )
+
+    try:
+        profile_manager.delete_profile(profile_id)
+    except ProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    return {"success": True, "message": "Profile deleted successfully"}
 
 
 @router.post("/upload-lab-manual", summary="上传实验文档")

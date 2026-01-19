@@ -95,7 +95,7 @@ export function Header(props: HeaderProps): JSX.Element {
     chat: '苏格拉底式AI导师',
     invitation: '邀请码管理',
     'lab-manual': '实验文档管理',
-    profile: '生成Profile',
+    profile: 'Profile管理',
   };
 
   const displayTitle =

@@ -108,13 +108,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='生成Profile' placement='right'>
+          <Tooltip title='Profile管理' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenProfilePanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='生成Profile'
+                aria-label='Profile管理'
                 color={activePanel === "profile" ? "primary" : "default"}
                 sx={railButtonSx}
               >

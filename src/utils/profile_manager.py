@@ -6,7 +6,7 @@ This module handles loading, listing, and persistence of tutor profiles.
 import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from core.exceptions import ProfileNotFoundError
 from config import PROFILES_DIR
@@ -61,6 +61,34 @@ class ProfileManager:
         profile_list.sort(key=lambda p: p.create_at, reverse=True)
         return profile_list
 
+    def _resolve_profile_path(self, profile_id: str) -> Optional[Path]:
+        """Resolve the profile file path by profile_id.
+
+        Args:
+            profile_id: The ID of the profile to locate.
+
+        Returns:
+            Path to the profile file if found, otherwise None.
+        """
+        profile_path = self.profiles_dir / f"{profile_id}.json"
+        if profile_path.exists():
+            return profile_path
+
+        for profile_file in self.profiles_dir.rglob(f"{profile_id}.json"):
+            return profile_file
+        return None
+
+    def _save_profile_to_path(self, profile: Profile, profile_path: Path) -> None:
+        """Save a profile to a specific file path.
+
+        Args:
+            profile: The Profile object to save.
+            profile_path: Destination file path.
+        """
+        profile_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(profile_path, "w", encoding="utf-8") as f:
+            json.dump(profile.model_dump(), f, ensure_ascii=False, indent=2)
+
     def read_profile(self, profile_id: str) -> Profile:
         """Read a profile from disk.
 
@@ -76,29 +104,17 @@ class ProfileManager:
         Note:
             Searches recursively in all subdirectories for the profile file.
         """
-        # First try direct path (for backward compatibility)
-        profile_path = self.profiles_dir / f"{profile_id}.json"
-        if profile_path.exists():
-            try:
-                with open(profile_path, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return Profile.model_validate(data)
-            except json.JSONDecodeError as e:
-                logger.error("Failed to parse profile %s: %s", profile_id, e)
-                raise ProfileNotFoundError(profile_id) from e
+        profile_path = self._resolve_profile_path(profile_id)
+        if not profile_path:
+            raise ProfileNotFoundError(profile_id)
 
-        # If not found, search recursively in subdirectories
-        for profile_file in self.profiles_dir.rglob(f"{profile_id}.json"):
-            try:
-                with open(profile_file, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                return Profile.model_validate(data)
-            except json.JSONDecodeError as e:
-                logger.error("Failed to parse profile %s: %s", profile_id, e)
-                raise ProfileNotFoundError(profile_id) from e
-
-        # Profile not found
-        raise ProfileNotFoundError(profile_id)
+        try:
+            with open(profile_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            return Profile.model_validate(data)
+        except json.JSONDecodeError as e:
+            logger.error("Failed to parse profile %s: %s", profile_id, e)
+            raise ProfileNotFoundError(profile_id) from e
 
     def save_profile(self, profile: Profile) -> Profile:
         """Save a profile to disk.
@@ -124,8 +140,36 @@ class ProfileManager:
         Note:
             If the profile does not exist, this method does nothing.
         """
-        profile_path = self.profiles_dir / f"{profile_id}.json"
-        if profile_path.exists():
-            profile_path.unlink()
-            logger.info("Deleted profile: %s", profile_id)
+        profile_path = self._resolve_profile_path(profile_id)
+        if not profile_path:
+            raise ProfileNotFoundError(profile_id)
 
+        profile_path.unlink()
+        logger.info("Deleted profile: %s", profile_id)
+
+    def rename_profile(self, profile_id: str, profile_name: str) -> Profile:
+        """Rename a profile by updating its profile_name field.
+
+        Args:
+            profile_id: The ID of the profile to rename.
+            profile_name: New profile name.
+
+        Returns:
+            Updated Profile object.
+        """
+        profile_path = self._resolve_profile_path(profile_id)
+        if not profile_path:
+            raise ProfileNotFoundError(profile_id)
+
+        try:
+            with open(profile_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            profile = Profile.model_validate(data)
+        except json.JSONDecodeError as e:
+            logger.error("Failed to parse profile %s: %s", profile_id, e)
+            raise ProfileNotFoundError(profile_id) from e
+
+        profile.profile_name = profile_name
+        self._save_profile_to_path(profile, profile_path)
+        logger.info("Renamed profile %s to %s", profile_id, profile_name)
+        return profile

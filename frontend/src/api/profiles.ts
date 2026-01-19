@@ -39,6 +39,51 @@ export async function getProfile(profileId: string): Promise<Profile> {
 }
 
 /**
+ * Request payload for renaming a profile.
+ */
+export interface RenameProfileRequest {
+  readonly profile_name: string;
+}
+
+/**
+ * Renames a profile by ID.
+ *
+ * @param profileId - The unique identifier of the profile
+ * @param request - RenameProfileRequest containing new profile name
+ * @returns Promise resolving to updated profile
+ * @throws Error if the rename fails
+ */
+export async function renameProfile(
+  profileId: string,
+  request: RenameProfileRequest,
+): Promise<Profile> {
+  try {
+    const response = await apiClient.put<Profile>(
+      `/api/profiles/${profileId}/rename`,
+      request,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to rename profile: ${handleApiError(error)}`);
+  }
+}
+
+/**
+ * Deletes a profile by ID.
+ *
+ * @param profileId - The unique identifier of the profile
+ * @returns Promise resolving when deletion succeeds
+ * @throws Error if the deletion fails
+ */
+export async function deleteProfile(profileId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/profiles/${profileId}`);
+  } catch (error) {
+    throw new Error(`Failed to delete profile: ${handleApiError(error)}`);
+  }
+}
+
+/**
  * Request payload for uploading a lab manual.
  */
 export interface UploadLabManualRequest {
@@ -363,4 +408,3 @@ export async function generateProfileFromLab(
     );
   }
 }
-
