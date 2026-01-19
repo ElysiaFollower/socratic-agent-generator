@@ -23,4 +23,4 @@ _local/
 COMMIT_MESSAGE.txt
 
 # HuggingFace models cache (stored in project directory)
-models/
+# models/
