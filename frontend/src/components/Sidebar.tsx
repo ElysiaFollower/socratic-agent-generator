@@ -245,7 +245,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Description fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='生成Profile'
+                  primary='Profile管理'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

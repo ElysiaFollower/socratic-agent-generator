@@ -103,8 +103,11 @@ class CurriculumGenerator:
                 "2. **启发式提问**：每个步骤不应是简单的命令，而应包含一个引导学生思考的问题（例如：'你认为篡改这个‘返回地址’会带来什么后果？'）。"
                 "3. **串联逻辑**：步骤之间应该有明确的因果和逻辑关系，让学生理解“为什么”要这么做。"
                 "4. **聚焦核心**：将任务目标和关键技术点自然地融入到对话中。"
-                "5. **完整闭环**：从介绍背景、理论铺垫，到动手实践，再到最后的总结防范，形成一个完整的学习闭环。"
-                "请严格按照{format_instructions}指定的JSON格式输出"),
+                "5. **完整闭环**：从介绍背景、理论铺垫，到动手实践，再到最后的总结防范，形成一个完整的学习闭环。\n\n"
+                "**重要要求**：\n"
+                "- 必须为列表中的**每一个**步骤生成完整的字段：`step_title`, `guiding_question`, `success_criteria`, `learning_objective`。\n"
+                "- 严禁遗漏任何字段，即使内容相似也要保持结构完整。\n"
+                "- 请严格按照{format_instructions}指定的JSON格式输出。"),
                 ("user",
                 "这是结构化的实验任务列表，请根据它设计教学大纲：\n\n{digest}")
             ])
@@ -117,6 +120,9 @@ class CurriculumGenerator:
                 "format_instructions": format_instructions,
             })
 
+            if not result:
+                raise ValueError("LLM returned empty result")
+                
             result = SocraticCurriculum.model_validate(result)
             logger.info("[Phase 2/2] Socratic curriculum generation completed.")
             return result

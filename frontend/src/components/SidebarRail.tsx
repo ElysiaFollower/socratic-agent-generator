@@ -9,6 +9,7 @@ import { Box, IconButton, Stack, Tooltip } from "@mui/material";
 import {
   ChevronRight,
   Description,
+  HomeRounded,
   Key,
   UploadFile,
 } from "@mui/icons-material";
@@ -23,6 +24,7 @@ export interface SidebarRailProps {
   readonly onToggle: () => void;
   readonly isLoading: boolean;
   readonly activePanel: ToolPanelView;
+  readonly onOpenChatHome: () => void;
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
   readonly onOpenProfilePanel: () => void;
@@ -39,6 +41,7 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
   const {
     isLoading,
     activePanel,
+    onOpenChatHome,
     onOpenInvitationPanel,
     onOpenLabManualPanel,
     onOpenProfilePanel,
@@ -78,6 +81,21 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
         </IconButton>
       </Tooltip>
 
+      <Tooltip title='返回对话首页' placement='right'>
+        <span>
+          <IconButton
+            onClick={onOpenChatHome}
+            size='small'
+            disabled={isLoading}
+            aria-label='返回对话首页'
+            color={activePanel === "chat" ? "primary" : "default"}
+            sx={railButtonSx}
+          >
+            <HomeRounded fontSize='small' />
+          </IconButton>
+        </span>
+      </Tooltip>
+
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Stack spacing={1} sx={{ mt: 2 }}>
           <Tooltip title='邀请码管理' placement='right'>
@@ -108,13 +126,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='生成Profile' placement='right'>
+          <Tooltip title='Profile管理' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenProfilePanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='生成Profile'
+                aria-label='Profile管理'
                 color={activePanel === "profile" ? "primary" : "default"}
                 sx={railButtonSx}
               >

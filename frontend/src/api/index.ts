@@ -12,6 +12,8 @@ export {
   listLabManuals,
   getLabManualContent,
   deleteLabManual,
+  renameProfile,
+  deleteProfile,
   getPersona,
   savePersona,
   getCurriculum,
@@ -22,6 +24,7 @@ export {
   type UploadLabManualRequest,
   type UploadLabManualResponse,
   type GenerateProfileRequest,
+  type RenameProfileRequest,
   type LabManualInfo,
   type LabManualContent,
   type TutorPersona,
@@ -32,4 +35,3 @@ export * from './sessions';
 export * from './tutor';
 export * from './health';
 export * from './auth';
-

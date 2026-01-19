@@ -423,55 +423,108 @@ class Tutor:
             self.session.output_language,
         )
 
-        # Stream main chain response
-        # AgentExecutor streaming yields steps, we need to extract final output tokens.
-        # This is trickier with Agents.
-        # langchain.agents.AgentExecutor.astream_events is the modern way.
-        # But here we use RunnableWithMessageHistory wrapped around AgentExecutor.
-
-        async for chunk in self.main_chain_with_history.astream(
-            {
-                "system_prompt_with_state": formatted_system_prompt,
-                "truncate_history_note": self.truncate_history_note,
-                "input": user_input,
-                "agent_scratchpad": [],
-            },
-            config={"configurable": {"session_id": self.session.session_id}},
-        ):
-            # AgentExecutor astream yields dictionary with keys like 'actions', 'steps', 'output'.
-            # If it's the final output, it might come in chunks if we configure it right,
-            # but AgentExecutor standard astream usually yields the final output at the end.
-            # To get token streaming from the final LLM call in an agent is complex.
-            # For now, let's assume we get the final output in 'output' key at the end,
-            # OR if we want real streaming we might need to rely on callbacks or
-            # check if `chunk` contains the output token.
-
-            # If chunk is a dict and has "output", it is the final result.
-            if isinstance(chunk, dict) and "output" in chunk:
-                reply = chunk["output"]
-                yield reply
-            # If it is just a string (which sometimes happens if the underlying runnable yields strings), append it.
-            elif isinstance(chunk, str):
-                reply += chunk
-                yield chunk
-
-        # Note: True token-by-token streaming with Agents + Tools usually requires
-        # using .astream_events or specific callback handlers.
-        # Given the complexity, and that we want to "enhance" capabilities,
-        # non-streaming (or chunked streaming of final answer) might be acceptable for the first iteration
-        # of the "Skill" feature if token streaming is hard.
-        # However, let's try to do it properly if possible.
-        # But AgentExecutor.astream behavior depends on how it's set up.
-        # For now, let's stick to the simplest integration: return the full reply at the end if streaming is hard,
-        # or yield the 'output' if available.
-
-        # Update history
+        # Save user message immediately when input is received (before streaming starts)
+        # This ensures user messages are saved even if streaming fails or is interrupted
+        # Note: We only update self.history here. RunnableWithMessageHistory will automatically
+        # manage self.truncated_history when it processes the input.
         self.history.add_user_message(user_input)
-        self.history.add_ai_message(reply)
-        self.current_history_tokens += (
-            self.llm.get_num_tokens(user_input)
-            + self.llm.get_num_tokens(reply)
+        self.current_history_tokens = (
+            self.current_history_tokens or self._get_current_history_tokens(self.history)
         )
+        self.current_history_tokens += self.llm.get_num_tokens(user_input)
+        
+        # Save user message to disk immediately
+        self._save_history_to_session()
+        self.session.update_at = datetime.now(pytz.utc).isoformat()
+        _session_manager.save_session(self.session)
+
+        # Stream main chain response using astream_events for real token-by-token streaming
+        # This provides true streaming without artificial delays - tokens arrive as LLM generates them
+        
+        reply = ""
+        received_tokens = False
+        
+        # Use astream_events to get real-time token streaming from the LLM
+        # This is the proper way to get token-by-token output
+        try:
+            async for event in self.main_chain_with_history.astream_events(
+                {
+                    "system_prompt_with_state": formatted_system_prompt,
+                    "truncate_history_note": self.truncate_history_note,
+                    "input": user_input,
+                    "agent_scratchpad": [],
+                },
+                config={"configurable": {"session_id": self.session.session_id}},
+                version="v2",
+            ):
+                event_name = event.get("event", "")
+                
+                # Stream LLM tokens as they're generated (real token-by-token streaming)
+                if event_name in ("on_llm_stream", "on_chat_model_stream"):
+                    chunk_data = event.get("data", {})
+                    chunk = chunk_data.get("chunk")
+                    
+                    # Extract token content from chunk
+                    token = None
+                    if chunk:
+                        if hasattr(chunk, "content"):
+                            token = chunk.content
+                        elif hasattr(chunk, "text"):
+                            token = chunk.text
+                        elif isinstance(chunk, dict):
+                            token = chunk.get("content") or chunk.get("text", "")
+                        elif isinstance(chunk, str):
+                            token = chunk
+                    
+                    if token:
+                        received_tokens = True
+                        reply += token
+                        yield token  # Yield immediately - real streaming, no delays
+                
+                # Capture final output when chain ends
+                elif event_name == "on_chain_end":
+                    output = event.get("data", {}).get("output", "")
+                    if output and isinstance(output, str):
+                        # If we didn't get streaming tokens, use the final output
+                        # But only if we haven't received any tokens yet
+                        if not received_tokens:
+                            reply = output
+                            yield output  # Yield immediately - no delays
+                        elif output != reply:
+                            # Update reply if different (shouldn't happen, but safety check)
+                            reply = output
+        
+        except (AttributeError, TypeError, Exception) as e:
+            # Fallback to astream if astream_events fails or is not available
+            logger.debug(f"astream_events not available, using astream fallback: {e}")
+            
+            async for chunk in self.main_chain_with_history.astream(
+                {
+                    "system_prompt_with_state": formatted_system_prompt,
+                    "truncate_history_note": self.truncate_history_note,
+                    "input": user_input,
+                    "agent_scratchpad": [],
+                },
+                config={"configurable": {"session_id": self.session.session_id}},
+            ):
+                # If chunk is a dict and has "output", yield it immediately
+                if isinstance(chunk, dict) and "output" in chunk:
+                    full_reply = chunk["output"]
+                    reply = full_reply
+                    yield full_reply  # Yield immediately - no delays
+                
+                # If it's a string, yield it directly (some chains yield strings)
+                elif isinstance(chunk, str):
+                    reply += chunk
+                    yield chunk  # Yield immediately - no delays
+
+        # Update history with AI reply (user message was already saved above)
+        # Note: RunnableWithMessageHistory automatically updates self.truncated_history,
+        # so we only need to update self.history for persistence
+        self.history.add_ai_message(reply)
+        self.current_history_tokens += self.llm.get_num_tokens(reply)
+        
+        # Save AI reply to disk
         self.save()
 
         # Yield final response message

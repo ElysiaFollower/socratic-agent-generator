@@ -16,6 +16,7 @@ from config import (
 )
 from api.routes import auth, profile, session, interaction, adapter
 from utils.model_manager import check_and_download_models
+from utils.skills import warmup_embeddings
 
 # Setup logging
 setup_logging()
@@ -49,6 +50,31 @@ app.include_router(profile.router)
 app.include_router(session.router)
 app.include_router(interaction.router)
 app.include_router(adapter.router)
+
+
+@app.on_event("startup")
+def warmup_embeddings_on_startup() -> None:
+    """Warm up shared embeddings to avoid first-request latency."""
+    warmup_embeddings()
+
+
+@app.get("/", summary="API 根路径", tags=["Info"])
+def root() -> dict:
+    """API 根路径，返回 API 信息和文档链接。
+
+    Returns:
+        Dictionary with API information and documentation links.
+    """
+    return {
+        "name": "Socratic Agent API",
+        "version": "2.0.0",
+        "description": "后端API服务，用于驱动苏格拉底式AI导师前端。",
+        "docs": {
+            "swagger": "/docs",
+            "redoc": "/redoc",
+        },
+        "health": "/api/health",
+    }
 
 
 @app.get("/api/health", summary="健康检查", tags=["Health"])

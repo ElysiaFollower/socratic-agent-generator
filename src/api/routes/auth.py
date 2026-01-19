@@ -29,7 +29,6 @@ from schemas.user import (
     User,
 )
 from utils.user_manager import (
-    InvalidInvitationCodeError,
     UserAlreadyExistsError,
     UserManager,
     UserNotFoundError as UserManagerNotFoundError,
@@ -248,10 +247,6 @@ def register(
             detail=str(e),
         )
 
-    # Mark invitation code as used if applicable
-    if req.role in ["teacher", "student"] and req.invitation_code:
-        user_manager.mark_invitation_code_used(req.invitation_code)
-
     return {
         "success": True,
         "message": "User registered successfully",
@@ -447,8 +442,6 @@ def list_invitation_codes(
                 created_by=code.get("created_by", ""),
                 created_at=code.get("created_at", ""),
                 expires_at=code.get("expires_at"),
-                used=bool(code.get("used", False)),
-                used_at=code.get("used_at"),
             )
         )
 

@@ -8,6 +8,8 @@ import React, {useEffect, useMemo, useState} from 'react';
 import {Box, CssBaseline, ThemeProvider, Typography} from '@mui/material';
 import {Navigate, Route, Routes} from 'react-router-dom';
 import {ProtectedRoute} from './components';
+import {NotificationProvider} from './contexts/NotificationContext';
+import {ConfirmDialogProvider} from './contexts/ConfirmDialogContext';
 import {useAuth} from './hooks';
 import {ChatPage, LoginPage, RegisterPage} from './pages';
 import {createAppTheme} from './theme';
@@ -52,23 +54,27 @@ export default function App(): JSX.Element {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Routes>
-        <Route path="/" element={<AuthRedirect />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route
-          path="/app"
-          element={
-            <ProtectedRoute redirectTo="/login">
-              <ChatPage
-                themeMode={themeMode}
-                onToggleTheme={handleToggleTheme}
-              />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <NotificationProvider>
+        <ConfirmDialogProvider>
+          <Routes>
+            <Route path="/" element={<AuthRedirect />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route
+              path="/app"
+              element={
+                <ProtectedRoute redirectTo="/login">
+                  <ChatPage
+                    themeMode={themeMode}
+                    onToggleTheme={handleToggleTheme}
+                  />
+                </ProtectedRoute>
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ConfirmDialogProvider>
+      </NotificationProvider>
     </ThemeProvider>
   );
 }

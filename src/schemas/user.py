@@ -118,11 +118,6 @@ class InvitationCodeInfo(BaseModel):
         default=None,
         description="Expiration timestamp (ISO 8601).",
     )
-    used: bool = Field(description="Whether the code has been used.")
-    used_at: Optional[str] = Field(
-        default=None,
-        description="Timestamp when the code was used (ISO 8601).",
-    )
 
 
 class InvitationCodeListResponse(BaseModel):
@@ -131,4 +126,3 @@ class InvitationCodeListResponse(BaseModel):
     invitation_codes: list[InvitationCodeInfo] = Field(
         description="Invitation codes created by the user.",
     )
-

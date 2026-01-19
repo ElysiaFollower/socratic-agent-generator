@@ -7,7 +7,6 @@
 
 import React, { useState, FormEvent, useCallback, useEffect } from "react";
 import {
-  Alert,
   Box,
   Button,
   Dialog,
@@ -27,7 +26,7 @@ import {
   Tooltip,
 } from "@mui/material";
 import { ContentCopy } from "@mui/icons-material";
-import { useAuth } from "../hooks";
+import { useAuth, useNotification } from "../hooks";
 import { GenerateInvitationCodeRequest, InvitationCodeInfo } from "../types";
 import { generateInvitationCode, listInvitationCodes } from "../api";
 
@@ -50,6 +49,7 @@ export function InvitationCodeGenerator(
 ): JSX.Element {
   const { onClose, variant = "dialog" } = props;
   const { user } = useAuth();
+  const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const [role, setRole] = useState<"teacher" | "student">("student");
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -63,6 +63,14 @@ export function InvitationCodeGenerator(
     readonly InvitationCodeInfo[]
   >([]);
   const [isLoadingCodes, setIsLoadingCodes] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!error) {
+      return;
+    }
+    notifyError(error);
+    setError(null);
+  }, [error, notifyError]);
 
   /**
    * Handles form submission.
@@ -78,7 +86,7 @@ export function InvitationCodeGenerator(
 
     // Check permissions
     if (user?.role === "teacher" && role === "teacher") {
-      setError("教师只能为学生生成邀请码");
+      notifyWarning("教师只能为学生生成邀请码");
       return;
     }
 
@@ -113,11 +121,13 @@ export function InvitationCodeGenerator(
       const response = await listInvitationCodes();
       setInvitationCodes(response.invitation_codes);
     } catch (err) {
-      console.error("Failed to load invitation codes:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "加载邀请码失败";
+      notifyError(errorMessage);
     } finally {
       setIsLoadingCodes(false);
     }
-  }, []);
+  }, [notifyError]);
 
   useEffect(() => {
     void loadInvitationCodes();
@@ -132,15 +142,17 @@ export function InvitationCodeGenerator(
     }
     try {
       await navigator.clipboard.writeText(code);
+      notifySuccess("邀请码已复制");
     } catch (err) {
-      console.error("Failed to copy to clipboard:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "复制失败，请重试";
+      notifyError(errorMessage);
     }
   };
 
   const content = (
     <Stack spacing={2}>
-      {error && <Alert severity='error'>{error}</Alert>}
-      <Box component='form' onSubmit={handleSubmit}>
+      <Box component='form' onSubmit={handleSubmit} sx={{ pt: 2 }}>
         <Stack spacing={2}>
           <FormControl fullWidth disabled={isLoading}>
             <InputLabel id='role-select-label'>邀请对象</InputLabel>
@@ -172,12 +184,23 @@ export function InvitationCodeGenerator(
     </Stack>
   );
 
-  const statusChip = (used: boolean) => (
+  const isCodeExpired = (expiresAt?: string | null): boolean => {
+    if (!expiresAt) {
+      return false;
+    }
+    const expiresTime = Date.parse(expiresAt);
+    if (Number.isNaN(expiresTime)) {
+      return false;
+    }
+    return Date.now() > expiresTime;
+  };
+
+  const statusChip = (expired: boolean) => (
     <Chip
       size='small'
-      color={used ? "default" : "success"}
-      label={used ? "已使用" : "未使用"}
-      variant={used ? "outlined" : "filled"}
+      color={expired ? "default" : "success"}
+      label={expired ? "过期" : "有效"}
+      variant={expired ? "outlined" : "filled"}
     />
   );
 
@@ -202,67 +225,70 @@ export function InvitationCodeGenerator(
         </Typography>
       ) : (
         <Stack spacing={1}>
-          {invitationCodes.map((code) => (
-            <Box
-              key={code.invitation_code}
-              sx={{
-                border: "1px solid var(--color-border)",
-                borderRadius: 1,
-                p: 1.5,
-                bgcolor: "var(--color-surface)",
-              }}
-            >
-              <Stack spacing={1}>
-                <Stack
-                  direction='row'
-                  alignItems='center'
-                  justifyContent='space-between'
-                >
-                  <Typography
-                    variant='body2'
-                    color={code.used ? "text.secondary" : "text.primary"}
-                    sx={{
-                      fontWeight: 600,
-                      textDecoration: code.used ? "line-through" : "none",
-                    }}
+          {invitationCodes.map((code) => {
+            const expired = isCodeExpired(code.expires_at);
+            return (
+              <Box
+                key={code.invitation_code}
+                sx={{
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 1,
+                  p: 1.5,
+                  bgcolor: "var(--color-surface)",
+                }}
+              >
+                <Stack spacing={1}>
+                  <Stack
+                    direction='row'
+                    alignItems='center'
+                    justifyContent='space-between'
                   >
-                    {code.invitation_code}
-                  </Typography>
-                  <Stack direction='row' spacing={1} alignItems='center'>
-                    {!code.used && (
-                      <Tooltip title='复制邀请码'>
-                        <IconButton
-                          size='small'
-                          aria-label='复制邀请码'
-                          onClick={() => copyToClipboard(code.invitation_code)}
-                        >
-                          <ContentCopy fontSize='small' />
-                        </IconButton>
+                    <Typography
+                      variant='body2'
+                      color={expired ? "text.secondary" : "text.primary"}
+                      sx={{
+                        fontWeight: 600,
+                      }}
+                    >
+                      {code.invitation_code}
+                    </Typography>
+                    <Stack direction='row' spacing={1} alignItems='center'>
+                      <Tooltip title={expired ? "邀请码已过期" : "复制邀请码"}>
+                        <span>
+                          <IconButton
+                            size='small'
+                            aria-label='复制邀请码'
+                            onClick={() =>
+                              copyToClipboard(code.invitation_code)
+                            }
+                            disabled={expired}
+                          >
+                            <ContentCopy fontSize='small' />
+                          </IconButton>
+                        </span>
                       </Tooltip>
-                    )}
-                    {statusChip(code.used)}
+                      {statusChip(expired)}
+                    </Stack>
                   </Stack>
-                </Stack>
-                <Stack direction='row' spacing={2} flexWrap='wrap'>
-                  <Typography variant='caption' color='text.secondary'>
-                    角色: {code.role === "teacher" ? "教师" : "学生"}
-                  </Typography>
-                  <Typography variant='caption' color='text.secondary'>
-                    创建时间:{" "}
-                    {new Date(code.created_at).toLocaleString("zh-CN")}
-                  </Typography>
-                  <Typography variant='caption' color='text.secondary'>
-                    到期时间:{" "}
-                    {code.used
-                      ? "-"
-                      : code.expires_at
+                  <Stack direction='row' spacing={2} flexWrap='wrap'>
+                    <Typography variant='caption' color='text.secondary'>
+                      角色: {code.role === "teacher" ? "教师" : "学生"}
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      创建时间:{" "}
+                      {new Date(code.created_at).toLocaleString("zh-CN")}
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      到期时间:{" "}
+                      {code.expires_at
                         ? new Date(code.expires_at).toLocaleString("zh-CN")
                         : "-"}
-                  </Typography>
+                    </Typography>
+                  </Stack>
                 </Stack>
-              </Stack>
-            </Box>
-          ))}
+              </Box>
+            );
+          })}
         </Stack>
       )}
     </Stack>

@@ -7,7 +7,6 @@
 
 import React, {useState, FormEvent} from 'react';
 import {
-  Alert,
   Box,
   Button,
   FormControl,
@@ -19,7 +18,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import {useAuth} from '../hooks';
+import {useAuth, useNotification} from '../hooks';
 import {RegisterRequest, UserRole} from '../types';
 import {register as apiRegister} from '../api';
 
@@ -40,6 +39,7 @@ interface RegisterProps {
 export function Register(props: RegisterProps): JSX.Element {
   const {onRegisterSuccess, onSwitchToLogin} = props;
   const {login} = useAuth();
+  const {notifyError, notifyInfo, notifyWarning} = useNotification();
   const [username, setUsername] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
@@ -48,7 +48,6 @@ export function Register(props: RegisterProps): JSX.Element {
   const [email, setEmail] = useState<string>('');
   const [adminToken, setAdminToken] = useState<string>('');
   const [invitationCode, setInvitationCode] = useState<string>('');
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   /**
@@ -58,31 +57,30 @@ export function Register(props: RegisterProps): JSX.Element {
    */
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setError(null);
 
     // Validation
     if (!username.trim()) {
-      setError('请输入用户名');
+      notifyWarning('请输入用户名');
       return;
     }
     if (!password.trim()) {
-      setError('请输入密码');
+      notifyWarning('请输入密码');
       return;
     }
     if (password !== confirmPassword) {
-      setError('两次输入的密码不一致');
+      notifyWarning('两次输入的密码不一致');
       return;
     }
     if (password.length < 6) {
-      setError('密码长度至少为6位');
+      notifyWarning('密码长度至少为6位');
       return;
     }
     if (role === 'admin' && !adminToken.trim()) {
-      setError('注册管理员需要提供管理员令牌');
+      notifyWarning('注册管理员需要提供管理员令牌');
       return;
     }
     if (role !== 'admin' && !invitationCode.trim()) {
-      setError(`注册${role === 'teacher' ? '教师' : '学生'}需要提供邀请码`);
+      notifyWarning(`注册${role === 'teacher' ? '教师' : '学生'}需要提供邀请码`);
       return;
     }
 
@@ -115,7 +113,7 @@ export function Register(props: RegisterProps): JSX.Element {
           loginError instanceof Error
             ? loginError.message
             : '注册成功，但自动登录失败，请手动登录';
-        setError(loginErrorMessage);
+        notifyInfo(loginErrorMessage);
         // Still switch to login page after a delay
         setTimeout(() => {
           if (onSwitchToLogin) {
@@ -126,7 +124,7 @@ export function Register(props: RegisterProps): JSX.Element {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : '注册失败，请重试';
-      setError(errorMessage);
+      notifyError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -154,8 +152,6 @@ export function Register(props: RegisterProps): JSX.Element {
               创建您的账户以开始使用
             </Typography>
           </Box>
-
-          {error && <Alert severity="error">{error}</Alert>}
 
           <Stack component="form" spacing={2} onSubmit={handleSubmit}>
             <TextField
