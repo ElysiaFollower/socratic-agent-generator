@@ -11,7 +11,8 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { Box } from "@mui/material";
+import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
+import AssistantIcon from "@mui/icons-material/Assistant";
 import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
 import {
   useProfiles,
@@ -282,6 +283,15 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setActivePanel("profile");
   }, []);
 
+  const handleOpenChatHome = useCallback(() => {
+    setSessionId(null);
+    setMessages([]);
+    setInputValue("");
+    sessionState.setProfile(null);
+    setShowProfileSelector(false);
+    setActivePanel("chat");
+  }, [sessionState, setMessages]);
+
   const handleProfileGenerateSuccess = useCallback(
     async (_profile: Profile) => {
       await refreshProfiles();
@@ -365,6 +375,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               onToggle={handleToggleSidebar}
               isLoading={profilesLoading || chatLoading}
               activePanel={activePanel}
+              onOpenChatHome={handleOpenChatHome}
               onOpenInvitationPanel={handleOpenInvitationPanel}
               onOpenLabManualPanel={handleOpenLabManualPanel}
               onOpenProfilePanel={handleOpenProfilePanel}
@@ -484,6 +495,107 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             <Box
               sx={{ maxWidth: contentMaxWidth, mx: isMaximized ? 0 : "auto" }}
             >
+              {!sessionId && (
+                <Stack spacing={1} sx={{ mb: 2 }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <Box
+                      sx={{
+                        display: "flex",
+                        gap: 1,
+                        overflowX: "auto",
+                        scrollbarWidth: "none", // Firefox
+                        "&::-webkit-scrollbar": {
+                          display: "none", // Chrome/Safari
+                        },
+                        pb: 0.5,
+                        width: "100%",
+                        maxWidth: "60vw",
+                        alignItems: "center",
+                      }}
+                    >
+                      {profiles.length > 0 && (
+                        <Tooltip
+                          title='快速从Profile新建会话'
+                          placement='top'
+                          arrow
+                        >
+                          <Box
+                            aria-label='快速从Profile新建会话'
+                            sx={{
+                              flexShrink: 0,
+                              width: 32,
+                              height: 32,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              color: "text.secondary",
+                              transition: "color 150ms ease",
+                              "&:hover": {
+                                color: "text.primary",
+                              },
+                            }}
+                          >
+                            <AssistantIcon fontSize='small' />
+                          </Box>
+                        </Tooltip>
+                      )}
+                      {profiles.map((profile) => {
+                        const label =
+                          profile.profile_name || profile.topic_name;
+                        return (
+                          <Tooltip
+                            key={profile.profile_id}
+                            title={label}
+                            placement='top'
+                            arrow
+                          >
+                            <Button
+                              variant='outlined'
+                              size='small'
+                              onClick={() => handleStartNewSession(profile)}
+                              disabled={chatLoading}
+                              sx={{
+                                flexShrink: 0,
+                                minWidth: 0,
+                                maxWidth: 160,
+                                px: 1.5,
+                                color: "text.secondary",
+                                border: "0.5px dashed",
+                                borderColor: "text.secondary",
+                                transition:
+                                  "color 150ms ease, border-color 150ms ease, transform 150ms ease",
+                                "&:hover": {
+                                  color: "primary.main",
+                                  border: "0.5px solid",
+                                  borderColor: "primary.main",
+                                  transform: "scale(1.02)",
+                                },
+                              }}
+                            >
+                              <Box
+                                component='span'
+                                sx={{
+                                  display: "block",
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                }}
+                              >
+                                {label}
+                              </Box>
+                            </Button>
+                          </Tooltip>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                </Stack>
+              )}
               <ChatInput
                 value={inputValue}
                 disabled={!sessionId || chatLoading}

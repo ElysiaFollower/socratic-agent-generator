@@ -9,6 +9,7 @@ import { Box, IconButton, Stack, Tooltip } from "@mui/material";
 import {
   ChevronRight,
   Description,
+  HomeRounded,
   Key,
   UploadFile,
 } from "@mui/icons-material";
@@ -23,6 +24,7 @@ export interface SidebarRailProps {
   readonly onToggle: () => void;
   readonly isLoading: boolean;
   readonly activePanel: ToolPanelView;
+  readonly onOpenChatHome: () => void;
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
   readonly onOpenProfilePanel: () => void;
@@ -39,6 +41,7 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
   const {
     isLoading,
     activePanel,
+    onOpenChatHome,
     onOpenInvitationPanel,
     onOpenLabManualPanel,
     onOpenProfilePanel,
@@ -76,6 +79,21 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
         >
           <ChevronRight fontSize='small' />
         </IconButton>
+      </Tooltip>
+
+      <Tooltip title='返回对话首页' placement='right'>
+        <span>
+          <IconButton
+            onClick={onOpenChatHome}
+            size='small'
+            disabled={isLoading}
+            aria-label='返回对话首页'
+            color={activePanel === "chat" ? "primary" : "default"}
+            sx={railButtonSx}
+          >
+            <HomeRounded fontSize='small' />
+          </IconButton>
+        </span>
       </Tooltip>
 
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
