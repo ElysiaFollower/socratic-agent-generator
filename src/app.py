@@ -16,6 +16,7 @@ from config import (
 )
 from api.routes import auth, profile, session, interaction, adapter
 from utils.model_manager import check_and_download_models
+from utils.skills import warmup_embeddings
 
 # Setup logging
 setup_logging()
@@ -49,6 +50,12 @@ app.include_router(profile.router)
 app.include_router(session.router)
 app.include_router(interaction.router)
 app.include_router(adapter.router)
+
+
+@app.on_event("startup")
+def warmup_embeddings_on_startup() -> None:
+    """Warm up shared embeddings to avoid first-request latency."""
+    warmup_embeddings()
 
 
 @app.get("/api/health", summary="健康检查", tags=["Health"])

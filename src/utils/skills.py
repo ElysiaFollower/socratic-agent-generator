@@ -7,6 +7,7 @@ by filesystem directories containing `SKILL.md` files with metadata and instruct
 
 import logging
 import os
+import threading
 from pathlib import Path
 from typing import Optional, Dict
 
@@ -20,6 +21,30 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter
 from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR
 
 logger = logging.getLogger(__name__)
+
+# Cache shared embeddings to avoid reloading per Tutor instance.
+_EMBEDDINGS_CACHE: Optional[Embeddings] = None
+_EMBEDDINGS_LOCK = threading.Lock()
+
+
+def _load_embeddings() -> Embeddings:
+    """Load the embeddings model (shared across instances)."""
+    model_cache_dir = str(HF_MODELS_DIR)
+    HF_MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/all-MiniLM-L6-v2",
+        cache_folder=model_cache_dir,
+    )
+
+
+def warmup_embeddings() -> None:
+    """Warm up the embeddings cache during application startup."""
+    global _EMBEDDINGS_CACHE
+    if _EMBEDDINGS_CACHE is not None:
+        return
+    with _EMBEDDINGS_LOCK:
+        if _EMBEDDINGS_CACHE is None:
+            _EMBEDDINGS_CACHE = _load_embeddings()
 
 # Directory to store vector store indices
 VECTOR_STORE_DIR = DATA_DIR / "vector_stores"
@@ -95,15 +120,12 @@ class LabManualSkill(BaseSkill):
 
     def _get_embeddings(self) -> Embeddings:
         """Get the embeddings model."""
-        # Use a small, efficient model suitable for CPU
-        # Store models in project directory for transparency and portability
-        model_cache_dir = str(HF_MODELS_DIR)
-        HF_MODELS_DIR.mkdir(parents=True, exist_ok=True)
-        
-        return HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2",
-            cache_folder=model_cache_dir
-        )
+        global _EMBEDDINGS_CACHE
+        if _EMBEDDINGS_CACHE is None:
+            with _EMBEDDINGS_LOCK:
+                if _EMBEDDINGS_CACHE is None:
+                    _EMBEDDINGS_CACHE = _load_embeddings()
+        return _EMBEDDINGS_CACHE
 
     def _load_or_create_vector_store(self) -> Optional[FAISS]:
         """Load the vector store if it exists, otherwise create it."""
@@ -124,11 +146,12 @@ class LabManualSkill(BaseSkill):
                 logger.info(
                     "Loading vector store for lab: %s", self.lab_name
                 )
-                return FAISS.load_local(
+                vector_store = FAISS.load_local(
                     str(self.vector_store_path),
                     self.embeddings,
                     allow_dangerous_deserialization=True
                 )
+                return vector_store
             except Exception as e:
                 logger.error(
                     "Failed to load vector store: %s. Recreating...", e
