@@ -83,7 +83,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   const [isEditingLabName, setIsEditingLabName] = useState<boolean>(false);
   const [inputKey, setInputKey] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [uploadResponse, setUploadResponse] =
     useState<UploadLabManualResponse | null>(null);
 
@@ -112,19 +111,18 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
    */
   const loadLabManuals = useCallback(async () => {
     setIsLoadingManuals(true);
-    setError(null);
     try {
       const manuals = await listLabManuals();
       setLabManuals(manuals);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "加载实验文档列表失败";
-      setError(errorMessage);
+      notifyError(errorMessage);
       console.error("Failed to load lab manuals:", err);
     } finally {
       setIsLoadingManuals(false);
     }
-  }, []);
+  }, [notifyError]);
 
   /**
    * Loads lab manuals on mount.
@@ -132,14 +130,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   useEffect(() => {
     void loadLabManuals();
   }, [loadLabManuals]);
-
-  useEffect(() => {
-    if (!error) {
-      return;
-    }
-    notifyError(error);
-    setError(null);
-  }, [error, notifyError]);
 
   useEffect(() => {
     if (!uploadResponse) {
@@ -160,13 +150,14 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     const allowedExtensions = [".md", ".txt", ".markdown"];
     const fileExtension = file.name.toLowerCase().split(".").pop();
     if (fileExtension && !allowedExtensions.includes(`.${fileExtension}`)) {
-      setError(`不支持的文件类型。支持的类型：${allowedExtensions.join(", ")}`);
+      notifyError(
+        `不支持的文件类型。支持的类型：${allowedExtensions.join(", ")}`,
+      );
       setSelectedFile(null);
       return;
     }
 
     const defaultLabName = buildDefaultLabName(file);
-    setError(null);
     setSelectedFile(file);
     setUploadResponse(null);
     setLabName(defaultLabName);
@@ -185,8 +176,8 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   );
 
   const handleDropRejected = useCallback(() => {
-    setError("不支持的文件类型，仅支持 .md、.txt、.markdown");
-  }, []);
+    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown");
+  }, [notifyError]);
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
     useDropzone({
@@ -220,15 +211,14 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedFile) {
-      setError("请选择一个文件");
+      notifyError("请选择一个文件");
       return;
     }
     if (!labName.trim()) {
-      setError("请输入文件名");
+      notifyError("请输入文件名");
       return;
     }
 
-    setError(null);
     setIsLoading(true);
 
     try {
@@ -245,7 +235,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "上传失败，请重试";
-      setError(errorMessage);
+      notifyError(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -260,7 +250,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     setLabNameDraft("");
     setUploadResponse(null);
     setIsEditingLabName(false);
-    setError(null);
     setInputKey((prev) => prev + 1);
   };
 
@@ -271,14 +260,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     setViewingLabName(labName);
     setViewingContent(null);
     setIsLoadingContent(true);
-    setError(null);
     try {
       const content = await getLabManualContent(labName);
       setViewingContent(content);
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "加载文档内容失败";
-      setError(errorMessage);
+      notifyError(errorMessage);
     } finally {
       setIsLoadingContent(false);
     }
@@ -299,7 +287,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     }
 
     setDeletingLab(labName);
-    setError(null);
     try {
       await deleteLabManual(labName);
       await loadLabManuals();
@@ -310,7 +297,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "删除失败";
-      setError(errorMessage);
+      notifyError(errorMessage);
     } finally {
       setDeletingLab(null);
     }
@@ -323,7 +310,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
 
   const handleSaveLabName = () => {
     if (!labNameDraft.trim()) {
-      setError("请输入文件名");
+      notifyError("请输入文件名");
       return;
     }
     setLabName(labNameDraft.trim());

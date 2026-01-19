@@ -68,7 +68,7 @@ export function ProfileGeneratorAdvanced(
   props: ProfileGeneratorAdvancedProps,
 ): JSX.Element {
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
-  const { notifyError } = useNotification();
+  const { notifyError, notifyWarning } = useNotification();
   const [currentStep, setCurrentStep] = useState<Step>("select");
   const [labManuals, setLabManuals] = useState<readonly LabManualInfo[]>([]);
   const [isLoadingManuals, setIsLoadingManuals] = useState<boolean>(true);
@@ -98,14 +98,10 @@ export function ProfileGeneratorAdvanced(
     try {
       const manuals = await listLabManuals();
       setLabManuals(manuals);
-      console.log(
-        `[ProfileGeneratorAdvanced] Loaded ${manuals.length} lab manuals`,
-      );
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "加载实验文档列表失败";
       setError(errorMessage);
-      console.error("Failed to load lab manuals:", err);
     } finally {
       setIsLoadingManuals(false);
     }
@@ -174,7 +170,9 @@ export function ProfileGeneratorAdvanced(
         }
       }
     } catch (err) {
-      console.warn("Unexpected error during lab selection:", err);
+      const errorMessage =
+        err instanceof Error ? err.message : "加载实验资料失败";
+      notifyWarning(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -235,10 +233,6 @@ export function ProfileGeneratorAdvanced(
    * Handles both {root: [...]} and direct array formats.
    */
   const normalizeCurriculum = (data: any): SocraticCurriculum | null => {
-    console.log(
-      "[ProfileGeneratorAdvanced] Normalizing curriculum data:",
-      data,
-    );
     if (!data) {
       return null;
     }
@@ -248,7 +242,6 @@ export function ProfileGeneratorAdvanced(
     if (Array.isArray(data)) {
       return { root: data as any };
     }
-    console.warn("[ProfileGeneratorAdvanced] Invalid curriculum format:", data);
     return null;
   };
 
@@ -387,7 +380,7 @@ export function ProfileGeneratorAdvanced(
         setCurriculum(normalized);
         setCurriculumStatus("generated");
       } else {
-        console.warn("Reloaded curriculum has invalid structure");
+        notifyWarning("重新加载的Curriculum结构异常");
       }
 
       void loadLabManuals();
@@ -934,10 +927,3 @@ export function ProfileGeneratorAdvanced(
     </Stack>
   );
 }
-
-// Add logger for debugging
-const logger = {
-  info: (message: string, ...args: unknown[]) => {
-    console.log(`[ProfileGeneratorAdvanced] ${message}`, ...args);
-  },
-};

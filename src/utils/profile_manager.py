@@ -137,8 +137,8 @@ class ProfileManager:
         Args:
             profile_id: The ID of the profile to delete.
 
-        Note:
-            If the profile does not exist, this method does nothing.
+        Raises:
+            ProfileNotFoundError: If the profile does not exist.
         """
         profile_path = self._resolve_profile_path(profile_id)
         if not profile_path:
