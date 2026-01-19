@@ -127,44 +127,31 @@ export function ProfileGeneratorAdvanced(
     setPersona(null);
     setCurriculum(null);
 
-    // Try to load existing persona and curriculum
-    const labInfo = labManuals.find((m) => m.lab_name === labName);
-    if (labInfo) {
-      try {
-        if (labInfo.has_persona) {
-          const loadedPersona = await getPersona(labName);
-          if (loadedPersona) {
-            setPersona(loadedPersona);
-            setPersonaStatus("generated");
-          }
-        }
-        if (labInfo.has_curriculum) {
-          try {
-            const loadedCurriculum = await getCurriculum(labName);
-            console.log("Loaded curriculum:", loadedCurriculum);
-            const normalized = normalizeCurriculum(loadedCurriculum);
-            if (normalized) {
-              setCurriculum(normalized);
-              setCurriculumStatus("generated");
-            } else {
-              console.warn(
-                "Loaded curriculum has invalid structure:",
-                loadedCurriculum,
-              );
-              setCurriculumError("Curriculum数据格式不正确");
-              setCurriculumStatus("error");
-            }
-          } catch (curriculumErr) {
-            console.warn("Failed to load curriculum:", curriculumErr);
-            setCurriculumError("加载Curriculum失败");
-            setCurriculumStatus("error");
-          }
-        }
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "加载失败";
-        console.warn("Failed to load existing persona/curriculum:", err);
-        setError(`加载数据失败: ${errorMessage}`);
+    setIsLoading(true);
+    try {
+      // Try to load existing persona and curriculum regardless of labInfo status
+      // to be more robust against stale labManuals state
+      const [personaRes, curriculumRes] = await Promise.allSettled([
+        getPersona(labName),
+        getCurriculum(labName),
+      ]);
+
+      if (personaRes.status === "fulfilled") {
+        setPersona(personaRes.value);
+        setPersonaStatus("generated");
       }
+
+      if (curriculumRes.status === "fulfilled") {
+        const normalized = normalizeCurriculum(curriculumRes.value);
+        if (normalized) {
+          setCurriculum(normalized);
+          setCurriculumStatus("generated");
+        }
+      }
+    } catch (err) {
+      console.warn("Unexpected error during lab selection:", err);
+    } finally {
+      setIsLoading(false);
     }
 
     setCurrentStep("generate");
@@ -186,6 +173,7 @@ export function ProfileGeneratorAdvanced(
       const generated = await generatePersona(selectedLab);
       setPersona(generated);
       setPersonaStatus("generated");
+      void loadLabManuals();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "生成Persona失败";
@@ -207,6 +195,7 @@ export function ProfileGeneratorAdvanced(
 
     try {
       await savePersona(selectedLab, persona);
+      void loadLabManuals();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "保存Persona失败";
@@ -221,6 +210,10 @@ export function ProfileGeneratorAdvanced(
    * Handles both {root: [...]} and direct array formats.
    */
   const normalizeCurriculum = (data: any): SocraticCurriculum | null => {
+    console.log(
+      "[ProfileGeneratorAdvanced] Normalizing curriculum data:",
+      data,
+    );
     if (!data) {
       return null;
     }
@@ -230,7 +223,7 @@ export function ProfileGeneratorAdvanced(
     if (Array.isArray(data)) {
       return { root: data as any };
     }
-    console.warn("Invalid curriculum format:", data);
+    console.warn("[ProfileGeneratorAdvanced] Invalid curriculum format:", data);
     return null;
   };
 
@@ -252,6 +245,7 @@ export function ProfileGeneratorAdvanced(
       if (normalized) {
         setCurriculum(normalized);
         setCurriculumStatus("generated");
+        void loadLabManuals();
       } else {
         setCurriculumError("生成的Curriculum格式不正确");
         setCurriculumStatus("error");
@@ -277,6 +271,7 @@ export function ProfileGeneratorAdvanced(
 
     try {
       await saveCurriculum(selectedLab, curriculum);
+      void loadLabManuals();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "保存Curriculum失败";
@@ -309,8 +304,17 @@ export function ProfileGeneratorAdvanced(
 
       setPersona(generatedPersona);
       setPersonaStatus("generated");
-      setCurriculum(generatedCurriculum);
-      setCurriculumStatus("generated");
+
+      const normalized = normalizeCurriculum(generatedCurriculum);
+      if (normalized) {
+        setCurriculum(normalized);
+        setCurriculumStatus("generated");
+      } else {
+        setCurriculumError("生成的Curriculum格式不正确");
+        setCurriculumStatus("error");
+      }
+
+      void loadLabManuals();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "生成失败";
       setError(errorMessage);
@@ -352,7 +356,16 @@ export function ProfileGeneratorAdvanced(
       ]);
 
       setPersona(reloadedPersona);
-      setCurriculum(reloadedCurriculum);
+
+      const normalized = normalizeCurriculum(reloadedCurriculum);
+      if (normalized) {
+        setCurriculum(normalized);
+        setCurriculumStatus("generated");
+      } else {
+        console.warn("Reloaded curriculum has invalid structure");
+      }
+
+      void loadLabManuals();
       setCurrentStep("finalize");
     } catch (err) {
       const errorMessage =
@@ -547,26 +560,13 @@ export function ProfileGeneratorAdvanced(
             direction={{ xs: "column", md: "row" }}
             spacing={1.5}
             alignItems={{ xs: "stretch", md: "center" }}
-            justifyContent='space-between'
+            justifyContent='flex-end'
           >
             <Stack
               direction={{ xs: "column", sm: "row" }}
               spacing={1.5}
               alignItems={{ xs: "stretch", sm: "center" }}
             >
-              <Button
-                onClick={handleGenerateBoth}
-                variant='contained'
-                disabled={
-                  personaStatus === "generating" ||
-                  curriculumStatus === "generating"
-                }
-              >
-                {personaStatus === "generating" ||
-                curriculumStatus === "generating"
-                  ? "生成中..."
-                  : "同时生成Persona和Curriculum"}
-              </Button>
               <Button
                 onClick={handleGeneratePersona}
                 variant='outlined'
@@ -585,6 +585,20 @@ export function ProfileGeneratorAdvanced(
                   ? "生成Curriculum中..."
                   : "仅生成Curriculum"}
               </Button>
+
+              <Button
+                onClick={handleGenerateBoth}
+                variant='contained'
+                disabled={
+                  personaStatus === "generating" ||
+                  curriculumStatus === "generating"
+                }
+              >
+                {personaStatus === "generating" ||
+                curriculumStatus === "generating"
+                  ? "生成中..."
+                  : "同时生成"}
+              </Button>
             </Stack>
             {persona && curriculum && (
               <Button
@@ -592,7 +606,7 @@ export function ProfileGeneratorAdvanced(
                 variant='contained'
                 disabled={isLoading}
               >
-                {isLoading ? "保存并加载中..." : "下一步：生成Profile"}
+                {isLoading ? "保存并加载中..." : "下一步"}
               </Button>
             )}
           </Stack>
@@ -819,7 +833,6 @@ export function ProfileGeneratorAdvanced(
               </Paper>
             </Grid>
           </Grid>
-
         </Stack>
       )}
 
@@ -841,14 +854,32 @@ export function ProfileGeneratorAdvanced(
             </Button>
           </Stack>
 
-          <TextField
-            label='Profile名称（可选）'
-            value={profileName}
-            onChange={(e) => setProfileName(e.target.value)}
-            placeholder='留空则自动生成'
-            size='small'
-            fullWidth
-          />
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={4}
+            alignItems={{ xs: "stretch", sm: "center" }}
+            justifyContent='flex-end'
+          >
+            <TextField
+              label='Profile名称（可选）'
+              value={profileName}
+              onChange={(e) => setProfileName(e.target.value)}
+              placeholder='留空则自动生成'
+              size='small'
+              fullWidth
+            />
+
+            <Button
+              onClick={handleGenerateProfile}
+              variant='contained'
+              disabled={isGeneratingProfile || !persona || !curriculum}
+              sx={{
+                whiteSpace: "nowrap",
+              }}
+            >
+              {isGeneratingProfile ? "生成中..." : "生成Profile"}
+            </Button>
+          </Stack>
 
           <Paper
             variant='outlined'
@@ -878,16 +909,6 @@ export function ProfileGeneratorAdvanced(
               )}
             </Stack>
           </Paper>
-
-          <Stack direction='row' spacing={1}>
-            <Button
-              onClick={handleGenerateProfile}
-              variant='contained'
-              disabled={isGeneratingProfile || !persona || !curriculum}
-            >
-              {isGeneratingProfile ? "生成中..." : "生成Profile"}
-            </Button>
-          </Stack>
         </Stack>
       )}
     </Stack>
