@@ -243,8 +243,6 @@ export interface InvitationCodeInfo {
   readonly created_by: string;
   readonly created_at: string;
   readonly expires_at?: string | null;
-  readonly used: boolean;
-  readonly used_at?: string | null;
 }
 
 /**

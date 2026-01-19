@@ -93,9 +93,20 @@ class UserManager:
             return {}
         try:
             with open(INVITATION_CODES_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+                codes = json.load(f)
         except (json.JSONDecodeError, IOError):
             return {}
+        changed = False
+        for data in codes.values():
+            if "used" in data:
+                data.pop("used", None)
+                changed = True
+            if "used_at" in data:
+                data.pop("used_at", None)
+                changed = True
+        if changed:
+            self._save_invitation_codes(codes)
+        return codes
 
     def _save_invitation_codes(self, codes: Dict[str, dict]) -> None:
         """Save invitation codes to JSON file.
@@ -299,7 +310,6 @@ class UserManager:
             "created_by": created_by,
             "created_at": datetime.now(pytz.utc).isoformat(),
             "expires_at": expires_at.isoformat(),
-            "used": False,
         }
 
         self._save_invitation_codes(codes)
@@ -323,9 +333,6 @@ class UserManager:
         if not code_data:
             return False, "Invalid invitation code"
 
-        if code_data.get("used", False):
-            return False, "Invitation code has already been used"
-
         if code_data.get("role") != required_role:
             return (
                 False,
@@ -343,20 +350,3 @@ class UserManager:
                 return False, "Invitation code has expired"
 
         return True, None
-
-    def mark_invitation_code_used(self, code: str) -> None:
-        """Mark an invitation code as used.
-
-        Args:
-            code: Invitation code to mark as used.
-        """
-        from datetime import datetime
-
-        import pytz
-
-        codes = self._load_invitation_codes()
-        if code in codes:
-            codes[code]["used"] = True
-            codes[code]["used_at"] = datetime.now(pytz.utc).isoformat()
-            self._save_invitation_codes(codes)
-
