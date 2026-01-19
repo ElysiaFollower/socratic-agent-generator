@@ -55,41 +55,134 @@ SKILLS_DIR = DATA_DIR / "skills"
 
 
 class BaseSkill:
-    """Base class for Agent Skills defined by SKILL.md."""
+    """Base class for Agent Skills defined by SKILL.md.
 
-    def __init__(self, skill_name: str):
+    Implements Progressive Disclosure pattern: metadata is always loaded,
+    instructions are loaded on-demand to reduce token consumption.
+
+    Attributes:
+        skill_dir: Path to the skill directory.
+        skill_file: Path to the SKILL.md file.
+        metadata: Dictionary containing frontmatter metadata (always loaded).
+        instructions: String containing the full instructions (loaded on-demand).
+        _instructions_loaded: Boolean flag indicating if instructions have been loaded.
+    """
+
+    def __init__(self, skill_name: str, load_full_instructions: bool = False):
         """Initialize the skill.
 
         Args:
-            skill_name: The name of the directory in data/skills/
+            skill_name: The name of the directory in data/skills/.
+            load_full_instructions: If True, load full instructions immediately.
+                Defaults to False for Progressive Disclosure.
         """
         self.skill_dir = SKILLS_DIR / skill_name
         self.skill_file = self.skill_dir / "SKILL.md"
         self.metadata = {}
         self.instructions = ""
-        self._load_skill_definition()
+        self._instructions_loaded = False
+        
+        # Always load metadata
+        self._load_metadata()
+        
+        # Load instructions only if requested
+        if load_full_instructions:
+            self._load_instructions()
 
-    def _load_skill_definition(self):
-        """Load metadata and instructions from SKILL.md."""
+    def _load_metadata(self) -> None:
+        """Load only frontmatter metadata from SKILL.md.
+        
+        This method implements Progressive Disclosure by loading only the
+        minimal metadata needed for tool description, without loading the
+        full instructions content.
+        """
         if not self.skill_file.exists():
-            # logger.warning("Skill file not found at %s", self.skill_file)
+            logger.warning("Skill file not found at %s", self.skill_file)
+            return
+
+        try:
+            with open(self.skill_file, "r", encoding="utf-8") as f:
+                # Parse only frontmatter, not content
+                metadata, _ = frontmatter.parse(f.read())
+                self.metadata = metadata or {}
+        except Exception as e:
+            logger.error(
+                "Failed to load skill metadata for %s: %s", 
+                self.skill_dir.name, 
+                e
+            )
+            self.metadata = {}
+
+    def _load_instructions(self) -> None:
+        """Load full instructions content from SKILL.md.
+        
+        This method loads the complete instructions when needed (e.g., when
+        the tool is actually called). This implements Progressive Disclosure
+        to reduce system prompt length.
+        """
+        if self._instructions_loaded:
+            return
+            
+        if not self.skill_file.exists():
+            logger.warning("Skill file not found at %s", self.skill_file)
             return
 
         try:
             with open(self.skill_file, "r", encoding="utf-8") as f:
                 post = frontmatter.load(f)
-                self.metadata = post.metadata
                 self.instructions = post.content
+                self._instructions_loaded = True
         except Exception as e:
-            logger.error("Failed to load skill definition for %s: %s", self.skill_dir.name, e)
+            logger.error(
+                "Failed to load skill instructions for %s: %s",
+                self.skill_dir.name,
+                e,
+            )
+            self.instructions = ""
 
     @property
     def name(self) -> str:
+        """Get the skill name from metadata.
+        
+        Returns:
+            Skill name, or "unknown_skill" if not found.
+        """
         return self.metadata.get("name", "unknown_skill")
 
     @property
     def description(self) -> str:
+        """Get the skill description from metadata.
+        
+        Returns:
+            Skill description, or default message if not found.
+        """
         return self.metadata.get("description", "No description provided.")
+    
+    @property
+    def version(self) -> str:
+        """Get the skill version from metadata.
+        
+        Returns:
+            Skill version, defaults to "1.0.0" if not specified.
+        """
+        return self.metadata.get("version", "1.0.0")
+    
+    @property
+    def dependencies(self) -> Dict[str, str]:
+        """Get the skill dependencies from metadata.
+        
+        Returns:
+            Dictionary mapping dependency names to their types (e.g., "required").
+        """
+        deps = self.metadata.get("dependencies", {})
+        if isinstance(deps, list):
+            # Handle list format: [{"vector_store": "required"}]
+            result = {}
+            for item in deps:
+                if isinstance(item, dict):
+                    result.update(item)
+            return result
+        return deps if isinstance(deps, dict) else {}
 
 
 class LabManualSkill(BaseSkill):
@@ -235,17 +328,27 @@ class LabManualSkill(BaseSkill):
             return None
 
     def get_tool(self):
-        """Get the LangChain tool for consulting the lab manual."""
-
+        """Get the LangChain tool for consulting the lab manual.
+        
+        Returns:
+            LangChain tool function for lab manual consultation.
+        """
+        # Load instructions when tool is created (on-demand)
+        self._load_instructions()
+        
         tool_name = self.name
         tool_description = self.description
 
         @tool(tool_name)
         def consult_lab_manual(query: str) -> str:
+            """Consult the official lab manual for technical details.
+            
+            Args:
+                query: The search query for lab manual content.
+                
+            Returns:
+                Search results from the lab manual or error message.
             """
-            Consult the official lab manual for technical details.
-            """
-
             if not self.vector_store:
                 return "The lab manual is not available for this topic."
 
@@ -295,17 +398,27 @@ class PedagogicalStrategySkill(BaseSkill):
         self.strategies_dir = self.skill_dir / "strategies"
 
     def get_tool(self):
-        """Get the LangChain tool for consulting the pedagogy coach."""
-
+        """Get the LangChain tool for consulting the pedagogy coach.
+        
+        Returns:
+            LangChain tool function for pedagogy strategy consultation.
+        """
+        # Load instructions when tool is created (on-demand)
+        self._load_instructions()
+        
         tool_name = self.name
         tool_description = self.description
 
         @tool(tool_name)
         def consult_pedagogy_coach(strategy_name: str) -> str:
+            """Consult the Pedagogy Coach to get a specific teaching strategy script.
+            
+            Args:
+                strategy_name: Name of the strategy to retrieve (e.g., "conceptual_analogy").
+                
+            Returns:
+                Strategy content or error message if not found.
             """
-            Consult the Pedagogy Coach to get a specific teaching strategy script.
-            """
-
             safe_name = os.path.basename(strategy_name)
             if not safe_name.endswith(".md"):
                 safe_name += ".md"
@@ -351,16 +464,28 @@ class AssessmentSkill(BaseSkill):
         self.session = session
 
     def get_tool(self):
-        """Get the tool for marking steps as complete."""
-
+        """Get the tool for marking steps as complete.
+        
+        Returns:
+            LangChain tool function for step completion.
+        """
+        # Load instructions when tool is created (on-demand)
+        self._load_instructions()
+        
         tool_name = self.name
         tool_description = self.description
 
         @tool(tool_name)
         def complete_current_step(reason: str = "") -> str:
-            """
-            Mark the current learning step as complete.
+            """Mark the current learning step as complete.
+            
             Call this tool when the student has satisfied the success criteria.
+            
+            Args:
+                reason: Optional reason for marking the step complete (for logging).
+                
+            Returns:
+                Message indicating step completion and next step information.
             """
             current_step_idx = self.session.state.stepIndex
             curriculum = self.session.get_curriculum()

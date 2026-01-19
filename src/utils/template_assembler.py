@@ -5,7 +5,7 @@ content for the Socratic tutor system.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict
+from typing import Dict, List, Optional
 
 import jinja2
 
@@ -148,6 +148,7 @@ class PromptAssembler(TemplateAssembler):
         curriculum: SocraticCurriculum,
         step_index: int,
         output_language: str = DEFAULT_OUTPUT_LANGUAGE,
+        skills: Optional[List] = None,
     ) -> str:
         """Assemble the final prompt with dynamic content.
 
@@ -156,6 +157,8 @@ class PromptAssembler(TemplateAssembler):
             step_index: Current step index (1-based).
             output_language: Output language for the tutor. Defaults to
                 DEFAULT_OUTPUT_LANGUAGE.
+            skills: Optional list of BaseSkill instances to include in prompt.
+                If provided, their metadata will be formatted as available tools.
 
         Returns:
             Fully assembled prompt string.
@@ -185,8 +188,48 @@ class PromptAssembler(TemplateAssembler):
             },
             "output_language": output_language,
         }
+        
+        # Add skills summary if provided
+        if skills:
+            dynamic_context["skills_summary"] = self._format_skills_summary(skills)
+        else:
+            dynamic_context["skills_summary"] = None
 
         # Render template with dynamic context
         final_prompt = self.template.render(dynamic_context)
         return final_prompt
+    
+    def _format_skills_summary(self, skills: List) -> str:
+        """Format skills metadata as a summary for the system prompt.
+        
+        This method formats the skills' metadata (name and description) into
+        a readable summary that helps the LLM understand available tools.
+        Only metadata is included (Progressive Disclosure), not full instructions.
+        
+        Args:
+            skills: List of BaseSkill instances.
+            
+        Returns:
+            Formatted string containing skills summary.
+        """
+        if not skills:
+            return ""
+        
+        lines = [
+            "You have access to the following tools:",
+            ""
+        ]
+        
+        for i, skill in enumerate(skills, 1):
+            skill_name = skill.name
+            skill_description = skill.description
+            lines.append(f"{i}. **{skill_name}**: {skill_description}")
+        
+        lines.append("")
+        lines.append(
+            "Use these tools when appropriate. The tool descriptions indicate "
+            "when each tool should be used."
+        )
+        
+        return "\n".join(lines)
 

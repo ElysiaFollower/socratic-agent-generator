@@ -3,7 +3,7 @@
 
 ## 1. 总体架构图
 
-本架构采用 **“评估-生成-校验”** 的 Agentic Workflow，确保在流式输出的同时，逻辑推进不乱，教学原则不丢。
+本架构采用 **"评估-生成-校验"** 的 Agentic Workflow，确保在流式输出的同时，逻辑推进不乱，教学原则不丢。
 
 ## 2. 核心节点详细设计
 
@@ -273,6 +273,41 @@ def _extract_evaluation_context(self, max_tokens: int = 2000) -> str:
 | --- | --- | --- |
 | **Evaluator** | **State Transition Controller** | 强调 Agent 并不是胡乱聊天，而是受限状态机控制的逻辑推进。 |
 | **Critic** | **Pedagogical Alignment Monitor** | 体现了对苏格拉底原则的自动化强制约束。 |
-| **Persona** | **Adaptive Identity Synthesis** | 说明导师的人设是从实验手册中“涌现”并合成的。 |
+| **Persona** | **Adaptive Identity Synthesis** | 说明导师的人设是从实验手册中"涌现"并合成的。 |
+
+---
+
+## 6. 实现状态与计划
+
+### 6.1 当前实现状态
+
+**评估器实现**：
+- ❌ **独立评估器未实现**：当前使用Skill-based Tool调用方式（`AssessmentSkill`）
+- ❌ **上下文感知未实现**：仅考虑单次回答，未提取多轮对话上下文
+- ✅ **状态推进已实现**：通过`complete_current_step` tool推进`stepIndex`
+
+**详细分析**：见 `docs/26-01-19-skiils/PROGRESS_EVALUATION_DISCUSSION.md`
+
+### 6.2 未来实施计划
+
+**已决策采用混合方案**：
+
+1. **短期（1-2周）**：优化现有实现
+   - 增强`AssessmentSkill`的SKILL.md文档
+   - 添加评估日志
+   - 优化系统Prompt
+
+2. **中期（1-2个月）**：实现独立评估器
+   - 实现轻量级评估器（使用Haiku模型）
+   - 实现上下文提取机制
+   - 异步执行，不阻塞主流程
+   - 并行运行，收集对比数据
+
+3. **长期（3-6个月）**：根据数据决定是否完全切换
+   - 分析评估器vs Skill-based的效果
+   - 优化评估器效果
+   - 增强可观测性
+
+**实施细节**：见 `docs/26-01-19-skiils/ECO.md` Phase 1.4
 
 ---

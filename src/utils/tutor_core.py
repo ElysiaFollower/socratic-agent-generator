@@ -270,6 +270,11 @@ class Tutor:
             self.session.profile.curriculum,
             self.session.state.stepIndex,
             self.session.output_language,
+            skills=[
+                self.lab_manual_skill,
+                self.pedagogy_skill,
+                self.assessment_skill,
+            ],
         )
 
         result = self.main_chain_with_history.invoke(
@@ -338,6 +343,11 @@ class Tutor:
             self.session.profile.curriculum,
             self.session.state.stepIndex,
             self.session.output_language,
+            skills=[
+                self.lab_manual_skill,
+                self.pedagogy_skill,
+                self.assessment_skill,
+            ],
         )
 
         self.history.add_user_message(user_input)
