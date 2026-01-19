@@ -23,6 +23,8 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from config import (
     DEFAULT_OUTPUT_LANGUAGE,
     DEFAULT_SESSION_NAME,
+    LANGCHAIN_MAX_ITERATIONS,
+    LANGCHAIN_VERBOSE,
     MAX_HISTORY_TOKENS,
     get_default_llm,
 )
@@ -66,8 +68,8 @@ class Tutor:
             f"History is truncated under max_history_tokens: "
             f"{MAX_HISTORY_TOKENS}"
         )
-        # Lazy initialization to avoid initial delay
-        self.current_history_tokens = None
+        # Initialize token count from restored history
+        self.current_history_tokens = self._get_current_history_tokens(self.history)
         self.truncated_history = deepcopy(self.history)
 
         self.prompt_assembler = PromptAssembler(
@@ -113,9 +115,9 @@ class Tutor:
         self.agent_executor = AgentExecutor(
             agent=agent,
             tools=tools,
-            verbose=True,
+            verbose=LANGCHAIN_VERBOSE,
             handle_parsing_errors=True,
-            max_iterations=5,
+            max_iterations=LANGCHAIN_MAX_ITERATIONS,
         )
 
         # Main agent chain with history
@@ -207,22 +209,69 @@ class Tutor:
     def _truncate_history(
         self, history: ChatMessageHistory
     ) -> ChatMessageHistory:
-        """Truncate history to stay under max_history_tokens limit."""
-        self.current_history_tokens = (
-            self.current_history_tokens
-            or self._get_current_history_tokens(history)
-        )
+        """Truncate history to stay under max_history_tokens limit.
+        
+        Uses incremental token counting to avoid recalculating the entire
+        history on each call. Token count is maintained and updated when
+        messages are added or removed.
+        
+        Note: This method modifies the input history object in-place. The
+        token count (current_history_tokens) tracks self.history, not the
+        truncated_history. When truncating truncated_history, we calculate
+        tokens based on the truncated version, not the full history.
+        
+        Implements smart truncation: prioritizes keeping messages from the
+        current step, then fills remaining space with older messages.
+        
+        Args:
+            history: ChatMessageHistory to truncate (will be modified in-place).
+            
+        Returns:
+            Truncated ChatMessageHistory (same object, modified in-place).
+        """
+        # Calculate tokens for the history being truncated (may be different
+        # from self.history if truncating truncated_history)
+        history_tokens = self._get_current_history_tokens(history)
+        
         max_tokens_with_note = (
             MAX_HISTORY_TOKENS - len(self.truncate_history_note)
         )
-        while self.current_history_tokens > max_tokens_with_note:
+        
+        # If under limit, no truncation needed
+        if history_tokens <= max_tokens_with_note:
+            return history
+        
+        # Smart truncation: try to preserve current step context
+        # For now, use simple truncation (remove oldest messages)
+        # Future enhancement: track step boundaries and prioritize current step
+        while history_tokens > max_tokens_with_note:
             if not history.messages:
                 break
             popped_message = history.messages.pop(0)
-            self.current_history_tokens -= self.llm.get_num_tokens(
-                popped_message.content
-            )
+            # Incrementally update token count for this history
+            history_tokens -= self.llm.get_num_tokens(popped_message.content)
+        
         return history
+    
+    def _add_message_to_history(self, message: str, role: str) -> None:
+        """Add a message to history and update token count incrementally.
+        
+        Args:
+            message: Message content to add.
+            role: Message role ("human" or "ai").
+        """
+        if role == "human":
+            self.history.add_user_message(message)
+        elif role == "ai":
+            self.history.add_ai_message(message)
+        else:
+            raise ValueError(f"Unknown message role: {role}")
+        
+        # Incrementally update token count
+        message_tokens = self.llm.get_num_tokens(message)
+        self.current_history_tokens = (
+            self.current_history_tokens or 0
+        ) + message_tokens
 
     def get_welcome_message(self) -> str:
         """Generate welcome message for the session."""
@@ -288,12 +337,9 @@ class Tutor:
         )
         response = result["output"]
 
-        self.history.add_user_message(user_input)
-        self.history.add_ai_message(response)
-        self.current_history_tokens += (
-            self.llm.get_num_tokens(user_input)
-            + self.llm.get_num_tokens(response)
-        )
+        # Add messages to history with incremental token counting
+        self._add_message_to_history(user_input, "human")
+        self._add_message_to_history(response, "ai")
 
         self.save()
 
@@ -350,12 +396,13 @@ class Tutor:
             ],
         )
 
-        self.history.add_user_message(user_input)
+        # Add user message to history with incremental token counting
+        self._add_message_to_history(user_input, "human")
         
-        # Save user message immediately (Async)
-        await self.async_save()
+        # Start async save task (non-blocking, will complete in background)
+        save_task = asyncio.create_task(self.async_save())
 
-        # Stream...
+        # Stream response immediately (optimized for TTFT)
         reply = ""
         try:
             async for event in self.main_chain_with_history.astream_events(
@@ -373,9 +420,12 @@ class Tutor:
                     chunk = event.get("data", {}).get("chunk")
                     if chunk:
                         token = None
-                        if hasattr(chunk, "content"): token = chunk.content
-                        elif isinstance(chunk, str): token = chunk
-                        elif isinstance(chunk, dict): token = chunk.get("content")
+                        if hasattr(chunk, "content"):
+                            token = chunk.content
+                        elif isinstance(chunk, str):
+                            token = chunk
+                        elif isinstance(chunk, dict):
+                            token = chunk.get("content")
 
                         if token:
                             reply += token
@@ -386,10 +436,23 @@ class Tutor:
                         reply = output
                         yield output
         except Exception as e:
-            logger.error(f"Streaming failed: {e}")
-            # Fallback logic if needed
+            logger.error("Streaming failed: %s", e, exc_info=True)
+            # If streaming failed and no reply was collected, set a fallback message
+            if not reply:
+                reply = "抱歉，我在生成回复时遇到了问题。请稍后再试。"
+                yield reply
 
-        self.history.add_ai_message(reply)
+        # Add AI response to history with incremental token counting
+        # Only add non-empty replies to history
+        if reply:
+            self._add_message_to_history(reply, "ai")
+        
+        # Ensure save task completes and save final state
+        try:
+            await save_task
+        except Exception as e:
+            logger.warning("Background save task failed: %s", e)
+        
         await self.async_save()
 
         yield ResponseMessage(

@@ -80,6 +80,14 @@ TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.7"))
 MAX_INPUT_TOKENS: int = int(os.getenv("MAX_INPUT_TOKENS", "128000"))
 MAX_HISTORY_TOKENS: int = int(os.getenv("MAX_HISTORY_TOKENS", "60000"))
 
+# --- LangChain Agent Configuration ---
+
+# Verbose mode for LangChain agents (set to "true" to enable verbose logging)
+LANGCHAIN_VERBOSE: bool = os.getenv("LANGCHAIN_VERBOSE", "false").lower() == "true"
+
+# Maximum iterations for LangChain agent executor
+LANGCHAIN_MAX_ITERATIONS: int = int(os.getenv("LANGCHAIN_MAX_ITERATIONS", "3"))
+
 
 def get_default_llm() -> Any:
     """Get the default LLM instance.
