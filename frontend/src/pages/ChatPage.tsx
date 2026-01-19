@@ -114,9 +114,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
 
   const {
     messages,
+    setMessagesIfEmpty,
     isLoading: chatLoading,
     sendMessage,
     setMessages,
+    removeSession,
   } = useChat(sessionId, handleStateUpdate);
 
   const currentSession =
@@ -137,7 +139,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
 
         await refreshSessions();
         setSessionId(res.session_id);
-        setMessages([]);
+        setMessages([], res.session_id);
         setShowProfileSelector(false);
         setActivePanel("chat");
         notifySuccess("对话创建成功");
@@ -151,9 +153,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         }
 
         const welcome = await getWelcomeMessage(res.session_id);
-        setMessages([
-          { role: "assistant", content: welcome.welcome, isThinking: false },
-        ]);
+        setMessages(
+          [{ role: "assistant", content: welcome.welcome, isThinking: false }],
+          res.session_id,
+        );
       } catch (error) {
         console.error("Failed to create session:", error);
         notifyError(
@@ -167,7 +170,6 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const handleSwitchToSession = useCallback(
     async (session: SessionSummary) => {
       setSessionId(session.session_id);
-      setMessages([]);
       setActivePanel("chat");
 
       try {
@@ -189,17 +191,22 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               isThinking: false,
             }),
           );
-          setMessages(chatHistory);
+          // Only seed history if we haven't already captured streaming output.
+          setMessagesIfEmpty(chatHistory, session.session_id);
         } else {
           const welcome = await getWelcomeMessage(session.session_id);
           if (welcome.welcome) {
-            setMessages([
-              {
-                role: "assistant",
-                content: welcome.welcome,
-                isThinking: false,
-              },
-            ]);
+            // Only seed welcome if no local messages exist for this session yet.
+            setMessagesIfEmpty(
+              [
+                {
+                  role: "assistant",
+                  content: welcome.welcome,
+                  isThinking: false,
+                },
+              ],
+              session.session_id,
+            );
           }
         }
       } catch (error) {
@@ -207,20 +214,23 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         try {
           const welcome = await getWelcomeMessage(session.session_id);
           if (welcome.welcome) {
-            setMessages([
-              {
-                role: "assistant",
-                content: welcome.welcome,
-                isThinking: false,
-              },
-            ]);
+            setMessagesIfEmpty(
+              [
+                {
+                  role: "assistant",
+                  content: welcome.welcome,
+                  isThinking: false,
+                },
+              ],
+              session.session_id,
+            );
           }
         } catch (welcomeError) {
           console.error("Failed to get welcome message:", welcomeError);
         }
       }
     },
-    [sessionState, setMessages],
+    [sessionState, setMessagesIfEmpty],
   );
 
   const handleRenameSession = useCallback(
@@ -242,13 +252,13 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         await refreshSessions();
         if (sessionId === sessionIdToDelete) {
           setSessionId(null);
-          setMessages([]);
         }
+        removeSession(sessionIdToDelete);
       } catch (error) {
         console.error("Failed to delete session:", error);
       }
     },
-    [refreshSessions, sessionId, setMessages],
+    [refreshSessions, removeSession, sessionId],
   );
 
   const handleInputChange = useCallback((value: string) => {
@@ -256,11 +266,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   }, []);
 
   const handleSend = useCallback(async () => {
-    if (!inputValue.trim()) {
+    const message = inputValue.trim();
+    if (!message) {
       return;
     }
-    await sendMessage(inputValue.trim());
     setInputValue("");
+    await sendMessage(message);
   }, [inputValue, sendMessage]);
 
   const handleLogout = useCallback(async () => {
@@ -285,12 +296,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
 
   const handleOpenChatHome = useCallback(() => {
     setSessionId(null);
-    setMessages([]);
     setInputValue("");
     sessionState.setProfile(null);
     setShowProfileSelector(false);
     setActivePanel("chat");
-  }, [sessionState, setMessages]);
+  }, [sessionState]);
 
   const handleProfileGenerateSuccess = useCallback(
     async (_profile: Profile) => {
