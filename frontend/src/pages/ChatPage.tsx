@@ -274,6 +274,58 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     await sendMessage(message);
   }, [inputValue, sendMessage]);
 
+  const handleCopyMessage = useCallback(
+    async (message: ChatMessage) => {
+      if (!message.content.trim()) {
+        return;
+      }
+      if (!navigator.clipboard?.writeText) {
+        notifyError("当前环境不支持复制");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(message.content);
+        notifySuccess("已复制消息");
+      } catch (error) {
+        console.error("Failed to copy message:", error);
+        notifyError("复制失败，请重试");
+      }
+    },
+    [notifyError, notifySuccess],
+  );
+
+  const handleRegenerateMessage = useCallback(
+    async (messageIndex: number) => {
+      if (!sessionId) {
+        return;
+      }
+      if (chatLoading) {
+        notifyError("正在生成回复，请稍后重试");
+        return;
+      }
+      const userIndex = (() => {
+        for (let i = messageIndex; i >= 0; i -= 1) {
+          if (messages[i]?.role === "user") {
+            return i;
+          }
+        }
+        return -1;
+      })();
+      if (userIndex < 0) {
+        notifyError("未找到可重新生成的用户提问");
+        return;
+      }
+      const userMessage = messages[userIndex];
+      if (!userMessage.content.trim()) {
+        notifyError("用户提问为空，无法重新生成");
+        return;
+      }
+      setMessages(messages.slice(0, userIndex + 1), sessionId);
+      await sendMessage(userMessage.content, { appendUserMessage: false });
+    },
+    [chatLoading, messages, notifyError, sendMessage, sessionId, setMessages],
+  );
+
   const handleLogout = useCallback(async () => {
     try {
       await logout();
@@ -484,7 +536,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 },
               }}
             >
-              <MessageList messages={messages} />
+              <MessageList
+                messages={messages}
+                onCopyMessage={handleCopyMessage}
+                onRegenerateMessage={handleRegenerateMessage}
+                actionsDisabled={chatLoading}
+              />
             </Box>
           ) : (
             <Box

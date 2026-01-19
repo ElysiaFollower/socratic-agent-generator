@@ -20,7 +20,10 @@ export interface UseChatReturn {
   readonly isLoadingBySession: Readonly<Record<string, boolean>>;
   readonly error: string | null;
   readonly errorBySession: Readonly<Record<string, string | null>>;
-  readonly sendMessage: (message: string) => Promise<void>;
+  readonly sendMessage: (
+    message: string,
+    options?: {readonly appendUserMessage?: boolean},
+  ) => Promise<void>;
   readonly clearMessages: (targetSessionId?: string | null) => void;
   readonly setMessages: (
     messages: readonly ChatMessage[],
@@ -77,17 +80,23 @@ export function useChat(
   );
 
   const sendMessage = useCallback(
-    async (message: string) => {
+    async (
+      message: string,
+      options?: {readonly appendUserMessage?: boolean},
+    ) => {
       if (!sessionId || !message.trim()) {
         return;
       }
 
       const targetSessionId = sessionId;
       const userMsg = message.trim();
-      updateSessionMessages(targetSessionId, (prev) => [
-        ...prev,
-        {role: 'user', content: userMsg},
-      ]);
+      const shouldAppendUser = options?.appendUserMessage !== false;
+      if (shouldAppendUser) {
+        updateSessionMessages(targetSessionId, (prev) => [
+          ...prev,
+          {role: 'user', content: userMsg},
+        ]);
+      }
       setIsLoadingBySession((prev) => ({
         ...prev,
         [targetSessionId]: true,
@@ -307,5 +316,4 @@ export function useChat(
     removeSession,
   };
 }
-
 
