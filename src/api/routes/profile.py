@@ -747,11 +747,20 @@ async def generate_profile_from_lab(
     req: GenerateProfileFromLabRequest,
     profile_manager: ProfileManagerDep,
     current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None,
 ) -> Profile:
     if current_user.role not in ["admin", "teacher"]:
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    lab_dir = RAW_DATA_DIR / lab_name
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_manual_path = Path(doc.storage_path)
+    if not lab_manual_path.is_absolute():
+        lab_manual_path = ROOT_DIR / lab_manual_path
+    
+    lab_dir = lab_manual_path.parent
     if not lab_dir.exists():
         raise HTTPException(status_code=404, detail="Lab not found")
 
@@ -761,7 +770,7 @@ async def generate_profile_from_lab(
             persona = TutorPersona.model_validate(json.load(f))
         with open(lab_dir / "curriculum.json", "r", encoding="utf-8") as f:
             curriculum = SocraticCurriculum.model_validate(json.load(f))
-        with open(lab_dir / "lab_manual.md", "r", encoding="utf-8") as f:
+        with open(lab_manual_path, "r", encoding="utf-8") as f:
             content = f.read()
     except Exception as e:
         raise HTTPException(status_code=404, detail=f"Files missing: {str(e)}")
