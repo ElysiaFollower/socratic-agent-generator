@@ -11,7 +11,9 @@ import {
   Description,
   HomeRounded,
   Key,
+  School,
   UploadFile,
+  Extension,
 } from "@mui/icons-material";
 import { ToolPanelView } from "../types";
 import { PermissionGuard } from "./PermissionGuard";
@@ -27,7 +29,9 @@ export interface SidebarRailProps {
   readonly onOpenChatHome: () => void;
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
+  readonly onOpenSkillPanel: () => void;
   readonly onOpenProfilePanel: () => void;
+  readonly onOpenClassPanel: () => void;
 }
 
 /**
@@ -44,7 +48,9 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
     onOpenChatHome,
     onOpenInvitationPanel,
     onOpenLabManualPanel,
+    onOpenSkillPanel,
     onOpenProfilePanel,
+    onOpenClassPanel,
   } = props;
 
   const railButtonSx = {
@@ -96,15 +102,30 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
         </span>
       </Tooltip>
 
+      <Tooltip title='我的班级' placement='right'>
+        <span>
+          <IconButton
+            onClick={onOpenClassPanel}
+            size='small'
+            disabled={isLoading}
+            aria-label='我的班级'
+            color={activePanel === "class" ? "primary" : "default"}
+            sx={railButtonSx}
+          >
+            <School fontSize='small' />
+          </IconButton>
+        </span>
+      </Tooltip>
+
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Stack spacing={1} sx={{ mt: 2 }}>
-          <Tooltip title='邀请码管理' placement='right'>
+          <Tooltip title='班级邀请码' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenInvitationPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='邀请码管理'
+                aria-label='班级邀请码'
                 color={activePanel === "invitation" ? "primary" : "default"}
                 sx={railButtonSx}
               >
@@ -123,6 +144,20 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
                 sx={railButtonSx}
               >
                 <UploadFile fontSize='small' />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title='Skill管理' placement='right'>
+            <span>
+              <IconButton
+                onClick={onOpenSkillPanel}
+                size='small'
+                disabled={isLoading}
+                aria-label='Skill管理'
+                color={activePanel === "skill" ? "primary" : "default"}
+                sx={railButtonSx}
+              >
+                <Extension fontSize='small' />
               </IconButton>
             </span>
           </Tooltip>

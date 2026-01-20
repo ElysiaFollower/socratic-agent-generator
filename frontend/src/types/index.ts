@@ -35,6 +35,8 @@ export interface Profile {
   readonly profile_name?: string; // Optional, defaults to topic_name if empty
   readonly topic_name: string;
   readonly lab_name?: string;
+  readonly owner_id?: string;
+  readonly visible_class_ids?: readonly string[];
   readonly persona_hints: readonly string[];
   readonly target_audience: string;
   readonly curriculum: CurriculumData;
@@ -157,7 +159,36 @@ export type UserRole = 'admin' | 'teacher' | 'student';
 /**
  * Main workspace panel views.
  */
-export type ToolPanelView = 'chat' | 'invitation' | 'lab-manual' | 'profile';
+export type ToolPanelView =
+  | 'chat'
+  | 'invitation'
+  | 'lab-manual'
+  | 'skill'
+  | 'profile'
+  | 'class';
+
+/**
+ * Represents a class managed by teachers and joined by students.
+ */
+export interface ClassInfo {
+  readonly class_id: string;
+  readonly name: string;
+  readonly owner_id: string;
+  readonly created_at: string;
+  readonly updated_at: string;
+  readonly role_in_class?: 'teacher' | 'student';
+}
+
+/**
+ * Represents a class member summary.
+ */
+export interface ClassMemberInfo {
+  readonly user_id: string;
+  readonly username: string;
+  readonly display_name?: string;
+  readonly role_in_class: 'teacher' | 'student';
+  readonly joined_at: string;
+}
 
 /**
  * Represents a user in the system.
@@ -219,7 +250,7 @@ export interface RegisterResponse {
  * Generate invitation code request.
  */
 export interface GenerateInvitationCodeRequest {
-  readonly role: 'teacher' | 'student';
+  readonly class_id: string;
   readonly expires_in_days?: number;
 }
 
@@ -228,9 +259,9 @@ export interface GenerateInvitationCodeRequest {
  */
 export interface GenerateInvitationCodeResponse {
   readonly invitation_code: string;
-  readonly role: 'teacher' | 'student';
+  readonly class_id: string;
   readonly created_by: string;
-  readonly expires_in_days: number;
+  readonly created_at?: string;
   readonly expires_at: string;
 }
 
@@ -239,7 +270,7 @@ export interface GenerateInvitationCodeResponse {
  */
 export interface InvitationCodeInfo {
   readonly invitation_code: string;
-  readonly role: 'teacher' | 'student';
+  readonly class_id: string;
   readonly created_by: string;
   readonly created_at: string;
   readonly expires_at?: string | null;
@@ -250,4 +281,25 @@ export interface InvitationCodeInfo {
  */
 export interface InvitationCodeListResponse {
   readonly invitation_codes: readonly InvitationCodeInfo[];
+}
+
+/**
+ * Create class request payload.
+ */
+export interface CreateClassRequest {
+  readonly name: string;
+}
+
+/**
+ * Join class request payload.
+ */
+export interface JoinClassRequest {
+  readonly invitation_code: string;
+}
+
+/**
+ * Update profile visibility payload.
+ */
+export interface UpdateProfileVisibilityRequest {
+  readonly visible: boolean;
 }

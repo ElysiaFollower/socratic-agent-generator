@@ -30,7 +30,9 @@ import {
   ProfileSelector,
   InvitationCodeGenerator,
   LabManualPanel,
+  SkillManagerPanel,
   ProfileManagerPanel,
+  ClassManagerPanel,
   SettingsModal,
   SidebarRail,
 } from "../components";
@@ -114,9 +116,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
 
   const {
     messages,
+    setMessagesIfEmpty,
     isLoading: chatLoading,
     sendMessage,
     setMessages,
+    removeSession,
   } = useChat(sessionId, handleStateUpdate);
 
   const currentSession =
@@ -137,7 +141,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
 
         await refreshSessions();
         setSessionId(res.session_id);
-        setMessages([]);
+        setMessages([], res.session_id);
         setShowProfileSelector(false);
         setActivePanel("chat");
         notifySuccess("对话创建成功");
@@ -151,9 +155,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         }
 
         const welcome = await getWelcomeMessage(res.session_id);
-        setMessages([
-          { role: "assistant", content: welcome.welcome, isThinking: false },
-        ]);
+        setMessages(
+          [{ role: "assistant", content: welcome.welcome, isThinking: false }],
+          res.session_id,
+        );
       } catch (error) {
         console.error("Failed to create session:", error);
         notifyError(
@@ -167,7 +172,6 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const handleSwitchToSession = useCallback(
     async (session: SessionSummary) => {
       setSessionId(session.session_id);
-      setMessages([]);
       setActivePanel("chat");
 
       try {
@@ -189,17 +193,22 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               isThinking: false,
             }),
           );
-          setMessages(chatHistory);
+          // Only seed history if we haven't already captured streaming output.
+          setMessagesIfEmpty(chatHistory, session.session_id);
         } else {
           const welcome = await getWelcomeMessage(session.session_id);
           if (welcome.welcome) {
-            setMessages([
-              {
-                role: "assistant",
-                content: welcome.welcome,
-                isThinking: false,
-              },
-            ]);
+            // Only seed welcome if no local messages exist for this session yet.
+            setMessagesIfEmpty(
+              [
+                {
+                  role: "assistant",
+                  content: welcome.welcome,
+                  isThinking: false,
+                },
+              ],
+              session.session_id,
+            );
           }
         }
       } catch (error) {
@@ -207,20 +216,23 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         try {
           const welcome = await getWelcomeMessage(session.session_id);
           if (welcome.welcome) {
-            setMessages([
-              {
-                role: "assistant",
-                content: welcome.welcome,
-                isThinking: false,
-              },
-            ]);
+            setMessagesIfEmpty(
+              [
+                {
+                  role: "assistant",
+                  content: welcome.welcome,
+                  isThinking: false,
+                },
+              ],
+              session.session_id,
+            );
           }
         } catch (welcomeError) {
           console.error("Failed to get welcome message:", welcomeError);
         }
       }
     },
-    [sessionState, setMessages],
+    [sessionState, setMessagesIfEmpty],
   );
 
   const handleRenameSession = useCallback(
@@ -242,13 +254,13 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         await refreshSessions();
         if (sessionId === sessionIdToDelete) {
           setSessionId(null);
-          setMessages([]);
         }
+        removeSession(sessionIdToDelete);
       } catch (error) {
         console.error("Failed to delete session:", error);
       }
     },
-    [refreshSessions, sessionId, setMessages],
+    [refreshSessions, removeSession, sessionId],
   );
 
   const handleInputChange = useCallback((value: string) => {
@@ -256,12 +268,65 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   }, []);
 
   const handleSend = useCallback(async () => {
-    if (!inputValue.trim()) {
+    const message = inputValue.trim();
+    if (!message) {
       return;
     }
-    await sendMessage(inputValue.trim());
     setInputValue("");
+    await sendMessage(message);
   }, [inputValue, sendMessage]);
+
+  const handleCopyMessage = useCallback(
+    async (message: ChatMessage) => {
+      if (!message.content.trim()) {
+        return;
+      }
+      if (!navigator.clipboard?.writeText) {
+        notifyError("当前环境不支持复制");
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(message.content);
+        notifySuccess("已复制消息");
+      } catch (error) {
+        console.error("Failed to copy message:", error);
+        notifyError("复制失败，请重试");
+      }
+    },
+    [notifyError, notifySuccess],
+  );
+
+  const handleRegenerateMessage = useCallback(
+    async (messageIndex: number) => {
+      if (!sessionId) {
+        return;
+      }
+      if (chatLoading) {
+        notifyError("正在生成回复，请稍后重试");
+        return;
+      }
+      const userIndex = (() => {
+        for (let i = messageIndex; i >= 0; i -= 1) {
+          if (messages[i]?.role === "user") {
+            return i;
+          }
+        }
+        return -1;
+      })();
+      if (userIndex < 0) {
+        notifyError("未找到可重新生成的用户提问");
+        return;
+      }
+      const userMessage = messages[userIndex];
+      if (!userMessage.content.trim()) {
+        notifyError("用户提问为空，无法重新生成");
+        return;
+      }
+      setMessages(messages.slice(0, userIndex + 1), sessionId);
+      await sendMessage(userMessage.content, { appendUserMessage: false });
+    },
+    [chatLoading, messages, notifyError, sendMessage, sessionId, setMessages],
+  );
 
   const handleLogout = useCallback(async () => {
     try {
@@ -279,18 +344,25 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setActivePanel("lab-manual");
   }, []);
 
+  const handleOpenSkillPanel = useCallback(() => {
+    setActivePanel("skill");
+  }, []);
+
   const handleOpenProfilePanel = useCallback(() => {
     setActivePanel("profile");
   }, []);
 
+  const handleOpenClassPanel = useCallback(() => {
+    setActivePanel("class");
+  }, []);
+
   const handleOpenChatHome = useCallback(() => {
     setSessionId(null);
-    setMessages([]);
     setInputValue("");
     sessionState.setProfile(null);
     setShowProfileSelector(false);
     setActivePanel("chat");
-  }, [sessionState, setMessages]);
+  }, [sessionState]);
 
   const handleProfileGenerateSuccess = useCallback(
     async (_profile: Profile) => {
@@ -378,7 +450,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               onOpenChatHome={handleOpenChatHome}
               onOpenInvitationPanel={handleOpenInvitationPanel}
               onOpenLabManualPanel={handleOpenLabManualPanel}
+              onOpenSkillPanel={handleOpenSkillPanel}
               onOpenProfilePanel={handleOpenProfilePanel}
+              onOpenClassPanel={handleOpenClassPanel}
             />
           ) : (
             <Box
@@ -402,7 +476,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 onCollapse={handleToggleSidebar}
                 onOpenInvitationPanel={handleOpenInvitationPanel}
                 onOpenLabManualPanel={handleOpenLabManualPanel}
+                onOpenSkillPanel={handleOpenSkillPanel}
                 onOpenProfilePanel={handleOpenProfilePanel}
+                onOpenClassPanel={handleOpenClassPanel}
               />
               <Box
                 sx={{
@@ -439,6 +515,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           isCollapsed={isHeaderCollapsed}
           currentStep={sessionState.currentStep}
           curriculum={sessionState.curriculum}
+          isProgressLoading={sessionState.isLoading}
           onToggleMaximize={handleMaximizeToggle}
           onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
           activePanel={activePanel}
@@ -462,23 +539,50 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         >
           {isChatView ? (
             <Box
-              sx={{ height: "100%", overflow: "auto", width: "100%", py: 2 }}
+              sx={{
+                height: "100%",
+                overflow: "auto",
+                width: "100%",
+                py: 2,
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": {
+                  display: "none",
+                },
+              }}
             >
-              <MessageList messages={messages} />
+              <MessageList
+                messages={messages}
+                onCopyMessage={handleCopyMessage}
+                onRegenerateMessage={handleRegenerateMessage}
+                actionsDisabled={chatLoading}
+              />
             </Box>
           ) : (
-            <Box sx={{ height: "100%", overflow: "auto" }}>
+            <Box
+              sx={{
+                height: "100%",
+                overflow: "auto",
+                scrollbarWidth: "none",
+                "&::-webkit-scrollbar": {
+                  display: "none",
+                },
+              }}
+            >
               {activePanel === "invitation" && (
                 <InvitationCodeGenerator variant='panel' />
               )}
               {activePanel === "lab-manual" && (
                 <LabManualPanel variant='panel' />
               )}
+              {activePanel === "skill" && <SkillManagerPanel />}
               {activePanel === "profile" && (
                 <ProfileManagerPanel
                   variant='panel'
                   onGenerateSuccess={handleProfileGenerateSuccess}
                 />
+              )}
+              {activePanel === "class" && (
+                <ClassManagerPanel variant='panel' />
               )}
             </Box>
           )}

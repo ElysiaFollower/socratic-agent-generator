@@ -5,7 +5,6 @@ from schemas.user import User
 from models.profile import ProfileModel
 from models.session import SessionModel
 from models.user import UserModel
-from models.invitation_code import InvitationCodeModel
 
 def profile_to_model(profile: Profile, document_id: int = None) -> ProfileModel:
     """Convert Pydantic Profile to SQLAlchemy ProfileModel."""
@@ -14,6 +13,8 @@ def profile_to_model(profile: Profile, document_id: int = None) -> ProfileModel:
         profile_name=profile.profile_name,
         topic_name=profile.topic_name,
         lab_name=profile.lab_name,
+        owner_id=profile.owner_id,
+        visible_class_ids=profile.visible_class_ids or [],
         document_id=document_id,
         persona_hints=profile.persona_hints,
         target_audience=profile.target_audience,
@@ -33,6 +34,8 @@ def model_to_profile(model: ProfileModel) -> Profile:
         profile_name=model.profile_name,
         topic_name=model.topic_name,
         lab_name=model.lab_name,
+        owner_id=model.owner_id,
+        visible_class_ids=model.visible_class_ids or [],
         persona_hints=model.persona_hints or [],
         target_audience=model.target_audience,
         curriculum=curriculum,

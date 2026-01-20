@@ -47,7 +47,6 @@ export function Register(props: RegisterProps): JSX.Element {
   const [displayName, setDisplayName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [adminToken, setAdminToken] = useState<string>('');
-  const [invitationCode, setInvitationCode] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
   /**
@@ -79,11 +78,6 @@ export function Register(props: RegisterProps): JSX.Element {
       notifyWarning('注册管理员需要提供管理员令牌');
       return;
     }
-    if (role !== 'admin' && !invitationCode.trim()) {
-      notifyWarning(`注册${role === 'teacher' ? '教师' : '学生'}需要提供邀请码`);
-      return;
-    }
-
     setIsLoading(true);
     try {
       const request: RegisterRequest = {
@@ -93,7 +87,6 @@ export function Register(props: RegisterProps): JSX.Element {
         display_name: displayName.trim() || undefined,
         email: email.trim() || undefined,
         admin_token: role === 'admin' ? adminToken.trim() : undefined,
-        invitation_code: role !== 'admin' ? invitationCode.trim() : undefined,
       };
 
       await apiRegister(request);
@@ -195,7 +188,6 @@ export function Register(props: RegisterProps): JSX.Element {
                 onChange={(e) => {
                   setRole(e.target.value as UserRole);
                   setAdminToken('');
-                  setInvitationCode('');
                 }}
               >
                 <MenuItem value="student">学生</MenuItem>
@@ -233,18 +225,6 @@ export function Register(props: RegisterProps): JSX.Element {
                 fullWidth
                 required
                 helperText="从 .env 文件获取"
-              />
-            )}
-
-            {role !== 'admin' && (
-              <TextField
-                id="invitationCode"
-                label={`邀请码${role === 'teacher' ? '（需要管理员提供）' : '（需要教师或管理员提供）'}`}
-                value={invitationCode}
-                onChange={(e) => setInvitationCode(e.target.value)}
-                disabled={isLoading}
-                fullWidth
-                required
               />
             )}
 

@@ -6,6 +6,7 @@
 
 export * from './client';
 export * from './profiles';
+export * from './customSkills';
 export {
   uploadLabManual,
   generateProfile,
@@ -35,3 +36,4 @@ export * from './sessions';
 export * from './tutor';
 export * from './health';
 export * from './auth';
+export * from './classes';

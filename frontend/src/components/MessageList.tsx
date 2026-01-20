@@ -10,11 +10,21 @@ import {
   Avatar,
   Box,
   CircularProgress,
+  IconButton,
   Paper,
   Stack,
   Typography,
+  Tooltip,
 } from "@mui/material";
-import { PersonOutline, SmartToy, WavingHand } from "@mui/icons-material";
+import {
+  ContentCopy,
+  PersonOutline,
+  Replay,
+  SmartToy,
+  WavingHand,
+} from "@mui/icons-material";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ChatMessage } from "../types";
 
 /**
@@ -23,6 +33,9 @@ import { ChatMessage } from "../types";
 export interface MessageListProps {
   readonly messages: readonly ChatMessage[];
   readonly onScrollToBottom?: () => void;
+  readonly onCopyMessage?: (message: ChatMessage) => void;
+  readonly onRegenerateMessage?: (messageIndex: number) => void;
+  readonly actionsDisabled?: boolean;
 }
 
 /**
@@ -32,7 +45,13 @@ export interface MessageListProps {
  * @returns React component
  */
 export function MessageList(props: MessageListProps): JSX.Element {
-  const { messages, onScrollToBottom } = props;
+  const {
+    messages,
+    onScrollToBottom,
+    onCopyMessage,
+    onRegenerateMessage,
+    actionsDisabled = false,
+  } = props;
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -68,6 +87,62 @@ export function MessageList(props: MessageListProps): JSX.Element {
     <Stack spacing={2} sx={{ width: "100%", px: 0 }}>
       {messages.map((message, index) => {
         const isUser = message.role === "user";
+        const showActions =
+          !message.isThinking && (onCopyMessage || onRegenerateMessage);
+        const markdownStyles = {
+          "& p": { m: 0, mb: 1, lineHeight: 1.7 },
+          "& p:last-child": { mb: 0 },
+          "& ul, & ol": { pl: 2, my: 1, listStylePosition: "outside" },
+          "& ul": { listStyleType: "disc" },
+          "& ol": { listStyleType: "decimal" },
+          "& li": { mb: 0.5 },
+          "& code": {
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontSize: "0.85em",
+            px: 0.6,
+            py: 0.2,
+            borderRadius: 0.75,
+            bgcolor: isUser
+              ? "rgba(255, 255, 255, 0.2)"
+              : "var(--color-surface)",
+          },
+          "& pre": {
+            m: 0,
+            mb: 1,
+            p: 1.5,
+            borderRadius: 1,
+            overflowX: "auto",
+            bgcolor: isUser
+              ? "rgba(255, 255, 255, 0.14)"
+              : "var(--color-surface)",
+          },
+          "& pre code": {
+            bgcolor: "transparent",
+            p: 0,
+          },
+          "& blockquote": {
+            m: 0,
+            mb: 1,
+            pl: 1.5,
+            borderLeft: "3px solid var(--color-border)",
+            color: isUser ? "rgba(255, 255, 255, 0.9)" : "text.secondary",
+          },
+          "& a": {
+            color: isUser ? "rgba(255, 255, 255, 0.95)" : "inherit",
+            textDecoration: "underline",
+          },
+          "& table": {
+            width: "100%",
+            borderCollapse: "collapse",
+            my: 1,
+          },
+          "& th, & td": {
+            border: "1px solid var(--color-border)",
+            px: 1,
+            py: 0.5,
+          },
+        } as const;
         return (
           <Box
             key={index}
@@ -104,6 +179,10 @@ export function MessageList(props: MessageListProps): JSX.Element {
                   display: "flex",
                   flexDirection: "column",
                   alignItems: isUser ? "flex-end" : "flex-start",
+                  "&:hover .message-actions": {
+                    opacity: 1,
+                    transform: "translateY(0)",
+                  },
                 }}
               >
                 <Paper
@@ -128,14 +207,80 @@ export function MessageList(props: MessageListProps): JSX.Element {
                       </Typography>
                     </Stack>
                   ) : (
-                    <Typography
-                      variant='body2'
-                      sx={{ whiteSpace: "pre-wrap", lineHeight: 1.7 }}
-                    >
-                      {message.content}
-                    </Typography>
+                    <Box sx={markdownStyles}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.content}
+                      </ReactMarkdown>
+                    </Box>
                   )}
                 </Paper>
+                {showActions && (
+                  <Box
+                    className='message-actions'
+                    sx={{
+                      mt: 0.5,
+                      ml: 2,
+                      display: "flex",
+                      gap: 0.5,
+                      opacity: 0,
+                      transform: "translateY(4px)",
+                      transition: "opacity 150ms ease, transform 150ms ease",
+                    }}
+                  >
+                    {onCopyMessage && (
+                      <Tooltip title='复制' arrow>
+                        <span>
+                          <IconButton
+                            size='small'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onCopyMessage(message);
+                            }}
+                            disabled={actionsDisabled}
+                            aria-label='复制消息'
+                            sx={{
+                              color: "text.secondary",
+                              transition:
+                                "transform 150ms ease, color 150ms ease",
+                              "&:hover": {
+                                transform: "scale(1.04)",
+                                color: "primary.main",
+                              },
+                            }}
+                          >
+                            <ContentCopy fontSize='inherit' />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                    {onRegenerateMessage && (
+                      <Tooltip title='重新生成' arrow>
+                        <span>
+                          <IconButton
+                            size='small'
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              onRegenerateMessage(index);
+                            }}
+                            disabled={actionsDisabled}
+                            aria-label='重新生成'
+                            sx={{
+                              color: "text.secondary",
+                              transition:
+                                "transform 150ms ease, color 150ms ease",
+                              "&:hover": {
+                                transform: "scale(1.04)",
+                                color: "primary.main",
+                              },
+                            }}
+                          >
+                            <Replay fontSize='inherit' />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
+                  </Box>
+                )}
               </Box>
             </Stack>
           </Box>

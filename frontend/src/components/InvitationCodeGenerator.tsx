@@ -26,9 +26,17 @@ import {
   Tooltip,
 } from "@mui/material";
 import { ContentCopy } from "@mui/icons-material";
-import { useAuth, useNotification } from "../hooks";
-import { GenerateInvitationCodeRequest, InvitationCodeInfo } from "../types";
-import { generateInvitationCode, listInvitationCodes } from "../api";
+import { useNotification } from "../hooks";
+import {
+  ClassInfo,
+  GenerateInvitationCodeRequest,
+  InvitationCodeInfo,
+} from "../types";
+import {
+  generateClassInvitationCode,
+  listClassInvitations,
+  listClasses,
+} from "../api";
 
 /**
  * Props for InvitationCodeGenerator component.
@@ -48,15 +56,15 @@ export function InvitationCodeGenerator(
   props: InvitationCodeGeneratorProps,
 ): JSX.Element {
   const { onClose, variant = "dialog" } = props;
-  const { user } = useAuth();
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
-  const [role, setRole] = useState<"teacher" | "student">("student");
+  const [classes, setClasses] = useState<readonly ClassInfo[]>([]);
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<{
     code: string;
-    role: string;
+    className: string;
     expiresAt: string;
   } | null>(null);
   const [invitationCodes, setInvitationCodes] = useState<
@@ -72,6 +80,27 @@ export function InvitationCodeGenerator(
     setError(null);
   }, [error, notifyError]);
 
+  const loadClasses = useCallback(async () => {
+    try {
+      const response = await listClasses();
+      setClasses(response);
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "加载班级失败";
+      notifyError(errorMessage);
+    }
+  }, [notifyError]);
+
+  useEffect(() => {
+    void loadClasses();
+  }, [loadClasses]);
+
+  useEffect(() => {
+    if (!selectedClassId && classes.length > 0) {
+      setSelectedClassId(classes[0].class_id);
+    }
+  }, [classes, selectedClassId]);
+
   /**
    * Handles form submission.
    *
@@ -84,22 +113,24 @@ export function InvitationCodeGenerator(
     setError(null);
     setSuccessInfo(null);
 
-    // Check permissions
-    if (user?.role === "teacher" && role === "teacher") {
-      notifyWarning("教师只能为学生生成邀请码");
+    if (!selectedClassId) {
+      notifyWarning("请选择一个班级");
       return;
     }
 
     setIsLoading(true);
     try {
       const request: GenerateInvitationCodeRequest = {
-        role,
+        class_id: selectedClassId,
         expires_in_days: expiresInDays,
       };
-      const response = await generateInvitationCode(request);
+      const response = await generateClassInvitationCode(request);
+      const className =
+        classes.find((item) => item.class_id === selectedClassId)?.name ??
+        selectedClassId;
       setSuccessInfo({
         code: response.invitation_code,
-        role: response.role === "teacher" ? "教师" : "学生",
+        className,
         expiresAt: new Date(response.expires_at).toLocaleString("zh-CN"),
       });
       await loadInvitationCodes();
@@ -113,12 +144,16 @@ export function InvitationCodeGenerator(
   };
 
   /**
-   * Loads invitation codes created by the current user.
+   * Loads invitation codes for the selected class.
    */
   const loadInvitationCodes = useCallback(async () => {
+    if (!selectedClassId) {
+      setInvitationCodes([]);
+      return;
+    }
     setIsLoadingCodes(true);
     try {
-      const response = await listInvitationCodes();
+      const response = await listClassInvitations(selectedClassId);
       setInvitationCodes(response.invitation_codes);
     } catch (err) {
       const errorMessage =
@@ -127,7 +162,7 @@ export function InvitationCodeGenerator(
     } finally {
       setIsLoadingCodes(false);
     }
-  }, [notifyError]);
+  }, [notifyError, selectedClassId]);
 
   useEffect(() => {
     void loadInvitationCodes();
@@ -141,7 +176,32 @@ export function InvitationCodeGenerator(
       return;
     }
     try {
-      await navigator.clipboard.writeText(code);
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+        notifySuccess("邀请码已复制");
+        return;
+      }
+
+      if (typeof document === "undefined") {
+        throw new Error("复制失败，请手动复制");
+      }
+
+      const textArea = document.createElement("textarea");
+      textArea.value = code;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textArea);
+
+      if (!success) {
+        throw new Error("复制失败，请手动复制");
+      }
       notifySuccess("邀请码已复制");
     } catch (err) {
       const errorMessage =
@@ -154,21 +214,27 @@ export function InvitationCodeGenerator(
     <Stack spacing={2}>
       <Box component='form' onSubmit={handleSubmit} sx={{ pt: 2 }}>
         <Stack spacing={2}>
-          <FormControl fullWidth disabled={isLoading}>
-            <InputLabel id='role-select-label'>邀请对象</InputLabel>
+          <FormControl fullWidth disabled={isLoading || classes.length === 0}>
+            <InputLabel id='class-select-label'>选择班级</InputLabel>
             <Select
-              labelId='role-select-label'
-              id='role'
-              value={role}
-              label='邀请对象'
-              onChange={(e) => setRole(e.target.value as "teacher" | "student")}
+              labelId='class-select-label'
+              id='class'
+              value={selectedClassId}
+              label='选择班级'
+              onChange={(e) => setSelectedClassId(e.target.value)}
             >
-              <MenuItem value='student'>学生</MenuItem>
-              {user?.role === "admin" && (
-                <MenuItem value='teacher'>教师</MenuItem>
-              )}
+              {classes.map((item) => (
+                <MenuItem key={item.class_id} value={item.class_id}>
+                  {item.name}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
+          {classes.length === 0 && (
+            <Typography variant='caption' color='text.secondary'>
+              暂无班级，请先在班级管理中创建班级。
+            </Typography>
+          )}
           <TextField
             id='expires'
             label='有效期（天）'
@@ -207,7 +273,7 @@ export function InvitationCodeGenerator(
   const renderInvitationCodeList = () => (
     <Stack spacing={1.5}>
       <Stack direction='row' justifyContent='space-between' alignItems='center'>
-        <Typography variant='subtitle2'>我的邀请码</Typography>
+        <Typography variant='subtitle2'>班级邀请码</Typography>
         <Button onClick={loadInvitationCodes} size='small' color='inherit'>
           刷新
         </Button>
@@ -227,6 +293,9 @@ export function InvitationCodeGenerator(
         <Stack spacing={1}>
           {invitationCodes.map((code) => {
             const expired = isCodeExpired(code.expires_at);
+            const className =
+              classes.find((item) => item.class_id === code.class_id)?.name ??
+              code.class_id;
             return (
               <Box
                 key={code.invitation_code}
@@ -272,7 +341,7 @@ export function InvitationCodeGenerator(
                   </Stack>
                   <Stack direction='row' spacing={2} flexWrap='wrap'>
                     <Typography variant='caption' color='text.secondary'>
-                      角色: {code.role === "teacher" ? "教师" : "学生"}
+                      班级: {className}
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
                       创建时间:{" "}
@@ -322,7 +391,7 @@ export function InvitationCodeGenerator(
       fullWidth
       maxWidth='sm'
     >
-      <DialogTitle>邀请码生成成功</DialogTitle>
+      <DialogTitle>班级邀请码生成成功</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography variant='body2' color='text.secondary'>
@@ -330,9 +399,9 @@ export function InvitationCodeGenerator(
           </Typography>
           <Box>
             <Typography variant='caption' color='text.secondary'>
-              角色
+              班级
             </Typography>
-            <Typography variant='body2'>{successInfo?.role}</Typography>
+            <Typography variant='body2'>{successInfo?.className}</Typography>
           </Box>
           <Box>
             <Typography variant='caption' color='text.secondary'>
@@ -391,7 +460,7 @@ export function InvitationCodeGenerator(
   return (
     <>
       <Dialog open onClose={onClose} fullWidth maxWidth='sm'>
-        <DialogTitle>邀请码管理</DialogTitle>
+        <DialogTitle>班级邀请码管理</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={3}>
             {content}

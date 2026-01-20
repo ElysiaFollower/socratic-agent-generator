@@ -40,6 +40,8 @@ from utils.skills import (
     LabManualSkill,
     PedagogicalStrategySkill,
 )
+from utils.custom_skill_runtime import CustomDbSkill
+from utils.custom_skill_manager import CustomSkillManager
 from utils.step_evaluator import EvaluationResult, StepEvaluator
 from utils.template_assembler import PromptAssembler
 
@@ -88,6 +90,15 @@ class Tutor:
         self.pedagogy_skill = PedagogicalStrategySkill()
         self.assessment_skill = AssessmentSkill(self.session)
 
+        self.custom_skills = []
+        with SessionLocal() as db:
+            csm = CustomSkillManager(db)
+            custom_models = csm.list_skills(self.session.profile.profile_id)
+            self.custom_skills = [
+                CustomDbSkill(model)
+                for model in custom_models
+                if model.status == "ready"
+            ]
         # Initialize step evaluator
         self.evaluator = StepEvaluator()
 
@@ -101,6 +112,7 @@ class Tutor:
             self.pedagogy_skill.get_tool(),
             self.assessment_skill.get_tool(),
         ]
+        tools.extend([skill.get_tool() for skill in self.custom_skills])
 
         # Main prompt template
         main_prompt = ChatPromptTemplate.from_messages(
@@ -511,6 +523,7 @@ class Tutor:
                 self.lab_manual_skill,
                 self.pedagogy_skill,
                 self.assessment_skill,
+                *self.custom_skills,
             ],
         )
 
@@ -583,6 +596,17 @@ class Tutor:
             )
             return
 
+        formatted_system_prompt = self.prompt_assembler.assemble(
+            self.session.profile.curriculum,
+            self.session.state.stepIndex,
+            self.session.output_language,
+            skills=[
+                self.lab_manual_skill,
+                self.pedagogy_skill,
+                self.assessment_skill,
+                *self.custom_skills,
+            ],
+        )
         # Ensure evaluation lock is created (lazy initialization)
         self._ensure_evaluation_lock()
 

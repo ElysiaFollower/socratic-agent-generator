@@ -6,7 +6,7 @@
  * curriculum -> generate profile.
  */
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Box,
   Button,
@@ -14,7 +14,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Grid,
   Paper,
   Stack,
   Step,
@@ -58,6 +57,10 @@ interface ProfileGeneratorAdvancedProps {
 
 type Step = "select" | "generate" | "finalize";
 
+const DEFAULT_SPLIT_RATIO = 2 / 5;
+const MIN_SPLIT_RATIO = 0.25;
+const MAX_SPLIT_RATIO = 0.75;
+
 /**
  * Advanced profile generator component.
  *
@@ -68,7 +71,7 @@ export function ProfileGeneratorAdvanced(
   props: ProfileGeneratorAdvancedProps,
 ): JSX.Element {
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
-  const { notifyError, notifyWarning } = useNotification();
+  const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const [currentStep, setCurrentStep] = useState<Step>("select");
   const [labManuals, setLabManuals] = useState<readonly LabManualInfo[]>([]);
   const [isLoadingManuals, setIsLoadingManuals] = useState<boolean>(true);
@@ -88,6 +91,9 @@ export function ProfileGeneratorAdvanced(
   const [curriculumError, setCurriculumError] = useState<string | null>(null);
   const [isGeneratingProfile, setIsGeneratingProfile] =
     useState<boolean>(false);
+  const [splitRatio, setSplitRatio] = useState<number>(DEFAULT_SPLIT_RATIO);
+  const [isResizingSplit, setIsResizingSplit] = useState<boolean>(false);
+  const splitContainerRef = useRef<HTMLDivElement | null>(null);
 
   /**
    * Loads lab manuals list.
@@ -134,6 +140,44 @@ export function ProfileGeneratorAdvanced(
     notifyError(curriculumError);
     setCurriculumError(null);
   }, [curriculumError, notifyError]);
+
+  useEffect(() => {
+    if (!isResizingSplit) {
+      return;
+    }
+
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!splitContainerRef.current) {
+        return;
+      }
+      const rect = splitContainerRef.current.getBoundingClientRect();
+      if (!rect.width) {
+        return;
+      }
+      const nextRatio = (event.clientX - rect.left) / rect.width;
+      const clamped = Math.min(
+        MAX_SPLIT_RATIO,
+        Math.max(MIN_SPLIT_RATIO, nextRatio),
+      );
+      setSplitRatio(clamped);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSplit(false);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingSplit]);
 
   /**
    * Handles lab selection.
@@ -313,39 +357,53 @@ export function ProfileGeneratorAdvanced(
     setCurriculumError(null);
     setError(null);
 
-    try {
-      // Generate both in parallel
-      const [generatedPersona, generatedCurriculum] = await Promise.all([
-        generatePersona(selectedLab),
-        generateCurriculum(selectedLab),
-      ]);
-
-      setPersona(generatedPersona);
-      setPersonaStatus("generated");
-
-      const normalized = normalizeCurriculum(generatedCurriculum);
-      if (normalized) {
-        setCurriculum(normalized);
-        setCurriculumStatus("generated");
-      } else {
-        setCurriculumError("生成的Curriculum格式不正确");
-        setCurriculumStatus("error");
-      }
-
-      void loadLabManuals();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "生成失败";
-      setError(errorMessage);
-      // Try to determine which one failed
-      if (!persona) {
-        setPersonaStatus("error");
+    const personaPromise = generatePersona(selectedLab)
+      .then((generated) => {
+        setPersona(generated);
+        setPersonaStatus("generated");
+        void loadLabManuals();
+        return { status: "fulfilled" as const };
+      })
+      .catch((err) => {
+        const errorMessage =
+          err instanceof Error ? err.message : "生成Persona失败";
         setPersonaError(errorMessage);
-      }
-      if (!curriculum) {
-        setCurriculumStatus("error");
+        setPersonaStatus("error");
+        return { status: "rejected" as const, error: errorMessage };
+      });
+
+    const curriculumPromise = generateCurriculum(selectedLab)
+      .then((generated) => {
+        const normalized = normalizeCurriculum(generated);
+        if (normalized) {
+          setCurriculum(normalized);
+          setCurriculumStatus("generated");
+          void loadLabManuals();
+          return { status: "fulfilled" as const };
+        }
+        const errorMessage = "生成的Curriculum格式不正确";
         setCurriculumError(errorMessage);
-      }
+        setCurriculumStatus("error");
+        return { status: "rejected" as const, error: errorMessage };
+      })
+      .catch((err) => {
+        const errorMessage =
+          err instanceof Error ? err.message : "生成Curriculum失败";
+        setCurriculumError(errorMessage);
+        setCurriculumStatus("error");
+        return { status: "rejected" as const, error: errorMessage };
+      });
+
+    // Generate both in parallel
+    const results = await Promise.all([personaPromise, curriculumPromise]);
+    if (results.every((result) => result.status === "rejected")) {
+      setError("生成失败");
     }
+  };
+
+  const handleSplitMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsResizingSplit(true);
   };
 
   /**
@@ -410,6 +468,9 @@ export function ProfileGeneratorAdvanced(
       const profile = await generateProfileFromLab(
         selectedLab,
         profileName.trim() || undefined,
+      );
+      notifySuccess(
+        `Profile已生成：${profile.profile_name || profile.topic_name}`,
       );
       if (onGenerateSuccess) {
         onGenerateSuccess(profile);
@@ -636,8 +697,18 @@ export function ProfileGeneratorAdvanced(
             )}
           </Stack>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          <Stack
+            ref={splitContainerRef}
+            direction={{ xs: "column", md: "row" }}
+            spacing={2}
+            alignItems='stretch'
+          >
+            <Box
+              sx={{
+                flex: { xs: "1 1 auto", md: `${splitRatio} 1 0` },
+                minWidth: 0,
+              }}
+            >
               <Paper variant='outlined' sx={{ p: 2, height: "100%" }}>
                 <Stack
                   direction='row'
@@ -734,9 +805,42 @@ export function ProfileGeneratorAdvanced(
                   </Typography>
                 )}
               </Paper>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} md={6}>
+            <Box
+              onMouseDown={handleSplitMouseDown}
+              role='separator'
+              aria-orientation='vertical'
+              sx={{
+                display: { xs: "none", md: "flex" },
+                alignSelf: "stretch",
+                my: 2,
+                width: 8,
+                cursor: "col-resize",
+                justifyContent: "center",
+                alignItems: "center",
+                "& .split-handle": {
+                  width: 2,
+                  borderRadius: 999,
+                  height: "calc(100% - 32px)",
+                  bgcolor: isResizingSplit ? "text.secondary" : "divider",
+                  transition: "all 0.3s ease",
+                },
+                "&:hover .split-handle": {
+                  // bgcolor: "text.secondary",
+                  width: 3,
+                },
+              }}
+            >
+              <Box className='split-handle' />
+            </Box>
+
+            <Box
+              sx={{
+                flex: { xs: "1 1 auto", md: `${1 - splitRatio} 1 0` },
+                minWidth: 0,
+              }}
+            >
               <Paper variant='outlined' sx={{ p: 2, height: "100%" }}>
                 <Stack
                   direction='row'
@@ -766,7 +870,7 @@ export function ProfileGeneratorAdvanced(
                 <Divider sx={{ my: 2 }} />
 
                 {curriculum && curriculum.root ? (
-                  <Stack spacing={2}>
+                  <Stack spacing={1}>
                     <Typography variant='caption' color='text.secondary'>
                       共 {curriculum.root.length} 个步骤
                     </Typography>
@@ -776,7 +880,10 @@ export function ProfileGeneratorAdvanced(
                     >
                       {curriculum.root.map((step, index) => (
                         <Box key={index}>
-                          <Typography variant='subtitle2' sx={{ mb: 1 }}>
+                          <Typography
+                            variant='subtitle1'
+                            sx={{ mb: 2, fontWeight: 500 }}
+                          >
                             步骤 {index + 1}: {step.step_title}
                           </Typography>
                           <Stack spacing={1.5}>
@@ -830,7 +937,7 @@ export function ProfileGeneratorAdvanced(
                             />
                           </Stack>
                           {index < curriculum.root.length - 1 && (
-                            <Divider sx={{ my: 2 }} />
+                            <Divider sx={{ mt: 2 }} />
                           )}
                         </Box>
                       ))}
@@ -844,8 +951,8 @@ export function ProfileGeneratorAdvanced(
                   </Typography>
                 )}
               </Paper>
-            </Grid>
-          </Grid>
+            </Box>
+          </Stack>
         </Stack>
       )}
 

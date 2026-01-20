@@ -8,7 +8,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.routes.auth import get_current_user
-from core.dependencies import ProfileManagerDep, SessionManagerDep, TutorManagerDep
+from core.dependencies import ProfileManagerDep, SessionManagerDep, TutorManagerDep, ClassManagerDep
 from core.exceptions import ProfileNotFoundError, SessionNotFoundError
 from schemas.message import CreateSessionRequest, RenameSessionRequest
 from schemas.session import Session, SessionSummary
@@ -38,6 +38,7 @@ def create_session(
     req: CreateSessionRequest,
     profile_manager: ProfileManagerDep,
     tutor_manager: TutorManagerDep,
+    class_manager: ClassManagerDep,
     current_user: User = Depends(get_current_user),
 ) -> dict:
     """Create a new learning session.
@@ -58,6 +59,21 @@ def create_session(
         profile = profile_manager.read_profile(req.profile_id)
     except ProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if current_user.role == "student":
+        class_ids = class_manager.list_class_ids_for_user(current_user.user_id)
+        visible_ids = set(profile.visible_class_ids or [])
+        if not visible_ids.intersection(set(class_ids)):
+            raise HTTPException(
+                status_code=403,
+                detail="Profile is not visible to your classes.",
+            )
+    elif current_user.role == "teacher":
+        if profile.owner_id and profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="You can only use your own profiles.",
+            )
 
     tutor = tutor_manager.create_tutor(
         profile=profile,

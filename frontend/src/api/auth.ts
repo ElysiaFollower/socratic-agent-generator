@@ -12,9 +12,6 @@ import {
   CurrentUserResponse,
   RegisterRequest,
   RegisterResponse,
-  GenerateInvitationCodeRequest,
-  GenerateInvitationCodeResponse,
-  InvitationCodeListResponse,
   User,
 } from '../types';
 
@@ -190,61 +187,5 @@ export async function register(
     return response.data;
   } catch (error) {
     throw new Error(`注册失败: ${handleApiError(error)}`);
-  }
-}
-
-/**
- * Generates an invitation code for teacher or student registration.
- *
- * @param request - Request with role and expiration days
- * @returns Promise resolving to invitation code response
- * @throws Error if generation fails
- */
-export async function generateInvitationCode(
-  request: GenerateInvitationCodeRequest,
-): Promise<GenerateInvitationCodeResponse> {
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('未找到认证令牌');
-    }
-    const response = await apiClient.post<GenerateInvitationCodeResponse>(
-      '/api/auth/invitation-codes/generate',
-      request,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error(`生成邀请码失败: ${handleApiError(error)}`);
-  }
-}
-
-/**
- * Lists invitation codes created by the current user.
- *
- * @returns Promise resolving to invitation code list response
- * @throws Error if listing fails
- */
-export async function listInvitationCodes(): Promise<InvitationCodeListResponse> {
-  try {
-    const token = getAuthToken();
-    if (!token) {
-      throw new Error('未找到认证令牌');
-    }
-    const response = await apiClient.get<InvitationCodeListResponse>(
-      '/api/auth/invitation-codes',
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      },
-    );
-    return response.data;
-  } catch (error) {
-    throw new Error(`加载邀请码失败: ${handleApiError(error)}`);
   }
 }

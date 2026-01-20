@@ -36,6 +36,16 @@ class Profile(BaseModel):
         default=None,
         description="The lab manual directory name for RAG indexing.",
     )
+
+    owner_id: Optional[str] = Field(
+        default=None,
+        description="The user_id of the teacher who created the profile.",
+    )
+
+    visible_class_ids: List[str] = Field(
+        default_factory=list,
+        description="List of class IDs where this profile is visible.",
+    )
     
     persona_hints: List[str] = Field(
         description="A list of creative and fitting clues to define the tutor's persona (role, tone, style, catchphrase)."

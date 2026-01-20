@@ -5,17 +5,13 @@ password hashing, invitation code generation, and user authentication.
 """
 
 import logging
-import secrets
-from datetime import datetime, timedelta
 from typing import List, Optional
 
 import bcrypt
-import pytz
 from sqlalchemy.orm import Session
 
 from schemas.user import User
 from models.user import UserModel
-from models.invitation_code import InvitationCodeModel
 from utils.converters import user_to_model, model_to_user
 
 logger = logging.getLogger(__name__)
@@ -204,92 +200,3 @@ class UserManager:
         """
         models = self.db.query(UserModel).all()
         return [model_to_user(m) for m in models]
-
-    def generate_invitation_code(
-        self, role: str, created_by: str, expires_in_days: int = 30
-    ) -> str:
-        """Generate a new invitation code.
-
-        Args:
-            role: Role for which the invitation code is valid ('teacher' or 'student').
-            created_by: Username of the user creating the invitation.
-            expires_in_days: Number of days until the code expires.
-
-        Returns:
-            Generated invitation code.
-        """
-        code = secrets.token_urlsafe(32)
-        expires_at = datetime.now(pytz.utc) + timedelta(days=expires_in_days)
-        
-        model = InvitationCodeModel(
-            code=code,
-            role=role,
-            created_by=created_by,
-            created_at=datetime.now(pytz.utc).isoformat(),
-            expires_at=expires_at.isoformat(),
-        )
-        
-        self.db.add(model)
-        self.db.commit()
-        
-        logger.info("Generated invitation code for role: %s", role)
-        return code
-
-    def list_invitation_codes(self, created_by: Optional[str] = None) -> List[dict]:
-        """List invitation codes with optional creator filtering.
-
-        Args:
-            created_by: Optional username to filter invitation codes.
-
-        Returns:
-            List of invitation code dictionaries including the code.
-        """
-        query = self.db.query(InvitationCodeModel)
-        if created_by:
-            query = query.filter(InvitationCodeModel.created_by == created_by)
-        
-        models = query.order_by(InvitationCodeModel.created_at.desc()).all()
-        
-        results = []
-        for model in models:
-            results.append({
-                "code": model.code,
-                "role": model.role,
-                "created_by": model.created_by,
-                "created_at": model.created_at,
-                "expires_at": model.expires_at,
-            })
-        
-        return results
-
-    def validate_invitation_code(
-        self, code: str, required_role: str
-    ) -> tuple[bool, Optional[str]]:
-        """Validate an invitation code.
-
-        Args:
-            code: Invitation code to validate.
-            required_role: Required role for the code.
-
-        Returns:
-            Tuple of (is_valid, error_message).
-        """
-        model = self.db.query(InvitationCodeModel).filter(
-            InvitationCodeModel.code == code
-        ).first()
-        
-        if not model:
-            return False, "Invalid invitation code"
-
-        if model.role != required_role:
-            return (
-                False,
-                f"Invitation code is for role '{model.role}', not '{required_role}'",
-            )
-
-        if model.expires_at:
-            expires_at = datetime.fromisoformat(model.expires_at.replace("Z", "+00:00"))
-            if datetime.now(pytz.utc) > expires_at:
-                return False, "Invitation code has expired"
-
-        return True, None
