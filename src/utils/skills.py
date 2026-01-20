@@ -16,7 +16,7 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.embeddings import Embeddings
 from langchain_core.tools import tool
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_text_splitters import MarkdownHeaderTextSplitter
+from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
 from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR, DOCUMENTS_DIR, ROOT_DIR
 from core.database import SessionLocal
@@ -281,6 +281,8 @@ class LabManualSkill(BaseSkill):
         # Ideally query DB, but for now check default location or DB
 
         lab_manual_path = None
+        original_format = None
+        
         with SessionLocal() as db:
             dm = DocumentManager(db)
             doc = dm.get_document_by_name(self.lab_name)
@@ -289,6 +291,7 @@ class LabManualSkill(BaseSkill):
                 if not lab_manual_path.is_absolute():
                     # ✅ 如果是相对路径，尝试相对于项目根目录
                     lab_manual_path = ROOT_DIR / lab_manual_path
+                original_format = doc.meta_info.get("original_format") if doc.meta_info else None
 
         # Fallback (⚠️ 注意：这个fallback可能不准确，因为lab_name不再是全局唯一的)
         if not lab_manual_path or not lab_manual_path.exists():
@@ -303,15 +306,39 @@ class LabManualSkill(BaseSkill):
             with open(lab_manual_path, "r", encoding="utf-8") as f:
                 text = f.read()
 
-            headers_to_split_on = [
-                ("#", "Header 1"),
-                ("##", "Header 2"),
-                ("###", "Header 3"),
-            ]
-            markdown_splitter = MarkdownHeaderTextSplitter(
-                headers_to_split_on=headers_to_split_on
-            )
-            docs = markdown_splitter.split_text(text)
+            # 根据原始格式选择分割策略
+            if original_format == "pdf":
+                # PDF使用通用文本分割器
+                splitter = RecursiveCharacterTextSplitter(
+                    chunk_size=1500,
+                    chunk_overlap=200,
+                    separators=["\n\n", "\n", "。", ".", " "],
+                    length_function=len,
+                )
+                docs = splitter.create_documents([text])
+                logger.info(
+                    "Using RecursiveCharacterTextSplitter for PDF: %d chunks created",
+                    len(docs)
+                )
+            else:
+                # Markdown使用标题分割器
+                headers_to_split_on = [
+                    ("#", "Header 1"),
+                    ("##", "Header 2"),
+                    ("###", "Header 3"),
+                ]
+                markdown_splitter = MarkdownHeaderTextSplitter(
+                    headers_to_split_on=headers_to_split_on
+                )
+                docs = markdown_splitter.split_text(text)
+                logger.info(
+                    "Using MarkdownHeaderTextSplitter: %d chunks created",
+                    len(docs)
+                )
+
+            if not docs:
+                logger.warning("No documents created from text splitting")
+                return None
 
             vector_store = FAISS.from_documents(docs, self.embeddings)
 
@@ -342,6 +369,7 @@ class LabManualSkill(BaseSkill):
                 "Failed to create vector store for topic %s: %s",
                 self.lab_name,
                 e,
+                exc_info=True
             )
             return None
 

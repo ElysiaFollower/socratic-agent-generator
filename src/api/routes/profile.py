@@ -3,13 +3,15 @@
 This module handles HTTP endpoints for tutor profile operations.
 """
 
+import io
+import json
 import logging
+import re
+from pathlib import Path
 from typing import List, Optional
 
+import pdfplumber
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, UploadFile, status
-
-import json
-from pathlib import Path
 
 from api.routes.auth import get_current_user
 from config import RAW_DATA_DIR, ROOT_DIR, DOCUMENTS_DIR
@@ -25,6 +27,10 @@ from schemas.user import User
 from utils.skills import build_lab_manual_index
 
 logger = logging.getLogger(__name__)
+
+# Constants
+MAX_PDF_SIZE = 10 * 1024 * 1024  # 10MB limit for PDF files
+MIN_EXTRACTED_TEXT_LENGTH = 100  # Minimum length for extracted PDF text
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile"])
 
@@ -377,7 +383,6 @@ async def upload_lab_manual(
             detail="Lab name cannot be empty.",
         )
     
-    import re
     lab_name = re.sub(r'[^\w\-_\.]', '_', lab_name.strip())
 
     # ✅ 检查当前用户是否已有同名文档
@@ -394,13 +399,15 @@ async def upload_lab_manual(
     # ✅ 检查文件系统是否已存在同名文档（防止数据库记录丢失但文件存在的情况）
     user_doc_dir = DOCUMENTS_DIR / current_user.user_id / lab_name
     lab_manual_path = user_doc_dir / "lab_manual.md"
-    if lab_manual_path.exists():
+    pdf_path = user_doc_dir / f"{lab_name}.pdf"
+    if lab_manual_path.exists() or pdf_path.exists():
         raise HTTPException(
             status_code=400,
             detail=f"Document '{lab_name}' already exists in file system. Please delete it first or use a different name."
         )
 
-    allowed_extensions = [".md", ".txt", ".markdown"]
+    allowed_extensions = [".md", ".txt", ".markdown", ".pdf"]
+    
     file_extension = ""
     if file.filename:
         file_extension = file.filename.lower().split(".")[-1]
@@ -412,30 +419,118 @@ async def upload_lab_manual(
 
     try:
         content = await file.read()
-        content_str = content.decode("utf-8")
-
-        if not content_str.strip():
+        
+        # PDF文件大小检查
+        if file_extension == "pdf" and len(content) > MAX_PDF_SIZE:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="File is empty.",
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"PDF file size exceeds maximum allowed size of {MAX_PDF_SIZE / 1024 / 1024}MB"
             )
-
-        # ✅ 使用用户ID组织目录结构
-        user_doc_dir = DOCUMENTS_DIR / current_user.user_id / lab_name
+        
+        # PDF文件类型验证（使用文件头）
+        if file_extension == "pdf":
+            if not content.startswith(b'%PDF'):
+                raise HTTPException(
+                    status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                    detail="Invalid PDF file format"
+                )
+        
+        # ✅ 使用用户ID组织目录结构（确保目录存在）
         user_doc_dir.mkdir(parents=True, exist_ok=True)
-
-        lab_manual_path = user_doc_dir / "lab_manual.md"
-        with open(lab_manual_path, "w", encoding="utf-8") as f:
-            f.write(content_str)
-
-        # ✅ 创建文档记录，指定所有者
-        relative_path = f"data/documents/{current_user.user_id}/{lab_name}/lab_manual.md"
+        
+        # 文件类型处理分支
+        if file_extension == "pdf":
+            # PDF文件处理
+            try:
+                with pdfplumber.open(io.BytesIO(content)) as pdf:
+                    text_parts = []
+                    for page_num, page in enumerate(pdf.pages, 1):
+                        # 使用layout=True保持布局顺序
+                        text = page.extract_text(layout=True)
+                        if text:
+                            text_parts.append(text)
+                        logger.debug(f"Extracted text from PDF page {page_num}/{len(pdf.pages)}")
+                    
+                    if not text_parts:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="PDF file contains no extractable text. It may be a scanned image. OCR support is not yet available."
+                        )
+                    
+                    content_str = "\n\n".join(text_parts)
+                    
+                    # 检查提取的文本是否为空或过短
+                    if len(content_str.strip()) < MIN_EXTRACTED_TEXT_LENGTH:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="Extracted text from PDF is too short. The PDF may be primarily images or corrupted."
+                        )
+                    
+            except ImportError:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="PDF processing library (pdfplumber) is not installed. Please install it: pip install pdfplumber>=0.11.9"
+                )
+            except pdfplumber.exceptions.PDFSyntaxError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid or corrupted PDF file: {str(e)}"
+                )
+            except Exception as e:
+                logger.error(f"PDF extraction failed: {e}", exc_info=True)
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to extract text from PDF: {str(e)}"
+                )
+            
+            # 保存原始PDF文件
+            pdf_path = user_doc_dir / f"{lab_name}.pdf"
+            with open(pdf_path, "wb") as f:
+                f.write(content)
+            
+            # 保存提取的文本
+            lab_manual_path = user_doc_dir / "lab_manual.md"
+            with open(lab_manual_path, "w", encoding="utf-8") as f:
+                f.write(content_str)
+            
+            # 记录PDF文件路径
+            pdf_relative_path = f"data/documents/{current_user.user_id}/{lab_name}/{lab_name}.pdf"
+            text_relative_path = f"data/documents/{current_user.user_id}/{lab_name}/lab_manual.md"
+            
+        else:
+            # 现有的文本文件处理逻辑
+            content_str = content.decode("utf-8")
+            
+            if not content_str.strip():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File is empty.",
+                )
+            
+            lab_manual_path = user_doc_dir / "lab_manual.md"
+            with open(lab_manual_path, "w", encoding="utf-8") as f:
+                f.write(content_str)
+            
+            text_relative_path = f"data/documents/{current_user.user_id}/{lab_name}/lab_manual.md"
+            pdf_relative_path = None
+        
+        # 创建文档记录
+        relative_path = text_relative_path  # 主要路径指向文本文件
+        meta_info = {
+            "uploader": current_user.username,
+            "original_format": file_extension,
+        }
+        
+        if pdf_relative_path:
+            meta_info["pdf_path"] = pdf_relative_path
+            meta_info["text_path"] = text_relative_path
+        
         document_manager.create_document(
             owner_id=current_user.user_id,  # ✅ 设置所有者
             doc_name=lab_name,
-            filename=file.filename or "lab_manual.md",
+            filename=file.filename or f"{lab_name}.{file_extension}",
             storage_path=relative_path,
-            meta_info={"uploader": current_user.username}
+            meta_info=meta_info
         )
 
         logger.info(
@@ -469,6 +564,7 @@ async def upload_lab_manual(
             "lab_name": lab_name,
             "owner_id": current_user.user_id,  # ✅ 返回所有者信息
             "saved_path": relative_path,
+            "pdf_path": pdf_relative_path,  # 如果是PDF
             "size": len(content_str),
             "rag_status": "building",
         }

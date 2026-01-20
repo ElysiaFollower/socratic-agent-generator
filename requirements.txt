@@ -26,6 +26,10 @@ huggingface-hub>=0.16.0            # HuggingFace Hub client for model downloads
 hf_transfer>=0.1.0                 # Optional: Fast model downloads (recommended, enables HF_HUB_ENABLE_HF_TRANSFER)
 sqlite-vec>=0.1.0                  # SQLite vector extension (loadable module)
 
+# PDF处理
+pdfplumber>=0.11.8,<0.12.0         # PDF文本提取（支持表格和复杂布局）
+                                    # 注意：0.11.9需要pdfminer.six==20251230（未发布），使用0.11.8兼容
+
 # 环境变量管理
 python-dotenv>=1.0.0               # 环境变量加载
 

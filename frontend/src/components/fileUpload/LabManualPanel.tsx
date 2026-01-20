@@ -147,7 +147,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
    * Applies a selected file.
    */
   const applySelectedFile = (file: File) => {
-    const allowedExtensions = [".md", ".txt", ".markdown"];
+    const allowedExtensions = [".md", ".txt", ".markdown", ".pdf"];
     const fileExtension = file.name.toLowerCase().split(".").pop();
     if (fileExtension && !allowedExtensions.includes(`.${fileExtension}`)) {
       notifyError(
@@ -176,7 +176,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   );
 
   const handleDropRejected = useCallback(() => {
-    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown");
+    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown、.pdf");
   }, [notifyError]);
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
@@ -188,7 +188,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       accept: {
         "text/markdown": [".md", ".markdown"],
         "text/plain": [".txt"],
+        "application/pdf": [".pdf"],  // 新增PDF支持
       },
+      maxSize: 10 * 1024 * 1024,  // 10MB限制（可选，后端也会验证）
     });
 
   /**
@@ -402,8 +404,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             </Typography>
             <Typography variant='body2' color='text.secondary'>
               {isDragReject
-                ? "仅支持 .md、.txt、.markdown"
-                : "点击区域选择文件（支持 .md, .txt, .markdown）"}
+                ? "仅支持 .md、.txt、.markdown、.pdf"
+                : "点击区域选择文件（支持 .md, .txt, .markdown, .pdf）"}
+            </Typography>
+            <Typography variant='caption' color='text.secondary' sx={{ mt: 1 }}>
+              支持格式：Markdown (.md, .markdown)、纯文本 (.txt)、PDF (.pdf)
+              <br />
+              PDF文件大小限制：10MB。扫描PDF（图片）暂不支持，请使用文本型PDF。
             </Typography>
             {selectedFile && (
               <Typography variant='body2' sx={{ mt: 1 }}>
