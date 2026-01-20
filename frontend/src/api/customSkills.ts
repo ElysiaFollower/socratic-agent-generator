@@ -116,7 +116,9 @@ export async function uploadSkillMaterial(
     );
     return response.data;
   } catch (error) {
-    throw new Error(`Failed to upload skill material: ${handleApiError(error)}`);
+    throw new Error(
+      `Failed to upload skill material: ${handleApiError(error)}`,
+    );
   }
 }
 
@@ -156,7 +158,9 @@ export async function deleteSkillMaterial(
       `/api/profiles/${profileId}/skill-materials/${materialId}`,
     );
   } catch (error) {
-    throw new Error(`Failed to delete skill material: ${handleApiError(error)}`);
+    throw new Error(
+      `Failed to delete skill material: ${handleApiError(error)}`,
+    );
   }
 }
 
@@ -239,14 +243,6 @@ export async function deleteCustomSkill(skillId: number): Promise<void> {
   }
 }
 
-export async function rebuildCustomSkillIndex(skillId: number): Promise<void> {
-  try {
-    await apiClient.post(`/api/skills/${skillId}/rebuild`);
-  } catch (error) {
-    throw new Error(`Failed to rebuild skill index: ${handleApiError(error)}`);
-  }
-}
-
 export async function assignCustomSkill(
   skillId: number,
   request: CustomSkillAssignRequest,
@@ -259,5 +255,13 @@ export async function assignCustomSkill(
     return response.data;
   } catch (error) {
     throw new Error(`Failed to assign skill: ${handleApiError(error)}`);
+  }
+}
+
+export async function rebuildCustomSkillIndex(skillId: number): Promise<void> {
+  try {
+    await apiClient.post(`/api/skills/${skillId}/rebuild`);
+  } catch (error) {
+    throw new Error(`Failed to rebuild skill index: ${handleApiError(error)}`);
   }
 }

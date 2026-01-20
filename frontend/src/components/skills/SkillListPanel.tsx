@@ -35,6 +35,8 @@ import {
 } from "../../api";
 import { type Profile } from "../../types";
 import { useConfirmDialog, useNotification } from "../../hooks";
+import { SkillCard, SkillDetailCard } from "./SkillCard";
+import { ProfileCard } from "../profile/ProfileCard";
 
 interface SkillListPanelProps {
   readonly profiles: readonly Profile[];
@@ -52,8 +54,9 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
   const [showDetails, setShowDetails] = useState<boolean>(false);
 
   const [viewingSkillId, setViewingSkillId] = useState<number | null>(null);
-  const [viewingSkill, setViewingSkill] =
-    useState<CustomSkillDetail | null>(null);
+  const [viewingSkill, setViewingSkill] = useState<CustomSkillDetail | null>(
+    null,
+  );
   const [isLoadingSkill, setIsLoadingSkill] = useState<boolean>(false);
   const [assignProfileId, setAssignProfileId] = useState<string>("");
   const [isAssigning, setIsAssigning] = useState<boolean>(false);
@@ -61,6 +64,12 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
   const [deletingSkillId, setDeletingSkillId] = useState<number | null>(null);
   const [rebuildingSkillId, setRebuildingSkillId] = useState<number | null>(
     null,
+  );
+
+  // State for managing profile assignment modal
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState<boolean>(false);
+  const [selectedProfiles, setSelectedProfiles] = useState<Set<string>>(
+    new Set(),
   );
 
   useEffect(() => {
@@ -105,8 +114,13 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
     try {
       const detail = await getCustomSkill(skillId);
       setViewingSkill(detail);
-      const target = profiles.find((profile) => profile.profile_id !== detail.profile_id);
+      const target = profiles.find(
+        (profile) => profile.profile_id !== detail.profile_id,
+      );
       setAssignProfileId(target?.profile_id || "");
+
+      // Initialize selected profiles with the current skill's profile
+      setSelectedProfiles(new Set([detail.profile_id]));
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "加载技能详情失败";
@@ -132,8 +146,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       notifySuccess("技能已删除");
       await loadSkills();
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "删除技能失败";
+      const errorMessage = err instanceof Error ? err.message : "删除技能失败";
       notifyError(errorMessage);
     } finally {
       setDeletingSkillId(null);
@@ -147,8 +160,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       notifySuccess("索引重建完成");
       await loadSkills();
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "索引重建失败";
+      const errorMessage = err instanceof Error ? err.message : "索引重建失败";
       notifyError(errorMessage);
     } finally {
       setRebuildingSkillId(null);
@@ -172,12 +184,73 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       });
       notifySuccess("技能已分配到目标Profile");
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "技能分配失败";
+      const errorMessage = err instanceof Error ? err.message : "技能分配失败";
       notifyError(errorMessage);
     } finally {
       setIsAssigning(false);
     }
+  };
+
+  const handleOpenProfileModal = () => {
+    if (viewingSkill) {
+      // Initialize selected profiles with the current skill's profile
+      setSelectedProfiles(new Set([viewingSkill.profile_id]));
+      setIsProfileModalOpen(true);
+    }
+  };
+
+  const handleCloseProfileModal = () => {
+    setIsProfileModalOpen(false);
+  };
+
+  const handleSaveProfileAssignments = async () => {
+    if (!viewingSkill) {
+      return;
+    }
+
+    // Find profiles that were added (in selected but not in original)
+    const originalProfileSet = new Set([viewingSkill.profile_id]);
+    const addedProfiles = [...selectedProfiles].filter(
+      (id) => !originalProfileSet.has(id),
+    );
+
+    // Find profiles that were removed (in original but not in selected)
+    const removedProfiles = [...originalProfileSet].filter(
+      (id) => !selectedProfiles.has(id),
+    );
+
+    // Process assignments
+    for (const profileId of addedProfiles) {
+      try {
+        await assignCustomSkill(viewingSkill.id, {
+          profile_id: profileId,
+          material_ids: [],
+        });
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : "添加技能到Profile失败";
+        notifyError(`${errorMessage}: ${profileId}`);
+      }
+    }
+
+    // Note: Currently, we can't remove skills from profiles with the available API
+    // The assignCustomSkill API creates a copy of the skill in the target profile
+    // So effectively, we're only adding skills to new profiles
+
+    notifySuccess("技能分配已更新");
+    setIsProfileModalOpen(false);
+  };
+
+  const handleProfileSelectionChange = (profileId: string) => {
+    setSelectedProfiles((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(profileId)) {
+        newSet.delete(profileId);
+      } else {
+        newSet.add(profileId);
+      }
+      return newSet;
+    });
   };
 
   const skillDialog = (
@@ -199,61 +272,44 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
           </Box>
         ) : viewingSkill ? (
           <Stack spacing={2}>
-            <Box>
-              <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                {viewingSkill.name}
-              </Typography>
-              <Typography variant='body2' color='text.secondary'>
-                {viewingSkill.description}
-              </Typography>
-              <Typography variant='caption' color='text.secondary'>
-                工具名：{viewingSkill.tool_name} · 状态：{viewingSkill.status}
-              </Typography>
-            </Box>
-            <Paper
-              variant='outlined'
-              sx={{
-                p: 2,
-                bgcolor: "var(--color-surface-muted)",
-                maxHeight: 420,
-                overflowY: "auto",
-              }}
-            >
-              <Typography
-                component='pre'
-                variant='body2'
-                sx={{
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "var(--font-heading)",
-                }}
+            <SkillDetailCard skill={viewingSkill} />
+
+            <Stack direction='row' spacing={1} alignItems='center'>
+              <Typography variant='subtitle2'>技能使用情况</Typography>
+              <Button
+                variant='outlined'
+                size='small'
+                onClick={handleOpenProfileModal}
               >
-                {viewingSkill.instructions || "暂无指令内容"}
-              </Typography>
-            </Paper>
-            <Typography variant='caption' color='text.secondary'>
-              资料关联：{viewingSkill.material_ids.join(", ") || "无"}
-            </Typography>
+                编辑
+              </Button>
+            </Stack>
 
             <Stack spacing={1}>
-              <Typography variant='subtitle2'>分配到其他Profile</Typography>
-              <FormControl size='small' fullWidth>
-                <InputLabel id='assign-profile-label'>目标Profile</InputLabel>
-                <Select
-                  labelId='assign-profile-label'
-                  label='目标Profile'
-                  value={assignProfileId}
-                  onChange={(event) => setAssignProfileId(event.target.value)}
-                >
-                  {profiles.map((profile) => (
-                    <MenuItem key={profile.profile_id} value={profile.profile_id}>
-                      {profile.profile_name || profile.topic_name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              <Typography variant='caption' color='text.secondary'>
-                分配后会复制技能定义，资料需重新关联。
-              </Typography>
+              {profiles
+                .filter((profile) => selectedProfiles.has(profile.profile_id))
+                .map((profile) => (
+                  <Stack
+                    key={profile.profile_id}
+                    direction='row'
+                    spacing={1}
+                    alignItems='center'
+                    sx={{
+                      p: 1,
+                      borderRadius: 1,
+                      bgcolor: "var(--color-surface-muted)",
+                    }}
+                  >
+                    <Box>
+                      <Typography variant='body2' sx={{ fontWeight: 500 }}>
+                        {profile.profile_name || profile.topic_name}
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        {profile.profile_id}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                ))}
             </Stack>
           </Stack>
         ) : (
@@ -262,22 +318,44 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
           </Typography>
         )}
       </DialogContent>
+    </Dialog>
+  );
+
+  // Profile assignment modal
+  const profileModal = (
+    <Dialog
+      open={isProfileModalOpen}
+      onClose={handleCloseProfileModal}
+      fullWidth
+      maxWidth='sm'
+    >
+      <DialogTitle>编辑技能使用情况</DialogTitle>
+      <DialogContent dividers>
+        <Typography variant='body2' color='text.secondary' gutterBottom>
+          将此技能共享给Profile:
+        </Typography>
+        <Box sx={{ py: 1, maxHeight: 400, overflow: "auto" }}>
+          <Stack spacing={1}>
+            {profiles.map((profile) => (
+              <ProfileCard
+                key={`profile-${profile.profile_id}`}
+                profile={profile}
+                selectable
+                selected={selectedProfiles.has(profile.profile_id)}
+                onSelectToggle={() =>
+                  handleProfileSelectionChange(profile.profile_id)
+                }
+              />
+            ))}
+          </Stack>
+        </Box>
+      </DialogContent>
       <DialogActions>
-        <Button
-          onClick={() => {
-            setViewingSkillId(null);
-            setViewingSkill(null);
-          }}
-          color='inherit'
-        >
-          关闭
+        <Button onClick={handleCloseProfileModal} color='inherit'>
+          取消
         </Button>
-        <Button
-          onClick={handleAssignSkill}
-          variant='contained'
-          disabled={!viewingSkill || isAssigning}
-        >
-          {isAssigning ? "分配中..." : "分配"}
+        <Button onClick={handleSaveProfileAssignments} variant='contained'>
+          保存
         </Button>
       </DialogActions>
     </Dialog>
@@ -289,7 +367,9 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
         <Paper variant='outlined' sx={{ p: 2 }}>
           <Stack spacing={2}>
             <FormControl size='small' fullWidth>
-              <InputLabel id='skill-profile-select-label'>选择Profile</InputLabel>
+              <InputLabel id='skill-profile-select-label'>
+                选择Profile
+              </InputLabel>
               <Select
                 labelId='skill-profile-select-label'
                 label='选择Profile'
@@ -338,64 +418,22 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
             }}
           >
             {skills.map((skill) => (
-              <Paper key={skill.id} variant='outlined' sx={{ p: 2 }}>
-                <Stack spacing={1.5}>
-                  <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                    {skill.name}
-                  </Typography>
-                  <Typography variant='body2' color='text.secondary'>
-                    {skill.description}
-                  </Typography>
-                  <Typography variant='caption' color='text.secondary'>
-                    状态：{skill.status}
-                    {" · "}
-                    检索：{getSkillRetrievalFlag(skill) ? "是" : "否"}
-                  </Typography>
-                  {showDetails && (
-                    <>
-                      <Typography variant='caption' color='text.secondary'>
-                        工具名：{skill.tool_name}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        资料关联：{skill.material_ids.join(", ") || "无"}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        创建时间：{skill.create_at || "未知"}
-                      </Typography>
-                    </>
-                  )}
-                  <Stack direction='row' spacing={1} alignItems='center'>
-                    <Button size='small' onClick={() => handleViewSkill(skill.id)}>
-                      查看
-                    </Button>
-                    {getSkillRetrievalFlag(skill) && (
-                      <Button
-                        size='small'
-                        startIcon={<Refresh fontSize='small' />}
-                        onClick={() => handleRebuildSkill(skill.id)}
-                        disabled={rebuildingSkillId === skill.id}
-                      >
-                        {rebuildingSkillId === skill.id
-                          ? "重建中..."
-                          : "重建索引"}
-                      </Button>
-                    )}
-                    <Button
-                      size='small'
-                      color='error'
-                      onClick={() => handleDeleteSkill(skill.id)}
-                      disabled={deletingSkillId === skill.id}
-                    >
-                      {deletingSkillId === skill.id ? "删除中..." : "删除"}
-                    </Button>
-                  </Stack>
-                </Stack>
-              </Paper>
+              <SkillCard
+                key={skill.id}
+                skill={skill}
+                showDetails={showDetails}
+                onAction={() => handleViewSkill(skill.id)}
+                onRebuild={handleRebuildSkill}
+                onDelete={handleDeleteSkill}
+                isRebuilding={rebuildingSkillId === skill.id}
+                isDeleting={deletingSkillId === skill.id}
+              />
             ))}
           </Box>
         )}
       </Stack>
       {skillDialog}
+      {profileModal}
     </>
   );
 }
