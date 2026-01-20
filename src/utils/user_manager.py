@@ -5,14 +5,18 @@ password hashing, invitation code generation, and user authentication.
 """
 
 import logging
+import secrets
+from datetime import datetime, timedelta
 from typing import List, Optional
 
 import bcrypt
+import pytz
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from schemas.user import User
 from models.user import UserModel
+from models.invitation_code import InvitationCodeModel
 from utils.converters import user_to_model, model_to_user
 
 logger = logging.getLogger(__name__)
@@ -212,3 +216,135 @@ class UserManager:
         """
         models = self.db.query(UserModel).all()
         return [model_to_user(m) for m in models]
+
+    def generate_invitation_code(
+        self,
+        role: str,
+        created_by: str,
+        expires_in_days: int = 30,
+    ) -> InvitationCodeModel:
+        """Generate a registration invitation code.
+
+        Args:
+            role: Target role for the invitation code ('teacher' or 'student').
+            created_by: Username of the creator.
+            expires_in_days: Number of days until expiration (default: 30).
+
+        Returns:
+            Created InvitationCodeModel instance.
+
+        Raises:
+            ValueError: If role is invalid.
+        """
+        if role not in ["teacher", "student"]:
+            raise ValueError(f"Invalid role: {role}. Must be 'teacher' or 'student'.")
+
+        code = secrets.token_urlsafe(16)
+        expires_at = datetime.now(pytz.utc) + timedelta(days=expires_in_days)
+        model = InvitationCodeModel(
+            code=code,
+            role=role,
+            created_by=created_by,
+            created_at=datetime.now(pytz.utc).isoformat(),
+            expires_at=expires_at.isoformat(),
+        )
+        self.db.add(model)
+        self.db.commit()
+        self.db.refresh(model)
+        logger.info("Generated invitation code for role: %s, created by: %s", role, created_by)
+        return model
+
+    def verify_invitation_code(self, code: str, required_role: str) -> bool:
+        """Verify an invitation code is valid for the required role.
+
+        Args:
+            code: Invitation code to verify.
+            required_role: Required role ('teacher' or 'student').
+
+        Returns:
+            True if the code is valid, False otherwise.
+        """
+        model = (
+            self.db.query(InvitationCodeModel)
+            .filter(InvitationCodeModel.code == code)
+            .first()
+        )
+        if not model:
+            return False
+
+        # Check role match
+        if model.role != required_role:
+            return False
+
+        # Check expiration
+        if model.expires_at:
+            expires_at = datetime.fromisoformat(model.expires_at.replace("Z", "+00:00"))
+            if datetime.now(pytz.utc) > expires_at:
+                return False
+
+        return True
+
+    def use_invitation_code(self, code: str) -> None:
+        """Mark an invitation code as used by deleting it.
+
+        Args:
+            code: Invitation code to use.
+
+        Raises:
+            InvalidInvitationCodeError: If the code is invalid or expired.
+        """
+        model = (
+            self.db.query(InvitationCodeModel)
+            .filter(InvitationCodeModel.code == code)
+            .first()
+        )
+        if not model:
+            raise InvalidInvitationCodeError("Invalid invitation code")
+
+        if model.expires_at:
+            expires_at = datetime.fromisoformat(model.expires_at.replace("Z", "+00:00"))
+            if datetime.now(pytz.utc) > expires_at:
+                raise InvalidInvitationCodeError("Invitation code has expired")
+
+        self.db.delete(model)
+        self.db.commit()
+        logger.info("Used invitation code: %s", code)
+
+    def list_invitation_codes(
+        self, role: Optional[str] = None, created_by: Optional[str] = None
+    ) -> List[InvitationCodeModel]:
+        """List invitation codes with optional filters.
+
+        Args:
+            role: Optional role filter ('teacher' or 'student').
+            created_by: Optional creator username filter.
+
+        Returns:
+            List of InvitationCodeModel instances.
+        """
+        query = self.db.query(InvitationCodeModel)
+        if role:
+            query = query.filter(InvitationCodeModel.role == role)
+        if created_by:
+            query = query.filter(InvitationCodeModel.created_by == created_by)
+        return query.order_by(InvitationCodeModel.created_at.desc()).all()
+
+    def delete_invitation_code(self, code: str) -> None:
+        """Delete an invitation code.
+
+        Args:
+            code: Invitation code to delete.
+
+        Raises:
+            ValueError: If the code is not found.
+        """
+        model = (
+            self.db.query(InvitationCodeModel)
+            .filter(InvitationCodeModel.code == code)
+            .first()
+        )
+        if not model:
+            raise ValueError("Invitation code not found")
+        self.db.delete(model)
+        self.db.commit()
+        logger.info("Deleted invitation code: %s", code)

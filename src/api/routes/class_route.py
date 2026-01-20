@@ -82,17 +82,35 @@ def join_class(
     class_manager: ClassManagerDep,
     current_user: User = Depends(get_current_user),
 ) -> ClassInfo:
-    if current_user.role != "student":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only students can join classes via invitation codes.",
-        )
+    """Join a class using an invitation code.
+
+    Any registered user (admin, teacher, or student) can join a class
+    using a valid invitation code.
+
+    Args:
+        req: Join request with invitation code.
+        class_manager: Injected ClassManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        ClassInfo for the joined class.
+
+    Raises:
+        HTTPException: If invitation code is invalid or class not found.
+    """
     try:
         class_id = class_manager.join_by_invitation_code(
             req.invitation_code.strip(), current_user.user_id
         )
         model = class_manager.get_class(class_id)
-        return _build_class_info(model, role_in_class="student")
+        # Determine role in class
+        memberships = class_manager.list_classes_for_user(current_user.user_id)
+        role_in_class = None
+        for membership in memberships:
+            if membership.class_id == class_id:
+                role_in_class = membership.role_in_class
+                break
+        return _build_class_info(model, role_in_class=role_in_class)
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

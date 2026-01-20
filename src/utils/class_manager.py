@@ -151,6 +151,23 @@ class ClassManager:
         return query.order_by(ClassInvitationCodeModel.created_at.desc()).all()
 
     def join_by_invitation_code(self, code: str, user_id: str) -> str:
+        """Join a class using an invitation code.
+
+        Any registered user can join a class using a valid invitation code.
+        The role_in_class is determined by the user's global role:
+        - admin/teacher: joins as 'teacher' role in class
+        - student: joins as 'student' role in class
+
+        Args:
+            code: Invitation code.
+            user_id: User ID joining the class.
+
+        Returns:
+            Class ID that was joined.
+
+        Raises:
+            ValueError: If invitation code is invalid or expired.
+        """
         model = (
             self.db.query(ClassInvitationCodeModel)
             .filter(ClassInvitationCodeModel.code == code)
@@ -162,5 +179,13 @@ class ClassManager:
             expires_at = datetime.fromisoformat(model.expires_at.replace("Z", "+00:00"))
             if datetime.now(pytz.utc) > expires_at:
                 raise ValueError("Invitation code has expired")
-        self.add_member(model.class_id, user_id, "student")
+        
+        # Determine role_in_class based on user's global role
+        user_model = self.db.query(UserModel).filter(UserModel.user_id == user_id).first()
+        if not user_model:
+            raise ValueError("User not found")
+        
+        # Admin and teacher join as 'teacher' role in class, student joins as 'student'
+        role_in_class = "teacher" if user_model.role in ["admin", "teacher"] else "student"
+        self.add_member(model.class_id, user_id, role_in_class)
         return model.class_id

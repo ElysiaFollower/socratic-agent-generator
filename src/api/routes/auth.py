@@ -19,12 +19,16 @@ logger = logging.getLogger(__name__)
 
 from schemas.user import (
     CurrentUserResponse,
+    GenerateInvitationCodeRequest,
+    InvitationCodeInfo,
+    InvitationCodeListResponse,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
     User,
 )
 from utils.user_manager import (
+    InvalidInvitationCodeError,
     UserAlreadyExistsError,
     UserNotFoundError as UserManagerNotFoundError,
 )
@@ -130,7 +134,7 @@ def register(
 
     Registration requirements:
     - Admin: Requires ADMIN_TOKEN from environment variable
-    - Teacher/Student: No invitation code required
+    - Teacher/Student: Requires valid invitation code
 
     Args:
         req: Registration request with username, password, role, etc.
@@ -188,6 +192,29 @@ def register(
                 detail="Invalid admin token",
             )
         logger.info("Admin token validation passed")
+    else:
+        # Validate invitation code for teacher/student registration
+        if not req.invitation_code:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invitation code is required for teacher/student registration.",
+            )
+        
+        # Verify invitation code
+        if not user_manager.verify_invitation_code(req.invitation_code, req.role):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired invitation code for the requested role.",
+            )
+        
+        # Use (delete) the invitation code
+        try:
+            user_manager.use_invitation_code(req.invitation_code)
+        except InvalidInvitationCodeError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(e),
+            )
 
     # Create user
     try:
@@ -290,3 +317,178 @@ def get_current_user_info(
     user_dict = current_user.model_dump()
     user_dict.pop("password_hash", None)
     return CurrentUserResponse(user=user_dict)
+
+
+@router.post(
+    "/invitation-codes/generate",
+    response_model=InvitationCodeInfo,
+    summary="生成注册邀请码",
+)
+def generate_invitation_code(
+    req: GenerateInvitationCodeRequest,
+    current_user: User = Depends(get_current_user),
+    user_manager: UserManagerDep = None,
+) -> InvitationCodeInfo:
+    """Generate a registration invitation code.
+
+    Permission requirements:
+    - Admin: Can generate invitation codes for teacher or student
+    - Teacher: Can only generate invitation codes for student
+    - Student: No permission
+
+    Args:
+        req: Request with role and expiration days.
+        current_user: Current authenticated user.
+        user_manager: Injected UserManager instance.
+
+    Returns:
+        InvitationCodeInfo with invitation code details.
+
+    Raises:
+        HTTPException: If permission denied or invalid role.
+    """
+    # Validate role
+    if req.role not in ["teacher", "student"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid role: {req.role}. Must be 'teacher' or 'student'.",
+        )
+
+    # Check permissions
+    if current_user.role == "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students cannot generate invitation codes.",
+        )
+    if current_user.role == "teacher" and req.role == "teacher":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Teachers can only generate invitation codes for students.",
+        )
+
+    # Generate invitation code
+    model = user_manager.generate_invitation_code(
+        role=req.role,
+        created_by=current_user.username,
+        expires_in_days=req.expires_in_days,
+    )
+
+    return InvitationCodeInfo(
+        invitation_code=model.code,
+        role=model.role,
+        created_by=model.created_by,
+        created_at=model.created_at,
+        expires_at=model.expires_at,
+    )
+
+
+@router.get(
+    "/invitation-codes",
+    response_model=InvitationCodeListResponse,
+    summary="列出注册邀请码",
+)
+def list_invitation_codes(
+    role: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    user_manager: UserManagerDep = None,
+) -> InvitationCodeListResponse:
+    """List registration invitation codes.
+
+    Permission requirements:
+    - Admin: Can list all invitation codes
+    - Teacher: Can only list invitation codes they created
+    - Student: No permission
+
+    Args:
+        role: Optional role filter ('teacher' or 'student').
+        current_user: Current authenticated user.
+        user_manager: Injected UserManager instance.
+
+    Returns:
+        InvitationCodeListResponse with list of invitation codes.
+
+    Raises:
+        HTTPException: If permission denied.
+    """
+    if current_user.role == "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students cannot list invitation codes.",
+        )
+
+    # Filter by creator if teacher
+    created_by = None if current_user.role == "admin" else current_user.username
+
+    models = user_manager.list_invitation_codes(role=role, created_by=created_by)
+    results = [
+        InvitationCodeInfo(
+            invitation_code=model.code,
+            role=model.role,
+            created_by=model.created_by,
+            created_at=model.created_at,
+            expires_at=model.expires_at,
+        )
+        for model in models
+    ]
+    return InvitationCodeListResponse(invitation_codes=results)
+
+
+@router.delete(
+    "/invitation-codes/{code}",
+    summary="删除注册邀请码",
+)
+def delete_invitation_code(
+    code: str,
+    current_user: User = Depends(get_current_user),
+    user_manager: UserManagerDep = None,
+) -> dict:
+    """Delete a registration invitation code.
+
+    Permission requirements:
+    - Admin: Can delete any invitation code
+    - Teacher: Can only delete invitation codes they created
+    - Student: No permission
+
+    Args:
+        code: Invitation code to delete.
+        current_user: Current authenticated user.
+        user_manager: Injected UserManager instance.
+
+    Returns:
+        Dictionary with success message.
+
+    Raises:
+        HTTPException: If permission denied or code not found.
+    """
+    if current_user.role == "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students cannot delete invitation codes.",
+        )
+
+    # Check permission - list codes to verify ownership
+    codes = user_manager.list_invitation_codes(created_by=current_user.username)
+    code_exists = any(c.code == code for c in codes)
+    
+    if current_user.role == "teacher" and not code_exists:
+        # Check if code exists at all
+        all_codes = user_manager.list_invitation_codes()
+        if not any(c.code == code for c in all_codes):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invitation code not found.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete invitation codes you created.",
+        )
+
+    try:
+        user_manager.delete_invitation_code(code)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+    return {"success": True, "message": "Invitation code deleted successfully"}

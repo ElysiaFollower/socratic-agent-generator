@@ -59,7 +59,7 @@ class RegisterRequest(BaseModel):
     )
     invitation_code: Optional[str] = Field(
         default=None,
-        description="Deprecated. Registration no longer requires invitation codes.",
+        description="Invitation code required for teacher/student registration.",
     )
 
 
@@ -81,4 +81,38 @@ class CurrentUserResponse(BaseModel):
     """Response model for current user information."""
 
     user: dict = Field(description="User information (without password).")
+
+
+class GenerateInvitationCodeRequest(BaseModel):
+    """Request model for generating registration invitation code."""
+
+    role: str = Field(
+        description="Target role for the invitation code ('teacher' or 'student')."
+    )
+    expires_in_days: int = Field(
+        default=30,
+        description="Number of days until the code expires.",
+        ge=1,
+        le=365,
+    )
+
+
+class InvitationCodeInfo(BaseModel):
+    """Registration invitation code info model."""
+
+    invitation_code: str = Field(description="Invitation code value")
+    role: str = Field(description="Target role")
+    created_by: str = Field(description="Creator username")
+    created_at: str = Field(description="Creation time")
+    expires_at: Optional[str] = Field(
+        default=None, description="Expiration time (ISO 8601)"
+    )
+
+
+class InvitationCodeListResponse(BaseModel):
+    """Response model for invitation code list."""
+
+    invitation_codes: list[InvitationCodeInfo] = Field(
+        description="Registration invitation codes"
+    )
 
