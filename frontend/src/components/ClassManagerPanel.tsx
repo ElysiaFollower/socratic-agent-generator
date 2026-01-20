@@ -48,7 +48,7 @@ import {
   updateProfileVisibility,
   generateClassInvitationCode,
 } from "../api";
-import { useAuth, useNotification, useProfiles } from "../hooks";
+import { useAuth, useClipboard, useNotification, useProfiles } from "../hooks";
 import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
 
 /**
@@ -69,6 +69,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const { variant = "panel" } = props;
   const { user } = useAuth();
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
+  const { copyToClipboard } = useClipboard();
   const { profiles, refresh: refreshProfiles } = useProfiles();
 
   const [classes, setClasses] = useState<readonly ClassInfo[]>([]);
@@ -308,39 +309,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     if (!code) {
       return;
     }
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(code);
-        notifySuccess("邀请码已复制");
-        return;
-      }
-
-      if (typeof document === "undefined") {
-        throw new Error("复制失败，请手动复制");
-      }
-
-      const textArea = document.createElement("textarea");
-      textArea.value = code;
-      textArea.setAttribute("readonly", "");
-      textArea.style.position = "fixed";
-      textArea.style.opacity = "0";
-      textArea.style.left = "-9999px";
-      textArea.style.top = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const success = document.execCommand("copy");
-      document.body.removeChild(textArea);
-
-      if (!success) {
-        throw new Error("复制失败，请手动复制");
-      }
-      notifySuccess("邀请码已复制");
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "复制失败，请重试";
-      notifyError(errorMessage);
-    }
+    await copyToClipboard(code, "邀请码已复制", "复制失败，请重试");
   };
 
   const handleCreateClass = async () => {

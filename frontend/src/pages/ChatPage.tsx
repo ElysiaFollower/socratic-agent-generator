@@ -21,6 +21,7 @@ import {
   useSessionState,
   useAuth,
   useNotification,
+  useClipboard,
 } from "../hooks";
 import {
   Sidebar,
@@ -62,6 +63,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const { themeMode, onToggleTheme } = props;
   const { user, logout } = useAuth();
   const { notifySuccess, notifyError } = useNotification();
+  const { copyToClipboard } = useClipboard();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showProfileSelector, setShowProfileSelector] =
     useState<boolean>(false);
@@ -281,19 +283,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       if (!message.content.trim()) {
         return;
       }
-      if (!navigator.clipboard?.writeText) {
-        notifyError("当前环境不支持复制");
-        return;
-      }
-      try {
-        await navigator.clipboard.writeText(message.content);
-        notifySuccess("已复制消息");
-      } catch (error) {
-        console.error("Failed to copy message:", error);
-        notifyError("复制失败，请重试");
-      }
+      await copyToClipboard(message.content, "已复制消息", "复制失败，请重试");
     },
-    [notifyError, notifySuccess],
+    [copyToClipboard],
   );
 
   const handleRegenerateMessage = useCallback(
@@ -581,9 +573,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                   onGenerateSuccess={handleProfileGenerateSuccess}
                 />
               )}
-              {activePanel === "class" && (
-                <ClassManagerPanel variant='panel' />
-              )}
+              {activePanel === "class" && <ClassManagerPanel variant='panel' />}
             </Box>
           )}
         </Box>
