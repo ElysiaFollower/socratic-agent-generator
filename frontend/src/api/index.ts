@@ -35,3 +35,4 @@ export * from './sessions';
 export * from './tutor';
 export * from './health';
 export * from './auth';
+export * from './classes';

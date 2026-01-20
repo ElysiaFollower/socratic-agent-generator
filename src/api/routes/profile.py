@@ -13,7 +13,7 @@ from pathlib import Path
 
 from api.routes.auth import get_current_user
 from config import RAW_DATA_DIR
-from core.dependencies import ProfileManagerDep, DocumentManagerDep
+from core.dependencies import ProfileManagerDep, DocumentManagerDep, ClassManagerDep
 from core.exceptions import ProfileNotFoundError
 from generators.ProfileGenerateManager import ProfileGenerateManager
 from pydantic import BaseModel, Field
@@ -67,7 +67,11 @@ class GenerateProfileFromLabRequest(BaseModel):
 
 
 @router.get("", response_model=List[Profile], summary="获取所有可用的导师配置列表")
-def list_profiles(profile_manager: ProfileManagerDep) -> List[Profile]:
+def list_profiles(
+    profile_manager: ProfileManagerDep,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> List[Profile]:
     """List all available tutor profiles.
 
     Args:
@@ -76,7 +80,14 @@ def list_profiles(profile_manager: ProfileManagerDep) -> List[Profile]:
     Returns:
         List of Profile objects.
     """
-    return profile_manager.list_profiles()
+    if current_user.role == "student":
+        class_ids = class_manager.list_class_ids_for_user(current_user.user_id)
+        return profile_manager.list_profiles_by_visible_classes(class_ids)
+    if current_user.role == "admin":
+        return profile_manager.list_profiles()
+    return profile_manager.list_profiles_by_owner(
+        current_user.user_id, include_unowned=True
+    )
 
 
 @router.get("/lab-manuals", summary="列出所有实验文档")
@@ -205,11 +216,33 @@ def delete_lab_manual(
 
 
 @router.get("/{profile_id}", response_model=Profile, summary="获取指定导师的完整配置")
-def get_profile(profile_id: str, profile_manager: ProfileManagerDep) -> Profile:
+def get_profile(
+    profile_id: str,
+    profile_manager: ProfileManagerDep,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Profile:
     try:
-        return profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if current_user.role == "student":
+        class_ids = class_manager.list_class_ids_for_user(current_user.user_id)
+        visible_ids = set(profile.visible_class_ids or [])
+        if not visible_ids.intersection(set(class_ids)):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Profile is not visible to your classes.",
+            )
+    elif current_user.role == "teacher":
+        if profile.owner_id and profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only access your own profiles.",
+            )
+
+    return profile
 
 
 @router.put(
@@ -230,9 +263,18 @@ def rename_profile(
         )
 
     try:
-        return profile_manager.rename_profile(profile_id, req.profile_name.strip())
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if profile.owner_id and current_user.role == "teacher":
+        if profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only rename your own profiles.",
+            )
+
+    return profile_manager.rename_profile(profile_id, req.profile_name.strip())
 
 
 @router.delete(
@@ -251,9 +293,18 @@ def delete_profile(
         )
 
     try:
-        profile_manager.delete_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+    if profile.owner_id and current_user.role == "teacher":
+        if profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only delete your own profiles.",
+            )
+
+    profile_manager.delete_profile(profile_id)
 
     return {"success": True, "message": "Profile deleted successfully"}
 
@@ -412,6 +463,12 @@ async def generate_profile(
             profile_name=profile_name,
             lab_name=lab_name,
             output_dir=None, # Signal to not save to file
+        )
+        profile = profile.model_copy(
+            update={
+                "owner_id": current_user.user_id,
+                "visible_class_ids": [],
+            }
         )
 
         # Save to DB
@@ -623,6 +680,12 @@ async def generate_profile_from_lab(
             profile_name=profile_name,
             lab_name=lab_name,
             output_dir=None, # No file save
+        )
+        profile = profile.model_copy(
+            update={
+                "owner_id": current_user.user_id,
+                "visible_class_ids": [],
+            }
         )
 
         # Save to DB

@@ -19,10 +19,6 @@ logger = logging.getLogger(__name__)
 
 from schemas.user import (
     CurrentUserResponse,
-    GenerateInvitationCodeRequest,
-    GenerateInvitationCodeResponse,
-    InvitationCodeInfo,
-    InvitationCodeListResponse,
     LoginRequest,
     LoginResponse,
     RegisterRequest,
@@ -30,7 +26,6 @@ from schemas.user import (
 )
 from utils.user_manager import (
     UserAlreadyExistsError,
-    UserManager,
     UserNotFoundError as UserManagerNotFoundError,
 )
 from core.dependencies import UserManagerDep
@@ -135,8 +130,7 @@ def register(
 
     Registration requirements:
     - Admin: Requires ADMIN_TOKEN from environment variable
-    - Teacher: Requires invitation code from admin
-    - Student: Requires invitation code from admin or teacher
+    - Teacher/Student: No invitation code required
 
     Args:
         req: Registration request with username, password, role, etc.
@@ -194,22 +188,6 @@ def register(
                 detail="Invalid admin token",
             )
         logger.info("Admin token validation passed")
-
-    # Validate teacher/student registration
-    if req.role in ["teacher", "student"]:
-        if not req.invitation_code:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Invitation code required for {req.role} registration",
-            )
-        is_valid, error_msg = user_manager.validate_invitation_code(
-            req.invitation_code, req.role
-        )
-        if not is_valid:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=error_msg or "Invalid invitation code",
-            )
 
     # Create user
     try:
@@ -312,123 +290,3 @@ def get_current_user_info(
     user_dict = current_user.model_dump()
     user_dict.pop("password_hash", None)
     return CurrentUserResponse(user=user_dict)
-
-
-@router.post(
-    "/invitation-codes/generate",
-    response_model=GenerateInvitationCodeResponse,
-    summary="生成邀请码（管理员/教师）",
-)
-def generate_invitation_code(
-    req: GenerateInvitationCodeRequest,
-    current_user: User = Depends(get_current_user),
-    user_manager: UserManagerDep = None,
-) -> GenerateInvitationCodeResponse:
-    """Generate an invitation code for teacher or student registration.
-
-    Only admins can generate codes for both teacher and student roles.
-    Teachers can only generate codes for student role.
-
-    Args:
-        req: Request with role and expiration days.
-        current_user: Current authenticated user from dependency.
-        user_manager: Injected UserManager instance.
-
-    Returns:
-        GenerateInvitationCodeResponse with invitation code and details.
-
-    Raises:
-        HTTPException: If user doesn't have permission or role is invalid.
-    """
-    # Validate role
-    if req.role not in ["teacher", "student"]:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid role: {req.role}. Must be 'teacher' or 'student'.",
-        )
-
-    # Check permissions
-    if current_user.role == "admin":
-        # Admin can generate codes for both teacher and student
-        pass
-    elif current_user.role == "teacher":
-        # Teacher can only generate codes for student
-        if req.role != "student":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Teachers can only generate invitation codes for students.",
-            )
-    else:
-        # Student cannot generate codes
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and teachers can generate invitation codes.",
-        )
-
-    # Generate invitation code
-    try:
-        code = user_manager.generate_invitation_code(
-            role=req.role,
-            created_by=current_user.username,
-            expires_in_days=req.expires_in_days,
-        )
-
-        # Get expiration date
-        from datetime import timedelta
-
-        expires_at = datetime.now(pytz.utc) + timedelta(days=req.expires_in_days)
-
-        return GenerateInvitationCodeResponse(
-            invitation_code=code,
-            role=req.role,
-            created_by=current_user.username,
-            expires_in_days=req.expires_in_days,
-            expires_at=expires_at.isoformat(),
-        )
-    except Exception as e:
-        logger.error(f"Failed to generate invitation code: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to generate invitation code: {str(e)}",
-        )
-
-
-@router.get(
-    "/invitation-codes",
-    response_model=InvitationCodeListResponse,
-    summary="列出邀请码（管理员/教师）",
-)
-def list_invitation_codes(
-    current_user: User = Depends(get_current_user),
-    user_manager: UserManagerDep = None,
-) -> InvitationCodeListResponse:
-    """List invitation codes created by the current user.
-
-    Args:
-        current_user: Current authenticated user from dependency.
-        user_manager: Injected UserManager instance.
-
-    Returns:
-        InvitationCodeListResponse with invitation code list.
-    """
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and teachers can list invitation codes.",
-        )
-
-    codes = user_manager.list_invitation_codes(created_by=current_user.username)
-    results: list[InvitationCodeInfo] = []
-
-    for code in codes:
-        results.append(
-            InvitationCodeInfo(
-                invitation_code=code.get("code", ""),
-                role=code.get("role", ""),
-                created_by=code.get("created_by", ""),
-                created_at=code.get("created_at", ""),
-                expires_at=code.get("expires_at"),
-            )
-        )
-
-    return InvitationCodeListResponse(invitation_codes=results)

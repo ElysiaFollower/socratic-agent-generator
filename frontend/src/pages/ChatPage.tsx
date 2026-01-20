@@ -31,6 +31,7 @@ import {
   InvitationCodeGenerator,
   LabManualPanel,
   ProfileManagerPanel,
+  ClassManagerPanel,
   SettingsModal,
   SidebarRail,
 } from "../components";
@@ -346,6 +347,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setActivePanel("profile");
   }, []);
 
+  const handleOpenClassPanel = useCallback(() => {
+    setActivePanel("class");
+  }, []);
+
   const handleOpenChatHome = useCallback(() => {
     setSessionId(null);
     setInputValue("");
@@ -441,6 +446,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               onOpenInvitationPanel={handleOpenInvitationPanel}
               onOpenLabManualPanel={handleOpenLabManualPanel}
               onOpenProfilePanel={handleOpenProfilePanel}
+              onOpenClassPanel={handleOpenClassPanel}
             />
           ) : (
             <Box
@@ -465,6 +471,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 onOpenInvitationPanel={handleOpenInvitationPanel}
                 onOpenLabManualPanel={handleOpenLabManualPanel}
                 onOpenProfilePanel={handleOpenProfilePanel}
+                onOpenClassPanel={handleOpenClassPanel}
               />
               <Box
                 sx={{
@@ -565,6 +572,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                   variant='panel'
                   onGenerateSuccess={handleProfileGenerateSuccess}
                 />
+              )}
+              {activePanel === "class" && (
+                <ClassManagerPanel variant='panel' />
               )}
             </Box>
           )}

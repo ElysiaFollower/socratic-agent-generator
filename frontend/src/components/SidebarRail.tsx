@@ -11,6 +11,7 @@ import {
   Description,
   HomeRounded,
   Key,
+  School,
   UploadFile,
 } from "@mui/icons-material";
 import { ToolPanelView } from "../types";
@@ -28,6 +29,7 @@ export interface SidebarRailProps {
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
   readonly onOpenProfilePanel: () => void;
+  readonly onOpenClassPanel: () => void;
 }
 
 /**
@@ -45,6 +47,7 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
     onOpenInvitationPanel,
     onOpenLabManualPanel,
     onOpenProfilePanel,
+    onOpenClassPanel,
   } = props;
 
   const railButtonSx = {
@@ -96,15 +99,30 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
         </span>
       </Tooltip>
 
+      <Tooltip title='我的班级' placement='right'>
+        <span>
+          <IconButton
+            onClick={onOpenClassPanel}
+            size='small'
+            disabled={isLoading}
+            aria-label='我的班级'
+            color={activePanel === "class" ? "primary" : "default"}
+            sx={railButtonSx}
+          >
+            <School fontSize='small' />
+          </IconButton>
+        </span>
+      </Tooltip>
+
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Stack spacing={1} sx={{ mt: 2 }}>
-          <Tooltip title='邀请码管理' placement='right'>
+          <Tooltip title='班级邀请码' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenInvitationPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='邀请码管理'
+                aria-label='班级邀请码'
                 color={activePanel === "invitation" ? "primary" : "default"}
                 sx={railButtonSx}
               >

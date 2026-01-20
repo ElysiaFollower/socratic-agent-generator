@@ -49,6 +49,7 @@ export interface SidebarProps {
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
   readonly onOpenProfilePanel: () => void;
+  readonly onOpenClassPanel: () => void;
   readonly className?: string;
 }
 
@@ -73,6 +74,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
     onOpenInvitationPanel,
     onOpenLabManualPanel,
     onOpenProfilePanel,
+    onOpenClassPanel,
     className,
   } = props;
 
@@ -184,6 +186,40 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         </Box>
       )}
 
+      <Box
+        sx={{
+          p: 2,
+          borderBottom: "1px solid var(--color-border)",
+        }}
+      >
+        <Typography color='text.secondary' variant='subtitle2'>
+          班级
+        </Typography>
+        <List
+          dense
+          disablePadding
+          sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 0.5 }}
+        >
+          <ListItem disablePadding>
+            <ListItemButton
+              onClick={onOpenClassPanel}
+              disabled={isLoading}
+              selected={activePanel === "class"}
+              disableRipple
+              sx={actionItemSx}
+            >
+              <ListItemIcon>
+                <School fontSize='small' />
+              </ListItemIcon>
+              <ListItemText
+                primary='我的班级'
+                primaryTypographyProps={{ variant: "body2" }}
+              />
+            </ListItemButton>
+          </ListItem>
+        </List>
+      </Box>
+
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Box
           sx={{
@@ -211,7 +247,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Key fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='邀请码管理'
+                  primary='班级邀请码'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

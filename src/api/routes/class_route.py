@@ -1,0 +1,283 @@
+"""Class management routes."""
+
+from typing import List, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, status
+
+from api.routes.auth import get_current_user
+from core.dependencies import ClassManagerDep, ProfileManagerDep
+from core.exceptions import ProfileNotFoundError
+from schemas.class_schema import (
+    ClassInfo,
+    ClassInvitationCodeInfo,
+    ClassInvitationCodeListResponse,
+    ClassMemberInfo,
+    CreateClassRequest,
+    GenerateClassInvitationCodeRequest,
+    JoinClassRequest,
+    UpdateProfileVisibilityRequest,
+)
+from schemas.profile import Profile
+from schemas.user import User
+from utils.class_manager import ClassNotFoundError
+
+router = APIRouter(prefix="/api/classes", tags=["Class"])
+
+
+def _build_class_info(model, role_in_class: Optional[str] = None) -> ClassInfo:
+    return ClassInfo(
+        class_id=model.class_id,
+        name=model.name,
+        owner_id=model.owner_id,
+        created_at=model.created_at,
+        updated_at=model.updated_at,
+        role_in_class=role_in_class,
+    )
+
+
+@router.post("", response_model=ClassInfo, summary="创建班级")
+def create_class(
+    req: CreateClassRequest,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> ClassInfo:
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can create classes.",
+        )
+    name = req.name.strip()
+    if not name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Class name cannot be empty.",
+        )
+    class_model = class_manager.create_class(name, current_user.user_id)
+    return _build_class_info(class_model, role_in_class="teacher")
+
+
+@router.get("", response_model=List[ClassInfo], summary="列出班级")
+def list_classes(
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> List[ClassInfo]:
+    if current_user.role in ["admin", "teacher"]:
+        models = class_manager.list_classes_for_owner(current_user.user_id)
+        return [_build_class_info(model, role_in_class="teacher") for model in models]
+
+    memberships = class_manager.list_classes_for_user(current_user.user_id)
+    results = []
+    for membership in memberships:
+        try:
+            model = class_manager.get_class(membership.class_id)
+        except ClassNotFoundError:
+            continue
+        results.append(_build_class_info(model, role_in_class=membership.role_in_class))
+    return results
+
+
+@router.post("/join", response_model=ClassInfo, summary="通过邀请码加入班级")
+def join_class(
+    req: JoinClassRequest,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> ClassInfo:
+    if current_user.role != "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only students can join classes via invitation codes.",
+        )
+    try:
+        class_id = class_manager.join_by_invitation_code(
+            req.invitation_code.strip(), current_user.user_id
+        )
+        model = class_manager.get_class(class_id)
+        return _build_class_info(model, role_in_class="student")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+
+@router.post(
+    "/{class_id}/invite",
+    response_model=ClassInvitationCodeInfo,
+    summary="生成班级邀请码",
+)
+def generate_class_invitation(
+    class_id: str,
+    req: GenerateClassInvitationCodeRequest,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> ClassInvitationCodeInfo:
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can generate class invitation codes.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can generate invitations.",
+        )
+
+    model = class_manager.generate_invitation_code(
+        class_id=class_id,
+        created_by=current_user.user_id,
+        expires_in_days=req.expires_in_days,
+    )
+    return ClassInvitationCodeInfo(
+        invitation_code=model.code,
+        class_id=model.class_id,
+        created_by=model.created_by,
+        created_at=model.created_at,
+        expires_at=model.expires_at,
+    )
+
+
+@router.get(
+    "/{class_id}/invites",
+    response_model=ClassInvitationCodeListResponse,
+    summary="列出班级邀请码",
+)
+def list_class_invitations(
+    class_id: str,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> ClassInvitationCodeListResponse:
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can list class invitations.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can list invitations.",
+        )
+
+    models = class_manager.list_invitation_codes(class_id=class_id)
+    results = [
+        ClassInvitationCodeInfo(
+            invitation_code=model.code,
+            class_id=model.class_id,
+            created_by=model.created_by,
+            created_at=model.created_at,
+            expires_at=model.expires_at,
+        )
+        for model in models
+    ]
+    return ClassInvitationCodeListResponse(invitation_codes=results)
+
+
+@router.get(
+    "/{class_id}/members",
+    response_model=List[ClassMemberInfo],
+    summary="列出班级成员",
+)
+def list_class_members(
+    class_id: str,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> List[ClassMemberInfo]:
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can view class members.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can view members.",
+        )
+
+    members = class_manager.list_members(class_id)
+    return [ClassMemberInfo(**member) for member in members]
+
+
+@router.patch(
+    "/{class_id}/profiles/{profile_id}",
+    response_model=Profile,
+    summary="设置班级内Profile可见性",
+)
+def update_profile_visibility(
+    class_id: str,
+    profile_id: str,
+    req: UpdateProfileVisibilityRequest,
+    class_manager: ClassManagerDep,
+    profile_manager: ProfileManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Profile:
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can update profile visibility.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can update profile visibility.",
+        )
+
+    try:
+        profile = profile_manager.read_profile(profile_id)
+    except ProfileNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Profile not found",
+        )
+    if profile.owner_id and current_user.role == "teacher":
+        if profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update your own profiles.",
+            )
+
+    visible_ids = set(profile.visible_class_ids or [])
+    if req.visible:
+        visible_ids.add(class_id)
+    else:
+        visible_ids.discard(class_id)
+
+    updated_profile = profile.model_copy(
+        update={"visible_class_ids": list(visible_ids)}
+    )
+    return profile_manager.save_profile(updated_profile)

@@ -12,7 +12,7 @@ from config import (
     API_HOST,
     API_PORT,
 )
-from api.routes import auth, profile, session, interaction, adapter
+from api.routes import auth, profile, session, interaction, adapter, class_route
 from utils.model_manager import check_and_download_models
 from utils.skills import warmup_embeddings
 
@@ -44,6 +44,7 @@ app.include_router(profile.router)
 app.include_router(session.router)
 app.include_router(interaction.router)
 app.include_router(adapter.router)
+app.include_router(class_route.router)
 
 
 @app.on_event("startup")

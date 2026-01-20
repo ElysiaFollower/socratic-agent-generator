@@ -40,6 +40,41 @@ class ProfileManager:
         models = self.db.query(ProfileModel).order_by(ProfileModel.create_at.desc()).all()
         return [model_to_profile(m) for m in models]
 
+    def list_profiles_by_owner(
+        self, owner_id: str, include_unowned: bool = False
+    ) -> List[Profile]:
+        """List profiles created by a specific owner.
+
+        Args:
+            owner_id: The user_id of the owner.
+            include_unowned: Whether to include profiles without an owner_id.
+
+        Returns:
+            List of Profile objects.
+        """
+        query = self.db.query(ProfileModel)
+        if include_unowned:
+            query = query.filter(
+                (ProfileModel.owner_id == owner_id) | (ProfileModel.owner_id.is_(None))
+            )
+        else:
+            query = query.filter(ProfileModel.owner_id == owner_id)
+        models = query.order_by(ProfileModel.create_at.desc()).all()
+        return [model_to_profile(m) for m in models]
+
+    def list_profiles_by_visible_classes(self, class_ids: List[str]) -> List[Profile]:
+        """List profiles visible to any of the provided class IDs."""
+        if not class_ids:
+            return []
+        models = self.db.query(ProfileModel).order_by(ProfileModel.create_at.desc()).all()
+        visible = []
+        class_id_set = set(class_ids)
+        for model in models:
+            visible_ids = set(model.visible_class_ids or [])
+            if visible_ids.intersection(class_id_set):
+                visible.append(model_to_profile(model))
+        return visible
+
     def _get_model(self, profile_id: str) -> ProfileModel:
         """Helper to get ORM model."""
         model = self.db.query(ProfileModel).filter(ProfileModel.profile_id == profile_id).first()
@@ -88,6 +123,8 @@ class ProfileManager:
             existing.profile_name = new_model.profile_name
             existing.topic_name = new_model.topic_name
             existing.lab_name = new_model.lab_name
+            existing.owner_id = new_model.owner_id
+            existing.visible_class_ids = new_model.visible_class_ids
             existing.document_id = new_model.document_id
             existing.persona_hints = new_model.persona_hints
             existing.target_audience = new_model.target_audience

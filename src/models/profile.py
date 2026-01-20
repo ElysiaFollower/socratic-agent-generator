@@ -13,6 +13,9 @@ class ProfileModel(Base):
     # but strictly it should be derived from document.
     lab_name = Column(String)
 
+    owner_id = Column(String, index=True)
+    visible_class_ids = Column(JSON, default=list)
+
     document_id = Column(Integer, ForeignKey("documents.id"), nullable=True)
 
     persona_hints = Column(JSON) # List[str]
