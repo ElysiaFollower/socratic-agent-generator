@@ -8,16 +8,28 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   Chip,
   CircularProgress,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
-  Switch,
   TextField,
   Typography,
 } from "@mui/material";
-import { Add, Group, Key, Person } from "@mui/icons-material";
+import {
+  Add,
+  CalendarTodayOutlined,
+  DescriptionOutlined,
+  Key,
+  PeopleOutline,
+  Person,
+} from "@mui/icons-material";
 import {
   ClassInfo,
   ClassMemberInfo,
@@ -30,10 +42,12 @@ import {
   listClassInvitations,
   listClassMembers,
   listClasses,
+  renameProfile,
   updateProfileVisibility,
   generateClassInvitationCode,
 } from "../api";
 import { useAuth, useNotification, useProfiles } from "../hooks";
+import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
 
 /**
  * Props for ClassManagerPanel component.
@@ -67,10 +81,26 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const [isLoadingMembers, setIsLoadingMembers] = useState<boolean>(false);
   const [isUpdatingVisibility, setIsUpdatingVisibility] =
     useState<boolean>(false);
+  const [isRenamingProfile, setIsRenamingProfile] = useState<boolean>(false);
+  const [isAddProfileOpen, setIsAddProfileOpen] = useState<boolean>(false);
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
+  const [profileSearchText, setProfileSearchText] = useState<string>("");
+  const [classMemberCounts, setClassMemberCounts] = useState<
+    Record<string, number>
+  >({});
 
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const formatRole = (role?: string) =>
     role === "teacher" ? "教师" : role === "student" ? "学生" : "-";
+  const formatDate = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) {
+      return "-";
+    }
+    return parsed.toLocaleDateString("zh-CN");
+  };
+  const buildAvatarLabel = (name: string) =>
+    name.replace(/\s+/g, "").slice(0, 4);
 
   const selectedClass = useMemo(
     () => classes.find((item) => item.class_id === selectedClassId) || null,
@@ -100,6 +130,55 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     }
   }, [classes, selectedClassId]);
 
+  useEffect(() => {
+    setIsAddProfileOpen(false);
+    setActiveProfile(null);
+    setProfileSearchText("");
+  }, [selectedClassId]);
+
+  useEffect(() => {
+    if (!activeProfile) {
+      return;
+    }
+    const updated = profiles.find(
+      (profile) => profile.profile_id === activeProfile.profile_id,
+    );
+    if (updated && updated !== activeProfile) {
+      setActiveProfile(updated);
+    }
+  }, [activeProfile, profiles]);
+
+  useEffect(() => {
+    if (!isTeacher || classes.length === 0) {
+      setClassMemberCounts({});
+      return;
+    }
+
+    let isActive = true;
+    const loadCounts = async () => {
+      const results = await Promise.all(
+        classes.map(async (item) => {
+          try {
+            const response = await listClassMembers(item.class_id);
+            return [item.class_id, response.length] as const;
+          } catch (err) {
+            return [item.class_id, 0] as const;
+          }
+        }),
+      );
+      if (!isActive) {
+        return;
+      }
+      setClassMemberCounts(Object.fromEntries(results));
+    };
+
+    void loadCounts();
+
+    return () => {
+      isActive = false;
+    };
+  }, [classes, isTeacher]);
+
   const loadInvites = useCallback(async () => {
     if (!selectedClassId || !isTeacher) {
       setInvites([]);
@@ -127,6 +206,10 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     try {
       const response = await listClassMembers(selectedClassId);
       setMembers(response);
+      setClassMemberCounts((prev) => ({
+        ...prev,
+        [selectedClassId]: response.length,
+      }));
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "加载成员失败";
       notifyError(errorMessage);
@@ -204,18 +287,21 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     }
   };
 
-  const handleToggleVisibility = async (
-    profile: Profile,
-    nextVisible: boolean,
-  ) => {
+  const handleCloseAddProfile = () => {
+    setIsAddProfileOpen(false);
+    setProfileSearchText("");
+  };
+
+  const handleAddProfileToClass = async (profile: Profile) => {
     if (!selectedClassId) {
       return;
     }
     setIsUpdatingVisibility(true);
     try {
       await updateProfileVisibility(selectedClassId, profile.profile_id, {
-        visible: nextVisible,
+        visible: true,
       });
+      notifySuccess("已添加到班级");
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
@@ -223,6 +309,49 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       notifyError(errorMessage);
     } finally {
       setIsUpdatingVisibility(false);
+    }
+  };
+
+  const handleRemoveProfileFromClass = async (profile: Profile) => {
+    if (!selectedClassId) {
+      return;
+    }
+    setIsUpdatingVisibility(true);
+    try {
+      await updateProfileVisibility(selectedClassId, profile.profile_id, {
+        visible: false,
+      });
+      notifySuccess("已从班级移除");
+      setActiveProfile((prev) =>
+        prev?.profile_id === profile.profile_id ? null : prev,
+      );
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "更新可见性失败";
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingVisibility(false);
+    }
+  };
+
+  const handleRenameProfile = async (profile: Profile, nextName: string) => {
+    const trimmedName = nextName.trim();
+    if (!trimmedName) {
+      notifyWarning("Profile名称不能为空");
+      return;
+    }
+    setIsRenamingProfile(true);
+    try {
+      await renameProfile(profile.profile_id, { profile_name: trimmedName });
+      notifySuccess("Profile已更新");
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "更新Profile失败";
+      notifyError(errorMessage);
+    } finally {
+      setIsRenamingProfile(false);
     }
   };
 
@@ -235,37 +364,142 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     );
   }, [profiles, selectedClassId]);
 
+  const availableProfilesForClass = useMemo(() => {
+    if (!selectedClassId) {
+      return [];
+    }
+    const visibleIds = new Set(
+      visibleProfilesForClass.map((profile) => profile.profile_id),
+    );
+    return profiles.filter((profile) => !visibleIds.has(profile.profile_id));
+  }, [profiles, selectedClassId, visibleProfilesForClass]);
+
+  const filteredAvailableProfiles = useMemo(() => {
+    const query = profileSearchText.trim().toLowerCase();
+    if (!query) {
+      return availableProfilesForClass;
+    }
+    return availableProfilesForClass.filter((profile) => {
+      const fields = [
+        profile.profile_name,
+        profile.topic_name,
+        profile.target_audience,
+        profile.lab_name,
+        profile.profile_id,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return fields.includes(query);
+    });
+  }, [availableProfilesForClass, profileSearchText]);
+
+  const profileCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    profiles.forEach((profile) => {
+      (profile.visible_class_ids || []).forEach((classId) => {
+        counts[classId] = (counts[classId] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [profiles]);
+
   const classList = (
-    <Stack spacing={1.5}>
-      {classes.map((item) => (
-        <Paper
-          key={item.class_id}
-          variant='outlined'
-          sx={{
-            p: 1.5,
-            borderRadius: 2,
-            cursor: "pointer",
-            borderColor:
-              item.class_id === selectedClassId ? "primary.main" : "divider",
-            bgcolor:
-              item.class_id === selectedClassId
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr 1fr" },
+        gap: 2,
+      }}
+    >
+      {classes.map((item) => {
+        const isSelected = item.class_id === selectedClassId;
+        const memberCount = classMemberCounts[item.class_id];
+        const profileCount = profileCounts[item.class_id] || 0;
+        const avatarLabel = buildAvatarLabel(item.name) || "-";
+
+        return (
+          <Card
+            key={item.class_id}
+            variant='outlined'
+            onClick={() => setSelectedClassId(item.class_id)}
+            sx={{
+              cursor: "pointer",
+              borderColor: isSelected ? "primary.main" : "divider",
+              bgcolor: isSelected
                 ? "var(--color-surface-muted)"
                 : "transparent",
-          }}
-          onClick={() => setSelectedClassId(item.class_id)}
-        >
-          <Stack direction='row' spacing={1} alignItems='center'>
-            <Group fontSize='small' color='action' />
-            <Typography variant='body2' sx={{ fontWeight: 600 }}>
-              {item.name}
-            </Typography>
-            {item.role_in_class && (
-              <Chip size='small' label={formatRole(item.role_in_class)} />
-            )}
-          </Stack>
-        </Paper>
-      ))}
-    </Stack>
+              transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+              "&:hover": {
+                boxShadow: 1,
+              },
+            }}
+          >
+            <CardContent
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                "&:last-child": { pb: 2 },
+              }}
+            >
+              <Stack spacing={0.5} sx={{ minWidth: 0 }}>
+                <Stack direction='row' spacing={1} alignItems='center'>
+                  <Typography
+                    variant='subtitle1'
+                    sx={{ fontWeight: 600 }}
+                    noWrap
+                  >
+                    {item.name}
+                  </Typography>
+                  {item.role_in_class && (
+                    <Chip size='small' label={formatRole(item.role_in_class)} />
+                  )}
+                </Stack>
+                <Stack direction='row' spacing={0.5} alignItems='center'>
+                  <PeopleOutline fontSize='inherit' color='action' />
+                  <Typography variant='caption' color='text.secondary'>
+                    人数: {memberCount ?? "-"}
+                  </Typography>
+                </Stack>
+                <Stack direction='row' spacing={0.5} alignItems='center'>
+                  <CalendarTodayOutlined fontSize='inherit' color='action' />
+                  <Typography variant='caption' color='text.secondary'>
+                    创建日期: {formatDate(item.created_at)}
+                  </Typography>
+                </Stack>
+                <Stack direction='row' spacing={0.5} alignItems='center'>
+                  <DescriptionOutlined fontSize='inherit' color='action' />
+                  <Typography variant='caption' color='text.secondary'>
+                    Profile数: {profileCount}
+                  </Typography>
+                </Stack>
+              </Stack>
+              <Box
+                sx={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  bgcolor: "var(--color-surface-muted)",
+                  color: "text.primary",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontWeight: 700,
+                  fontSize: 16,
+                  letterSpacing: 0.5,
+                  flexShrink: 0,
+                  padding: 1,
+                }}
+              >
+                {avatarLabel}
+              </Box>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </Box>
   );
 
   const teacherDetail = (
@@ -345,48 +579,42 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       </Stack>
 
       <Stack spacing={1}>
-        <Typography variant='subtitle2'>Profile 可见性</Typography>
-        {profiles.length === 0 ? (
+        <Stack
+          direction='row'
+          alignItems='center'
+          justifyContent='space-between'
+        >
+          <Typography variant='subtitle2'>Profile 可见性</Typography>
+          <Button
+            size='small'
+            variant='outlined'
+            startIcon={<Add />}
+            onClick={() => setIsAddProfileOpen(true)}
+            disabled={!selectedClassId}
+          >
+            添加Profile
+          </Button>
+        </Stack>
+        {visibleProfilesForClass.length === 0 ? (
           <Typography variant='caption' color='text.secondary'>
-            暂无Profile
+            暂无可见 Profile
           </Typography>
         ) : (
-          <Stack spacing={1}>
-            {profiles.map((profile) => {
-              const isVisible = (profile.visible_class_ids || []).includes(
-                selectedClassId || "",
-              );
-              return (
-                <Paper
-                  key={profile.profile_id}
-                  variant='outlined'
-                  sx={{ p: 1 }}
-                >
-                  <Stack direction='row' alignItems='center' spacing={1}>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant='body2' sx={{ fontWeight: 600 }}>
-                        {profile.profile_name || profile.topic_name}
-                      </Typography>
-                      <Typography
-                        variant='caption'
-                        color='text.secondary'
-                        sx={{ display: "block" }}
-                      >
-                        {profile.topic_name}
-                      </Typography>
-                    </Box>
-                    <Switch
-                      checked={isVisible}
-                      onChange={(_, checked) =>
-                        handleToggleVisibility(profile, checked)
-                      }
-                      disabled={!selectedClassId || isUpdatingVisibility}
-                    />
-                  </Stack>
-                </Paper>
-              );
-            })}
-          </Stack>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2,
+            }}
+          >
+            {visibleProfilesForClass.map((profile) => (
+              <ProfileCard
+                key={profile.profile_id}
+                profile={profile}
+                onClick={() => setActiveProfile(profile)}
+              />
+            ))}
+          </Box>
         )}
       </Stack>
     </Stack>
@@ -400,18 +628,21 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           暂无可见 Profile
         </Typography>
       ) : (
-        <Stack spacing={1}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+            gap: 2,
+          }}
+        >
           {visibleProfilesForClass.map((profile) => (
-            <Paper key={profile.profile_id} variant='outlined' sx={{ p: 1 }}>
-              <Typography variant='body2' sx={{ fontWeight: 600 }}>
-                {profile.profile_name || profile.topic_name}
-              </Typography>
-              <Typography variant='caption' color='text.secondary'>
-                {profile.topic_name}
-              </Typography>
-            </Paper>
+            <ProfileCard
+              key={profile.profile_id}
+              profile={profile}
+              onClick={() => setActiveProfile(profile)}
+            />
           ))}
-        </Stack>
+        </Box>
       )}
     </Stack>
   );
@@ -487,13 +718,129 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     </Stack>
   );
 
+  const profileDialogs = (
+    <>
+      <Dialog
+        open={isAddProfileOpen}
+        onClose={handleCloseAddProfile}
+        fullWidth
+        maxWidth='md'
+      >
+        <DialogTitle>添加 Profile 到班级</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              value={profileSearchText}
+              onChange={(event) => setProfileSearchText(event.target.value)}
+              placeholder='搜索Profile名称、主题或ID'
+              size='small'
+              fullWidth
+            />
+            {filteredAvailableProfiles.length === 0 ? (
+              <Typography
+                variant='body2'
+                color='text.secondary'
+                textAlign='center'
+                sx={{ py: 4 }}
+              >
+                {profileSearchText.trim()
+                  ? "未找到匹配Profile"
+                  : profiles.length === 0
+                    ? "暂无Profile可添加"
+                    : "该班级已添加所有Profile"}
+              </Typography>
+            ) : (
+              <Box
+                sx={{
+                  display: "grid",
+                  gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                  gap: 2,
+                }}
+              >
+                {filteredAvailableProfiles.map((profile) => (
+                  <ProfileCard
+                    key={profile.profile_id}
+                    profile={profile}
+                    actionLabel='添加'
+                    onAction={() => handleAddProfileToClass(profile)}
+                    actionDisabled={isUpdatingVisibility}
+                  />
+                ))}
+              </Box>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseAddProfile} color='inherit'>
+            关闭
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(activeProfile)}
+        onClose={() => setActiveProfile(null)}
+        fullWidth
+        maxWidth='md'
+      >
+        <DialogTitle>Profile 详情</DialogTitle>
+        <DialogContent dividers>
+          {activeProfile && (
+            <ProfileDetailCard
+              profile={activeProfile}
+              mode={isTeacher ? "teacher" : "student"}
+              onRename={isTeacher ? handleRenameProfile : undefined}
+              isRenaming={isRenamingProfile}
+              actions={
+                isTeacher && selectedClassId ? (
+                  <Stack
+                    direction='row'
+                    spacing={1}
+                    justifyContent='flex-end'
+                    sx={{ width: "100%" }}
+                  >
+                    <Button
+                      variant='outlined'
+                      color='error'
+                      onClick={() =>
+                        activeProfile
+                          ? void handleRemoveProfileFromClass(activeProfile)
+                          : undefined
+                      }
+                      disabled={isUpdatingVisibility}
+                    >
+                      从班级移除
+                    </Button>
+                  </Stack>
+                ) : null
+              }
+            />
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setActiveProfile(null)} color='inherit'>
+            关闭
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
+
   if (variant === "panel") {
-    return <>{body}</>;
+    return (
+      <>
+        {body}
+        {profileDialogs}
+      </>
+    );
   }
 
   return (
-    <Paper variant='outlined' sx={{ p: 3 }}>
-      {body}
-    </Paper>
+    <>
+      <Paper variant='outlined' sx={{ p: 3 }}>
+        {body}
+      </Paper>
+      {profileDialogs}
+    </>
   );
 }

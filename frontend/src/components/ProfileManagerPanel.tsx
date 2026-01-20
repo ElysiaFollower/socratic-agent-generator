@@ -13,16 +13,13 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
-  Paper,
   Stack,
   Tab,
   Tabs,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
-import { Delete, Edit } from "@mui/icons-material";
+import { Delete } from "@mui/icons-material";
 import { Profile } from "../types";
 import {
   deleteProfile,
@@ -30,9 +27,9 @@ import {
   renameProfile,
   type RenameProfileRequest,
 } from "../api";
-import { extractCurriculumSteps } from "../utils/curriculum";
 import { useConfirmDialog, useNotification } from "../hooks";
 import { ProfileGeneratorAdvanced } from "./ProfileGeneratorAdvanced";
+import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
 
 /**
  * Props for ProfileManagerPanel component.
@@ -64,9 +61,8 @@ export function ProfileManagerPanel(
   const [deletingProfileId, setDeletingProfileId] = useState<string | null>(
     null,
   );
-  const [renamingProfile, setRenamingProfile] = useState<Profile | null>(null);
-  const [renameValue, setRenameValue] = useState<string>("");
-  const [isRenaming, setIsRenaming] = useState<boolean>(false);
+  const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
+  const [isRenamingProfile, setIsRenamingProfile] = useState<boolean>(false);
 
   const loadProfiles = useCallback(async () => {
     setIsLoadingProfiles(true);
@@ -87,6 +83,18 @@ export function ProfileManagerPanel(
       void loadProfiles();
     }
   }, [activeTab, loadProfiles]);
+
+  useEffect(() => {
+    if (!activeProfile) {
+      return;
+    }
+    const updated = profiles.find(
+      (profile) => profile.profile_id === activeProfile.profile_id,
+    );
+    if (updated && updated !== activeProfile) {
+      setActiveProfile(updated);
+    }
+  }, [activeProfile, profiles]);
 
   const filteredProfiles = useMemo(() => {
     const query = searchText.trim().toLowerCase();
@@ -126,6 +134,9 @@ export function ProfileManagerPanel(
     try {
       await deleteProfile(profileId);
       notifySuccess("Profile已删除");
+      if (activeProfile?.profile_id === profileId) {
+        setActiveProfile(null);
+      }
       await loadProfiles();
     } catch (err) {
       const errorMessage =
@@ -136,33 +147,24 @@ export function ProfileManagerPanel(
     }
   };
 
-  const handleOpenRename = (profile: Profile) => {
-    setRenamingProfile(profile);
-    setRenameValue(profile.profile_name || profile.topic_name || "");
-  };
-
-  const handleRenameConfirm = async () => {
-    if (!renamingProfile) {
-      return;
-    }
-    const nextName = renameValue.trim();
-    if (!nextName) {
+  const handleRenameProfile = async (profile: Profile, nextName: string) => {
+    const trimmedName = nextName.trim();
+    if (!trimmedName) {
       notifyWarning("Profile名称不能为空");
       return;
     }
-    setIsRenaming(true);
+    setIsRenamingProfile(true);
     try {
-      const request: RenameProfileRequest = { profile_name: nextName };
-      await renameProfile(renamingProfile.profile_id, request);
+      const request: RenameProfileRequest = { profile_name: trimmedName };
+      await renameProfile(profile.profile_id, request);
       notifySuccess("Profile已重命名");
-      setRenamingProfile(null);
       await loadProfiles();
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "重命名失败，请重试";
       notifyError(errorMessage);
     } finally {
-      setIsRenaming(false);
+      setIsRenamingProfile(false);
     }
   };
 
@@ -192,64 +194,21 @@ export function ProfileManagerPanel(
           暂无Profile记录
         </Typography>
       ) : (
-        <Stack spacing={2}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+            gap: 2,
+          }}
+        >
           {filteredProfiles.map((profile) => (
-            <Paper key={profile.profile_id} variant='outlined' sx={{ p: 2 }}>
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={2}
-                justifyContent='space-between'
-              >
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                    {profile.profile_name || profile.topic_name}
-                  </Typography>
-                  <Stack spacing={0.5} sx={{ mt: 1 }}>
-                    <Typography variant='body2' color='text.secondary'>
-                      主题: {profile.topic_name}
-                    </Typography>
-                    <Typography variant='body2' color='text.secondary'>
-                      目标受众: {profile.target_audience}
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      Profile ID: {profile.profile_id}
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      实验: {profile.lab_name || "-"}
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      学习步骤: {extractCurriculumSteps(profile.curriculum).length} 个
-                    </Typography>
-                  </Stack>
-                </Box>
-                <Stack direction='row' spacing={1} alignItems='center'>
-                  <Tooltip title='重命名'>
-                    <IconButton
-                      size='small'
-                      aria-label='重命名Profile'
-                      onClick={() => handleOpenRename(profile)}
-                    >
-                      <Edit fontSize='small' />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title='删除'>
-                    <span>
-                      <IconButton
-                        size='small'
-                        aria-label='删除Profile'
-                        onClick={() => handleDelete(profile.profile_id)}
-                        disabled={deletingProfileId === profile.profile_id}
-                        color='error'
-                      >
-                        <Delete fontSize='small' />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Stack>
-              </Stack>
-            </Paper>
+            <ProfileCard
+              key={profile.profile_id}
+              profile={profile}
+              onClick={() => setActiveProfile(profile)}
+            />
           ))}
-        </Stack>
+        </Box>
       )}
     </Stack>
   );
@@ -284,47 +243,56 @@ export function ProfileManagerPanel(
     </Stack>
   ) : null;
 
+  const detailDialog = (
+    <Dialog
+      open={Boolean(activeProfile)}
+      onClose={() => setActiveProfile(null)}
+      fullWidth
+      maxWidth='md'
+    >
+      <DialogTitle>Profile 详情</DialogTitle>
+      <DialogContent dividers>
+        {activeProfile && (
+          <ProfileDetailCard
+            profile={activeProfile}
+            mode='teacher'
+            onRename={handleRenameProfile}
+            isRenaming={isRenamingProfile}
+            actions={
+              <Stack
+                direction='row'
+                spacing={1}
+                justifyContent='flex-end'
+                sx={{ width: "100%" }}
+              >
+                <Button
+                  variant='outlined'
+                  color='error'
+                  startIcon={<Delete fontSize='small' />}
+                  onClick={() => handleDelete(activeProfile.profile_id)}
+                  disabled={deletingProfileId === activeProfile.profile_id}
+                >
+                  删除Profile
+                </Button>
+              </Stack>
+            }
+          />
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={() => setActiveProfile(null)} color='inherit'>
+          关闭
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   if (variant === "panel") {
     return (
       <>
         {body}
         {actions}
-        <Dialog
-          open={Boolean(renamingProfile)}
-          onClose={() => setRenamingProfile(null)}
-          fullWidth
-          maxWidth='sm'
-        >
-          <DialogTitle>重命名Profile</DialogTitle>
-          <DialogContent dividers>
-            <Stack spacing={2}>
-              <TextField
-                label='Profile名称'
-                value={renameValue}
-                onChange={(event) => setRenameValue(event.target.value)}
-                fullWidth
-                size='small'
-                autoFocus
-              />
-            </Stack>
-          </DialogContent>
-          <DialogActions>
-            <Button
-              onClick={() => setRenamingProfile(null)}
-              color='inherit'
-              disabled={isRenaming}
-            >
-              取消
-            </Button>
-            <Button
-              onClick={handleRenameConfirm}
-              variant='contained'
-              disabled={isRenaming}
-            >
-              {isRenaming ? "保存中..." : "保存"}
-            </Button>
-          </DialogActions>
-        </Dialog>
+        {detailDialog}
       </>
     );
   }
@@ -336,42 +304,7 @@ export function ProfileManagerPanel(
         <DialogContent dividers>{body}</DialogContent>
         <DialogActions>{actions}</DialogActions>
       </Dialog>
-      <Dialog
-        open={Boolean(renamingProfile)}
-        onClose={() => setRenamingProfile(null)}
-        fullWidth
-        maxWidth='sm'
-      >
-        <DialogTitle>重命名Profile</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={2}>
-            <TextField
-              label='Profile名称'
-              value={renameValue}
-              onChange={(event) => setRenameValue(event.target.value)}
-              fullWidth
-              size='small'
-              autoFocus
-            />
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            onClick={() => setRenamingProfile(null)}
-            color='inherit'
-            disabled={isRenaming}
-          >
-            取消
-          </Button>
-          <Button
-            onClick={handleRenameConfirm}
-            variant='contained'
-            disabled={isRenaming}
-          >
-            {isRenaming ? "保存中..." : "保存"}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {detailDialog}
     </>
   );
 }

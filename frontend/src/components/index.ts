@@ -13,6 +13,7 @@ export * from "./ProfileSelector";
 export * from "./LabManualPanel";
 export * from "./ProfileGeneratorAdvanced";
 export * from "./ProfileManagerPanel";
+export * from "./ProfileCard";
 export * from "./Login";
 export * from "./Register";
 export * from "./ProtectedRoute";
