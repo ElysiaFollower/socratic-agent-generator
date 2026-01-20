@@ -147,20 +147,6 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='Skill管理' placement='right'>
-            <span>
-              <IconButton
-                onClick={onOpenSkillPanel}
-                size='small'
-                disabled={isLoading}
-                aria-label='Skill管理'
-                color={activePanel === "skill" ? "primary" : "default"}
-                sx={railButtonSx}
-              >
-                <Extension fontSize='small' />
-              </IconButton>
-            </span>
-          </Tooltip>
           <Tooltip title='Profile管理' placement='right'>
             <span>
               <IconButton
@@ -172,6 +158,20 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
                 sx={railButtonSx}
               >
                 <Description fontSize='small' />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title='Skill管理' placement='right'>
+            <span>
+              <IconButton
+                onClick={onOpenSkillPanel}
+                size='small'
+                disabled={isLoading}
+                aria-label='Skill管理'
+                color={activePanel === "skill" ? "primary" : "default"}
+                sx={railButtonSx}
+              >
+                <Extension fontSize='small' />
               </IconButton>
             </span>
           </Tooltip>

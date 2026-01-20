@@ -26,6 +26,7 @@ import {
   CloseFullscreen,
   ExpandLess,
   ExpandMore,
+  HelpOutline,
   Logout,
   MenuBookOutlined,
   OpenInFull,
@@ -34,6 +35,12 @@ import {
 } from "@mui/icons-material";
 import { SessionSummary, SocraticStep, ToolPanelView, User } from "../../types";
 import { ProgressBar } from "../chat/ProgressBar";
+import { HelpDialog } from "../common/HelpDialog";
+import {
+  LabManualHelpContent,
+  ProfileManagerHelpContent,
+  SkillManagerHelpContent,
+} from "../common/HelpContent";
 
 /**
  * Props for Header component.
@@ -81,6 +88,7 @@ export function Header(props: HeaderProps): JSX.Element {
 
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isMenuOpen = Boolean(menuAnchor);
+  const [helpDialogOpen, setHelpDialogOpen] = React.useState<boolean>(false);
 
   const displayName = user?.display_name || user?.username || "用户";
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "U";
@@ -111,6 +119,33 @@ export function Header(props: HeaderProps): JSX.Element {
 
   const showSessionDetails = activePanel === "chat" && Boolean(currentSession);
 
+  const showHelpButton =
+    activePanel === "lab-manual" ||
+    activePanel === "profile" ||
+    activePanel === "skill";
+
+  const helpDialogTitle: Record<ToolPanelView, string> = {
+    chat: "",
+    invitation: "",
+    "lab-manual": "实验文档管理 - 构建知识基础",
+    skill: "Skill管理 - 增强tutor能力",
+    profile: "Profile管理 - AI自动生成专属学习助手",
+    class: "",
+  };
+
+  const getHelpContent = (): React.ReactNode => {
+    switch (activePanel) {
+      case "lab-manual":
+        return <LabManualHelpContent />;
+      case "profile":
+        return <ProfileManagerHelpContent />;
+      case "skill":
+        return <SkillManagerHelpContent />;
+      default:
+        return null;
+    }
+  };
+
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget);
   };
@@ -131,6 +166,17 @@ export function Header(props: HeaderProps): JSX.Element {
         <Toolbar sx={{ gap: 2, justifyContent: "space-between" }}>
           <Stack direction='row' alignItems='center' spacing={2}>
             <Typography variant='h6'>{displayTitle}</Typography>
+            {showHelpButton && (
+              <Tooltip title='使用指南'>
+                <IconButton
+                  size='small'
+                  onClick={() => setHelpDialogOpen(true)}
+                  aria-label='使用指南'
+                >
+                  <HelpOutline fontSize='small' />
+                </IconButton>
+              </Tooltip>
+            )}
             {showSessionDetails && (
               <Tooltip title={isCollapsed ? "展开信息" : "收起信息"}>
                 <IconButton onClick={onToggleCollapse} size='small'>
@@ -298,6 +344,15 @@ export function Header(props: HeaderProps): JSX.Element {
           登出
         </MenuItem>
       </Menu>
+
+      {showHelpButton && (
+        <HelpDialog
+          open={helpDialogOpen}
+          onClose={() => setHelpDialogOpen(false)}
+          title={helpDialogTitle[activePanel]}
+          content={getHelpContent()}
+        />
+      )}
     </Box>
   );
 }

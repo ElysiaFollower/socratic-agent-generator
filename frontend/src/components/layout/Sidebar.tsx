@@ -273,23 +273,6 @@ export function Sidebar(props: SidebarProps): JSX.Element {
             </ListItem>
             <ListItem disablePadding>
               <ListItemButton
-                onClick={onOpenSkillPanel}
-                disabled={isLoading}
-                selected={activePanel === "skill"}
-                disableRipple
-                sx={actionItemSx}
-              >
-                <ListItemIcon>
-                  <Extension fontSize='small' />
-                </ListItemIcon>
-                <ListItemText
-                  primary='Skill管理'
-                  primaryTypographyProps={{ variant: "body2" }}
-                />
-              </ListItemButton>
-            </ListItem>
-            <ListItem disablePadding>
-              <ListItemButton
                 onClick={onOpenProfilePanel}
                 disabled={isLoading}
                 selected={activePanel === "profile"}
@@ -301,6 +284,23 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                 </ListItemIcon>
                 <ListItemText
                   primary='Profile管理'
+                  primaryTypographyProps={{ variant: "body2" }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={onOpenSkillPanel}
+                disabled={isLoading}
+                selected={activePanel === "skill"}
+                disableRipple
+                sx={actionItemSx}
+              >
+                <ListItemIcon>
+                  <Extension fontSize='small' />
+                </ListItemIcon>
+                <ListItemText
+                  primary='Skill管理'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

@@ -601,17 +601,28 @@ export function SkillCreatePanel(
             </Typography>
 
             <FormControl size='small' fullWidth>
-              <InputLabel id='profile-select-label'>选择Profile</InputLabel>
+              <InputLabel id='profile-select-label' shrink>
+                选择Profile
+              </InputLabel>
               <Select
                 labelId='profile-select-label'
                 label='选择Profile'
                 value={selectedProfileId}
                 displayEmpty
+                renderValue={(value) => {
+                  if (!value) {
+                    return "";
+                  }
+                  const profile = profiles.find(
+                    (p) => p.profile_id === value,
+                  );
+                  return profile?.profile_name || profile?.topic_name || "";
+                }}
                 onChange={(event) => setSelectedProfileId(event.target.value)}
                 disabled={isLoadingProfiles}
               >
                 <MenuItem value=''>
-                  <em>请选择Profile</em>
+                  <em>暂无可选Profile</em>
                 </MenuItem>
                 {profiles.map((profile) => (
                   <MenuItem key={profile.profile_id} value={profile.profile_id}>
@@ -670,18 +681,22 @@ export function SkillCreatePanel(
                   }
                   sx={{ fontSize: 28 }}
                 />
-                <Typography variant='body2'>
-                  {supplementalDropzone.isDragReject
-                    ? "不支持的文件类型"
-                    : supplementalDropzone.isDragActive
-                      ? "释放鼠标以上传"
-                      : "拖拽文件到此处上传"}
-                </Typography>
-                <Typography variant='caption' color='text.secondary'>
-                  {supplementalDropzone.isDragReject
-                    ? "仅支持 .md、.txt、.markdown"
-                    : "支持 .md, .txt, .markdown"}
-                </Typography>
+                {!supplementalFile && (
+                  <>
+                    <Typography variant='body2'>
+                      {supplementalDropzone.isDragReject
+                        ? "不支持的文件类型"
+                        : supplementalDropzone.isDragActive
+                          ? "释放鼠标以上传"
+                          : "拖拽文件到此处上传"}
+                    </Typography>
+                    <Typography variant='caption' color='text.secondary'>
+                      {supplementalDropzone.isDragReject
+                        ? "仅支持 .md、.txt、.markdown"
+                        : "支持 .md, .txt, .markdown"}
+                    </Typography>
+                  </>
+                )}
                 {supplementalFile && (
                   <Typography variant='caption'>
                     已选择：{supplementalFile.name} (
