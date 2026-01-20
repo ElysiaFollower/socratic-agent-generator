@@ -171,7 +171,7 @@ if __name__ == "__main__":
         # This debug script still uses file saving logic if path is provided
         try:
             with open(
-                config.ROOT_DIR / "data_raw/Spectre-Attack/lab_manual.md",
+                config.ROOT_DIR / "data/documents/Spectre-Attack/lab_manual.md",
                 "r",
                 encoding="utf-8",
             ) as f:

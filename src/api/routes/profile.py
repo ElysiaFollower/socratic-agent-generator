@@ -12,10 +12,11 @@ import json
 from pathlib import Path
 
 from api.routes.auth import get_current_user
-from config import RAW_DATA_DIR
+from config import RAW_DATA_DIR, ROOT_DIR, DOCUMENTS_DIR
 from core.dependencies import ProfileManagerDep, DocumentManagerDep, ClassManagerDep
 from core.exceptions import ProfileNotFoundError
 from generators.ProfileGenerateManager import ProfileGenerateManager
+from models.document import Document
 from pydantic import BaseModel, Field
 from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
@@ -26,6 +27,56 @@ from utils.skills import build_lab_manual_index
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile"])
+
+
+def check_document_access(
+    document_manager: DocumentManagerDep,
+    lab_name: str,
+    current_user: User,
+    allow_admin: bool = True
+) -> Document:
+    """检查用户是否有权限访问指定文档。
+    
+    Args:
+        document_manager: DocumentManager 依赖
+        lab_name: 文档名称
+        current_user: 当前用户
+        allow_admin: admin 是否拥有所有权限
+    
+    Returns:
+        Document 对象
+    
+    Raises:
+        HTTPException: 如果用户无权访问
+    """
+    # Admin 可以访问所有文档
+    if allow_admin and current_user.role == "admin":
+        doc = document_manager.get_document_by_name(lab_name)
+        if not doc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document '{lab_name}' not found."
+            )
+        return doc
+    
+    # Teacher 只能访问自己的文档
+    if current_user.role == "teacher":
+        doc = document_manager.get_document_by_owner_and_name(
+            current_user.user_id, 
+            lab_name
+        )
+        if not doc:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Document '{lab_name}' not found or access denied."
+            )
+        return doc
+    
+    # Student 不能访问文档
+    raise HTTPException(
+        status_code=403,
+        detail="Students cannot access lab manuals."
+    )
 
 
 class GenerateProfileRequest(BaseModel):
@@ -95,31 +146,33 @@ def list_lab_manuals(
     current_user: User = Depends(get_current_user),
     document_manager: DocumentManagerDep = None # Inject DocumentManager
 ) -> List[dict]:
-    """List all lab manuals.
-
-    Only admins and teachers can list lab manuals.
-    """
-    # Check permissions
+    """List lab manuals accessible to the current user."""
     if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and teachers can list lab manuals.",
-        )
-
-    # Use DocumentManager to list
-    docs = document_manager.list_documents()
-
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    # ✅ Admin 可以看到所有文档，Teacher 只能看到自己的
+    if current_user.role == "admin":
+        docs = document_manager.list_documents()
+    else:
+        docs = document_manager.list_documents_by_owner(current_user.user_id)
+    
     lab_manuals = []
     for doc in docs:
-        lab_dir = RAW_DATA_DIR / doc.doc_name
+        lab_dir = Path(doc.storage_path).parent
+        if not lab_dir.is_absolute():
+            lab_dir = ROOT_DIR / lab_dir
+        
+        # ✅ 检查文件是否存在（使用绝对路径）
         has_persona = (lab_dir / "definition.json").exists()
         has_curriculum = (lab_dir / "curriculum.json").exists()
-
+        has_lab_manual = (lab_dir / "lab_manual.md").exists()
+        
         lab_manuals.append({
             "lab_name": doc.doc_name,
+            "owner_id": doc.owner_id,  # ✅ 返回所有者信息
             "filename": doc.filename,
             "upload_time": doc.upload_time,
-            "has_lab_manual": True, # If in DB, we assume file exists or at least record exists
+            "has_lab_manual": has_lab_manual,  # ✅ 明确返回是否有lab_manual
             "has_persona": has_persona,
             "has_curriculum": has_curriculum,
         })
@@ -134,20 +187,14 @@ def get_lab_manual_content(
     document_manager: DocumentManagerDep = None
 ) -> dict:
     """Get the content of a lab manual file."""
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and teachers can access lab manuals.",
-        )
-
-    doc = document_manager.get_document_by_name(lab_name)
-    if not doc:
-        raise HTTPException(
-             status_code=status.HTTP_404_NOT_FOUND,
-             detail=f"Lab '{lab_name}' not found.",
-        )
-
-    lab_manual_path = RAW_DATA_DIR.parent / doc.storage_path
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_manual_path = Path(doc.storage_path)
+    if not lab_manual_path.is_absolute():
+        lab_manual_path = ROOT_DIR / lab_manual_path
+    
     if not lab_manual_path.exists():
          raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -185,15 +232,16 @@ def delete_lab_manual(
             detail="Only admins and teachers can delete lab manuals.",
         )
 
-    doc = document_manager.get_document_by_name(lab_name)
-    if not doc:
-        # Fallback for filesystem cleanup if not in DB?
-        pass
-
-    lab_dir = RAW_DATA_DIR / lab_name
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_dir = Path(doc.storage_path).parent
+    if not lab_dir.is_absolute():
+        lab_dir = ROOT_DIR / lab_dir
 
     # Delete from DB
-    document_manager.delete_document(lab_name)
+    document_manager.delete_document(lab_name, current_user.user_id)
 
     # Delete files
     if lab_dir.exists():
@@ -312,7 +360,7 @@ def delete_profile(
 @router.post("/upload-lab-manual", summary="上传实验文档")
 async def upload_lab_manual(
     file: UploadFile = File(..., description="Lab manual file (markdown or text)"),
-    lab_name: str = Form(..., description="Lab directory name in data_raw"),
+    lab_name: str = Form(..., description="Lab directory name in data/documents"),
     current_user: User = Depends(get_current_user),
     background_tasks: BackgroundTasks = None,
     document_manager: DocumentManagerDep = None
@@ -331,6 +379,26 @@ async def upload_lab_manual(
     
     import re
     lab_name = re.sub(r'[^\w\-_\.]', '_', lab_name.strip())
+
+    # ✅ 检查当前用户是否已有同名文档
+    existing_doc = document_manager.get_document_by_owner_and_name(
+        current_user.user_id, 
+        lab_name
+    )
+    if existing_doc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document with name '{lab_name}' already exists in your document domain."
+        )
+    
+    # ✅ 检查文件系统是否已存在同名文档（防止数据库记录丢失但文件存在的情况）
+    user_doc_dir = DOCUMENTS_DIR / current_user.user_id / lab_name
+    lab_manual_path = user_doc_dir / "lab_manual.md"
+    if lab_manual_path.exists():
+        raise HTTPException(
+            status_code=400,
+            detail=f"Document '{lab_name}' already exists in file system. Please delete it first or use a different name."
+        )
 
     allowed_extensions = [".md", ".txt", ".markdown"]
     file_extension = ""
@@ -352,30 +420,23 @@ async def upload_lab_manual(
                 detail="File is empty.",
             )
 
-        lab_dir = RAW_DATA_DIR / lab_name
-        lab_dir.mkdir(parents=True, exist_ok=True)
+        # ✅ 使用用户ID组织目录结构
+        user_doc_dir = DOCUMENTS_DIR / current_user.user_id / lab_name
+        user_doc_dir.mkdir(parents=True, exist_ok=True)
 
-        lab_manual_path = lab_dir / "lab_manual.md"
+        lab_manual_path = user_doc_dir / "lab_manual.md"
         with open(lab_manual_path, "w", encoding="utf-8") as f:
             f.write(content_str)
 
-        # Create Document record
-        # Storage path relative to project root or data_raw parent?
-        # RAW_DATA_DIR is typically "data_raw"
-        relative_path = f"data_raw/{lab_name}/lab_manual.md"
-
-        # Check if exists
-        existing_doc = document_manager.get_document_by_name(lab_name)
-        if not existing_doc:
-            document_manager.create_document(
-                doc_name=lab_name,
-                filename=file.filename or "lab_manual.md",
-                storage_path=relative_path,
-                meta_info={"uploader": current_user.username}
-            )
-        else:
-            # Update info?
-            pass
+        # ✅ 创建文档记录，指定所有者
+        relative_path = f"data/documents/{current_user.user_id}/{lab_name}/lab_manual.md"
+        document_manager.create_document(
+            owner_id=current_user.user_id,  # ✅ 设置所有者
+            doc_name=lab_name,
+            filename=file.filename or "lab_manual.md",
+            storage_path=relative_path,
+            meta_info={"uploader": current_user.username}
+        )
 
         logger.info(
             "Lab manual uploaded by user %s: %s -> %s",
@@ -384,13 +445,29 @@ async def upload_lab_manual(
             lab_manual_path,
         )
 
+        # ✅ 构建索引路径
+        index_path = f"data/vector_stores/{current_user.user_id}/{lab_name}"
+        
+        # 更新文档的索引路径
+        document_manager.update_index_path(
+            lab_name, 
+            index_path, 
+            owner_id=current_user.user_id
+        )
+
         if background_tasks is not None:
-            background_tasks.add_task(build_lab_manual_index, lab_name)
+            # ✅ 传递owner_id和lab_name给索引构建函数
+            background_tasks.add_task(
+                build_lab_manual_index, 
+                current_user.user_id, 
+                lab_name
+            )
 
         return {
             "success": True,
             "message": "Lab manual uploaded successfully",
             "lab_name": lab_name,
+            "owner_id": current_user.user_id,  # ✅ 返回所有者信息
             "saved_path": relative_path,
             "size": len(content_str),
             "rag_status": "building",
@@ -489,21 +566,18 @@ def get_persona(
     current_user: User = Depends(get_current_user),
     document_manager: DocumentManagerDep = None
 ) -> TutorPersona:
-    # Check permissions
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and teachers can access lab manuals.",
-        )
-
-    # We still use files for intermediate persona/curriculum
-    lab_dir = RAW_DATA_DIR / lab_name
-    persona_path = lab_dir / "definition.json"
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    persona_path = Path(doc.storage_path).parent / "definition.json"
+    if not persona_path.is_absolute():
+        persona_path = ROOT_DIR / persona_path
 
     if not persona_path.exists():
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Persona not found for lab '{lab_name}'.",
+            detail=f"Persona not found for lab '{lab_name}'. Please generate it first.",
         )
 
     try:
@@ -519,12 +593,16 @@ def save_persona(
     lab_name: str,
     persona: TutorPersona,
     current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None
 ) -> TutorPersona:
-    # Intermediate files -> File System
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    lab_dir = RAW_DATA_DIR / lab_name
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_dir = Path(doc.storage_path).parent
+    if not lab_dir.is_absolute():
+        lab_dir = ROOT_DIR / lab_dir
+    
     if not lab_dir.exists():
         raise HTTPException(status_code=404, detail="Lab not found")
 
@@ -541,14 +619,20 @@ def save_persona(
 def get_curriculum(
     lab_name: str,
     current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None
 ) -> SocraticCurriculum:
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    lab_dir = RAW_DATA_DIR / lab_name
-    curriculum_path = lab_dir / "curriculum.json"
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    curriculum_path = Path(doc.storage_path).parent / "curriculum.json"
+    if not curriculum_path.is_absolute():
+        curriculum_path = ROOT_DIR / curriculum_path
     if not curriculum_path.exists():
-        raise HTTPException(status_code=404, detail="Curriculum not found")
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Curriculum not found for lab '{lab_name}'. Please generate it first."
+        )
 
     try:
         with open(curriculum_path, "r", encoding="utf-8") as f:
@@ -563,11 +647,16 @@ def save_curriculum(
     lab_name: str,
     curriculum_data: dict = Body(...),
     current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None
 ) -> SocraticCurriculum:
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    lab_dir = RAW_DATA_DIR / lab_name
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_dir = Path(doc.storage_path).parent
+    if not lab_dir.is_absolute():
+        lab_dir = ROOT_DIR / lab_dir
+    
     if not lab_dir.exists():
         raise HTTPException(status_code=404, detail="Lab not found")
 
@@ -594,12 +683,16 @@ def save_curriculum(
 async def generate_persona_endpoint(
     lab_name: str,
     current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None
 ) -> TutorPersona:
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    lab_dir = RAW_DATA_DIR / lab_name
-    lab_manual_path = lab_dir / "lab_manual.md"
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_manual_path = Path(doc.storage_path)
+    if not lab_manual_path.is_absolute():
+        lab_manual_path = ROOT_DIR / lab_manual_path
+    
     if not lab_manual_path.exists():
         raise HTTPException(status_code=404, detail="Lab manual not found")
 
@@ -609,6 +702,7 @@ async def generate_persona_endpoint(
         pg = ProfileGenerateManager(content)
         persona = await pg.generate_persona()
 
+        lab_dir = lab_manual_path.parent
         with open(lab_dir / "definition.json", "w", encoding="utf-8") as f:
             json.dump(persona.model_dump(), f, ensure_ascii=False, indent=2)
         return persona
@@ -620,12 +714,16 @@ async def generate_persona_endpoint(
 async def generate_curriculum_endpoint(
     lab_name: str,
     current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None
 ) -> SocraticCurriculum:
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    lab_dir = RAW_DATA_DIR / lab_name
-    lab_manual_path = lab_dir / "lab_manual.md"
+    # ✅ 检查文档访问权限
+    doc = check_document_access(document_manager, lab_name, current_user)
+    
+    # ✅ 使用文档的存储路径
+    lab_manual_path = Path(doc.storage_path)
+    if not lab_manual_path.is_absolute():
+        lab_manual_path = ROOT_DIR / lab_manual_path
+    
     if not lab_manual_path.exists():
         raise HTTPException(status_code=404, detail="Lab manual not found")
 
@@ -635,6 +733,7 @@ async def generate_curriculum_endpoint(
         pg = ProfileGenerateManager(content)
         curriculum = await pg.generate_curriculum()
 
+        lab_dir = lab_manual_path.parent
         with open(lab_dir / "curriculum.json", "w", encoding="utf-8") as f:
             json.dump(curriculum.model_dump(), f, ensure_ascii=False, indent=2)
         return curriculum

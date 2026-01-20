@@ -11,7 +11,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from config import RAW_DATA_DIR, DATA_DIR
+from config import RAW_DATA_DIR, DATA_DIR, DOCUMENTS_DIR, ROOT_DIR
 from generators.ProfileGenerateManager import ProfileGenerateManager
 from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
@@ -200,7 +200,7 @@ async def interactive_generation(lab_dir_name: str = "example") -> None:
     """Interactive profile generation workflow.
 
     Args:
-        lab_dir_name: Name of the lab directory in data_raw/.
+        lab_dir_name: Name of the lab directory in data/documents/.
             Defaults to "example".
     """
     print_banner()
@@ -337,12 +337,24 @@ async def interactive_generation(lab_dir_name: str = "example") -> None:
                 with SessionLocal() as db:
                     # Create document record if needed
                     doc_manager = DocumentManager(db)
-                    existing_doc = doc_manager.get_document_by_name(lab_dir_name)
+                    # ✅ CLI工具使用第一个admin用户作为默认所有者
+                    from models.user import UserModel
+                    default_user = db.query(UserModel).filter(
+                        UserModel.role == "admin"
+                    ).first()
+                    if not default_user:
+                        raise ValueError("No admin user found. Please create an admin user first.")
+                    
+                    owner_id = default_user.user_id
+                    existing_doc = doc_manager.get_document_by_owner_and_name(owner_id, lab_dir_name)
                     if not existing_doc:
+                        # ✅ 使用新的路径结构
+                        storage_path = f"data/documents/{owner_id}/{lab_dir_name}/lab_manual.md"
                         doc_manager.create_document(
+                            owner_id=owner_id,  # ✅ 设置所有者
                             doc_name=lab_dir_name,
                             filename="lab_manual.md",
-                            storage_path=f"data_raw/{lab_dir_name}/lab_manual.md",
+                            storage_path=storage_path,
                             meta_info={"source": "cli_generated"}
                         )
 

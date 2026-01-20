@@ -19,13 +19,16 @@ load_dotenv()
 # Root directory of the project
 ROOT_DIR = Path(__file__).parent.parent.resolve()
 
-# Raw data directory name
-RAW_DATA_DIR_NAME = "data_raw"
-RAW_DATA_DIR = ROOT_DIR / RAW_DATA_DIR_NAME
-
 # Data directory name
 DATA_DIR_NAME = "data"
 DATA_DIR = ROOT_DIR / DATA_DIR_NAME
+
+# Documents directory (moved from data_raw to data/documents)
+DOCUMENTS_DIR_NAME = "documents"
+DOCUMENTS_DIR = DATA_DIR / DOCUMENTS_DIR_NAME
+
+# Legacy: Keep RAW_DATA_DIR for backward compatibility, but point to new location
+RAW_DATA_DIR = DOCUMENTS_DIR
 
 # Generated tutor profiles directory name
 PROFILES_DIR_NAME = "tutor_profiles"
@@ -144,3 +147,19 @@ DEFAULT_SESSION_NAME: str = "新会话"
 
 # Admin token for admin registration (set via ADMIN_TOKEN environment variable)
 ADMIN_TOKEN: Optional[str] = os.getenv("ADMIN_TOKEN")
+
+# --- User Document Domain Configuration ---
+
+# Vector store directory (defined in skills.py, but we need it here too)
+VECTOR_STORE_DIR_NAME = "vector_stores"
+VECTOR_STORE_DIR = DATA_DIR / VECTOR_STORE_DIR_NAME
+
+
+def get_user_doc_dir(user_id: str) -> Path:
+    """获取指定用户的文档目录"""
+    return DOCUMENTS_DIR / user_id
+
+
+def get_user_vector_store_dir(user_id: str) -> Path:
+    """获取指定用户的向量存储目录"""
+    return VECTOR_STORE_DIR / user_id

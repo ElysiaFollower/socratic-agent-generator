@@ -18,7 +18,7 @@ from langchain_core.tools import tool
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 
-from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR
+from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR, DOCUMENTS_DIR, ROOT_DIR
 from core.database import SessionLocal
 from utils.document_manager import DocumentManager
 
@@ -234,12 +234,20 @@ class LabManualSkill(BaseSkill):
 
         with SessionLocal() as db:
             dm = DocumentManager(db)
+            # ✅ 注意：lab_name现在可能不是全局唯一的
+            # 如果有多个同名文档，get_document_by_name会返回第一个
+            # 理想情况下应该通过Profile的document_id来查找，但这里保持向后兼容
             doc = dm.get_document_by_name(self.lab_name)
             if doc and doc.index_path:
-                return Path(doc.index_path)
+                index_path = Path(doc.index_path)
+                if not index_path.is_absolute():
+                    # 如果是相对路径，尝试相对于项目根目录
+                    index_path = ROOT_DIR / index_path
+                return index_path
 
         # Fallback to default convention if not in DB or index_path not set
         # This allows backward compatibility or auto-healing
+        # ⚠️ 注意：这个fallback可能不准确，因为lab_name不再是全局唯一的
         return VECTOR_STORE_DIR / self.lab_name
 
     def _load_or_create_vector_store(self) -> Optional[FAISS]:
@@ -277,14 +285,14 @@ class LabManualSkill(BaseSkill):
             dm = DocumentManager(db)
             doc = dm.get_document_by_name(self.lab_name)
             if doc and doc.storage_path:
-                lab_manual_path = Path(doc.storage_path) # Assumes relative to CWD or absolute
-                if not lab_manual_path.exists():
-                     # Try relative to project root if relative path stored
-                     lab_manual_path = Path(".").resolve() / doc.storage_path
+                lab_manual_path = Path(doc.storage_path)
+                if not lab_manual_path.is_absolute():
+                    # ✅ 如果是相对路径，尝试相对于项目根目录
+                    lab_manual_path = ROOT_DIR / lab_manual_path
 
-        # Fallback
+        # Fallback (⚠️ 注意：这个fallback可能不准确，因为lab_name不再是全局唯一的)
         if not lab_manual_path or not lab_manual_path.exists():
-             lab_manual_path = RAW_DATA_DIR / self.lab_name / "lab_manual.md"
+             lab_manual_path = DOCUMENTS_DIR / self.lab_name / "lab_manual.md"
 
         if not lab_manual_path.exists():
             logger.warning("Lab manual file not found: %s", lab_manual_path)
@@ -386,8 +394,13 @@ class LabManualSkill(BaseSkill):
         return consult_lab_manual
 
 
-def build_lab_manual_index(lab_name: str) -> bool:
-    """Build or load a lab manual vector store for a given lab name."""
+def build_lab_manual_index(owner_id: str, lab_name: str) -> bool:
+    """Build or load a lab manual vector store for a given owner and lab name.
+    
+    Args:
+        owner_id: The owner's user ID
+        lab_name: The lab manual name (doc_name)
+    """
     try:
         skill = LabManualSkill(topic_name=lab_name, lab_name=lab_name)
         # Force recreation if needed?
@@ -395,7 +408,7 @@ def build_lab_manual_index(lab_name: str) -> bool:
         # If we want to rebuild, we might need a force flag, but for now "ensure exists" is fine.
         return skill.vector_store is not None
     except Exception as e:
-        logger.error("Failed to build lab manual index for %s: %s", lab_name, e)
+        logger.error("Failed to build lab manual index for %s/%s: %s", owner_id, lab_name, e)
         return False
 
 

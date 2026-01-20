@@ -95,7 +95,7 @@ if __name__ == "__main__":
     load_dotenv()
 
     async def main():
-        with open("./data_raw/ShellShock-Attack/lab_manual.md", "r", encoding="utf-8") as f:
+        with open("./data/documents/ShellShock-Attack/lab_manual.md", "r", encoding="utf-8") as f:
             lab_manual_content = f.read()
 
         generator = PersonaGenerator(
