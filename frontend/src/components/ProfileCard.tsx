@@ -12,6 +12,7 @@ import {
   CardActionArea,
   CardActions,
   CardContent,
+  Checkbox,
   Chip,
   Divider,
   Stack,
@@ -19,9 +20,11 @@ import {
   Typography,
 } from "@mui/material";
 import {
-  CalendarTodayOutlined,
+  ChecklistOutlined,
   DescriptionOutlined,
+  MenuBookOutlined,
   PeopleOutline,
+  CalendarTodayOutlined,
   PersonOutline,
 } from "@mui/icons-material";
 import { Profile } from "../types";
@@ -33,6 +36,9 @@ import { extractCurriculumSteps } from "../utils/curriculum";
 export interface ProfileCardProps {
   readonly profile: Profile;
   readonly onClick?: () => void;
+  readonly selectable?: boolean;
+  readonly selected?: boolean;
+  readonly onSelectToggle?: () => void;
   readonly actionLabel?: string;
   readonly onAction?: () => void;
   readonly actionDisabled?: boolean;
@@ -49,6 +55,9 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
   const {
     profile,
     onClick,
+    selectable,
+    selected,
+    onSelectToggle,
     actionLabel,
     onAction,
     actionDisabled,
@@ -56,28 +65,52 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
   } = props;
   const displayName = profile.profile_name || profile.topic_name || "-";
   const stepCount = extractCurriculumSteps(profile.curriculum).length;
+  const isHighlighted = Boolean(highlight || selected);
+  const isClickable = Boolean(onClick || onSelectToggle);
+
+  const handleCardClick = () => {
+    if (selectable && onSelectToggle) {
+      onSelectToggle();
+      return;
+    }
+    onClick?.();
+  };
+
   const content = (
     <CardContent>
-      <Typography variant='subtitle1' sx={{ fontWeight: 600 }} noWrap>
-        {displayName}
-      </Typography>
-      <Typography
-        variant='caption'
-        color='text.secondary'
-        sx={{ display: "block", mt: 0.5 }}
-      >
-        主题: {profile.topic_name}
-      </Typography>
-      <Typography
-        variant='caption'
-        color='text.secondary'
-        sx={{ display: "block" }}
-      >
-        目标受众: {profile.target_audience || "-"}
-      </Typography>
-      <Typography variant='caption' color='text.secondary'>
-        学习步骤: {stepCount} 个
-      </Typography>
+      <Stack spacing={0.5}>
+        <Stack direction='row' spacing={1} alignItems='flex-start'>
+          <Typography variant='subtitle1' sx={{ fontWeight: 600 }} noWrap>
+            {displayName}
+          </Typography>
+        </Stack>
+        <Stack direction='row' spacing={1} alignItems='flex-start'>
+          <DescriptionOutlined
+            fontSize='small'
+            color='action'
+            sx={{ mt: "2px" }}
+          />
+          <Typography variant='caption' color='text.secondary'>
+            主题: {profile.topic_name}
+          </Typography>
+        </Stack>
+        <Stack direction='row' spacing={1} alignItems='flex-start'>
+          <PeopleOutline fontSize='small' color='action' sx={{ mt: "2px" }} />
+          <Typography variant='caption' color='text.secondary'>
+            目标受众: {profile.target_audience || "-"}
+          </Typography>
+        </Stack>
+        <Stack direction='row' spacing={1} alignItems='flex-start'>
+          <ChecklistOutlined
+            fontSize='small'
+            color='action'
+            sx={{ mt: "2px" }}
+          />
+          <Typography variant='caption' color='text.secondary'>
+            学习步骤: {stepCount} 个
+          </Typography>
+        </Stack>
+      </Stack>
     </CardContent>
   );
 
@@ -86,11 +119,22 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
       variant='outlined'
       sx={{
         height: "100%",
-        borderColor: highlight ? "primary.main" : "divider",
+        position: selectable ? "relative" : "static",
+        borderColor: isHighlighted ? "primary.main" : "divider",
       }}
     >
-      {onClick ? (
-        <CardActionArea onClick={onClick}>{content}</CardActionArea>
+      {selectable && (
+        <Box sx={{ position: "absolute", top: 8, right: 8, zIndex: 1 }}>
+          <Checkbox
+            size='small'
+            checked={Boolean(selected)}
+            onChange={() => onSelectToggle?.()}
+            onClick={(event) => event.stopPropagation()}
+          />
+        </Box>
+      )}
+      {isClickable ? (
+        <CardActionArea onClick={handleCardClick}>{content}</CardActionArea>
       ) : (
         content
       )}
@@ -127,9 +171,7 @@ export interface ProfileDetailCardProps {
  * @param props - Component props
  * @returns React component
  */
-export function ProfileDetailCard(
-  props: ProfileDetailCardProps,
-): JSX.Element {
+export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
   const { profile, mode = "student", onRename, isRenaming, actions } = props;
   const displayName = profile.profile_name || profile.topic_name || "-";
   const [nameInput, setNameInput] = useState<string>(displayName);
@@ -185,14 +227,22 @@ export function ProfileDetailCard(
                 {displayName}
               </Typography>
             )}
-            <Stack direction='row' spacing={1} alignItems='center'>
-              <DescriptionOutlined fontSize='small' color='action' />
+            <Stack direction='row' spacing={1} alignItems='flex-start'>
+              <DescriptionOutlined
+                fontSize='small'
+                color='action'
+                sx={{ mt: "2px" }}
+              />
               <Typography variant='body2' color='text.secondary'>
                 主题: {profile.topic_name}
               </Typography>
             </Stack>
-            <Stack direction='row' spacing={1} alignItems='center'>
-              <PeopleOutline fontSize='small' color='action' />
+            <Stack direction='row' spacing={1} alignItems='flex-start'>
+              <PeopleOutline
+                fontSize='small'
+                color='action'
+                sx={{ mt: "2px" }}
+              />
               <Typography variant='body2' color='text.secondary'>
                 受众: {profile.target_audience || "-"}
               </Typography>
@@ -202,14 +252,22 @@ export function ProfileDetailCard(
           <Divider flexItem />
 
           <Stack spacing={1}>
-            <Stack direction='row' spacing={1} alignItems='center'>
-              <PersonOutline fontSize='small' color='action' />
+            <Stack direction='row' spacing={1} alignItems='flex-start'>
+              <PersonOutline
+                fontSize='small'
+                color='action'
+                sx={{ mt: "2px" }}
+              />
               <Typography variant='body2' color='text.secondary'>
                 创建人: {profile.owner_id || "-"}
               </Typography>
             </Stack>
-            <Stack direction='row' spacing={1} alignItems='center'>
-              <CalendarTodayOutlined fontSize='small' color='action' />
+            <Stack direction='row' spacing={1} alignItems='flex-start'>
+              <CalendarTodayOutlined
+                fontSize='small'
+                color='action'
+                sx={{ mt: "2px" }}
+              />
               <Typography variant='body2' color='text.secondary'>
                 创建日期: {formatDateTime(profile.create_at)}
               </Typography>

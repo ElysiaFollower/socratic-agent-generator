@@ -17,6 +17,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  IconButton,
   Paper,
   Stack,
   TextField,
@@ -25,6 +26,7 @@ import {
 import {
   Add,
   CalendarTodayOutlined,
+  ContentCopy,
   DescriptionOutlined,
   Key,
   PeopleOutline,
@@ -72,8 +74,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const [classes, setClasses] = useState<readonly ClassInfo[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [isLoadingClasses, setIsLoadingClasses] = useState<boolean>(false);
-  const [newClassName, setNewClassName] = useState<string>("");
   const [joinCode, setJoinCode] = useState<string>("");
+  const [isJoinClassOpen, setIsJoinClassOpen] = useState<boolean>(false);
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [invites, setInvites] = useState<readonly InvitationCodeInfo[]>([]);
   const [members, setMembers] = useState<readonly ClassMemberInfo[]>([]);
@@ -84,7 +86,17 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const [isRenamingProfile, setIsRenamingProfile] = useState<boolean>(false);
   const [isAddProfileOpen, setIsAddProfileOpen] = useState<boolean>(false);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
-  const [profileSearchText, setProfileSearchText] = useState<string>("");
+  const [classSearchText, setClassSearchText] = useState<string>("");
+  const [isCreateClassOpen, setIsCreateClassOpen] = useState<boolean>(false);
+  const [createClassName, setCreateClassName] = useState<string>("");
+  const [createInviteCode, setCreateInviteCode] = useState<string>("");
+  const [isCreatingClass, setIsCreatingClass] = useState<boolean>(false);
+  const [createdClassId, setCreatedClassId] = useState<string | null>(null);
+  const [selectedProfileIds, setSelectedProfileIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [createProfileSearchText, setCreateProfileSearchText] =
+    useState<string>("");
   const [classMemberCounts, setClassMemberCounts] = useState<
     Record<string, number>
   >({});
@@ -106,6 +118,20 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     () => classes.find((item) => item.class_id === selectedClassId) || null,
     [classes, selectedClassId],
   );
+
+  const filteredClasses = useMemo(() => {
+    const query = classSearchText.trim().toLowerCase();
+    if (!query) {
+      return classes;
+    }
+    return classes.filter((item) => {
+      const fields = [item.name, item.class_id]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return fields.includes(query);
+    });
+  }, [classSearchText, classes]);
 
   const loadClasses = useCallback(async () => {
     setIsLoadingClasses(true);
@@ -131,9 +157,21 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   }, [classes, selectedClassId]);
 
   useEffect(() => {
+    if (filteredClasses.length === 0) {
+      return;
+    }
+    if (
+      selectedClassId &&
+      filteredClasses.some((item) => item.class_id === selectedClassId)
+    ) {
+      return;
+    }
+    setSelectedClassId(filteredClasses[0].class_id);
+  }, [filteredClasses, selectedClassId]);
+
+  useEffect(() => {
     setIsAddProfileOpen(false);
     setActiveProfile(null);
-    setProfileSearchText("");
   }, [selectedClassId]);
 
   useEffect(() => {
@@ -223,21 +261,129 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     void loadMembers();
   }, [loadInvites, loadMembers]);
 
+  const resetCreateModal = () => {
+    setCreateClassName("");
+    setCreateInviteCode("");
+    setCreatedClassId(null);
+    setSelectedProfileIds(new Set());
+    setCreateProfileSearchText("");
+  };
+
+  const handleOpenCreateClass = () => {
+    resetCreateModal();
+    setIsCreateClassOpen(true);
+  };
+
+  const handleCloseCreateClass = () => {
+    setIsCreateClassOpen(false);
+    resetCreateModal();
+  };
+
+  const handleOpenJoinClass = () => {
+    setJoinCode("");
+    setIsJoinClassOpen(true);
+  };
+
+  const handleCloseJoinClass = () => {
+    setIsJoinClassOpen(false);
+    setJoinCode("");
+  };
+
+  const handleToggleProfileSelection = (profileId: string) => {
+    if (createdClassId || isCreatingClass) {
+      return;
+    }
+    setSelectedProfileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(profileId)) {
+        next.delete(profileId);
+      } else {
+        next.add(profileId);
+      }
+      return next;
+    });
+  };
+
+  const copyInviteCode = async (code: string) => {
+    if (!code) {
+      return;
+    }
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(code);
+        notifySuccess("邀请码已复制");
+        return;
+      }
+
+      if (typeof document === "undefined") {
+        throw new Error("复制失败，请手动复制");
+      }
+
+      const textArea = document.createElement("textarea");
+      textArea.value = code;
+      textArea.setAttribute("readonly", "");
+      textArea.style.position = "fixed";
+      textArea.style.opacity = "0";
+      textArea.style.left = "-9999px";
+      textArea.style.top = "-9999px";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const success = document.execCommand("copy");
+      document.body.removeChild(textArea);
+
+      if (!success) {
+        throw new Error("复制失败，请手动复制");
+      }
+      notifySuccess("邀请码已复制");
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "复制失败，请重试";
+      notifyError(errorMessage);
+    }
+  };
+
   const handleCreateClass = async () => {
-    const name = newClassName.trim();
+    const name = createClassName.trim();
     if (!name) {
       notifyWarning("请输入班级名称");
       return;
     }
+    setIsCreatingClass(true);
     try {
       const created = await createClass({ name });
+      setCreatedClassId(created.class_id);
+      let inviteCode = "";
+      try {
+        const invite = await generateClassInvitationCode({
+          class_id: created.class_id,
+          expires_in_days: expiresInDays,
+        });
+        inviteCode = invite.invitation_code;
+        setCreateInviteCode(inviteCode);
+      } catch (err) {
+        notifyError("邀请码生成失败，请稍后重试");
+      }
+
+      if (selectedProfileIds.size > 0) {
+        await Promise.all(
+          Array.from(selectedProfileIds).map((profileId) =>
+            updateProfileVisibility(created.class_id, profileId, {
+              visible: true,
+            }),
+          ),
+        );
+      }
+
       notifySuccess("班级创建成功");
-      setNewClassName("");
       await loadClasses();
       setSelectedClassId(created.class_id);
+      await refreshProfiles();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "创建班级失败";
       notifyError(errorMessage);
+    } finally {
+      setIsCreatingClass(false);
     }
   };
 
@@ -251,6 +397,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       const joined = await joinClass({ invitation_code: code });
       notifySuccess("加入班级成功");
       setJoinCode("");
+      setIsJoinClassOpen(false);
       await loadClasses();
       setSelectedClassId(joined.class_id);
     } catch (err) {
@@ -289,7 +436,6 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
 
   const handleCloseAddProfile = () => {
     setIsAddProfileOpen(false);
-    setProfileSearchText("");
   };
 
   const handleAddProfileToClass = async (profile: Profile) => {
@@ -374,12 +520,12 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     return profiles.filter((profile) => !visibleIds.has(profile.profile_id));
   }, [profiles, selectedClassId, visibleProfilesForClass]);
 
-  const filteredAvailableProfiles = useMemo(() => {
-    const query = profileSearchText.trim().toLowerCase();
+  const filteredCreateProfiles = useMemo(() => {
+    const query = createProfileSearchText.trim().toLowerCase();
     if (!query) {
-      return availableProfilesForClass;
+      return profiles;
     }
-    return availableProfilesForClass.filter((profile) => {
+    return profiles.filter((profile) => {
       const fields = [
         profile.profile_name,
         profile.topic_name,
@@ -392,7 +538,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         .toLowerCase();
       return fields.includes(query);
     });
-  }, [availableProfilesForClass, profileSearchText]);
+  }, [createProfileSearchText, profiles]);
 
   const profileCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -412,7 +558,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         gap: 2,
       }}
     >
-      {classes.map((item) => {
+      {filteredClasses.map((item) => {
         const isSelected = item.class_id === selectedClassId;
         const memberCount = classMemberCounts[item.class_id];
         const profileCount = profileCounts[item.class_id] || 0;
@@ -505,57 +651,6 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const teacherDetail = (
     <Stack spacing={2}>
       <Stack spacing={1}>
-        <Typography variant='subtitle2'>班级邀请码</Typography>
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <TextField
-            label='有效期（天）'
-            type='number'
-            inputProps={{ min: 1, max: 365 }}
-            value={expiresInDays}
-            onChange={(e) => setExpiresInDays(Number(e.target.value))}
-            size='small'
-          />
-          <Button
-            variant='contained'
-            onClick={handleGenerateInvite}
-            disabled={!selectedClassId}
-          >
-            生成邀请码
-          </Button>
-        </Stack>
-        {isLoadingInvites ? (
-          <CircularProgress size={20} />
-        ) : invites.length === 0 ? (
-          <Typography variant='caption' color='text.secondary'>
-            暂无邀请码
-          </Typography>
-        ) : (
-          <Stack spacing={1}>
-            {invites.map((invite) => (
-              <Paper
-                key={invite.invitation_code}
-                variant='outlined'
-                sx={{ p: 1 }}
-              >
-                <Stack direction='row' spacing={1} alignItems='center'>
-                  <Key fontSize='small' color='action' />
-                  <Typography variant='body2'>
-                    {invite.invitation_code}
-                  </Typography>
-                </Stack>
-                <Typography variant='caption' color='text.secondary'>
-                  过期时间:{" "}
-                  {invite.expires_at
-                    ? new Date(invite.expires_at).toLocaleString("zh-CN")
-                    : "-"}
-                </Typography>
-              </Paper>
-            ))}
-          </Stack>
-        )}
-      </Stack>
-
-      <Stack spacing={1}>
         <Typography variant='subtitle2'>班级成员</Typography>
         {isLoadingMembers ? (
           <CircularProgress size={20} />
@@ -584,7 +679,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           alignItems='center'
           justifyContent='space-between'
         >
-          <Typography variant='subtitle2'>Profile 可见性</Typography>
+          <Typography variant='subtitle2'>班级内的Profile</Typography>
           <Button
             size='small'
             variant='outlined'
@@ -651,42 +746,43 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     <Stack spacing={3} sx={{ pt: 2 }}>
       <Stack spacing={2}>
         <Typography variant='h6'>我的班级</Typography>
-        {isTeacher ? (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField
-              label='班级名称'
-              value={newClassName}
-              onChange={(event) => setNewClassName(event.target.value)}
-              size='small'
-              fullWidth
-            />
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={1}
+          alignItems={{ md: "center" }}
+        >
+          <TextField
+            value={classSearchText}
+            onChange={(event) => setClassSearchText(event.target.value)}
+            placeholder='搜索班级名称或ID'
+            size='small'
+            fullWidth
+          />
+          {isTeacher ? (
             <Button
               variant='contained'
               startIcon={<Add />}
-              onClick={handleCreateClass}
+              onClick={handleOpenCreateClass}
               sx={{ whiteSpace: "nowrap" }}
             >
               创建班级
             </Button>
-          </Stack>
-        ) : (
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-            <TextField
-              label='班级邀请码'
-              value={joinCode}
-              onChange={(event) => setJoinCode(event.target.value)}
-              size='small'
-              fullWidth
-            />
-            <Button
-              variant='contained'
-              onClick={handleJoinClass}
-              sx={{ whiteSpace: "nowrap" }}
+          ) : (
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1}
+              sx={{ width: { xs: "100%", md: "auto" } }}
             >
-              加入班级
-            </Button>
-          </Stack>
-        )}
+              <Button
+                variant='contained'
+                onClick={handleOpenJoinClass}
+                sx={{ whiteSpace: "nowrap" }}
+              >
+                加入班级
+              </Button>
+            </Stack>
+          )}
+        </Stack>
       </Stack>
 
       <Divider flexItem />
@@ -701,6 +797,10 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       ) : classes.length === 0 ? (
         <Typography variant='body2' color='text.secondary'>
           暂无班级
+        </Typography>
+      ) : filteredClasses.length === 0 ? (
+        <Typography variant='body2' color='text.secondary'>
+          未找到匹配的班级
         </Typography>
       ) : (
         <Stack spacing={2}>
@@ -721,6 +821,134 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const profileDialogs = (
     <>
       <Dialog
+        open={isCreateClassOpen}
+        onClose={handleCloseCreateClass}
+        fullWidth
+        maxWidth='md'
+      >
+        <DialogTitle>创建班级</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              label='班级名称'
+              value={createClassName}
+              onChange={(event) => setCreateClassName(event.target.value)}
+              size='small'
+              fullWidth
+              disabled={isCreatingClass || Boolean(createdClassId)}
+            />
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+              <TextField
+                label='邀请码'
+                value={createInviteCode}
+                placeholder={
+                  createdClassId
+                    ? "邀请码生成失败，可在班级详情重试"
+                    : "创建后自动生成"
+                }
+                size='small'
+                fullWidth
+                InputProps={{ readOnly: true }}
+              />
+              <IconButton
+                color='primary'
+                onClick={() => void copyInviteCode(createInviteCode)}
+                disabled={!createInviteCode}
+                sx={{ alignSelf: "center" }}
+              >
+                <ContentCopy fontSize='small' />
+              </IconButton>
+            </Stack>
+            <Divider flexItem />
+            <Stack spacing={1}>
+              <TextField
+                value={createProfileSearchText}
+                onChange={(event) =>
+                  setCreateProfileSearchText(event.target.value)
+                }
+                placeholder='搜索Profile名称、主题或ID'
+                size='small'
+                fullWidth
+                disabled={isCreatingClass || Boolean(createdClassId)}
+              />
+              {filteredCreateProfiles.length === 0 ? (
+                <Typography
+                  variant='body2'
+                  color='text.secondary'
+                  textAlign='center'
+                  sx={{ py: 3 }}
+                >
+                  未找到匹配Profile
+                </Typography>
+              ) : (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                    gap: 2,
+                  }}
+                >
+                  {filteredCreateProfiles.map((profile) => (
+                    <ProfileCard
+                      key={profile.profile_id}
+                      profile={profile}
+                      selectable
+                      selected={selectedProfileIds.has(profile.profile_id)}
+                      onSelectToggle={() =>
+                        handleToggleProfileSelection(profile.profile_id)
+                      }
+                      actionDisabled={isCreatingClass}
+                    />
+                  ))}
+                </Box>
+              )}
+            </Stack>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCreateClass} color='inherit'>
+            关闭
+          </Button>
+          <Button
+            variant='contained'
+            onClick={() => void handleCreateClass()}
+            disabled={isCreatingClass || Boolean(createdClassId)}
+          >
+            {isCreatingClass ? "创建中..." : "创建班级"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={isJoinClassOpen}
+        onClose={handleCloseJoinClass}
+        fullWidth
+        maxWidth='sm'
+      >
+        <DialogTitle>加入班级</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2}>
+            <TextField
+              label='班级邀请码'
+              value={joinCode}
+              onChange={(event) => setJoinCode(event.target.value)}
+              size='small'
+              fullWidth
+              autoFocus
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseJoinClass} color='inherit'>
+            取消
+          </Button>
+          <Button variant='contained' onClick={() => void handleJoinClass()}>
+            加入班级
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
         open={isAddProfileOpen}
         onClose={handleCloseAddProfile}
         fullWidth
@@ -729,25 +957,16 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         <DialogTitle>添加 Profile 到班级</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
-            <TextField
-              value={profileSearchText}
-              onChange={(event) => setProfileSearchText(event.target.value)}
-              placeholder='搜索Profile名称、主题或ID'
-              size='small'
-              fullWidth
-            />
-            {filteredAvailableProfiles.length === 0 ? (
+            {availableProfilesForClass.length === 0 ? (
               <Typography
                 variant='body2'
                 color='text.secondary'
                 textAlign='center'
                 sx={{ py: 4 }}
               >
-                {profileSearchText.trim()
-                  ? "未找到匹配Profile"
-                  : profiles.length === 0
-                    ? "暂无Profile可添加"
-                    : "该班级已添加所有Profile"}
+                {profiles.length === 0
+                  ? "暂无Profile可添加"
+                  : "该班级已添加所有Profile"}
               </Typography>
             ) : (
               <Box
@@ -757,7 +976,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                   gap: 2,
                 }}
               >
-                {filteredAvailableProfiles.map((profile) => (
+                {availableProfilesForClass.map((profile) => (
                   <ProfileCard
                     key={profile.profile_id}
                     profile={profile}
