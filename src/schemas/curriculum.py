@@ -28,6 +28,11 @@ class SocraticStep(BaseModel):
         description="学生在该步骤的学习中应该掌握的核心知识点"
     )
     
+    scaffolding_hints: List[str] = Field(
+        default=[],
+        description="如果学生答不上来时，用于层层拆解的提示列表（从简单到复杂，3-5个递进式提示）"
+    )
+    
     def get(self, key: str, default: Any=None):
         return getattr(self, key, default)
 

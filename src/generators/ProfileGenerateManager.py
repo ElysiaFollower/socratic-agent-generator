@@ -17,6 +17,7 @@ dotenv.load_dotenv()
 from config import PROMPT_TEMPLATE_DIR, get_default_llm
 from generators.CurriculumGenerator import CurriculumGenerator
 from generators.PersonaGenerator import PersonaGenerator
+from generators.config import GeneratorConfig, PRODUCTION_CONFIG
 from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
 from schemas.profile import Profile
@@ -31,20 +32,39 @@ class ProfileGenerateManager:
     This class coordinates the generation of curriculum, persona, and final
     profile from a lab manual. The generated profile will be named with a
     unique id (by uuid4()).
+
+    Supports both legacy and enhanced three-stage generation modes through
+    configuration options.
     """
 
-    def __init__(self, lab_manual_content: str, llm: Optional[Any] = None):
+    def __init__(
+        self,
+        lab_manual_content: str,
+        llm: Optional[Any] = None,
+        config: Optional[GeneratorConfig] = None,
+        output_language: Optional[str] = None,
+    ):
         """Initialize ProfileGenerateManager.
 
         Args:
             lab_manual_content: The content of the lab manual (required).
             llm: Optional LLM instance. If None, uses default LLM from config.
+            config: Optional generator configuration. If None, uses PRODUCTION_CONFIG.
+            output_language: Optional output language. If None, uses DEFAULT_OUTPUT_LANGUAGE.
         """
+        from config import DEFAULT_OUTPUT_LANGUAGE
+
         self.lab_manual_content = lab_manual_content
         self.llm = llm or get_default_llm()
+        self.config = config or PRODUCTION_CONFIG
+        self.output_language = output_language or DEFAULT_OUTPUT_LANGUAGE
 
-        self.curriculum_generator = CurriculumGenerator(self.llm)
-        self.persona_generator = PersonaGenerator(self.llm)
+        self.curriculum_generator = CurriculumGenerator(
+            self.llm, config=self.config, output_language=self.output_language
+        )
+        self.persona_generator = PersonaGenerator(
+            self.llm, config=self.config, output_language=self.output_language
+        )
         with open(PROMPT_TEMPLATE_DIR / "master_prompt_system.jinja2", encoding="utf-8") as f:
             self.prompt_template_string = f.read()
         self.template_assembler = BaseTemplateAssembler(self.prompt_template_string)
