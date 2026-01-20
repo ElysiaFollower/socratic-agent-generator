@@ -7,3 +7,6 @@ from .invitation_code import InvitationCodeModel
 from .class_model import ClassModel
 from .class_membership import ClassMembershipModel
 from .class_invitation_code import ClassInvitationCodeModel
+from .skill_material import SkillMaterial
+from .custom_skill import CustomSkill
+from .custom_skill_material import CustomSkillMaterial
