@@ -42,9 +42,9 @@ import {
   type LabManualInfo,
   type TutorPersona,
   type SocraticCurriculum,
-} from "../api";
-import { Profile } from "../types";
-import { useNotification } from "../hooks";
+} from "../../api";
+import { Profile } from "../../types";
+import { useNotification } from "../../hooks";
 
 /**
  * Props for ProfileGeneratorAdvanced component.

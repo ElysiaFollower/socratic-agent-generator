@@ -5,9 +5,9 @@
  * following Google TypeScript Style Guide.
  */
 
-import React, {ReactNode} from 'react';
-import {useAuth} from '../hooks';
-import {UserRole} from '../types';
+import React, { ReactNode } from "react";
+import { useAuth } from "../../hooks";
+import { UserRole } from "../../types";
 
 /**
  * Props for PermissionGuard component.
@@ -28,8 +28,8 @@ interface PermissionGuardProps {
  * @returns React component
  */
 export function PermissionGuard(props: PermissionGuardProps): JSX.Element {
-  const {requiredRoles, children, fallback} = props;
-  const {hasAnyRole, isAuthenticated} = useAuth();
+  const { requiredRoles, children, fallback } = props;
+  const { hasAnyRole, isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
     return fallback ? <>{fallback}</> : <></>;
@@ -43,5 +43,3 @@ export function PermissionGuard(props: PermissionGuardProps): JSX.Element {
 
   return <>{children}</>;
 }
-
-

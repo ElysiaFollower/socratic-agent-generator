@@ -53,8 +53,8 @@ import {
   type UploadLabManualResponse,
   type LabManualInfo,
   type LabManualContent,
-} from "../api";
-import { useConfirmDialog, useNotification } from "../hooks";
+} from "../../api";
+import { useConfirmDialog, useNotification } from "../../hooks";
 
 /**
  * Props for LabManualPanel component.
@@ -123,7 +123,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       setIsLoadingManuals(false);
     }
   }, [notifyError]);
-
 
   /**
    * Loads lab manuals on mount.
@@ -203,7 +202,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       applySelectedFile(file);
     }
   };
-
 
   /**
    * Handles form submission.
@@ -616,7 +614,6 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
           </Box>
         )}
       </Stack>
-
     </Stack>
   );
 

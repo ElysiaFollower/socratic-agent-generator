@@ -21,8 +21,8 @@ import {
   Typography,
 } from "@mui/material";
 import { Add, Delete, Edit, Forum, MoreVert } from "@mui/icons-material";
-import { SessionSummary } from "../types";
-import { useConfirmDialog } from "../hooks";
+import { SessionSummary } from "../../types";
+import { useConfirmDialog } from "../../hooks";
 
 /**
  * Props for SessionHistoryList component.
@@ -130,7 +130,10 @@ export function SessionHistoryList(
           </span>
         </Tooltip>
       </Stack>
-      <List dense sx={{ display: "flex", flexDirection: "column", gap: 1, px: 1 }}>
+      <List
+        dense
+        sx={{ display: "flex", flexDirection: "column", gap: 1, px: 1 }}
+      >
         {sessions.map((session) => (
           <ListItem
             key={session.session_id}
@@ -209,7 +212,9 @@ export function SessionHistoryList(
             <Typography variant='body2' sx={{ mt: 1 }}>
               还没有任何会话
             </Typography>
-            <Typography variant='caption'>点击上方按钮开始新的学习之旅</Typography>
+            <Typography variant='caption'>
+              点击上方按钮开始新的学习之旅
+            </Typography>
           </Box>
         )}
       </List>

@@ -6,7 +6,7 @@
 
 import React from "react";
 import { Box, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
-import { SocraticStep } from "../types";
+import { SocraticStep } from "../../types";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
 
 /**

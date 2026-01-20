@@ -20,8 +20,8 @@ import {
   Typography,
 } from "@mui/material";
 import { School } from "@mui/icons-material";
-import { Profile } from "../types";
-import { extractCurriculumSteps } from "../utils/curriculum";
+import { Profile } from "../../types";
+import { extractCurriculumSteps } from "../../utils/curriculum";
 
 /**
  * Props for ProfileSelector component.

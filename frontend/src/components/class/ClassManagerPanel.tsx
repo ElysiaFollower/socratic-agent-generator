@@ -37,7 +37,7 @@ import {
   ClassMemberInfo,
   InvitationCodeInfo,
   Profile,
-} from "../types";
+} from "../../types";
 import {
   createClass,
   joinClass,
@@ -47,9 +47,14 @@ import {
   renameProfile,
   updateProfileVisibility,
   generateClassInvitationCode,
-} from "../api";
-import { useAuth, useClipboard, useNotification, useProfiles } from "../hooks";
-import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
+} from "../../api";
+import {
+  useAuth,
+  useClipboard,
+  useNotification,
+  useProfiles,
+} from "../../hooks";
+import { ProfileCard, ProfileDetailCard } from "../profile/ProfileCard";
 
 /**
  * Props for ClassManagerPanel component.

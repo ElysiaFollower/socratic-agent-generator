@@ -26,17 +26,17 @@ import {
   Tooltip,
 } from "@mui/material";
 import { ContentCopy } from "@mui/icons-material";
-import { useClipboard, useNotification } from "../hooks";
+import { useClipboard, useNotification } from "../../hooks";
 import {
   ClassInfo,
   GenerateInvitationCodeRequest,
   InvitationCodeInfo,
-} from "../types";
+} from "../../types";
 import {
   generateClassInvitationCode,
   listClassInvitations,
   listClasses,
-} from "../api";
+} from "../../api";
 
 /**
  * Props for InvitationCodeGenerator component.

@@ -25,7 +25,7 @@ import {
 } from "@mui/icons-material";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { ChatMessage } from "../types";
+import { ChatMessage } from "../../types";
 
 /**
  * Props for MessageList component.

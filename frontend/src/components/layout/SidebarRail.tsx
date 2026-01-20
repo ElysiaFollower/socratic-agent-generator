@@ -15,8 +15,8 @@ import {
   UploadFile,
   Extension,
 } from "@mui/icons-material";
-import { ToolPanelView } from "../types";
-import { PermissionGuard } from "./PermissionGuard";
+import { ToolPanelView } from "../../types";
+import { PermissionGuard } from "../auth/PermissionGuard";
 
 /**
  * Props for SidebarRail component.

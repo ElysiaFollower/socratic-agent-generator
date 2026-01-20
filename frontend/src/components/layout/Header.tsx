@@ -4,7 +4,7 @@
  * This component displays session information and controls.
  */
 
-import React from 'react';
+import React from "react";
 import {
   AppBar,
   Avatar,
@@ -19,7 +19,7 @@ import {
   Toolbar,
   Tooltip,
   Typography,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Brightness4,
   Brightness7,
@@ -31,9 +31,9 @@ import {
   OpenInFull,
   BadgeOutlined,
   Settings,
-} from '@mui/icons-material';
-import {SessionSummary, SocraticStep, ToolPanelView, User} from '../types';
-import {ProgressBar} from './ProgressBar';
+} from "@mui/icons-material";
+import { SessionSummary, SocraticStep, ToolPanelView, User } from "../../types";
+import { ProgressBar } from "../chat/ProgressBar";
 
 /**
  * Props for Header component.
@@ -49,7 +49,7 @@ export interface HeaderProps {
   readonly onToggleCollapse: () => void;
   readonly activePanel: ToolPanelView;
   readonly user: User | null;
-  readonly themeMode: 'light' | 'dark';
+  readonly themeMode: "light" | "dark";
   readonly onToggleTheme: () => void;
   readonly onLogout: () => void;
   readonly onOpenSettings: () => void;
@@ -82,34 +82,34 @@ export function Header(props: HeaderProps): JSX.Element {
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isMenuOpen = Boolean(menuAnchor);
 
-  const displayName = user?.display_name || user?.username || '用户';
-  const avatarLetter = displayName.trim().charAt(0).toUpperCase() || 'U';
+  const displayName = user?.display_name || user?.username || "用户";
+  const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "U";
   const avatarColors = [
-    '#2563eb',
-    '#0ea5e9',
-    '#10b981',
-    '#f59e0b',
-    '#ef4444',
-    '#6366f1',
+    "#2563eb",
+    "#0ea5e9",
+    "#10b981",
+    "#f59e0b",
+    "#ef4444",
+    "#6366f1",
   ];
   const avatarBgColor =
     avatarColors[avatarLetter.charCodeAt(0) % avatarColors.length];
 
   const panelTitles: Record<ToolPanelView, string> = {
-    chat: '苏格拉底式AI导师',
-    invitation: '班级邀请码',
-    'lab-manual': '实验文档管理',
-    skill: 'Skill管理',
-    profile: 'Profile管理',
-    class: '班级管理',
+    chat: "苏格拉底式AI导师",
+    invitation: "班级邀请码",
+    "lab-manual": "实验文档管理",
+    skill: "Skill管理",
+    profile: "Profile管理",
+    class: "班级管理",
   };
 
   const displayTitle =
-    activePanel === 'chat'
+    activePanel === "chat"
       ? currentSession?.session_name || panelTitles.chat
       : panelTitles[activePanel];
 
-  const showSessionDetails = activePanel === 'chat' && Boolean(currentSession);
+  const showSessionDetails = activePanel === "chat" && Boolean(currentSession);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget);
@@ -120,30 +120,40 @@ export function Header(props: HeaderProps): JSX.Element {
   };
 
   return (
-    <Box component="header" sx={{borderBottom: '1px solid var(--color-border)', bgcolor: 'var(--color-surface)'}}>
-      <AppBar position="static" color="transparent" elevation={0}>
-        <Toolbar sx={{gap: 2, justifyContent: 'space-between'}}>
-          <Stack direction="row" alignItems="center" spacing={2}>
-            <Typography variant="h6">{displayTitle}</Typography>
+    <Box
+      component='header'
+      sx={{
+        borderBottom: "1px solid var(--color-border)",
+        bgcolor: "var(--color-surface)",
+      }}
+    >
+      <AppBar position='static' color='transparent' elevation={0}>
+        <Toolbar sx={{ gap: 2, justifyContent: "space-between" }}>
+          <Stack direction='row' alignItems='center' spacing={2}>
+            <Typography variant='h6'>{displayTitle}</Typography>
             {showSessionDetails && (
-              <Tooltip title={isCollapsed ? '展开信息' : '收起信息'}>
-                <IconButton onClick={onToggleCollapse} size="small">
-                  {isCollapsed ? <ExpandMore fontSize="small" /> : <ExpandLess fontSize="small" />}
+              <Tooltip title={isCollapsed ? "展开信息" : "收起信息"}>
+                <IconButton onClick={onToggleCollapse} size='small'>
+                  {isCollapsed ? (
+                    <ExpandMore fontSize='small' />
+                  ) : (
+                    <ExpandLess fontSize='small' />
+                  )}
                 </IconButton>
               </Tooltip>
             )}
           </Stack>
-          <Stack direction="row" spacing={1} alignItems="center">
+          <Stack direction='row' spacing={1} alignItems='center'>
             {currentSession && (
-              <Tooltip title={isMaximized ? '还原窗口' : '最大化对话'}>
+              <Tooltip title={isMaximized ? "还原窗口" : "最大化对话"}>
                 <IconButton onClick={onToggleMaximize}>
                   {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title={themeMode === 'dark' ? '切换为浅色' : '切换为深色'}>
+            <Tooltip title={themeMode === "dark" ? "切换为浅色" : "切换为深色"}>
               <IconButton onClick={onToggleTheme}>
-                {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                {themeMode === "dark" ? <Brightness7 /> : <Brightness4 />}
               </IconButton>
             </Tooltip>
             <Tooltip title={displayName}>
@@ -167,74 +177,84 @@ export function Header(props: HeaderProps): JSX.Element {
 
       {showSessionDetails && (
         <Collapse in={!isCollapsed} timeout={200}>
-          <Box sx={{px: 3, pb: 2}}>
+          <Box sx={{ px: 3, pb: 2 }}>
             <Stack
-              direction="row"
+              direction='row'
               spacing={2}
-              alignItems="center"
-              flexWrap="wrap"
-              sx={{mb: 2}}
+              alignItems='center'
+              flexWrap='wrap'
+              sx={{ mb: 2 }}
             >
-              <Stack direction="row" spacing={1} alignItems="center" sx={{minWidth: 0}}>
-                <Tooltip title="课程" arrow>
+              <Stack
+                direction='row'
+                spacing={1}
+                alignItems='center'
+                sx={{ minWidth: 0 }}
+              >
+                <Tooltip title='课程' arrow>
                   <Box
-                    component="span"
+                    component='span'
                     sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       width: 28,
                       height: 28,
-                      borderRadius: '50%',
-                      bgcolor: 'var(--color-surface-muted)',
-                      color: 'primary.main',
+                      borderRadius: "50%",
+                      bgcolor: "var(--color-surface-muted)",
+                      color: "primary.main",
                     }}
                   >
-                    <MenuBookOutlined fontSize="small" />
+                    <MenuBookOutlined fontSize='small' />
                   </Box>
                 </Tooltip>
                 <Typography
-                  variant="body2"
+                  variant='body2'
                   sx={{
                     fontWeight: 600,
-                    color: 'text.primary',
-                    maxWidth: '46vw',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    color: "text.primary",
+                    maxWidth: "46vw",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
                 >
-                  {currentSession?.topic_name || '-'}
+                  {currentSession?.topic_name || "-"}
                 </Typography>
               </Stack>
-              <Divider orientation="vertical" flexItem />
-              <Stack direction="row" spacing={1} alignItems="center" sx={{minWidth: 0}}>
-                <Tooltip title="Profile" arrow>
+              <Divider orientation='vertical' flexItem />
+              <Stack
+                direction='row'
+                spacing={1}
+                alignItems='center'
+                sx={{ minWidth: 0 }}
+              >
+                <Tooltip title='Profile' arrow>
                   <Box
-                    component="span"
+                    component='span'
                     sx={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                       width: 28,
                       height: 28,
-                      borderRadius: '50%',
-                      bgcolor: 'var(--color-surface-muted)',
-                      color: 'secondary.main',
+                      borderRadius: "50%",
+                      bgcolor: "var(--color-surface-muted)",
+                      color: "secondary.main",
                     }}
                   >
-                    <BadgeOutlined fontSize="small" />
+                    <BadgeOutlined fontSize='small' />
                   </Box>
                 </Tooltip>
                 <Typography
-                  variant="body2"
+                  variant='body2'
                   sx={{
                     fontWeight: 600,
-                    color: 'text.primary',
-                    fontFamily: 'var(--font-mono)',
+                    color: "text.primary",
+                    fontFamily: "var(--font-mono)",
                   }}
                 >
-                  {currentSession?.profile_id || '-'}
+                  {currentSession?.profile_id || "-"}
                 </Typography>
               </Stack>
             </Stack>
@@ -251,8 +271,8 @@ export function Header(props: HeaderProps): JSX.Element {
         anchorEl={menuAnchor}
         open={isMenuOpen}
         onClose={handleMenuClose}
-        anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
-        transformOrigin={{vertical: 'top', horizontal: 'right'}}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <MenuItem
           onClick={() => {
@@ -261,7 +281,7 @@ export function Header(props: HeaderProps): JSX.Element {
           }}
         >
           <ListItemIcon>
-            <Settings fontSize="small" />
+            <Settings fontSize='small' />
           </ListItemIcon>
           设置
         </MenuItem>
@@ -273,7 +293,7 @@ export function Header(props: HeaderProps): JSX.Element {
           }}
         >
           <ListItemIcon>
-            <Logout fontSize="small" />
+            <Logout fontSize='small' />
           </ListItemIcon>
           登出
         </MenuItem>

@@ -27,8 +27,8 @@ import {
   CalendarTodayOutlined,
   PersonOutline,
 } from "@mui/icons-material";
-import { Profile } from "../types";
-import { extractCurriculumSteps } from "../utils/curriculum";
+import { Profile } from "../../types";
+import { extractCurriculumSteps } from "../../utils/curriculum";
 
 /**
  * Props for ProfileCard component.
