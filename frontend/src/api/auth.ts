@@ -13,6 +13,9 @@ import {
   RegisterRequest,
   RegisterResponse,
   User,
+  GenerateRegistrationInvitationCodeRequest,
+  RegistrationInvitationCodeInfo,
+  RegistrationInvitationCodeListResponse,
 } from '../types';
 
 /**
@@ -187,5 +190,123 @@ export async function register(
     return response.data;
   } catch (error) {
     throw new Error(`注册失败: ${handleApiError(error)}`);
+  }
+}
+
+/**
+ * Generates a registration invitation code.
+ *
+ * @param request - Request with role and expiration days
+ * @returns Promise resolving to invitation code info
+ * @throws Error if generation fails
+ */
+export async function generateRegistrationInvitationCode(
+  request: GenerateRegistrationInvitationCodeRequest,
+): Promise<RegistrationInvitationCodeInfo> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('未找到认证令牌');
+  }
+  try {
+    const response = await apiClient.post<RegistrationInvitationCodeInfo>(
+      '/api/auth/invitation-codes/generate',
+      request,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`生成邀请码失败: ${handleApiError(error)}`);
+  }
+}
+
+/**
+ * Lists registration invitation codes.
+ *
+ * @param role - Optional role filter ('teacher' or 'student')
+ * @returns Promise resolving to invitation code list
+ * @throws Error if listing fails
+ */
+export async function listRegistrationInvitationCodes(
+  role?: string,
+): Promise<RegistrationInvitationCodeListResponse> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('未找到认证令牌');
+  }
+  try {
+    const params = role ? { role } : {};
+    const response = await apiClient.get<RegistrationInvitationCodeListResponse>(
+      '/api/auth/invitation-codes',
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        params,
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`加载邀请码失败: ${handleApiError(error)}`);
+  }
+}
+
+/**
+ * Deletes a registration invitation code.
+ *
+ * @param code - Invitation code to delete
+ * @returns Promise resolving when deletion is complete
+ * @throws Error if deletion fails
+ */
+export async function deleteRegistrationInvitationCode(
+  code: string,
+): Promise<void> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('未找到认证令牌');
+  }
+  try {
+    await apiClient.delete(`/api/auth/invitation-codes/${code}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch (error) {
+    throw new Error(`删除邀请码失败: ${handleApiError(error)}`);
+  }
+}
+
+/**
+ * Updates a registration invitation code expiration date.
+ *
+ * @param code - Invitation code to update
+ * @param expiresInDays - Number of days until expiration
+ * @returns Promise resolving to updated invitation code info
+ * @throws Error if update fails
+ */
+export async function updateRegistrationInvitationCode(
+  code: string,
+  expiresInDays: number,
+): Promise<RegistrationInvitationCodeInfo> {
+  const token = getAuthToken();
+  if (!token) {
+    throw new Error('未找到认证令牌');
+  }
+  try {
+    const response = await apiClient.patch<RegistrationInvitationCodeInfo>(
+      `/api/auth/invitation-codes/${code}`,
+      { expires_in_days: expiresInDays },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`更新邀请码失败: ${handleApiError(error)}`);
   }
 }

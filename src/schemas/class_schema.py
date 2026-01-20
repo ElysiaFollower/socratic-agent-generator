@@ -76,3 +76,13 @@ class UpdateProfileVisibilityRequest(BaseModel):
 
     visible: bool = Field(description="Whether the profile is visible in the class")
 
+
+class UpdateClassInvitationCodeRequest(BaseModel):
+    """Request model for updating class invitation code expiration."""
+
+    expires_in_days: int = Field(
+        description="Number of days until the code expires.",
+        ge=1,
+        le=365,
+    )
+

@@ -119,13 +119,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
 
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Stack spacing={1} sx={{ mt: 2 }}>
-          <Tooltip title='班级邀请码' placement='right'>
+          <Tooltip title='注册邀请码' placement='right'>
             <span>
               <IconButton
                 onClick={onOpenInvitationPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='班级邀请码'
+                aria-label='注册邀请码'
                 color={activePanel === "invitation" ? "primary" : "default"}
                 sx={railButtonSx}
               >

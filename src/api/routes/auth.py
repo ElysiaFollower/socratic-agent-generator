@@ -25,10 +25,10 @@ from schemas.user import (
     LoginRequest,
     LoginResponse,
     RegisterRequest,
+    UpdateRegistrationInvitationCodeRequest,
     User,
 )
 from utils.user_manager import (
-    InvalidInvitationCodeError,
     UserAlreadyExistsError,
     UserNotFoundError as UserManagerNotFoundError,
 )
@@ -205,15 +205,6 @@ def register(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired invitation code for the requested role.",
-            )
-        
-        # Use (delete) the invitation code
-        try:
-            user_manager.use_invitation_code(req.invitation_code)
-        except InvalidInvitationCodeError as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=str(e),
             )
 
     # Create user
@@ -492,3 +483,75 @@ def delete_invitation_code(
         )
 
     return {"success": True, "message": "Invitation code deleted successfully"}
+
+
+@router.patch(
+    "/invitation-codes/{code}",
+    response_model=InvitationCodeInfo,
+    summary="更新注册邀请码过期日期",
+)
+def update_invitation_code(
+    code: str,
+    req: UpdateRegistrationInvitationCodeRequest,
+    current_user: User = Depends(get_current_user),
+    user_manager: UserManagerDep = None,
+) -> InvitationCodeInfo:
+    """Update the expiration date of a registration invitation code.
+
+    Permission requirements:
+    - Admin: Can update any invitation code
+    - Teacher: Can only update invitation codes they created
+    - Student: No permission
+
+    Args:
+        code: Invitation code to update.
+        req: Request with new expiration days.
+        current_user: Current authenticated user.
+        user_manager: Injected UserManager instance.
+
+    Returns:
+        Updated InvitationCodeInfo.
+
+    Raises:
+        HTTPException: If permission denied or code not found.
+    """
+    if current_user.role == "student":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students cannot update invitation codes.",
+        )
+
+    # Check permission - list codes to verify ownership
+    codes = user_manager.list_invitation_codes(created_by=current_user.username)
+    code_exists = any(c.code == code for c in codes)
+
+    if current_user.role == "teacher" and not code_exists:
+        # Check if code exists at all
+        all_codes = user_manager.list_invitation_codes()
+        if not any(c.code == code for c in all_codes):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invitation code not found.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update invitation codes you created.",
+        )
+
+    try:
+        model = user_manager.update_invitation_code_expires_at(
+            code, req.expires_in_days
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return InvitationCodeInfo(
+        invitation_code=model.code,
+        role=model.role,
+        created_by=model.created_by,
+        created_at=model.created_at,
+        expires_at=model.expires_at,
+    )

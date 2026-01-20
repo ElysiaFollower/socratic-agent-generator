@@ -29,7 +29,7 @@ import {
   ChatInput,
   Header,
   ProfileSelector,
-  InvitationCodeGenerator,
+  RegistrationInvitationCodeGenerator,
   LabManualPanel,
   SkillManagerPanel,
   ProfileManagerPanel,
@@ -561,7 +561,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               }}
             >
               {activePanel === "invitation" && (
-                <InvitationCodeGenerator variant='panel' />
+                <RegistrationInvitationCodeGenerator variant='panel' />
               )}
               {activePanel === "lab-manual" && (
                 <LabManualPanel variant='panel' />

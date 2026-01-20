@@ -1,7 +1,7 @@
 /**
- * Invitation code generator component.
+ * Registration invitation code generator component.
  *
- * This component provides a UI for generating invitation codes,
+ * This component provides a UI for generating registration invitation codes,
  * following Google TypeScript Style Guide.
  */
 
@@ -25,53 +25,59 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { ContentCopy } from "@mui/icons-material";
-import { useClipboard, useNotification } from "../../hooks";
+import { ContentCopy, Delete, Edit } from "@mui/icons-material";
+import { useClipboard, useNotification, useAuth } from "../../hooks";
 import {
-  ClassInfo,
-  GenerateInvitationCodeRequest,
-  InvitationCodeInfo,
+  GenerateRegistrationInvitationCodeRequest,
+  RegistrationInvitationCodeInfo,
 } from "../../types";
 import {
-  generateClassInvitationCode,
-  listClassInvitations,
-  listClasses,
+  generateRegistrationInvitationCode,
+  listRegistrationInvitationCodes,
+  deleteRegistrationInvitationCode,
+  updateRegistrationInvitationCode,
 } from "../../api";
 
 /**
- * Props for InvitationCodeGenerator component.
+ * Props for RegistrationInvitationCodeGenerator component.
  */
-interface InvitationCodeGeneratorProps {
+interface RegistrationInvitationCodeGeneratorProps {
   readonly onClose?: () => void;
   readonly variant?: "dialog" | "panel";
 }
 
 /**
- * Invitation code generator component.
+ * Registration invitation code generator component.
  *
  * @param props - Component props
  * @returns React component
  */
-export function InvitationCodeGenerator(
-  props: InvitationCodeGeneratorProps,
+export function RegistrationInvitationCodeGenerator(
+  props: RegistrationInvitationCodeGeneratorProps,
 ): JSX.Element {
   const { onClose, variant = "dialog" } = props;
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const { copyToClipboard } = useClipboard();
-  const [classes, setClasses] = useState<readonly ClassInfo[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string>("");
+  const { user } = useAuth();
+  const [role, setRole] = useState<"teacher" | "student">("student");
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [successInfo, setSuccessInfo] = useState<{
     code: string;
-    className: string;
+    role: string;
     expiresAt: string;
   } | null>(null);
   const [invitationCodes, setInvitationCodes] = useState<
-    readonly InvitationCodeInfo[]
+    readonly RegistrationInvitationCodeInfo[]
   >([]);
   const [isLoadingCodes, setIsLoadingCodes] = useState<boolean>(false);
+  const [roleFilter, setRoleFilter] = useState<string>("");
+  const [editingInviteCode, setEditingInviteCode] = useState<string | null>(
+    null,
+  );
+  const [editExpiresInDays, setEditExpiresInDays] = useState<number>(30);
+  const [isUpdatingInvite, setIsUpdatingInvite] = useState<boolean>(false);
 
   useEffect(() => {
     if (!error) {
@@ -80,26 +86,6 @@ export function InvitationCodeGenerator(
     notifyError(error);
     setError(null);
   }, [error, notifyError]);
-
-  const loadClasses = useCallback(async () => {
-    try {
-      const response = await listClasses();
-      setClasses(response);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "加载班级失败";
-      notifyError(errorMessage);
-    }
-  }, [notifyError]);
-
-  useEffect(() => {
-    void loadClasses();
-  }, [loadClasses]);
-
-  useEffect(() => {
-    if (!selectedClassId && classes.length > 0) {
-      setSelectedClassId(classes[0].class_id);
-    }
-  }, [classes, selectedClassId]);
 
   /**
    * Handles form submission.
@@ -113,25 +99,29 @@ export function InvitationCodeGenerator(
     setError(null);
     setSuccessInfo(null);
 
-    if (!selectedClassId) {
-      notifyWarning("请选择一个班级");
+    // Check permissions
+    if (user?.role === "student") {
+      notifyWarning("学生无权生成邀请码");
+      return;
+    }
+    if (user?.role === "teacher" && role === "teacher") {
+      notifyWarning("教师只能为学生生成邀请码");
       return;
     }
 
     setIsLoading(true);
     try {
-      const request: GenerateInvitationCodeRequest = {
-        class_id: selectedClassId,
+      const request: GenerateRegistrationInvitationCodeRequest = {
+        role,
         expires_in_days: expiresInDays,
       };
-      const response = await generateClassInvitationCode(request);
-      const className =
-        classes.find((item) => item.class_id === selectedClassId)?.name ??
-        selectedClassId;
+      const response = await generateRegistrationInvitationCode(request);
       setSuccessInfo({
         code: response.invitation_code,
-        className,
-        expiresAt: new Date(response.expires_at).toLocaleString("zh-CN"),
+        role: role === "teacher" ? "教师" : "学生",
+        expiresAt: response.expires_at
+          ? new Date(response.expires_at).toLocaleString("zh-CN")
+          : "-",
       });
       await loadInvitationCodes();
     } catch (err) {
@@ -144,16 +134,14 @@ export function InvitationCodeGenerator(
   };
 
   /**
-   * Loads invitation codes for the selected class.
+   * Loads registration invitation codes.
    */
   const loadInvitationCodes = useCallback(async () => {
-    if (!selectedClassId) {
-      setInvitationCodes([]);
-      return;
-    }
     setIsLoadingCodes(true);
     try {
-      const response = await listClassInvitations(selectedClassId);
+      const response = await listRegistrationInvitationCodes(
+        roleFilter || undefined,
+      );
       setInvitationCodes(response.invitation_codes);
     } catch (err) {
       const errorMessage =
@@ -162,35 +150,117 @@ export function InvitationCodeGenerator(
     } finally {
       setIsLoadingCodes(false);
     }
-  }, [notifyError, selectedClassId]);
+  }, [notifyError, roleFilter]);
 
   useEffect(() => {
     void loadInvitationCodes();
   }, [loadInvitationCodes]);
 
+  /**
+   * Handles deleting an invitation code.
+   */
+  const handleDeleteCode = async (code: string) => {
+    if (!confirm("确定要删除此邀请码吗？")) {
+      return;
+    }
+    try {
+      await deleteRegistrationInvitationCode(code);
+      notifySuccess("邀请码已删除");
+      await loadInvitationCodes();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "删除邀请码失败";
+      notifyError(errorMessage);
+    }
+  };
+
+  /**
+   * Handles opening edit dialog for an invitation code.
+   */
+  const handleOpenEditInvite = (code: RegistrationInvitationCodeInfo) => {
+    if (!code.expires_at) {
+      setEditExpiresInDays(30);
+    } else {
+      const expiresAt = new Date(code.expires_at);
+      const now = new Date();
+      const daysRemaining = Math.ceil(
+        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      setEditExpiresInDays(Math.max(1, daysRemaining));
+    }
+    setEditingInviteCode(code.invitation_code);
+  };
+
+  /**
+   * Handles closing edit dialog.
+   */
+  const handleCloseEditInvite = () => {
+    setEditingInviteCode(null);
+    setEditExpiresInDays(30);
+  };
+
+  /**
+   * Handles updating invitation code expiration date.
+   */
+  const handleUpdateInvite = async () => {
+    if (!editingInviteCode) {
+      return;
+    }
+    if (editExpiresInDays < 1 || editExpiresInDays > 365) {
+      notifyWarning("有效期必须在1-365天之间");
+      return;
+    }
+    setIsUpdatingInvite(true);
+    try {
+      const response = await updateRegistrationInvitationCode(
+        editingInviteCode,
+        editExpiresInDays,
+      );
+      notifySuccess("邀请码过期日期已更新");
+      setInvitationCodes((prev) =>
+        prev.map((code) =>
+          code.invitation_code === editingInviteCode
+            ? {
+                ...code,
+                expires_at: response.expires_at,
+              }
+            : code,
+        ),
+      );
+      handleCloseEditInvite();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "更新邀请码失败";
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingInvite(false);
+    }
+  };
+
   const content = (
     <Stack spacing={2}>
       <Box component='form' onSubmit={handleSubmit} sx={{ pt: 2 }}>
         <Stack spacing={2}>
-          <FormControl fullWidth disabled={isLoading || classes.length === 0}>
-            <InputLabel id='class-select-label'>选择班级</InputLabel>
+          <FormControl fullWidth disabled={isLoading}>
+            <InputLabel id='role-select-label'>目标角色</InputLabel>
             <Select
-              labelId='class-select-label'
-              id='class'
-              value={selectedClassId}
-              label='选择班级'
-              onChange={(e) => setSelectedClassId(e.target.value)}
+              labelId='role-select-label'
+              id='role'
+              value={role}
+              label='目标角色'
+              onChange={(e) =>
+                setRole(e.target.value as "teacher" | "student")
+              }
             >
-              {classes.map((item) => (
-                <MenuItem key={item.class_id} value={item.class_id}>
-                  {item.name}
-                </MenuItem>
-              ))}
+              {user?.role === "admin" && (
+                <MenuItem value='teacher'>教师</MenuItem>
+              )}
+              <MenuItem value='student'>学生</MenuItem>
             </Select>
           </FormControl>
-          {classes.length === 0 && (
+          {user?.role === "teacher" && (
             <Typography variant='caption' color='text.secondary'>
-              暂无班级，请先在班级管理中创建班级。
+              教师只能为学生生成邀请码
             </Typography>
           )}
           <TextField
@@ -231,10 +301,26 @@ export function InvitationCodeGenerator(
   const renderInvitationCodeList = () => (
     <Stack spacing={1.5}>
       <Stack direction='row' justifyContent='space-between' alignItems='center'>
-        <Typography variant='subtitle2'>班级邀请码</Typography>
-        <Button onClick={loadInvitationCodes} size='small' color='inherit'>
-          刷新
-        </Button>
+        <Typography variant='subtitle2'>注册邀请码列表</Typography>
+        <Stack direction='row' spacing={1} alignItems='center'>
+          <FormControl size='small' sx={{ minWidth: 120 }}>
+            <InputLabel id='filter-role-label'>筛选</InputLabel>
+            <Select
+              labelId='filter-role-label'
+              id='filter-role'
+              value={roleFilter}
+              label='筛选'
+              onChange={(e) => setRoleFilter(e.target.value)}
+            >
+              <MenuItem value=''>全部</MenuItem>
+              <MenuItem value='teacher'>教师</MenuItem>
+              <MenuItem value='student'>学生</MenuItem>
+            </Select>
+          </FormControl>
+          <Button onClick={loadInvitationCodes} size='small' color='inherit'>
+            刷新
+          </Button>
+        </Stack>
       </Stack>
       {isLoadingCodes ? (
         <Stack direction='row' spacing={1} alignItems='center'>
@@ -251,9 +337,6 @@ export function InvitationCodeGenerator(
         <Stack spacing={1}>
           {invitationCodes.map((code) => {
             const expired = isCodeExpired(code.expires_at);
-            const className =
-              classes.find((item) => item.class_id === code.class_id)?.name ??
-              code.class_id;
             return (
               <Box
                 key={code.invitation_code}
@@ -294,12 +377,40 @@ export function InvitationCodeGenerator(
                           </IconButton>
                         </span>
                       </Tooltip>
+                      {(user?.role === "admin" ||
+                        code.created_by === user?.username) && (
+                        <>
+                          <Tooltip title='修改过期日期'>
+                            <span>
+                              <IconButton
+                                size='small'
+                                aria-label='修改过期日期'
+                                onClick={() => handleOpenEditInvite(code)}
+                              >
+                                <Edit fontSize='small' />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title='删除邀请码'>
+                            <span>
+                              <IconButton
+                                size='small'
+                                aria-label='删除邀请码'
+                                onClick={() => handleDeleteCode(code.invitation_code)}
+                                color='error'
+                              >
+                                <Delete fontSize='small' />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </>
+                      )}
                       {statusChip(expired)}
                     </Stack>
                   </Stack>
                   <Stack direction='row' spacing={2} flexWrap='wrap'>
                     <Typography variant='caption' color='text.secondary'>
-                      班级: {className}
+                      角色: {code.role === "teacher" ? "教师" : "学生"}
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
                       创建时间:{" "}
@@ -349,7 +460,7 @@ export function InvitationCodeGenerator(
       fullWidth
       maxWidth='sm'
     >
-      <DialogTitle>班级邀请码生成成功</DialogTitle>
+      <DialogTitle>注册邀请码生成成功</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography variant='body2' color='text.secondary'>
@@ -357,9 +468,9 @@ export function InvitationCodeGenerator(
           </Typography>
           <Box>
             <Typography variant='caption' color='text.secondary'>
-              班级
+              目标角色
             </Typography>
-            <Typography variant='body2'>{successInfo?.className}</Typography>
+            <Typography variant='body2'>{successInfo?.role}</Typography>
           </Box>
           <Box>
             <Typography variant='caption' color='text.secondary'>
@@ -395,6 +506,46 @@ export function InvitationCodeGenerator(
     </Dialog>
   );
 
+  const editDialog = (
+    <Dialog
+      open={Boolean(editingInviteCode)}
+      onClose={handleCloseEditInvite}
+      fullWidth
+      maxWidth='sm'
+    >
+      <DialogTitle>修改邀请码过期日期</DialogTitle>
+      <DialogContent dividers>
+        <Stack spacing={2} sx={{ pt: 2 }}>
+          <TextField
+            label='有效期（天）'
+            type='number'
+            inputProps={{ min: 1, max: 365 }}
+            value={editExpiresInDays}
+            onChange={(e) => setEditExpiresInDays(Number(e.target.value))}
+            disabled={isUpdatingInvite}
+            fullWidth
+            helperText='设置邀请码的有效期，范围：1-365天'
+          />
+          <Typography variant='body2' color='text.secondary'>
+            新的过期时间将从当前时间开始计算
+          </Typography>
+        </Stack>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleCloseEditInvite} color='inherit' disabled={isUpdatingInvite}>
+          取消
+        </Button>
+        <Button
+          onClick={handleUpdateInvite}
+          variant='contained'
+          disabled={isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365}
+        >
+          {isUpdatingInvite ? "更新中..." : "确认更新"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
   if (variant === "panel") {
     return (
       <>
@@ -411,6 +562,7 @@ export function InvitationCodeGenerator(
           {renderInvitationCodeList()}
         </Stack>
         {successDialog}
+        {editDialog}
       </>
     );
   }
@@ -418,7 +570,7 @@ export function InvitationCodeGenerator(
   return (
     <>
       <Dialog open onClose={onClose} fullWidth maxWidth='sm'>
-        <DialogTitle>班级邀请码管理</DialogTitle>
+        <DialogTitle>注册邀请码管理</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={3}>
             {content}
@@ -428,6 +580,7 @@ export function InvitationCodeGenerator(
         <DialogActions>{actions}</DialogActions>
       </Dialog>
       {successDialog}
+      {editDialog}
     </>
   );
 }

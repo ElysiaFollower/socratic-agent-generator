@@ -15,6 +15,7 @@ from schemas.class_schema import (
     CreateClassRequest,
     GenerateClassInvitationCodeRequest,
     JoinClassRequest,
+    UpdateClassInvitationCodeRequest,
     UpdateProfileVisibilityRequest,
 )
 from schemas.profile import Profile
@@ -208,6 +209,151 @@ def list_class_invitations(
         for model in models
     ]
     return ClassInvitationCodeListResponse(invitation_codes=results)
+
+
+@router.delete(
+    "/{class_id}/invites/{code}",
+    summary="删除班级邀请码",
+)
+def delete_class_invitation_code(
+    class_id: str,
+    code: str,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Delete a class invitation code.
+
+    Permission requirements:
+    - Admin: Can delete any invitation code
+    - Teacher: Can only delete invitation codes for classes they own
+    - Student: No permission
+
+    Args:
+        class_id: Class ID.
+        code: Invitation code to delete.
+        class_manager: Injected ClassManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Dictionary with success message.
+
+    Raises:
+        HTTPException: If permission denied or code not found.
+    """
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can delete class invitation codes.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can delete invitations.",
+        )
+
+    # Verify the code belongs to this class
+    codes = class_manager.list_invitation_codes(class_id=class_id)
+    if not any(c.code == code for c in codes):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation code not found for this class.",
+        )
+
+    try:
+        class_manager.delete_invitation_code(code)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e),
+        )
+
+    return {"success": True, "message": "Invitation code deleted successfully"}
+
+
+@router.patch(
+    "/{class_id}/invites/{code}",
+    response_model=ClassInvitationCodeInfo,
+    summary="更新班级邀请码过期日期",
+)
+def update_class_invitation_code(
+    class_id: str,
+    code: str,
+    req: UpdateClassInvitationCodeRequest,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> ClassInvitationCodeInfo:
+    """Update the expiration date of a class invitation code.
+
+    Permission requirements:
+    - Admin: Can update any invitation code
+    - Teacher: Can only update invitation codes for classes they own
+    - Student: No permission
+
+    Args:
+        class_id: Class ID.
+        code: Invitation code to update.
+        req: Request with new expiration days.
+        class_manager: Injected ClassManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Updated ClassInvitationCodeInfo.
+
+    Raises:
+        HTTPException: If permission denied or code not found.
+    """
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can update class invitation codes.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can update invitations.",
+        )
+
+    # Verify the code belongs to this class
+    codes = class_manager.list_invitation_codes(class_id=class_id)
+    if not any(c.code == code for c in codes):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Invitation code not found for this class.",
+        )
+
+    try:
+        model = class_manager.update_invitation_code_expires_at(
+            code, req.expires_in_days
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+
+    return ClassInvitationCodeInfo(
+        invitation_code=model.code,
+        class_id=model.class_id,
+        created_by=model.created_by,
+        created_at=model.created_at,
+        expires_at=model.expires_at,
+    )
 
 
 @router.get(

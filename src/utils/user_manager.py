@@ -284,31 +284,6 @@ class UserManager:
 
         return True
 
-    def use_invitation_code(self, code: str) -> None:
-        """Mark an invitation code as used by deleting it.
-
-        Args:
-            code: Invitation code to use.
-
-        Raises:
-            InvalidInvitationCodeError: If the code is invalid or expired.
-        """
-        model = (
-            self.db.query(InvitationCodeModel)
-            .filter(InvitationCodeModel.code == code)
-            .first()
-        )
-        if not model:
-            raise InvalidInvitationCodeError("Invalid invitation code")
-
-        if model.expires_at:
-            expires_at = datetime.fromisoformat(model.expires_at.replace("Z", "+00:00"))
-            if datetime.now(pytz.utc) > expires_at:
-                raise InvalidInvitationCodeError("Invitation code has expired")
-
-        self.db.delete(model)
-        self.db.commit()
-        logger.info("Used invitation code: %s", code)
 
     def list_invitation_codes(
         self, role: Optional[str] = None, created_by: Optional[str] = None
@@ -348,3 +323,40 @@ class UserManager:
         self.db.delete(model)
         self.db.commit()
         logger.info("Deleted invitation code: %s", code)
+
+    def update_invitation_code_expires_at(
+        self, code: str, expires_in_days: int
+    ) -> InvitationCodeModel:
+        """Update the expiration date of a registration invitation code.
+
+        Args:
+            code: Invitation code to update.
+            expires_in_days: Number of days until expiration.
+
+        Returns:
+            Updated InvitationCodeModel instance.
+
+        Raises:
+            ValueError: If the code is not found or expires_in_days is invalid.
+        """
+        if expires_in_days < 1 or expires_in_days > 365:
+            raise ValueError("expires_in_days must be between 1 and 365")
+
+        model = (
+            self.db.query(InvitationCodeModel)
+            .filter(InvitationCodeModel.code == code)
+            .first()
+        )
+        if not model:
+            raise ValueError("Invitation code not found")
+
+        expires_at = datetime.now(pytz.utc) + timedelta(days=expires_in_days)
+        model.expires_at = expires_at.isoformat()
+        self.db.commit()
+        self.db.refresh(model)
+        logger.info(
+            "Updated expiration date for registration invitation code: %s, new expires_at: %s",
+            code,
+            model.expires_at,
+        )
+        return model

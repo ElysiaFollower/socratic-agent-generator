@@ -189,3 +189,60 @@ class ClassManager:
         role_in_class = "teacher" if user_model.role in ["admin", "teacher"] else "student"
         self.add_member(model.class_id, user_id, role_in_class)
         return model.class_id
+
+    def delete_invitation_code(self, code: str) -> None:
+        """Delete a class invitation code.
+
+        Args:
+            code: Invitation code to delete.
+
+        Raises:
+            ValueError: If the code is not found.
+        """
+        model = (
+            self.db.query(ClassInvitationCodeModel)
+            .filter(ClassInvitationCodeModel.code == code)
+            .first()
+        )
+        if not model:
+            raise ValueError("Invitation code not found")
+        self.db.delete(model)
+        self.db.commit()
+        logger.info("Deleted class invitation code: %s", code)
+
+    def update_invitation_code_expires_at(
+        self, code: str, expires_in_days: int
+    ) -> ClassInvitationCodeModel:
+        """Update the expiration date of a class invitation code.
+
+        Args:
+            code: Invitation code to update.
+            expires_in_days: Number of days until expiration.
+
+        Returns:
+            Updated ClassInvitationCodeModel instance.
+
+        Raises:
+            ValueError: If the code is not found or expires_in_days is invalid.
+        """
+        if expires_in_days < 1 or expires_in_days > 365:
+            raise ValueError("expires_in_days must be between 1 and 365")
+
+        model = (
+            self.db.query(ClassInvitationCodeModel)
+            .filter(ClassInvitationCodeModel.code == code)
+            .first()
+        )
+        if not model:
+            raise ValueError("Invitation code not found")
+
+        expires_at = datetime.now(pytz.utc) + timedelta(days=expires_in_days)
+        model.expires_at = expires_at.isoformat()
+        self.db.commit()
+        self.db.refresh(model)
+        logger.info(
+            "Updated expiration date for class invitation code: %s, new expires_at: %s",
+            code,
+            model.expires_at,
+        )
+        return model

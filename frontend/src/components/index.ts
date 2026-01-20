@@ -19,7 +19,7 @@ export * from "./auth/Login";
 export * from "./auth/Register";
 export * from "./auth/ProtectedRoute";
 export * from "./auth/PermissionGuard";
-export * from "./class/InvitationCodeGenerator";
+export * from "./auth/RegistrationInvitationCodeGenerator";
 export * from "./class/ClassManagerPanel";
 export * from "./SettingsModal";
 export * from "./layout/SidebarRail";

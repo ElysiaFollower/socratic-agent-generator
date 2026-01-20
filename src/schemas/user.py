@@ -116,3 +116,13 @@ class InvitationCodeListResponse(BaseModel):
         description="Registration invitation codes"
     )
 
+
+class UpdateRegistrationInvitationCodeRequest(BaseModel):
+    """Request model for updating registration invitation code expiration."""
+
+    expires_in_days: int = Field(
+        description="Number of days until the code expires.",
+        ge=1,
+        le=365,
+    )
+

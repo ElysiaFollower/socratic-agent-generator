@@ -102,3 +102,30 @@ export async function updateProfileVisibility(
     throw new Error(`更新可见性失败: ${handleApiError(error)}`);
   }
 }
+
+export async function deleteClassInvitationCode(
+  classId: string,
+  code: string,
+): Promise<void> {
+  try {
+    await apiClient.delete(`/api/classes/${classId}/invites/${code}`);
+  } catch (error) {
+    throw new Error(`删除邀请码失败: ${handleApiError(error)}`);
+  }
+}
+
+export async function updateClassInvitationCode(
+  classId: string,
+  code: string,
+  expiresInDays: number,
+): Promise<GenerateInvitationCodeResponse> {
+  try {
+    const response = await apiClient.patch<GenerateInvitationCodeResponse>(
+      `/api/classes/${classId}/invites/${code}`,
+      { expires_in_days: expiresInDays },
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`更新邀请码失败: ${handleApiError(error)}`);
+  }
+}

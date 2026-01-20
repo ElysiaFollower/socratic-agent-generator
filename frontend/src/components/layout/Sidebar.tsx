@@ -249,7 +249,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Key fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='班级邀请码'
+                  primary='注册邀请码'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

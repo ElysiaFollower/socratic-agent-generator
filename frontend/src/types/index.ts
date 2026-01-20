@@ -247,7 +247,7 @@ export interface RegisterResponse {
 }
 
 /**
- * Generate invitation code request.
+ * Generate class invitation code request.
  */
 export interface GenerateInvitationCodeRequest {
   readonly class_id: string;
@@ -255,7 +255,7 @@ export interface GenerateInvitationCodeRequest {
 }
 
 /**
- * Generate invitation code response.
+ * Generate class invitation code response.
  */
 export interface GenerateInvitationCodeResponse {
   readonly invitation_code: string;
@@ -266,7 +266,7 @@ export interface GenerateInvitationCodeResponse {
 }
 
 /**
- * Invitation code info.
+ * Class invitation code info.
  */
 export interface InvitationCodeInfo {
   readonly invitation_code: string;
@@ -277,10 +277,36 @@ export interface InvitationCodeInfo {
 }
 
 /**
- * Invitation code list response.
+ * Class invitation code list response.
  */
 export interface InvitationCodeListResponse {
   readonly invitation_codes: readonly InvitationCodeInfo[];
+}
+
+/**
+ * Generate registration invitation code request.
+ */
+export interface GenerateRegistrationInvitationCodeRequest {
+  readonly role: "teacher" | "student";
+  readonly expires_in_days?: number;
+}
+
+/**
+ * Registration invitation code info.
+ */
+export interface RegistrationInvitationCodeInfo {
+  readonly invitation_code: string;
+  readonly role: "teacher" | "student";
+  readonly created_by: string;
+  readonly created_at: string;
+  readonly expires_at?: string | null;
+}
+
+/**
+ * Registration invitation code list response.
+ */
+export interface RegistrationInvitationCodeListResponse {
+  readonly invitation_codes: readonly RegistrationInvitationCodeInfo[];
 }
 
 /**

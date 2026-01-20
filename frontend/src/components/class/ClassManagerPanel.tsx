@@ -21,13 +21,16 @@ import {
   Paper,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import {
   Add,
   CalendarTodayOutlined,
   ContentCopy,
+  Delete,
   DescriptionOutlined,
+  Edit,
   Key,
   PeopleOutline,
   Person,
@@ -47,6 +50,8 @@ import {
   renameProfile,
   updateProfileVisibility,
   generateClassInvitationCode,
+  deleteClassInvitationCode,
+  updateClassInvitationCode,
 } from "../../api";
 import {
   useAuth,
@@ -103,6 +108,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   );
   const [createProfileSearchText, setCreateProfileSearchText] =
     useState<string>("");
+  const [editingInviteCode, setEditingInviteCode] = useState<string | null>(
+    null,
+  );
+  const [editExpiresInDays, setEditExpiresInDays] = useState<number>(30);
+  const [isUpdatingInvite, setIsUpdatingInvite] = useState<boolean>(false);
   const [classMemberCounts, setClassMemberCounts] = useState<
     Record<string, number>
   >({});
@@ -408,6 +418,79 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     }
   };
 
+  const handleDeleteInvite = async (code: string) => {
+    if (!selectedClassId) {
+      return;
+    }
+    if (!confirm("确定要删除此邀请码吗？")) {
+      return;
+    }
+    try {
+      await deleteClassInvitationCode(selectedClassId, code);
+      notifySuccess("邀请码已删除");
+      setInvites((prev) => prev.filter((invite) => invite.invitation_code !== code));
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "删除邀请码失败";
+      notifyError(errorMessage);
+    }
+  };
+
+  const handleOpenEditInvite = (invite: InvitationCodeInfo) => {
+    if (!invite.expires_at) {
+      setEditExpiresInDays(30);
+    } else {
+      const expiresAt = new Date(invite.expires_at);
+      const now = new Date();
+      const daysRemaining = Math.ceil(
+        (expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      setEditExpiresInDays(Math.max(1, daysRemaining));
+    }
+    setEditingInviteCode(invite.invitation_code);
+  };
+
+  const handleCloseEditInvite = () => {
+    setEditingInviteCode(null);
+    setEditExpiresInDays(30);
+  };
+
+  const handleUpdateInvite = async () => {
+    if (!selectedClassId || !editingInviteCode) {
+      return;
+    }
+    if (editExpiresInDays < 1 || editExpiresInDays > 365) {
+      notifyWarning("有效期必须在1-365天之间");
+      return;
+    }
+    setIsUpdatingInvite(true);
+    try {
+      const response = await updateClassInvitationCode(
+        selectedClassId,
+        editingInviteCode,
+        editExpiresInDays,
+      );
+      notifySuccess("邀请码过期日期已更新");
+      setInvites((prev) =>
+        prev.map((invite) =>
+          invite.invitation_code === editingInviteCode
+            ? {
+                ...invite,
+                expires_at: response.expires_at,
+              }
+            : invite,
+        ),
+      );
+      handleCloseEditInvite();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "更新邀请码失败";
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingInvite(false);
+    }
+  };
+
   const handleCloseAddProfile = () => {
     setIsAddProfileOpen(false);
   };
@@ -622,6 +705,17 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     </Box>
   );
 
+  const isCodeExpired = (expiresAt?: string | null): boolean => {
+    if (!expiresAt) {
+      return false;
+    }
+    const expiresTime = Date.parse(expiresAt);
+    if (Number.isNaN(expiresTime)) {
+      return false;
+    }
+    return Date.now() > expiresTime;
+  };
+
   const teacherDetail = (
     <Stack spacing={2}>
       <Stack spacing={1}>
@@ -643,6 +737,139 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                 <Chip size='small' label={formatRole(member.role_in_class)} />
               </Stack>
             ))}
+          </Stack>
+        )}
+      </Stack>
+
+      <Stack spacing={1}>
+        <Stack
+          direction='row'
+          alignItems='center'
+          justifyContent='space-between'
+        >
+          <Typography variant='subtitle2'>班级邀请码</Typography>
+          <Stack direction='row' spacing={1}>
+            <TextField
+              type='number'
+              size='small'
+              label='有效期（天）'
+              value={expiresInDays}
+              onChange={(e) => setExpiresInDays(Number(e.target.value))}
+              inputProps={{ min: 1, max: 365 }}
+              sx={{ width: 120 }}
+            />
+            <Button
+              size='small'
+              variant='outlined'
+              onClick={handleGenerateInvite}
+              disabled={!selectedClassId || isLoadingInvites}
+            >
+              {isLoadingInvites ? "生成中..." : "生成邀请码"}
+            </Button>
+          </Stack>
+        </Stack>
+        {isLoadingInvites ? (
+          <CircularProgress size={20} />
+        ) : invites.length === 0 ? (
+          <Typography variant='caption' color='text.secondary'>
+            暂无邀请码，点击"生成邀请码"创建
+          </Typography>
+        ) : (
+          <Stack spacing={1}>
+            {invites.map((invite) => {
+              const expired = isCodeExpired(invite.expires_at);
+              return (
+                <Box
+                  key={invite.invitation_code}
+                  sx={{
+                    border: "1px solid var(--color-border)",
+                    borderRadius: 1,
+                    p: 1.5,
+                    bgcolor: "var(--color-surface)",
+                  }}
+                >
+                  <Stack spacing={1}>
+                    <Stack
+                      direction='row'
+                      alignItems='center'
+                      justifyContent='space-between'
+                    >
+                      <Typography
+                        variant='body2'
+                        color={expired ? "text.secondary" : "text.primary"}
+                        sx={{
+                          fontWeight: 600,
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {invite.invitation_code}
+                      </Typography>
+                      <Stack direction='row' spacing={1} alignItems='center'>
+                        <Tooltip title={expired ? "邀请码已过期" : "复制邀请码"}>
+                          <span>
+                            <IconButton
+                              size='small'
+                              aria-label='复制邀请码'
+                              onClick={() =>
+                                copyToClipboard(
+                                  invite.invitation_code,
+                                  "邀请码已复制",
+                                  "复制失败",
+                                )
+                              }
+                              disabled={expired}
+                            >
+                              <ContentCopy fontSize='small' />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title='修改过期日期'>
+                          <span>
+                            <IconButton
+                              size='small'
+                              aria-label='修改过期日期'
+                              onClick={() => handleOpenEditInvite(invite)}
+                            >
+                              <Edit fontSize='small' />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title='删除邀请码'>
+                          <span>
+                            <IconButton
+                              size='small'
+                              aria-label='删除邀请码'
+                              onClick={() => handleDeleteInvite(invite.invitation_code)}
+                              color='error'
+                            >
+                              <Delete fontSize='small' />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Chip
+                          size='small'
+                          color={expired ? "default" : "success"}
+                          label={expired ? "过期" : "有效"}
+                          variant={expired ? "outlined" : "filled"}
+                        />
+                      </Stack>
+                    </Stack>
+                    <Stack direction='row' spacing={2} flexWrap='wrap'>
+                      <Typography variant='caption' color='text.secondary'>
+                        创建时间:{" "}
+                        {new Date(invite.created_at).toLocaleString("zh-CN")}
+                      </Typography>
+                      <Typography variant='caption' color='text.secondary'>
+                        到期时间:{" "}
+                        {invite.expires_at
+                          ? new Date(invite.expires_at).toLocaleString("zh-CN")
+                          : "-"}
+                      </Typography>
+                    </Stack>
+                  </Stack>
+                </Box>
+              );
+            })}
           </Stack>
         )}
       </Stack>
@@ -732,30 +959,29 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
             size='small'
             fullWidth
           />
-          {isTeacher ? (
-            <Button
-              variant='contained'
-              startIcon={<Add />}
-              onClick={handleOpenCreateClass}
-              sx={{ whiteSpace: "nowrap" }}
-            >
-              创建班级
-            </Button>
-          ) : (
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              sx={{ width: { xs: "100%", md: "auto" } }}
-            >
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ width: { xs: "100%", md: "auto" } }}
+          >
+            {isTeacher && (
               <Button
                 variant='contained'
-                onClick={handleOpenJoinClass}
+                startIcon={<Add />}
+                onClick={handleOpenCreateClass}
                 sx={{ whiteSpace: "nowrap" }}
               >
-                加入班级
+                创建班级
               </Button>
-            </Stack>
-          )}
+            )}
+            <Button
+              variant={isTeacher ? "outlined" : "contained"}
+              onClick={handleOpenJoinClass}
+              sx={{ whiteSpace: "nowrap" }}
+            >
+              加入班级
+            </Button>
+          </Stack>
         </Stack>
       </Stack>
 
@@ -1013,6 +1239,44 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         <DialogActions>
           <Button onClick={() => setActiveProfile(null)} color='inherit'>
             关闭
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={Boolean(editingInviteCode)}
+        onClose={handleCloseEditInvite}
+        fullWidth
+        maxWidth='sm'
+      >
+        <DialogTitle>修改邀请码过期日期</DialogTitle>
+        <DialogContent dividers>
+          <Stack spacing={2} sx={{ pt: 2 }}>
+            <TextField
+              label='有效期（天）'
+              type='number'
+              inputProps={{ min: 1, max: 365 }}
+              value={editExpiresInDays}
+              onChange={(e) => setEditExpiresInDays(Number(e.target.value))}
+              disabled={isUpdatingInvite}
+              fullWidth
+              helperText='设置邀请码的有效期，范围：1-365天'
+            />
+            <Typography variant='body2' color='text.secondary'>
+              新的过期时间将从当前时间开始计算
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditInvite} color='inherit' disabled={isUpdatingInvite}>
+            取消
+          </Button>
+          <Button
+            onClick={handleUpdateInvite}
+            variant='contained'
+            disabled={isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365}
+          >
+            {isUpdatingInvite ? "更新中..." : "确认更新"}
           </Button>
         </DialogActions>
       </Dialog>
