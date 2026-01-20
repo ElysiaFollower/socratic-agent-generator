@@ -43,6 +43,7 @@ export interface SkillCardProps {
   readonly actionDisabled?: boolean;
   readonly highlight?: boolean;
   readonly showDetails?: boolean;
+  readonly className?: string;
   readonly onRebuild?: (skillId: number) => void;
   readonly onDelete?: (skillId: number) => void;
   readonly isRebuilding?: boolean;
@@ -67,6 +68,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
     actionDisabled,
     highlight,
     showDetails = false,
+    className,
     onRebuild,
     onDelete,
     isRebuilding = false,
@@ -161,10 +163,17 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
   return (
     <Card
       variant='outlined'
+      className={`animate-fade-in ${className || ""}`}
       sx={{
         height: "100%",
         position: selectable ? "relative" : "static",
         borderColor: isHighlighted ? "primary.main" : "divider",
+        transition: "all var(--transition-duration-200) var(--transition-timing-default)",
+        "&:hover": {
+          boxShadow: "var(--shadow-md)",
+          borderColor: "primary.light",
+          transform: "translateY(-2px)",
+        },
       }}
     >
       {selectable && (
@@ -231,6 +240,7 @@ export interface SkillDetailCardProps {
   readonly isRebuilding?: boolean;
   readonly isDeleting?: boolean;
   readonly actions?: React.ReactNode;
+  readonly className?: string;
 }
 
 /**
@@ -248,6 +258,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
     isRebuilding = false,
     isDeleting = false,
     actions,
+    className,
   } = props;
   const displayName = skill.name || "-";
   const retrievalNeeded = Boolean(skill.meta_info?.retrieval_needed);
@@ -264,7 +275,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
   };
 
   return (
-    <Card variant='outlined'>
+    <Card variant='outlined' className={`animate-scale-up ${className || ""}`}>
       <CardContent>
         <Stack spacing={2}>
           <Stack spacing={1}>

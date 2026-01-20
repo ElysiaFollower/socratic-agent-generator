@@ -136,9 +136,8 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        bgcolor: "var(--color-surface)",
-        borderRight: "1px solid var(--color-border)",
         bgcolor: "var(--color-surface-muted)",
+        borderRight: "1px solid var(--color-border)",
       }}
     >
       {user && (
