@@ -48,6 +48,16 @@ def warmup_embeddings() -> None:
         if _EMBEDDINGS_CACHE is None:
             _EMBEDDINGS_CACHE = _load_embeddings()
 
+
+def get_shared_embeddings() -> Embeddings:
+    """Get shared embeddings instance."""
+    global _EMBEDDINGS_CACHE
+    if _EMBEDDINGS_CACHE is None:
+        with _EMBEDDINGS_LOCK:
+            if _EMBEDDINGS_CACHE is None:
+                _EMBEDDINGS_CACHE = _load_embeddings()
+    return _EMBEDDINGS_CACHE
+
 # Directory to store vector store indices
 VECTOR_STORE_DIR = DATA_DIR / "vector_stores"
 # Base directory for skills

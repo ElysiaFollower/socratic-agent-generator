@@ -75,6 +75,11 @@ class CustomSkillManager:
         )
         return materials
 
+    def get_materials_by_ids(
+        self, profile_id: str, material_ids: List[int]
+    ) -> List[SkillMaterial]:
+        return self._get_materials_by_ids(profile_id, material_ids)
+
     def create_skill(
         self,
         profile_id: str,
@@ -186,4 +191,8 @@ class CustomSkillManager:
 
     def delete_skill(self, skill: CustomSkill) -> None:
         self.db.delete(skill)
+        self.db.commit()
+
+    def delete_material(self, material: SkillMaterial) -> None:
+        self.db.delete(material)
         self.db.commit()

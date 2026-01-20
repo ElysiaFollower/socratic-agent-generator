@@ -10,3 +10,4 @@ from .class_invitation_code import ClassInvitationCodeModel
 from .skill_material import SkillMaterial
 from .custom_skill import CustomSkill
 from .custom_skill_material import CustomSkillMaterial
+from .custom_skill_chunk import CustomSkillChunk

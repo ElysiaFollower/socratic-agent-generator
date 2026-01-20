@@ -63,6 +63,22 @@ class CustomSkillDetail(CustomSkillInfo):
     )
 
 
+class CustomSkillDraft(BaseModel):
+    """LLM-generated draft for a custom skill."""
+
+    skill_key: Optional[str] = Field(default=None, description="Skill key")
+    name: str = Field(description="Skill name", min_length=1)
+    description: str = Field(description="Skill description", min_length=1)
+    skill_type: Optional[str] = Field(default=None, description="Skill type")
+    tool_name: str = Field(description="Tool name", min_length=1)
+    instructions: Optional[str] = Field(default=None, description="Skill instructions")
+    index_path: Optional[str] = Field(
+        default=None, description="Index reference (sqlite-vec table or namespace)"
+    )
+    status: Optional[str] = Field(default=None, description="Skill status")
+    meta_info: Dict[str, Any] = Field(default_factory=dict)
+
+
 class CustomSkillCreateRequest(BaseModel):
     """Request model for creating a custom skill."""
 
@@ -95,3 +111,17 @@ class CustomSkillUpdateRequest(BaseModel):
     status: Optional[str] = Field(default=None, description="Skill status")
     meta_info: Optional[Dict[str, Any]] = Field(default=None)
     material_ids: Optional[List[int]] = Field(default=None)
+
+
+class CustomSkillGenerateRequest(BaseModel):
+    """Request model for generating a custom skill draft."""
+
+    material_ids: List[int] = Field(default_factory=list)
+    hint: Optional[str] = Field(default=None, description="Optional generation hint")
+
+
+class CustomSkillGenerateResponse(BaseModel):
+    """Response model for generated custom skill draft."""
+
+    draft: CustomSkillDraft
+    material_ids: List[int] = Field(default_factory=list)
