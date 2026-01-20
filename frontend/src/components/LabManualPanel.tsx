@@ -124,6 +124,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     }
   }, [notifyError]);
 
+
   /**
    * Loads lab manuals on mount.
    */
@@ -202,6 +203,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       applySelectedFile(file);
     }
   };
+
 
   /**
    * Handles form submission.
@@ -614,6 +616,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
           </Box>
         )}
       </Stack>
+
     </Stack>
   );
 

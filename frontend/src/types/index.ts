@@ -163,6 +163,7 @@ export type ToolPanelView =
   | 'chat'
   | 'invitation'
   | 'lab-manual'
+  | 'skill'
   | 'profile'
   | 'class';
 

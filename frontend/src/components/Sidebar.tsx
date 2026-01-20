@@ -26,6 +26,7 @@ import {
   PersonOutline,
   School,
   UploadFile,
+  Extension,
 } from "@mui/icons-material";
 import { alpha, Theme } from "@mui/material/styles";
 import { SessionSummary, ToolPanelView, User } from "../types";
@@ -48,6 +49,7 @@ export interface SidebarProps {
   readonly onCollapse: () => void;
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
+  readonly onOpenSkillPanel: () => void;
   readonly onOpenProfilePanel: () => void;
   readonly onOpenClassPanel: () => void;
   readonly className?: string;
@@ -73,6 +75,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
     onCollapse,
     onOpenInvitationPanel,
     onOpenLabManualPanel,
+    onOpenSkillPanel,
     onOpenProfilePanel,
     onOpenClassPanel,
     className,
@@ -265,6 +268,23 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                 </ListItemIcon>
                 <ListItemText
                   primary='实验文档管理'
+                  primaryTypographyProps={{ variant: "body2" }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                onClick={onOpenSkillPanel}
+                disabled={isLoading}
+                selected={activePanel === "skill"}
+                disableRipple
+                sx={actionItemSx}
+              >
+                <ListItemIcon>
+                  <Extension fontSize='small' />
+                </ListItemIcon>
+                <ListItemText
+                  primary='Skill管理'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

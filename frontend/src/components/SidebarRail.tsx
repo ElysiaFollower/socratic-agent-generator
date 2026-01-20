@@ -13,6 +13,7 @@ import {
   Key,
   School,
   UploadFile,
+  Extension,
 } from "@mui/icons-material";
 import { ToolPanelView } from "../types";
 import { PermissionGuard } from "./PermissionGuard";
@@ -28,6 +29,7 @@ export interface SidebarRailProps {
   readonly onOpenChatHome: () => void;
   readonly onOpenInvitationPanel: () => void;
   readonly onOpenLabManualPanel: () => void;
+  readonly onOpenSkillPanel: () => void;
   readonly onOpenProfilePanel: () => void;
   readonly onOpenClassPanel: () => void;
 }
@@ -46,6 +48,7 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
     onOpenChatHome,
     onOpenInvitationPanel,
     onOpenLabManualPanel,
+    onOpenSkillPanel,
     onOpenProfilePanel,
     onOpenClassPanel,
   } = props;
@@ -141,6 +144,20 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
                 sx={railButtonSx}
               >
                 <UploadFile fontSize='small' />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title='Skill管理' placement='right'>
+            <span>
+              <IconButton
+                onClick={onOpenSkillPanel}
+                size='small'
+                disabled={isLoading}
+                aria-label='Skill管理'
+                color={activePanel === "skill" ? "primary" : "default"}
+                sx={railButtonSx}
+              >
+                <Extension fontSize='small' />
               </IconButton>
             </span>
           </Tooltip>

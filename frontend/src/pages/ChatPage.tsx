@@ -30,6 +30,7 @@ import {
   ProfileSelector,
   InvitationCodeGenerator,
   LabManualPanel,
+  SkillManagerPanel,
   ProfileManagerPanel,
   ClassManagerPanel,
   SettingsModal,
@@ -343,6 +344,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setActivePanel("lab-manual");
   }, []);
 
+  const handleOpenSkillPanel = useCallback(() => {
+    setActivePanel("skill");
+  }, []);
+
   const handleOpenProfilePanel = useCallback(() => {
     setActivePanel("profile");
   }, []);
@@ -445,6 +450,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               onOpenChatHome={handleOpenChatHome}
               onOpenInvitationPanel={handleOpenInvitationPanel}
               onOpenLabManualPanel={handleOpenLabManualPanel}
+              onOpenSkillPanel={handleOpenSkillPanel}
               onOpenProfilePanel={handleOpenProfilePanel}
               onOpenClassPanel={handleOpenClassPanel}
             />
@@ -470,6 +476,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 onCollapse={handleToggleSidebar}
                 onOpenInvitationPanel={handleOpenInvitationPanel}
                 onOpenLabManualPanel={handleOpenLabManualPanel}
+                onOpenSkillPanel={handleOpenSkillPanel}
                 onOpenProfilePanel={handleOpenProfilePanel}
                 onOpenClassPanel={handleOpenClassPanel}
               />
@@ -567,6 +574,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               {activePanel === "lab-manual" && (
                 <LabManualPanel variant='panel' />
               )}
+              {activePanel === "skill" && <SkillManagerPanel />}
               {activePanel === "profile" && (
                 <ProfileManagerPanel
                   variant='panel'

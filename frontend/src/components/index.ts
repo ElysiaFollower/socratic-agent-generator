@@ -11,6 +11,7 @@ export * from "./ProgressBar";
 export * from "./Header";
 export * from "./ProfileSelector";
 export * from "./LabManualPanel";
+export * from "./skills/SkillManagerPanel";
 export * from "./ProfileGeneratorAdvanced";
 export * from "./ProfileManagerPanel";
 export * from "./ProfileCard";

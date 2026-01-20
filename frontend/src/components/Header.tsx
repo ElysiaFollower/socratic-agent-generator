@@ -99,6 +99,7 @@ export function Header(props: HeaderProps): JSX.Element {
     chat: '苏格拉底式AI导师',
     invitation: '班级邀请码',
     'lab-manual': '实验文档管理',
+    skill: 'Skill管理',
     profile: 'Profile管理',
     class: '班级管理',
   };

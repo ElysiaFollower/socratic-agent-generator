@@ -18,6 +18,7 @@ from schemas.custom_skill import (
     CustomSkillGenerateRequest,
     CustomSkillGenerateResponse,
     CustomSkillUpdateRequest,
+    CustomSkillAssignRequest,
     SkillMaterialInfo,
     SkillMaterialDetail,
     SkillMaterialTextRequest,
@@ -69,6 +70,20 @@ def _sanitize_tool_name(name: str) -> str:
     return safe.lower()
 
 
+def _format_profile_context(profile) -> str:
+    hints = profile.persona_hints or []
+    return "\n".join(
+        [
+            f"profile_id: {profile.profile_id}",
+            f"profile_name: {profile.profile_name or ''}",
+            f"topic_name: {profile.topic_name}",
+            f"lab_name: {profile.lab_name or ''}",
+            f"target_audience: {profile.target_audience}",
+            f"persona_hints: {', '.join(hints)}",
+        ]
+    )
+
+
 @router.post(
     "/profiles/{profile_id}/skill-materials",
     response_model=SkillMaterialInfo,
@@ -89,7 +104,7 @@ async def upload_skill_material(
         )
 
     try:
-        profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -281,7 +296,9 @@ async def generate_custom_skill(
     )
 
     generator = CustomSkillGenerator(get_default_llm())
-    draft = await generator.generate(combined, hint=req.hint)
+    draft = await generator.generate(
+        combined, hint=req.hint, profile_context=_format_profile_context(profile)
+    )
     draft.tool_name = _sanitize_tool_name(draft.tool_name)
 
     return CustomSkillGenerateResponse(draft=draft, material_ids=req.material_ids)
@@ -450,6 +467,66 @@ def delete_custom_skill(
 
     custom_skill_manager.delete_skill(skill)
     return {"success": True, "skill_id": skill_id}
+
+
+@router.post(
+    "/skills/{skill_id}/assign",
+    response_model=CustomSkillDetail,
+    summary="分配自定义技能到Profile",
+)
+def assign_custom_skill(
+    skill_id: int,
+    req: CustomSkillAssignRequest,
+    current_user: User = Depends(get_current_user),
+    profile_manager: ProfileManagerDep = None,
+    custom_skill_manager: CustomSkillManagerDep = None,
+) -> CustomSkillDetail:
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can assign custom skills.",
+        )
+
+    skill = custom_skill_manager.get_skill(skill_id)
+    if not skill:
+        raise HTTPException(status_code=404, detail="Skill not found.")
+
+    try:
+        profile_manager.read_profile(req.profile_id)
+    except ProfileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    retrieval_needed = bool(skill.meta_info.get("retrieval_needed"))
+    status = "ready"
+    if retrieval_needed and not req.material_ids:
+        status = "pending"
+
+    meta_info = dict(skill.meta_info or {})
+    meta_info["source_skill_id"] = skill.id
+    meta_info["assigned_from_profile"] = skill.profile_id
+
+    try:
+        created = custom_skill_manager.create_skill(
+            profile_id=req.profile_id,
+            owner_id=current_user.user_id,
+            skill_key=skill.skill_key,
+            name=skill.name,
+            description=skill.description,
+            skill_type=skill.skill_type,
+            tool_name=_sanitize_tool_name(skill.tool_name),
+            instructions=skill.instructions,
+            index_path=None,
+            status=status,
+            meta_info=meta_info,
+            material_ids=req.material_ids,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+    return _skill_to_info(created, include_instructions=True)
 
 
 @router.post(

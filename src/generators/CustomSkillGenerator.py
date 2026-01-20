@@ -32,12 +32,14 @@ class CustomSkillGenerator:
                     "- Put any extra flags in meta_info (e.g., retrieval_needed).\n"
                     "- If a retrieval index is needed, set meta_info.retrieval_needed=true, "
                     "otherwise false.\n"
-                    "- Leave index_path null; the backend will fill it.\n",
+                    "- Leave index_path null; the backend will fill it.\n"
+                    "- Respect the profile context when deciding naming and usage.\n",
                 ),
                 (
                     "user",
                     "Here are the supplemental materials. Use them to create a skill draft.\n\n"
                     "<hint>\n{hint}\n</hint>\n"
+                    "<profile_context>\n{profile_context}\n</profile_context>\n"
                     "<materials>\n{materials}\n</materials>",
                 ),
             ]
@@ -53,7 +55,12 @@ class CustomSkillGenerator:
             + content[-max_chars // 2 :]
         )
 
-    async def generate(self, materials: str, hint: Optional[str] = None) -> CustomSkillDraft:
+    async def generate(
+        self,
+        materials: str,
+        hint: Optional[str] = None,
+        profile_context: Optional[str] = None,
+    ) -> CustomSkillDraft:
         logger.info("Generating custom skill draft from materials...")
         content_excerpt = self._create_excerpt(
             materials, max_chars=MAX_INPUT_TOKENS - 1000
@@ -63,6 +70,7 @@ class CustomSkillGenerator:
                 {
                     "materials": content_excerpt,
                     "hint": hint or "",
+                    "profile_context": profile_context or "",
                     "format_instructions": self.output_parser.get_format_instructions(),
                 }
             )

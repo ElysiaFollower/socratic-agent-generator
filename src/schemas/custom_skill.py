@@ -125,3 +125,10 @@ class CustomSkillGenerateResponse(BaseModel):
 
     draft: CustomSkillDraft
     material_ids: List[int] = Field(default_factory=list)
+
+
+class CustomSkillAssignRequest(BaseModel):
+    """Request model for assigning a skill to another profile."""
+
+    profile_id: str = Field(description="Target profile ID")
+    material_ids: List[int] = Field(default_factory=list)
