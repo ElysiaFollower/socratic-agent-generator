@@ -647,7 +647,16 @@ export function SkillCreatePanel(
                   ? "action.hover"
                   : "transparent",
                 transition:
-                  "background-color 0.2s ease, border-color 0.2s ease",
+                  "background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease",
+                width: "100%",
+                maxWidth: 640,
+                alignSelf: "center",
+                mx: "auto",
+                outline: "none",
+                "&:hover": {
+                  boxShadow: 0.5,
+                  bgcolor: "action.hover",
+                },
               }}
             >
               <Stack spacing={1} alignItems='center'>

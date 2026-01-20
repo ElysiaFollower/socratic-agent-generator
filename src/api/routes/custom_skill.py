@@ -163,7 +163,7 @@ def create_skill_material_text(
         )
 
     try:
-        profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -200,7 +200,7 @@ def list_skill_materials(
         )
 
     try:
-        profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -278,7 +278,7 @@ async def generate_custom_skill(
         )
 
     try:
-        profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -323,7 +323,7 @@ def create_custom_skill(
         )
 
     try:
-        profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -369,7 +369,7 @@ def list_custom_skills(
         )
 
     try:
-        profile_manager.read_profile(profile_id)
+        profile = profile_manager.read_profile(profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
@@ -492,7 +492,7 @@ def assign_custom_skill(
         raise HTTPException(status_code=404, detail="Skill not found.")
 
     try:
-        profile_manager.read_profile(req.profile_id)
+        profile = profile_manager.read_profile(req.profile_id)
     except ProfileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
 
