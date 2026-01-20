@@ -5,12 +5,12 @@
  * following Google TypeScript Style Guide.
  */
 
-import React, {ReactNode} from 'react';
-import {Box, Typography} from '@mui/material';
-import {Navigate} from 'react-router-dom';
-import {useAuth} from '../hooks';
-import {UserRole} from '../types';
-import {Login} from './Login';
+import React, { ReactNode } from "react";
+import { Box, Typography } from "@mui/material";
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../../hooks";
+import { UserRole } from "../../types";
+import { Login } from "./Login";
 
 /**
  * Props for ProtectedRoute component.
@@ -32,13 +32,20 @@ interface ProtectedRouteProps {
  * @returns React component
  */
 export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
-  const {children, requiredRoles, fallback, redirectTo} = props;
-  const {isAuthenticated, isLoading, hasAnyRole} = useAuth();
+  const { children, requiredRoles, fallback, redirectTo } = props;
+  const { isAuthenticated, isLoading, hasAnyRole } = useAuth();
 
   if (isLoading) {
     return (
-      <Box sx={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-        <Typography color="text.secondary">加载中...</Typography>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Typography color='text.secondary'>加载中...</Typography>
       </Box>
     );
   }
@@ -56,12 +63,19 @@ export function ProtectedRoute(props: ProtectedRouteProps): JSX.Element {
   if (requiredRoles && requiredRoles.length > 0) {
     if (!hasAnyRole(requiredRoles)) {
       return (
-        <Box sx={{minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-          <Box textAlign="center">
-            <Typography variant="h5" sx={{fontWeight: 700, mb: 1}}>
+        <Box
+          sx={{
+            minHeight: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <Box textAlign='center'>
+            <Typography variant='h5' sx={{ fontWeight: 700, mb: 1 }}>
               权限不足
             </Typography>
-            <Typography color="text.secondary">
+            <Typography color='text.secondary'>
               您没有访问此页面的权限。请联系管理员。
             </Typography>
           </Box>

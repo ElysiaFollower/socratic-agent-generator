@@ -20,14 +20,14 @@ import {
   Typography,
 } from "@mui/material";
 import { Delete } from "@mui/icons-material";
-import { Profile } from "../types";
+import { Profile } from "../../types";
 import {
   deleteProfile,
   listProfiles,
   renameProfile,
   type RenameProfileRequest,
-} from "../api";
-import { useConfirmDialog, useNotification } from "../hooks";
+} from "../../api";
+import { useConfirmDialog, useNotification } from "../../hooks";
 import { ProfileGeneratorAdvanced } from "./ProfileGeneratorAdvanced";
 import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
 

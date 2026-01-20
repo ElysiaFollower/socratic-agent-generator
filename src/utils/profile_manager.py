@@ -63,17 +63,78 @@ class ProfileManager:
         return [model_to_profile(m) for m in models]
 
     def list_profiles_by_visible_classes(self, class_ids: List[str]) -> List[Profile]:
-        """List profiles visible to any of the provided class IDs."""
+        """List profiles visible to any of the provided class IDs.
+        
+        Optimized to filter at the database level using JSON functions.
+        """
         if not class_ids:
             return []
-        models = self.db.query(ProfileModel).order_by(ProfileModel.create_at.desc()).all()
-        visible = []
-        class_id_set = set(class_ids)
-        for model in models:
-            visible_ids = set(model.visible_class_ids or [])
-            if visible_ids.intersection(class_id_set):
-                visible.append(model_to_profile(model))
-        return visible
+        
+        # Use SQLite's JSON functions to filter profiles directly in the database
+        # This avoids loading all profiles into memory and filtering in Python
+        from sqlalchemy import text
+        
+        # Build conditions to check if any class_id exists in the visible_class_ids JSON array
+        conditions = []
+        for class_id in class_ids:
+            # Use JSON_EXTRACT to check if the class_id exists in the array
+            conditions.append(f"json_type(visible_class_ids, '$') = 'array' AND json_extract(visible_class_ids, '$') LIKE '%\"{class_id}\"%'")
+        
+        # Execute the query with the conditions
+        query_sql = f"""
+            SELECT * FROM profiles 
+            WHERE visible_class_ids IS NOT NULL 
+            AND (
+                {' OR '.join(conditions)}
+            )
+            ORDER BY create_at DESC
+        """
+        
+        result = self.db.execute(text(query_sql))
+        
+        # Convert to Profile objects directly
+        import json
+        profiles = []
+        for row in result:
+            # Parse JSON fields that are stored as strings
+            visible_class_ids = []
+            if row.visible_class_ids:
+                try:
+                    visible_class_ids = json.loads(row.visible_class_ids)
+                except (json.JSONDecodeError, TypeError):
+                    visible_class_ids = []
+            
+            persona_hints = []
+            if row.persona_hints:
+                try:
+                    persona_hints = json.loads(row.persona_hints)
+                except (json.JSONDecodeError, TypeError):
+                    persona_hints = []
+            
+            curriculum = []
+            if row.curriculum:
+                try:
+                    curriculum = json.loads(row.curriculum)
+                except (json.JSONDecodeError, TypeError):
+                    curriculum = []
+            
+            profile = Profile(
+                profile_id=row.profile_id,
+                profile_name=row.profile_name,
+                topic_name=row.topic_name,
+                lab_name=row.lab_name,
+                owner_id=row.owner_id,
+                visible_class_ids=visible_class_ids,
+                document_id=row.document_id,
+                persona_hints=persona_hints,
+                target_audience=row.target_audience,
+                curriculum=curriculum,
+                prompt_template=row.prompt_template,
+                create_at=row.create_at
+            )
+            profiles.append(profile)
+        
+        return profiles
 
     def _get_model(self, profile_id: str) -> ProfileModel:
         """Helper to get ORM model."""

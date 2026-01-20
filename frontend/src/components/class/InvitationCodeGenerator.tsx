@@ -26,17 +26,17 @@ import {
   Tooltip,
 } from "@mui/material";
 import { ContentCopy } from "@mui/icons-material";
-import { useNotification } from "../hooks";
+import { useClipboard, useNotification } from "../../hooks";
 import {
   ClassInfo,
   GenerateInvitationCodeRequest,
   InvitationCodeInfo,
-} from "../types";
+} from "../../types";
 import {
   generateClassInvitationCode,
   listClassInvitations,
   listClasses,
-} from "../api";
+} from "../../api";
 
 /**
  * Props for InvitationCodeGenerator component.
@@ -57,6 +57,7 @@ export function InvitationCodeGenerator(
 ): JSX.Element {
   const { onClose, variant = "dialog" } = props;
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
+  const { copyToClipboard } = useClipboard();
   const [classes, setClasses] = useState<readonly ClassInfo[]>([]);
   const [selectedClassId, setSelectedClassId] = useState<string>("");
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
@@ -85,8 +86,7 @@ export function InvitationCodeGenerator(
       const response = await listClasses();
       setClasses(response);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "加载班级失败";
+      const errorMessage = err instanceof Error ? err.message : "加载班级失败";
       notifyError(errorMessage);
     }
   }, [notifyError]);
@@ -167,48 +167,6 @@ export function InvitationCodeGenerator(
   useEffect(() => {
     void loadInvitationCodes();
   }, [loadInvitationCodes]);
-
-  /**
-   * Copies invitation code to clipboard.
-   */
-  const copyToClipboard = async (code: string) => {
-    if (!code) {
-      return;
-    }
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(code);
-        notifySuccess("邀请码已复制");
-        return;
-      }
-
-      if (typeof document === "undefined") {
-        throw new Error("复制失败，请手动复制");
-      }
-
-      const textArea = document.createElement("textarea");
-      textArea.value = code;
-      textArea.setAttribute("readonly", "");
-      textArea.style.position = "fixed";
-      textArea.style.opacity = "0";
-      textArea.style.left = "-9999px";
-      textArea.style.top = "-9999px";
-      document.body.appendChild(textArea);
-      textArea.focus();
-      textArea.select();
-      const success = document.execCommand("copy");
-      document.body.removeChild(textArea);
-
-      if (!success) {
-        throw new Error("复制失败，请手动复制");
-      }
-      notifySuccess("邀请码已复制");
-    } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "复制失败，请重试";
-      notifyError(errorMessage);
-    }
-  };
 
   const content = (
     <Stack spacing={2}>

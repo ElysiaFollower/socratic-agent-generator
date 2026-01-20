@@ -29,9 +29,9 @@ import {
   Extension,
 } from "@mui/icons-material";
 import { alpha, Theme } from "@mui/material/styles";
-import { SessionSummary, ToolPanelView, User } from "../types";
-import { PermissionGuard } from "./PermissionGuard";
-import { SessionHistoryList } from "./SessionHistoryList";
+import { SessionSummary, ToolPanelView, User } from "../../types";
+import { PermissionGuard } from "../auth/PermissionGuard";
+import { SessionHistoryList } from "../session/SessionHistoryList";
 
 /**
  * Props for Sidebar component.
@@ -136,9 +136,8 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        bgcolor: "var(--color-surface)",
-        borderRight: "1px solid var(--color-border)",
         bgcolor: "var(--color-surface-muted)",
+        borderRight: "1px solid var(--color-border)",
       }}
     >
       {user && (

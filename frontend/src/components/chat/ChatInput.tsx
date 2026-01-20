@@ -28,7 +28,7 @@ export interface ChatInputProps {
 export function ChatInput(props: ChatInputProps): JSX.Element {
   const { value, disabled, placeholder, onChange, onSend } = props;
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       onSend();
@@ -39,10 +39,11 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
     <Box
       sx={{
         position: "relative",
-        mt: 1,
+        mt: "var(--spacing-4)",
         width: "100%",
-        maxWidth: { xs: "100%", md: "70%" },
+        maxWidth: { xs: "100%", sm: "90%", md: "70%", lg: "60%" },
         mx: "auto",
+        px: { xs: "var(--spacing-4)", sm: "var(--spacing-6)" },
       }}
     >
       <TextField
@@ -60,42 +61,68 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
         variant='outlined'
         sx={{
           "& .MuiOutlinedInput-root": {
-            borderRadius: "24px",
+            borderRadius: "var(--radius-3xl)",
             backgroundColor: "var(--color-surface)",
             color: "var(--text-primary)",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.1)",
+            boxShadow: "var(--shadow-lg)",
+            transition:
+              "all var(--transition-duration-200) var(--transition-timing-default)",
             "& fieldset": {
               borderColor: "transparent",
+              borderWidth: "2px",
             },
             "&:hover fieldset": {
-              borderColor: "transparent",
+              borderColor: "var(--color-primary-300)",
             },
             "&.Mui-focused fieldset": {
-              borderColor: "transparent",
+              borderColor: "var(--color-primary-500)",
+              boxShadow: "var(--shadow-xl)",
             },
           },
           "& .MuiInputBase-input": {
             paddingRight: "56px",
+            fontFamily: "var(--font-body)",
+            fontSize: "0.9375rem",
+            lineHeight: 1.5,
           },
           "& .MuiInputBase-input::placeholder": {
             color: "var(--text-muted)",
             opacity: 1,
+            fontFamily: "var(--font-body)",
+            fontSize: "0.9375rem",
           },
-          marginBottom: "20px",
+          marginBottom: "var(--spacing-6)",
         }}
       />
       <IconButton
         onClick={onSend}
         disabled={disabled || !value.trim()}
+        aria-label='发送消息'
         sx={{
           backgroundColor: "var(--color-primary)",
           color: "#ffffff",
           position: "absolute",
-          right: "16px",
-          bottom: "28px",
-          boxShadow: "0 6px 16px rgba(37, 99, 235, 0.25)",
+          right: "var(--spacing-8)",
+          bottom: "var(--spacing-8)",
+          boxShadow: "var(--shadow-lg)",
+          borderRadius: "var(--radius-full)",
+          width: "40px",
+          height: "40px",
+          transition:
+            "all var(--transition-duration-200) var(--transition-timing-default)",
           "&:hover": {
-            backgroundColor: "var(--color-secondary)",
+            backgroundColor: "var(--color-primary-700)",
+            transform: "translateY(-1px)",
+            boxShadow: "var(--shadow-xl)",
+          },
+          "&:active": {
+            transform: "translateY(0)",
+          },
+          "&:disabled": {
+            backgroundColor: "var(--color-neutral-300)",
+            color: "var(--color-neutral-500)",
+            boxShadow: "none",
+            transform: "none",
           },
         }}
       >
