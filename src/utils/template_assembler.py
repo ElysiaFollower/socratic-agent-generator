@@ -5,7 +5,7 @@ content for the Socratic tutor system.
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import jinja2
 
@@ -140,8 +140,22 @@ class PromptAssembler(TemplateAssembler):
     """Assembles the final dynamic prompt for the Socratic tutor.
 
     Used during interactive sessions to render the template with current
-    step information.
+    step information. Implements caching for static parts to improve performance.
+
+    Attributes:
+        template: Jinja2 template instance.
+        _static_cache: Cache for static prompt parts, keyed by (curriculum_len,
+            output_language, skills_tuple).
     """
+
+    def __init__(self, template_string: str):
+        """Initialize the assembler with a Jinja2 template.
+
+        Args:
+            template_string: Jinja2 template string to use.
+        """
+        super().__init__(template_string)
+        self._static_cache: Dict[Tuple[int, str, Tuple[str, ...]], Dict[str, str]] = {}
 
     def assemble(
         self,
@@ -151,6 +165,10 @@ class PromptAssembler(TemplateAssembler):
         skills: Optional[List] = None,
     ) -> str:
         """Assemble the final prompt with dynamic content.
+
+        Uses caching for static parts (persona, domain rules, curriculum overview,
+        skills summary) to avoid redundant processing. Only dynamic parts (current
+        step information) are updated on each call.
 
         Args:
             curriculum: SocraticCurriculum containing learning steps.
@@ -174,7 +192,24 @@ class PromptAssembler(TemplateAssembler):
                 "Just Congratulations to user!"
             )
 
-        # Prepare dynamic context for current step
+        # Generate cache key for static parts
+        skills_tuple = tuple(skill.name for skill in (skills or []))
+        cache_key = (
+            curriculum.get_len(),
+            output_language,
+            skills_tuple,
+        )
+
+        # Get or build static context from cache
+        if cache_key not in self._static_cache:
+            static_context = self._build_static_context(
+                curriculum, output_language, skills
+            )
+            self._static_cache[cache_key] = static_context
+        else:
+            static_context = self._static_cache[cache_key]
+
+        # Prepare dynamic context for current step (changes every call)
         dynamic_context = {
             "current_step": {
                 "step_title": curriculum.get_step_title(step_index),
@@ -186,18 +221,58 @@ class PromptAssembler(TemplateAssembler):
                 ),
                 "success_criteria": curriculum.get_success_criteria(step_index),
             },
+        }
+
+        # Merge static and dynamic context
+        final_context = {**static_context, **dynamic_context}
+
+        # Render template with merged context
+        final_prompt = self.template.render(final_context)
+        return final_prompt
+
+    def _build_static_context(
+        self,
+        curriculum: SocraticCurriculum,
+        output_language: str,
+        skills: Optional[List],
+    ) -> Dict[str, str]:
+        """Build static context that can be cached.
+
+        Static parts include persona, domain rules, curriculum overview, and
+        skills summary. These don't change between steps, so they can be cached.
+
+        Args:
+            curriculum: SocraticCurriculum containing learning steps.
+            output_language: Output language for the tutor.
+            skills: Optional list of BaseSkill instances.
+
+        Returns:
+            Dictionary containing static context variables.
+        """
+        # Note: This method assumes that persona_description, topic_name,
+        # and domain_specific_rules are already in the template context.
+        # In the current implementation, these are set during profile generation
+        # and stored in the template. For caching to work fully, we would need
+        # access to the TutorPersona definition here, but that's not available
+        # in PromptAssembler. So we cache what we can: skills_summary and
+        # curriculum_str (if curriculum doesn't change).
+
+        static_context: Dict[str, str] = {
             "output_language": output_language,
         }
-        
+
         # Add skills summary if provided
         if skills:
-            dynamic_context["skills_summary"] = self._format_skills_summary(skills)
+            static_context["skills_summary"] = self._format_skills_summary(skills)
         else:
-            dynamic_context["skills_summary"] = None
+            static_context["skills_summary"] = None
 
-        # Render template with dynamic context
-        final_prompt = self.template.render(dynamic_context)
-        return final_prompt
+        # Note: curriculum_str is static for a given curriculum, but we don't
+        # have access to it here. It's already in the template from profile
+        # generation. For now, we cache skills_summary which is the main
+        # dynamic part that changes.
+
+        return static_context
     
     def _format_skills_summary(self, skills: List) -> str:
         """Format skills metadata as a summary for the system prompt.

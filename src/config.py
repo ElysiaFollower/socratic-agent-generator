@@ -80,6 +80,33 @@ TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.7"))
 MAX_INPUT_TOKENS: int = int(os.getenv("MAX_INPUT_TOKENS", "128000"))
 MAX_HISTORY_TOKENS: int = int(os.getenv("MAX_HISTORY_TOKENS", "60000"))
 
+# --- LangChain Agent Configuration ---
+
+# Verbose mode for LangChain agents (set to "true" to enable verbose logging)
+LANGCHAIN_VERBOSE: bool = os.getenv("LANGCHAIN_VERBOSE", "false").lower() == "true"
+
+# Maximum iterations for LangChain agent executor
+LANGCHAIN_MAX_ITERATIONS: int = int(os.getenv("LANGCHAIN_MAX_ITERATIONS", "3"))
+
+# --- Evaluation Configuration ---
+
+# Evaluation pass threshold (0.0-1.0). When evaluator output confidence >= this
+# value, the step is considered passed.
+EVALUATION_PASS_THRESHOLD: float = float(
+    os.getenv("EVALUATION_PASS_THRESHOLD", "0.70")
+)
+
+# Fallback threshold (0.0-1.0). When evaluator output confidence < this value,
+# use AssessmentSkill as fallback.
+EVALUATION_FALLBACK_THRESHOLD: float = float(
+    os.getenv("EVALUATION_FALLBACK_THRESHOLD", "0.50")
+)
+
+# Evaluator LLM temperature (recommended 0.1-0.3 for evaluation consistency).
+EVALUATION_TEMPERATURE: float = float(
+    os.getenv("EVALUATION_TEMPERATURE", "0.2")
+)
+
 
 def get_default_llm() -> Any:
     """Get the default LLM instance.
