@@ -29,12 +29,20 @@ export const apiClient: AxiosInstance = axios.create({
 
 /**
  * Request interceptor to add authentication token.
+ * Excludes authentication endpoints (login, register) from token injection.
  */
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
-    const token = getAuthToken();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Don't add Authorization header for auth endpoints
+    const isAuthEndpoint = 
+      config.url?.includes('/api/auth/login') || 
+      config.url?.includes('/api/auth/register');
+    
+    if (!isAuthEndpoint) {
+      const token = getAuthToken();
+      if (token && config.headers) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

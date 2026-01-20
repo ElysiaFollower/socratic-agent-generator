@@ -9,6 +9,7 @@ from typing import List, Optional
 
 import bcrypt
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from schemas.user import User
 from models.user import UserModel
@@ -156,10 +157,21 @@ class UserManager:
         )
 
         # Save to database
-        model = user_to_model(user)
-        self.db.add(model)
-        self.db.commit()
-        self.db.refresh(model)
+        # Handle potential race condition: if two requests check simultaneously,
+        # both might pass the check but database unique constraint will catch it
+        try:
+            model = user_to_model(user)
+            self.db.add(model)
+            self.db.commit()
+            self.db.refresh(model)
+        except IntegrityError as e:
+            # Rollback the failed transaction
+            self.db.rollback()
+            # Check if it's a username uniqueness violation
+            if "username" in str(e).lower() or "unique" in str(e).lower():
+                raise UserAlreadyExistsError(f"User '{username}' already exists") from e
+            # Re-raise if it's a different integrity error
+            raise
         
         logger.info("Created user: %s", username)
         return user
