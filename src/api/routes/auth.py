@@ -555,3 +555,32 @@ def update_invitation_code(
         created_at=model.created_at,
         expires_at=model.expires_at,
     )
+
+
+@router.get("/users/{user_id}", response_model=User, summary="获取用户信息")
+def get_user_info(
+    user_id: str,
+    current_user: User = Depends(get_current_user),
+    user_manager: UserManagerDep = None,
+) -> User:
+    """Get user information by user_id.
+
+    Args:
+        user_id: The user_id to look up.
+        current_user: Current authenticated user.
+        user_manager: Injected UserManager instance.
+
+    Returns:
+        User object with user information.
+
+    Raises:
+        HTTPException: If user not found.
+    """
+    try:
+        user = user_manager.get_user_by_id(user_id)
+    except UserManagerNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"User with id '{user_id}' not found.",
+        )
+    return user

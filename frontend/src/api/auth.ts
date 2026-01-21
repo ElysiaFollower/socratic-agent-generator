@@ -310,3 +310,23 @@ export async function updateRegistrationInvitationCode(
     throw new Error(`更新邀请码失败: ${handleApiError(error)}`);
   }
 }
+
+/**
+ * Gets user information by user ID.
+ *
+ * @param userId - The user ID to look up
+ * @returns Promise resolving to user information
+ * @throws Error if fetch fails
+ */
+export async function getUserById(
+  userId: string,
+): Promise<User> {
+  try {
+    const response = await apiClient.get<User>(
+      `/api/auth/users/${userId}`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`获取用户信息失败: ${handleApiError(error)}`);
+  }
+}

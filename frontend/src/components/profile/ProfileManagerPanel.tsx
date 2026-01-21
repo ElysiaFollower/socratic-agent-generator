@@ -27,7 +27,7 @@ import {
   renameProfile,
   type RenameProfileRequest,
 } from "../../api";
-import { useConfirmDialog, useNotification } from "../../hooks";
+import { useAuth, useConfirmDialog, useNotification } from "../../hooks";
 import { ProfileGeneratorAdvanced } from "./ProfileGeneratorAdvanced";
 import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
 
@@ -53,6 +53,7 @@ export function ProfileManagerPanel(
 ): JSX.Element {
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
+  const { user } = useAuth();
   const { confirm } = useConfirmDialog();
   const [activeTab, setActiveTab] = useState<TabKey>("generate");
   const [profiles, setProfiles] = useState<readonly Profile[]>([]);
@@ -255,9 +256,16 @@ export function ProfileManagerPanel(
         {activeProfile && (
           <ProfileDetailCard
             profile={activeProfile}
-            mode='teacher'
+            mode={
+              user?.role === "admin"
+                ? "admin"
+                : user?.role === "teacher"
+                  ? "teacher"
+                  : "student"
+            }
             onRename={handleRenameProfile}
             isRenaming={isRenamingProfile}
+            onUpdate={loadProfiles}
             actions={
               <Stack
                 direction='row'

@@ -40,6 +40,7 @@ import {
   ClassMemberInfo,
   InvitationCodeInfo,
   Profile,
+  CurriculumData,
 } from "../../types";
 import {
   createClass,
@@ -95,6 +96,10 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const [isUpdatingVisibility, setIsUpdatingVisibility] =
     useState<boolean>(false);
   const [isRenamingProfile, setIsRenamingProfile] = useState<boolean>(false);
+  const [isUpdatingPersonaHints, setIsUpdatingPersonaHints] =
+    useState<boolean>(false);
+  const [isUpdatingCurriculum, setIsUpdatingCurriculum] =
+    useState<boolean>(false);
   const [isAddProfileOpen, setIsAddProfileOpen] = useState<boolean>(false);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [classSearchText, setClassSearchText] = useState<string>("");
@@ -428,7 +433,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     try {
       await deleteClassInvitationCode(selectedClassId, code);
       notifySuccess("邀请码已删除");
-      setInvites((prev) => prev.filter((invite) => invite.invitation_code !== code));
+      setInvites((prev) =>
+        prev.filter((invite) => invite.invitation_code !== code),
+      );
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "删除邀请码失败";
@@ -555,6 +562,50 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       notifyError(errorMessage);
     } finally {
       setIsRenamingProfile(false);
+    }
+  };
+
+  const handleUpdatePersonaHints = async (
+    profile: Profile,
+    hints: string[],
+  ) => {
+    setIsUpdatingPersonaHints(true);
+    try {
+      // TODO: Implement API call to update persona hints
+      notifyWarning("更新Persona提示功能暂未实现");
+      console.log("Update persona hints:", {
+        profileId: profile.profile_id,
+        hints,
+      });
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "更新Persona提示失败";
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingPersonaHints(false);
+    }
+  };
+
+  const handleUpdateCurriculum = async (
+    profile: Profile,
+    curriculum: CurriculumData,
+  ) => {
+    setIsUpdatingCurriculum(true);
+    try {
+      // TODO: Implement API call to update curriculum
+      notifyWarning("更新学习步骤功能暂未实现");
+      console.log("Update curriculum:", {
+        profileId: profile.profile_id,
+        curriculum,
+      });
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "更新学习步骤失败";
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingCurriculum(false);
     }
   };
 
@@ -805,7 +856,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                         {invite.invitation_code}
                       </Typography>
                       <Stack direction='row' spacing={1} alignItems='center'>
-                        <Tooltip title={expired ? "邀请码已过期" : "复制邀请码"}>
+                        <Tooltip
+                          title={expired ? "邀请码已过期" : "复制邀请码"}
+                        >
                           <span>
                             <IconButton
                               size='small'
@@ -839,7 +892,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                             <IconButton
                               size='small'
                               aria-label='删除邀请码'
-                              onClick={() => handleDeleteInvite(invite.invitation_code)}
+                              onClick={() =>
+                                handleDeleteInvite(invite.invitation_code)
+                              }
                               color='error'
                             >
                               <Delete fontSize='small' />
@@ -995,9 +1050,15 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           </Typography>
         </Stack>
       ) : classes.length === 0 ? (
-        <Typography variant='body2' color='text.secondary'>
-          暂无班级
-        </Typography>
+        <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+          <PeopleOutline
+            sx={{ fontSize: 48, color: "var(--color-border)", mb: 2 }}
+          />
+          <Typography variant='h6' sx={{ mt: 2 }}>
+            暂无班级
+          </Typography>
+          <Typography variant='body2'>您可以创建或加入一个班级</Typography>
+        </Box>
       ) : filteredClasses.length === 0 ? (
         <Typography variant='body2' color='text.secondary'>
           未找到匹配的班级
@@ -1207,9 +1268,23 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           {activeProfile && (
             <ProfileDetailCard
               profile={activeProfile}
-              mode={isTeacher ? "teacher" : "student"}
+              mode={
+                user?.role === "admin"
+                  ? "admin"
+                  : user?.role === "teacher"
+                    ? "teacher"
+                    : "student"
+              }
               onRename={isTeacher ? handleRenameProfile : undefined}
               isRenaming={isRenamingProfile}
+              onUpdatePersonaHints={
+                isTeacher ? handleUpdatePersonaHints : undefined
+              }
+              isUpdatingPersonaHints={isUpdatingPersonaHints}
+              onUpdateCurriculum={
+                isTeacher ? handleUpdateCurriculum : undefined
+              }
+              isUpdatingCurriculum={isUpdatingCurriculum}
               actions={
                 isTeacher && selectedClassId ? (
                   <Stack
@@ -1268,13 +1343,21 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseEditInvite} color='inherit' disabled={isUpdatingInvite}>
+          <Button
+            onClick={handleCloseEditInvite}
+            color='inherit'
+            disabled={isUpdatingInvite}
+          >
             取消
           </Button>
           <Button
             onClick={handleUpdateInvite}
             variant='contained'
-            disabled={isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365}
+            disabled={
+              isUpdatingInvite ||
+              editExpiresInDays < 1 ||
+              editExpiresInDays > 365
+            }
           >
             {isUpdatingInvite ? "更新中..." : "确认更新"}
           </Button>
