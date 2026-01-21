@@ -5,6 +5,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Box, Tab, Tabs } from "@mui/material";
 import { listProfiles } from "../../api";
 import { type Profile } from "../../types";
@@ -15,6 +16,7 @@ import { SkillListPanel } from "./SkillListPanel";
 type SkillTab = "create" | "list";
 
 export function SkillManagerPanel(): JSX.Element {
+  const { t } = useTranslation();
   const { notifyError } = useNotification();
   const [activeTab, setActiveTab] = useState<SkillTab>("create");
   const [profiles, setProfiles] = useState<readonly Profile[]>([]);
@@ -27,12 +29,12 @@ export function SkillManagerPanel(): JSX.Element {
       setProfiles(list);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载Profile列表失败";
+        err instanceof Error ? err.message : t("skill.loadProfilesFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingProfiles(false);
     }
-  }, [notifyError]);
+  }, [notifyError, t]);
 
   useEffect(() => {
     void loadProfiles();
@@ -45,8 +47,8 @@ export function SkillManagerPanel(): JSX.Element {
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
       <Tabs value={activeTab} onChange={handleTabChange}>
-        <Tab label='创建Skill' value='create' />
-        <Tab label='Skill列表' value='list' />
+        <Tab label={t("skill.createTab")} value='create' />
+        <Tab label={t("skill.listTab")} value='list' />
       </Tabs>
       {activeTab === "create" ? (
         <SkillCreatePanel

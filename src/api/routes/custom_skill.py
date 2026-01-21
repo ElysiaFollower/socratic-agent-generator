@@ -1,8 +1,11 @@
 """Custom skill management routes."""
 
+import io
+import logging
 import re
 from typing import List, Optional
 
+import pdfplumber
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from api.routes.auth import get_current_user
@@ -24,6 +27,12 @@ from schemas.custom_skill import (
     SkillMaterialTextRequest,
 )
 from schemas.user import User
+
+logger = logging.getLogger(__name__)
+
+# Constants
+MAX_PDF_SIZE = 10 * 1024 * 1024  # 10MB limit for PDF files
+MIN_EXTRACTED_TEXT_LENGTH = 100  # Minimum length for extracted PDF text
 
 router = APIRouter(prefix="/api", tags=["CustomSkill"])
 
@@ -71,17 +80,37 @@ def _sanitize_tool_name(name: str) -> str:
 
 
 def _format_profile_context(profile) -> str:
+    """Format profile context for skill generation prompt."""
     hints = profile.persona_hints or []
-    return "\n".join(
-        [
-            f"profile_id: {profile.profile_id}",
-            f"profile_name: {profile.profile_name or ''}",
-            f"topic_name: {profile.topic_name}",
-            f"lab_name: {profile.lab_name or ''}",
-            f"target_audience: {profile.target_audience}",
-            f"persona_hints: {', '.join(hints)}",
-        ]
-    )
+
+    # Extract curriculum steps for context (profile.curriculum is already a list from DB)
+    curriculum = profile.curriculum if isinstance(profile.curriculum, list) else []
+    steps_summary = ""
+    if curriculum:
+        steps_summary = "\nlearning_steps:\n" + "\n".join(
+            f"  - Step {i+1}: {step.get('step_title', 'Untitled')}"
+            for i, step in enumerate(curriculum[:5])  # First 5 steps
+        )
+        if len(curriculum) > 5:
+            steps_summary += f"\n  ... and {len(curriculum) - 5} more steps"
+
+    lines = [
+        "# Profile Context",
+        f"topic_name: {profile.topic_name}",
+        f"profile_name: {profile.profile_name or 'N/A'}",
+        f"lab_name: {profile.lab_name or 'N/A'}",
+        f"target_audience: {profile.target_audience}",
+        "",
+        "# Persona Hints (Tutor's role and style)",
+    ]
+    if hints:
+        lines.extend(f"  - {hint}" for hint in hints)
+    else:
+        lines.append("  - (No specific persona hints)")
+
+    lines.append(steps_summary)
+
+    return "\n".join(lines)
 
 
 @router.post(
@@ -109,13 +138,80 @@ async def upload_skill_material(
         raise HTTPException(status_code=404, detail=str(exc))
 
     content_bytes = await file.read()
-    try:
-        content_str = content_bytes.decode("utf-8")
-    except UnicodeDecodeError:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="File must be UTF-8 encoded text.",
-        )
+
+    # Check file extension
+    file_extension = ""
+    if file.filename:
+        file_extension = file.filename.lower().split(".")[-1]
+
+    # PDF file processing
+    if file_extension == "pdf":
+        # PDF file size check
+        if len(content_bytes) > MAX_PDF_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"PDF file size exceeds maximum allowed size of {MAX_PDF_SIZE / 1024 / 1024}MB"
+            )
+
+        # PDF file type validation (using file header)
+        if not content_bytes.startswith(b'%PDF'):
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail="Invalid PDF file format"
+            )
+
+        try:
+            with pdfplumber.open(io.BytesIO(content_bytes)) as pdf:
+                text_parts = []
+                for page_num, page in enumerate(pdf.pages, 1):
+                    # Use layout=True to maintain layout order
+                    text = page.extract_text(layout=True)
+                    if text:
+                        text_parts.append(text)
+                    logger.debug(f"Extracted text from PDF page {page_num}/{len(pdf.pages)}")
+
+                if not text_parts:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="PDF file contains no extractable text. It may be a scanned image. OCR support is not yet available."
+                    )
+
+                content_str = "\n\n".join(text_parts)
+
+                # Check if extracted text is too short
+                if len(content_str.strip()) < MIN_EXTRACTED_TEXT_LENGTH:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="Extracted text from PDF is too short. The PDF may be primarily images or corrupted."
+                    )
+
+        except ImportError:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="PDF processing library (pdfplumber) is not installed. Please install it: pip install pdfplumber>=0.11.9"
+            )
+        except pdfplumber.exceptions.PDFSyntaxError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid or corrupted PDF file: {str(e)}"
+            )
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"PDF extraction failed: {e}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to extract text from PDF: {str(e)}"
+            )
+    else:
+        # Text file processing
+        try:
+            content_str = content_bytes.decode("utf-8")
+        except UnicodeDecodeError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="File must be UTF-8 encoded text.",
+            )
 
     if not content_str.strip():
         raise HTTPException(
@@ -126,6 +222,10 @@ async def upload_skill_material(
     meta_info = {}
     if hint:
         meta_info["hint"] = hint
+
+    # Store original format in meta_info
+    if file_extension:
+        meta_info["original_format"] = file_extension
 
     material = custom_skill_manager.create_material(
         profile_id=profile_id,

@@ -12,6 +12,7 @@ import { NotificationProvider } from "./contexts/NotificationContext";
 import { ConfirmDialogProvider } from "./contexts/ConfirmDialogContext";
 import { useAuth } from "./hooks";
 import { createAppTheme } from "./theme";
+import { useTranslation } from "react-i18next";
 
 // Lazy load pages for code splitting
 const ChatPage = lazy(() =>
@@ -32,6 +33,7 @@ const RegisterPage = lazy(() =>
  * @returns React component
  */
 export default function App(): JSX.Element {
+  const { i18n } = useTranslation();
   const [themeMode, setThemeMode] = useState<"light" | "dark">(() => {
     if (typeof window === "undefined") {
       return "light";
@@ -48,7 +50,10 @@ export default function App(): JSX.Element {
     }
     return "light";
   });
-  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
+  const theme = useMemo(
+    () => createAppTheme(themeMode, i18n.language),
+    [themeMode, i18n.language],
+  );
 
   useEffect(() => {
     if (typeof document !== "undefined") {

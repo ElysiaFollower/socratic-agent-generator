@@ -4,7 +4,8 @@
  * Provides class creation/joining and profile visibility management.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -31,7 +32,6 @@ import {
   Delete,
   DescriptionOutlined,
   Edit,
-  Key,
   PeopleOutline,
   Person,
 } from "@mui/icons-material";
@@ -40,6 +40,7 @@ import {
   ClassMemberInfo,
   InvitationCodeInfo,
   Profile,
+  CurriculumData,
 } from "../../types";
 import {
   createClass,
@@ -77,6 +78,7 @@ interface ClassManagerPanelProps {
  */
 export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const { variant = "panel" } = props;
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const { copyToClipboard } = useClipboard();
@@ -95,6 +97,10 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const [isUpdatingVisibility, setIsUpdatingVisibility] =
     useState<boolean>(false);
   const [isRenamingProfile, setIsRenamingProfile] = useState<boolean>(false);
+  const [isUpdatingPersonaHints, setIsUpdatingPersonaHints] =
+    useState<boolean>(false);
+  const [isUpdatingCurriculum, setIsUpdatingCurriculum] =
+    useState<boolean>(false);
   const [isAddProfileOpen, setIsAddProfileOpen] = useState<boolean>(false);
   const [activeProfile, setActiveProfile] = useState<Profile | null>(null);
   const [classSearchText, setClassSearchText] = useState<string>("");
@@ -119,7 +125,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
 
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const formatRole = (role?: string) =>
-    role === "teacher" ? "教师" : role === "student" ? "学生" : "-";
+    role === "teacher"
+      ? t("class.role.teacher")
+      : role === "student"
+        ? t("class.role.student")
+        : "-";
   const formatDate = (value: string) => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
@@ -155,7 +165,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       const response = await listClasses();
       setClasses(response);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "加载班级失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.loadClassesFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingClasses(false);
@@ -244,7 +255,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       setInvites(response.invitation_codes);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载邀请码失败";
+        err instanceof Error ? err.message : t("class.loadInviteCodesFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingInvites(false);
@@ -265,7 +276,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         [selectedClassId]: response.length,
       }));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "加载成员失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.loadMembersFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingMembers(false);
@@ -324,13 +336,17 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     if (!code) {
       return;
     }
-    await copyToClipboard(code, "邀请码已复制", "复制失败，请重试");
+    await copyToClipboard(
+      code,
+      t("class.inviteCodeCopied"),
+      t("common.copyFailed"),
+    );
   };
 
   const handleCreateClass = async () => {
     const name = createClassName.trim();
     if (!name) {
-      notifyWarning("请输入班级名称");
+      notifyWarning(t("class.enterClassName"));
       return;
     }
     setIsCreatingClass(true);
@@ -346,7 +362,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         inviteCode = invite.invitation_code;
         setCreateInviteCode(inviteCode);
       } catch (err) {
-        notifyError("邀请码生成失败，请稍后重试");
+        notifyError(t("class.inviteCodeGenerateFailed"));
       }
 
       if (selectedProfileIds.size > 0) {
@@ -359,12 +375,13 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         );
       }
 
-      notifySuccess("班级创建成功");
+      notifySuccess(t("class.classCreated"));
       await loadClasses();
       setSelectedClassId(created.class_id);
       await refreshProfiles();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "创建班级失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.classCreateFailed");
       notifyError(errorMessage);
     } finally {
       setIsCreatingClass(false);
@@ -374,25 +391,26 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const handleJoinClass = async () => {
     const code = joinCode.trim();
     if (!code) {
-      notifyWarning("请输入邀请码");
+      notifyWarning(t("class.enterInviteCode"));
       return;
     }
     try {
       const joined = await joinClass({ invitation_code: code });
-      notifySuccess("加入班级成功");
+      notifySuccess(t("class.classJoined"));
       setJoinCode("");
       setIsJoinClassOpen(false);
       await loadClasses();
       setSelectedClassId(joined.class_id);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "加入班级失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.classJoinFailed");
       notifyError(errorMessage);
     }
   };
 
   const handleGenerateInvite = async () => {
     if (!selectedClassId) {
-      notifyWarning("请选择班级");
+      notifyWarning(t("class.enterInviteCode"));
       return;
     }
     try {
@@ -400,7 +418,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         class_id: selectedClassId,
         expires_in_days: expiresInDays,
       });
-      notifySuccess("邀请码生成成功");
+      notifySuccess(t("class.inviteCodeGenerated"));
       setInvites((prev) => [
         {
           invitation_code: response.invitation_code,
@@ -413,7 +431,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       ]);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "生成邀请码失败";
+        err instanceof Error
+          ? err.message
+          : t("class.inviteCodeGenerateFailed");
       notifyError(errorMessage);
     }
   };
@@ -422,16 +442,18 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     if (!selectedClassId) {
       return;
     }
-    if (!confirm("确定要删除此邀请码吗？")) {
+    if (!confirm(t("class.deleteConfirm"))) {
       return;
     }
     try {
       await deleteClassInvitationCode(selectedClassId, code);
-      notifySuccess("邀请码已删除");
-      setInvites((prev) => prev.filter((invite) => invite.invitation_code !== code));
+      notifySuccess(t("class.inviteCodeDeleted"));
+      setInvites((prev) =>
+        prev.filter((invite) => invite.invitation_code !== code),
+      );
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "删除邀请码失败";
+        err instanceof Error ? err.message : t("class.inviteCodeDeleteFailed");
       notifyError(errorMessage);
     }
   };
@@ -460,7 +482,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       return;
     }
     if (editExpiresInDays < 1 || editExpiresInDays > 365) {
-      notifyWarning("有效期必须在1-365天之间");
+      notifyWarning(t("class.validityRange"));
       return;
     }
     setIsUpdatingInvite(true);
@@ -470,7 +492,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         editingInviteCode,
         editExpiresInDays,
       );
-      notifySuccess("邀请码过期日期已更新");
+      notifySuccess(t("class.inviteCodeUpdated"));
       setInvites((prev) =>
         prev.map((invite) =>
           invite.invitation_code === editingInviteCode
@@ -484,7 +506,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       handleCloseEditInvite();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新邀请码失败";
+        err instanceof Error ? err.message : t("class.inviteCodeUpdateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingInvite(false);
@@ -504,11 +526,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       await updateProfileVisibility(selectedClassId, profile.profile_id, {
         visible: true,
       });
-      notifySuccess("已添加到班级");
+      notifySuccess(t("class.addedToClass"));
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新可见性失败";
+        err instanceof Error ? err.message : t("class.updateVisibilityFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingVisibility(false);
@@ -524,14 +546,14 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       await updateProfileVisibility(selectedClassId, profile.profile_id, {
         visible: false,
       });
-      notifySuccess("已从班级移除");
+      notifySuccess(t("class.removedFromClass"));
       setActiveProfile((prev) =>
         prev?.profile_id === profile.profile_id ? null : prev,
       );
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新可见性失败";
+        err instanceof Error ? err.message : t("class.updateVisibilityFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingVisibility(false);
@@ -541,20 +563,66 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const handleRenameProfile = async (profile: Profile, nextName: string) => {
     const trimmedName = nextName.trim();
     if (!trimmedName) {
-      notifyWarning("Profile名称不能为空");
+      notifyWarning(t("class.profileNameRequired"));
       return;
     }
     setIsRenamingProfile(true);
     try {
       await renameProfile(profile.profile_id, { profile_name: trimmedName });
-      notifySuccess("Profile已更新");
+      notifySuccess(t("class.profileUpdated"));
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新Profile失败";
+        err instanceof Error ? err.message : t("class.updateProfileFailed");
       notifyError(errorMessage);
     } finally {
       setIsRenamingProfile(false);
+    }
+  };
+
+  const handleUpdatePersonaHints = async (
+    profile: Profile,
+    hints: string[],
+  ) => {
+    setIsUpdatingPersonaHints(true);
+    try {
+      // TODO: Implement API call to update persona hints
+      notifyWarning(t("class.updatePersonaHintsNotImplemented"));
+      console.log("Update persona hints:", {
+        profileId: profile.profile_id,
+        hints,
+      });
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error
+          ? err.message
+          : t("class.updatePersonaHintsFailed");
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingPersonaHints(false);
+    }
+  };
+
+  const handleUpdateCurriculum = async (
+    profile: Profile,
+    curriculum: CurriculumData,
+  ) => {
+    setIsUpdatingCurriculum(true);
+    try {
+      // TODO: Implement API call to update curriculum
+      notifyWarning(t("class.updateCurriculumNotImplemented"));
+      console.log("Update curriculum:", {
+        profileId: profile.profile_id,
+        curriculum,
+      });
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.updateCurriculumFailed");
+      notifyError(errorMessage);
+    } finally {
+      setIsUpdatingCurriculum(false);
     }
   };
 
@@ -663,19 +731,19 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                 <Stack direction='row' spacing={0.5} alignItems='center'>
                   <PeopleOutline fontSize='inherit' color='action' />
                   <Typography variant='caption' color='text.secondary'>
-                    人数: {memberCount ?? "-"}
+                    {t("class.memberCount")}: {memberCount ?? "-"}
                   </Typography>
                 </Stack>
                 <Stack direction='row' spacing={0.5} alignItems='center'>
                   <CalendarTodayOutlined fontSize='inherit' color='action' />
                   <Typography variant='caption' color='text.secondary'>
-                    创建日期: {formatDate(item.created_at)}
+                    {t("class.createdDate")}: {formatDate(item.created_at)}
                   </Typography>
                 </Stack>
                 <Stack direction='row' spacing={0.5} alignItems='center'>
                   <DescriptionOutlined fontSize='inherit' color='action' />
                   <Typography variant='caption' color='text.secondary'>
-                    Profile数: {profileCount}
+                    {t("class.profileCount")}: {profileCount}
                   </Typography>
                 </Stack>
               </Stack>
@@ -719,12 +787,12 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const teacherDetail = (
     <Stack spacing={2}>
       <Stack spacing={1}>
-        <Typography variant='subtitle2'>班级成员</Typography>
+        <Typography variant='subtitle2'>{t("class.members")}</Typography>
         {isLoadingMembers ? (
           <CircularProgress size={20} />
         ) : members.length === 0 ? (
           <Typography variant='caption' color='text.secondary'>
-            暂无成员
+            {t("class.noMembers")}
           </Typography>
         ) : (
           <Stack spacing={1}>
@@ -747,12 +815,12 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           alignItems='center'
           justifyContent='space-between'
         >
-          <Typography variant='subtitle2'>班级邀请码</Typography>
+          <Typography variant='subtitle2'>{t("class.inviteCodes")}</Typography>
           <Stack direction='row' spacing={1}>
             <TextField
               type='number'
               size='small'
-              label='有效期（天）'
+              label={t("class.expiresInDays")}
               value={expiresInDays}
               onChange={(e) => setExpiresInDays(Number(e.target.value))}
               inputProps={{ min: 1, max: 365 }}
@@ -764,7 +832,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
               onClick={handleGenerateInvite}
               disabled={!selectedClassId || isLoadingInvites}
             >
-              {isLoadingInvites ? "生成中..." : "生成邀请码"}
+              {isLoadingInvites
+                ? t("class.generating")
+                : t("class.generateInvite")}
             </Button>
           </Stack>
         </Stack>
@@ -772,7 +842,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           <CircularProgress size={20} />
         ) : invites.length === 0 ? (
           <Typography variant='caption' color='text.secondary'>
-            暂无邀请码，点击"生成邀请码"创建
+            {t("class.noInviteCodes")}
           </Typography>
         ) : (
           <Stack spacing={1}>
@@ -805,16 +875,22 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                         {invite.invitation_code}
                       </Typography>
                       <Stack direction='row' spacing={1} alignItems='center'>
-                        <Tooltip title={expired ? "邀请码已过期" : "复制邀请码"}>
+                        <Tooltip
+                          title={
+                            expired
+                              ? t("class.codeExpired")
+                              : t("class.copyInviteCode")
+                          }
+                        >
                           <span>
                             <IconButton
                               size='small'
-                              aria-label='复制邀请码'
+                              aria-label={t("class.copyInviteCode")}
                               onClick={() =>
                                 copyToClipboard(
                                   invite.invitation_code,
-                                  "邀请码已复制",
-                                  "复制失败",
+                                  t("class.inviteCodeCopied"),
+                                  t("common.copyFailed"),
                                 )
                               }
                               disabled={expired}
@@ -823,23 +899,25 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title='修改过期日期'>
+                        <Tooltip title={t("class.modifyExpiry")}>
                           <span>
                             <IconButton
                               size='small'
-                              aria-label='修改过期日期'
+                              aria-label={t("class.modifyExpiry")}
                               onClick={() => handleOpenEditInvite(invite)}
                             >
                               <Edit fontSize='small' />
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title='删除邀请码'>
+                        <Tooltip title={t("class.deleteInviteCode")}>
                           <span>
                             <IconButton
                               size='small'
-                              aria-label='删除邀请码'
-                              onClick={() => handleDeleteInvite(invite.invitation_code)}
+                              aria-label={t("class.deleteInviteCode")}
+                              onClick={() =>
+                                handleDeleteInvite(invite.invitation_code)
+                              }
                               color='error'
                             >
                               <Delete fontSize='small' />
@@ -849,18 +927,20 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                         <Chip
                           size='small'
                           color={expired ? "default" : "success"}
-                          label={expired ? "过期" : "有效"}
+                          label={
+                            expired ? t("class.expired") : t("class.effective")
+                          }
                           variant={expired ? "outlined" : "filled"}
                         />
                       </Stack>
                     </Stack>
                     <Stack direction='row' spacing={2} flexWrap='wrap'>
                       <Typography variant='caption' color='text.secondary'>
-                        创建时间:{" "}
+                        {t("class.createdAt")}:{" "}
                         {new Date(invite.created_at).toLocaleString("zh-CN")}
                       </Typography>
                       <Typography variant='caption' color='text.secondary'>
-                        到期时间:{" "}
+                        {t("class.expiresAt")}:{" "}
                         {invite.expires_at
                           ? new Date(invite.expires_at).toLocaleString("zh-CN")
                           : "-"}
@@ -880,7 +960,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           alignItems='center'
           justifyContent='space-between'
         >
-          <Typography variant='subtitle2'>班级内的Profile</Typography>
+          <Typography variant='subtitle2'>
+            {t("class.profilesInClass")}
+          </Typography>
           <Button
             size='small'
             variant='outlined'
@@ -888,12 +970,12 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
             onClick={() => setIsAddProfileOpen(true)}
             disabled={!selectedClassId}
           >
-            添加Profile
+            {t("class.addProfile")}
           </Button>
         </Stack>
         {visibleProfilesForClass.length === 0 ? (
           <Typography variant='caption' color='text.secondary'>
-            暂无可见 Profile
+            {t("class.noVisibleProfiles")}
           </Typography>
         ) : (
           <Box
@@ -918,10 +1000,10 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
 
   const studentDetail = (
     <Stack spacing={1}>
-      <Typography variant='subtitle2'>班级可见 Profile</Typography>
+      <Typography variant='subtitle2'>{t("class.visibleProfiles")}</Typography>
       {visibleProfilesForClass.length === 0 ? (
         <Typography variant='caption' color='text.secondary'>
-          暂无可见 Profile
+          {t("class.noVisibleProfiles")}
         </Typography>
       ) : (
         <Box
@@ -946,7 +1028,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const body = (
     <Stack spacing={3} sx={{ pt: 2 }}>
       <Stack spacing={2}>
-        <Typography variant='h6'>我的班级</Typography>
+        <Typography variant='h6'>{t("class.title")}</Typography>
         <Stack
           direction={{ xs: "column", md: "row" }}
           spacing={1}
@@ -955,7 +1037,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           <TextField
             value={classSearchText}
             onChange={(event) => setClassSearchText(event.target.value)}
-            placeholder='搜索班级名称或ID'
+            placeholder={t("class.searchPlaceholder")}
             size='small'
             fullWidth
           />
@@ -971,7 +1053,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                 onClick={handleOpenCreateClass}
                 sx={{ whiteSpace: "nowrap" }}
               >
-                创建班级
+                {t("class.createClass")}
               </Button>
             )}
             <Button
@@ -979,7 +1061,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
               onClick={handleOpenJoinClass}
               sx={{ whiteSpace: "nowrap" }}
             >
-              加入班级
+              {t("class.joinClass")}
             </Button>
           </Stack>
         </Stack>
@@ -991,16 +1073,22 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         <Stack direction='row' spacing={1} alignItems='center'>
           <CircularProgress size={20} />
           <Typography variant='body2' color='text.secondary'>
-            加载中...
+            {t("common.loading")}
           </Typography>
         </Stack>
       ) : classes.length === 0 ? (
-        <Typography variant='body2' color='text.secondary'>
-          暂无班级
-        </Typography>
+        <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+          <PeopleOutline
+            sx={{ fontSize: 48, color: "var(--color-border)", mb: 2 }}
+          />
+          <Typography variant='h6' sx={{ mt: 2 }}>
+            {t("class.noClasses")}
+          </Typography>
+          <Typography variant='body2'>{t("class.noClassesHint")}</Typography>
+        </Box>
       ) : filteredClasses.length === 0 ? (
         <Typography variant='body2' color='text.secondary'>
-          未找到匹配的班级
+          {t("class.noMatchingClasses")}
         </Typography>
       ) : (
         <Stack spacing={2}>
@@ -1008,7 +1096,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           {selectedClass && (
             <Paper variant='outlined' sx={{ p: 2 }}>
               <Typography variant='subtitle1' sx={{ mb: 1, fontWeight: 600 }}>
-                班级详情 - {selectedClass.name}
+                {t("class.classDetails")} - {selectedClass.name}
               </Typography>
               {isTeacher ? teacherDetail : studentDetail}
             </Paper>
@@ -1026,11 +1114,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         fullWidth
         maxWidth='md'
       >
-        <DialogTitle>创建班级</DialogTitle>
+        <DialogTitle>{t("class.createClass")}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             <TextField
-              label='班级名称'
+              label={t("class.name")}
               value={createClassName}
               onChange={(event) => setCreateClassName(event.target.value)}
               size='small'
@@ -1039,12 +1127,12 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <TextField
-                label='邀请码'
+                label={t("class.inviteCode")}
                 value={createInviteCode}
                 placeholder={
                   createdClassId
-                    ? "邀请码生成失败，可在班级详情重试"
-                    : "创建后自动生成"
+                    ? t("class.generateFailedRetry")
+                    : t("class.autoGeneratedAfterCreate")
                 }
                 size='small'
                 fullWidth
@@ -1066,7 +1154,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                 onChange={(event) =>
                   setCreateProfileSearchText(event.target.value)
                 }
-                placeholder='搜索Profile名称、主题或ID'
+                placeholder={t("class.searchProfilePlaceholder")}
                 size='small'
                 fullWidth
                 disabled={isCreatingClass || Boolean(createdClassId)}
@@ -1078,7 +1166,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                   textAlign='center'
                   sx={{ py: 3 }}
                 >
-                  未找到匹配Profile
+                  {t("class.noMatchingProfile")}
                 </Typography>
               ) : (
                 <Box
@@ -1107,14 +1195,14 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseCreateClass} color='inherit'>
-            关闭
+            {t("common.close")}
           </Button>
           <Button
             variant='contained'
             onClick={() => void handleCreateClass()}
             disabled={isCreatingClass || Boolean(createdClassId)}
           >
-            {isCreatingClass ? "创建中..." : "创建班级"}
+            {isCreatingClass ? t("class.creating") : t("class.createClass")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1125,11 +1213,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         fullWidth
         maxWidth='sm'
       >
-        <DialogTitle>加入班级</DialogTitle>
+        <DialogTitle>{t("class.joinClass")}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             <TextField
-              label='班级邀请码'
+              label={t("class.inviteCode")}
               value={joinCode}
               onChange={(event) => setJoinCode(event.target.value)}
               size='small'
@@ -1140,10 +1228,10 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseJoinClass} color='inherit'>
-            取消
+            {t("common.cancel")}
           </Button>
           <Button variant='contained' onClick={() => void handleJoinClass()}>
-            加入班级
+            {t("class.joinClass")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1154,7 +1242,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         fullWidth
         maxWidth='md'
       >
-        <DialogTitle>添加 Profile 到班级</DialogTitle>
+        <DialogTitle>{t("class.addProfileToClass")}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2}>
             {availableProfilesForClass.length === 0 ? (
@@ -1165,8 +1253,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                 sx={{ py: 4 }}
               >
                 {profiles.length === 0
-                  ? "暂无Profile可添加"
-                  : "该班级已添加所有Profile"}
+                  ? t("class.noProfilesToAdd")
+                  : t("class.allProfilesAdded")}
               </Typography>
             ) : (
               <Box
@@ -1180,7 +1268,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                   <ProfileCard
                     key={profile.profile_id}
                     profile={profile}
-                    actionLabel='添加'
+                    actionLabel={t("common.add")}
                     onAction={() => handleAddProfileToClass(profile)}
                     actionDisabled={isUpdatingVisibility}
                   />
@@ -1191,7 +1279,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseAddProfile} color='inherit'>
-            关闭
+            {t("common.close")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1202,14 +1290,28 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         fullWidth
         maxWidth='md'
       >
-        <DialogTitle>Profile 详情</DialogTitle>
+        <DialogTitle>{t("class.profileDetails")}</DialogTitle>
         <DialogContent dividers>
           {activeProfile && (
             <ProfileDetailCard
               profile={activeProfile}
-              mode={isTeacher ? "teacher" : "student"}
+              mode={
+                user?.role === "admin"
+                  ? "admin"
+                  : user?.role === "teacher"
+                    ? "teacher"
+                    : "student"
+              }
               onRename={isTeacher ? handleRenameProfile : undefined}
               isRenaming={isRenamingProfile}
+              onUpdatePersonaHints={
+                isTeacher ? handleUpdatePersonaHints : undefined
+              }
+              isUpdatingPersonaHints={isUpdatingPersonaHints}
+              onUpdateCurriculum={
+                isTeacher ? handleUpdateCurriculum : undefined
+              }
+              isUpdatingCurriculum={isUpdatingCurriculum}
               actions={
                 isTeacher && selectedClassId ? (
                   <Stack
@@ -1228,7 +1330,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                       }
                       disabled={isUpdatingVisibility}
                     >
-                      从班级移除
+                      {t("class.removeFromClass")}
                     </Button>
                   </Stack>
                 ) : null
@@ -1238,7 +1340,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setActiveProfile(null)} color='inherit'>
-            关闭
+            {t("common.close")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -1249,34 +1351,42 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         fullWidth
         maxWidth='sm'
       >
-        <DialogTitle>修改邀请码过期日期</DialogTitle>
+        <DialogTitle>{t("class.modifyExpiry")}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={2} sx={{ pt: 2 }}>
             <TextField
-              label='有效期（天）'
+              label={t("class.expiresInDays")}
               type='number'
               inputProps={{ min: 1, max: 365 }}
               value={editExpiresInDays}
               onChange={(e) => setEditExpiresInDays(Number(e.target.value))}
               disabled={isUpdatingInvite}
               fullWidth
-              helperText='设置邀请码的有效期，范围：1-365天'
+              helperText={t("class.validityRange")}
             />
             <Typography variant='body2' color='text.secondary'>
-              新的过期时间将从当前时间开始计算
+              {t("class.newExpiryFromNow")}
             </Typography>
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseEditInvite} color='inherit' disabled={isUpdatingInvite}>
-            取消
+          <Button
+            onClick={handleCloseEditInvite}
+            color='inherit'
+            disabled={isUpdatingInvite}
+          >
+            {t("common.cancel")}
           </Button>
           <Button
             onClick={handleUpdateInvite}
             variant='contained'
-            disabled={isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365}
+            disabled={
+              isUpdatingInvite ||
+              editExpiresInDays < 1 ||
+              editExpiresInDays > 365
+            }
           >
-            {isUpdatingInvite ? "更新中..." : "确认更新"}
+            {isUpdatingInvite ? t("class.updating") : t("class.confirmUpdate")}
           </Button>
         </DialogActions>
       </Dialog>

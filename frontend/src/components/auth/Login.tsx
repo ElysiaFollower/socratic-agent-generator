@@ -6,6 +6,7 @@
  */
 
 import React, { useState, FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -33,6 +34,7 @@ interface LoginProps {
  */
 export function Login(props: LoginProps): JSX.Element {
   const { onLoginSuccess, onSwitchToRegister } = props;
+  const { t } = useTranslation();
   const { login, isLoading } = useAuth();
   const { notifyError, notifyWarning } = useNotification();
   const [username, setUsername] = useState<string>("");
@@ -47,7 +49,7 @@ export function Login(props: LoginProps): JSX.Element {
     event.preventDefault();
 
     if (!username.trim() || !password.trim()) {
-      notifyWarning("请输入用户名和密码");
+      notifyWarning(t("login.usernameRequired"));
       return;
     }
 
@@ -62,7 +64,7 @@ export function Login(props: LoginProps): JSX.Element {
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "登录失败，请重试";
+        err instanceof Error ? err.message : t("login.failed");
       notifyError(errorMessage);
     }
   };
@@ -82,17 +84,17 @@ export function Login(props: LoginProps): JSX.Element {
         <Stack spacing={3}>
           <Box textAlign='center'>
             <Typography variant='h5' sx={{ fontWeight: 700 }}>
-              登录到苏格拉底式AI导师系统
+              {t("login.title")}
             </Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-              请输入您的用户名和密码
+              {t("login.subtitle")}
             </Typography>
           </Box>
 
           <Stack component='form' spacing={2} onSubmit={handleSubmit}>
             <TextField
               id='username'
-              label='用户名'
+              label={t("login.username")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -101,7 +103,7 @@ export function Login(props: LoginProps): JSX.Element {
             />
             <TextField
               id='password'
-              label='密码'
+              label={t("login.password")}
               type='password'
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -110,7 +112,7 @@ export function Login(props: LoginProps): JSX.Element {
               required
             />
             <Button type='submit' variant='contained' disabled={isLoading}>
-              {isLoading ? "登录中..." : "登录"}
+              {isLoading ? t("login.logging") : t("login.submit")}
             </Button>
           </Stack>
 
@@ -120,7 +122,7 @@ export function Login(props: LoginProps): JSX.Element {
               onClick={onSwitchToRegister}
               disabled={isLoading}
             >
-              还没有账户？立即注册
+              {t("login.noAccount")}
             </Button>
           )}
         </Stack>

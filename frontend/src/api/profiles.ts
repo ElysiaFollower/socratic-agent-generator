@@ -408,3 +408,63 @@ export async function generateProfileFromLab(
     );
   }
 }
+
+/**
+ * Request payload for updating persona hints.
+ */
+export interface UpdatePersonaHintsRequest {
+  readonly persona_hints: readonly string[];
+}
+
+/**
+ * Updates persona hints for a profile.
+ *
+ * @param profileId - The unique identifier of the profile
+ * @param request - UpdatePersonaHintsRequest containing new persona hints
+ * @returns Promise resolving to updated profile
+ * @throws Error if the update fails
+ */
+export async function updatePersonaHints(
+  profileId: string,
+  request: UpdatePersonaHintsRequest,
+): Promise<Profile> {
+  try {
+    const response = await apiClient.put<Profile>(
+      `/api/profiles/${profileId}/persona-hints`,
+      request,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to update persona hints: ${handleApiError(error)}`);
+  }
+}
+
+/**
+ * Request payload for updating curriculum.
+ */
+export interface UpdateCurriculumRequest {
+  readonly curriculum: SocraticCurriculum;
+}
+
+/**
+ * Updates curriculum for a profile.
+ *
+ * @param profileId - The unique identifier of the profile
+ * @param request - UpdateCurriculumRequest containing new curriculum
+ * @returns Promise resolving to updated profile
+ * @throws Error if the update fails
+ */
+export async function updateProfileCurriculum(
+  profileId: string,
+  request: UpdateCurriculumRequest,
+): Promise<Profile> {
+  try {
+    const response = await apiClient.put<Profile>(
+      `/api/profiles/${profileId}/curriculum`,
+      request,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to update curriculum: ${handleApiError(error)}`);
+  }
+}

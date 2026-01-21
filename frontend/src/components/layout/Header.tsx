@@ -13,6 +13,7 @@ import {
   Divider,
   IconButton,
   ListItemIcon,
+  ListItemText,
   Menu,
   MenuItem,
   Stack,
@@ -32,6 +33,7 @@ import {
   OpenInFull,
   BadgeOutlined,
   Settings,
+  Translate,
 } from "@mui/icons-material";
 import { SessionSummary, SocraticStep, ToolPanelView, User } from "../../types";
 import { ProgressBar } from "../chat/ProgressBar";
@@ -41,6 +43,8 @@ import {
   ProfileManagerHelpContent,
   SkillManagerHelpContent,
 } from "../common/HelpContent";
+import { useTranslation } from "react-i18next";
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../../i18n";
 
 /**
  * Props for Header component.
@@ -60,6 +64,9 @@ export interface HeaderProps {
   readonly onToggleTheme: () => void;
   readonly onLogout: () => void;
   readonly onOpenSettings: () => void;
+  readonly onProfileClick?: () => void;
+  readonly currentLanguage?: SupportedLanguage;
+  readonly onLanguageChange?: (language: SupportedLanguage) => void;
 }
 
 /**
@@ -84,13 +91,21 @@ export function Header(props: HeaderProps): JSX.Element {
     onToggleTheme,
     onLogout,
     onOpenSettings,
+    onProfileClick,
+    currentLanguage,
+    onLanguageChange,
   } = props;
+
+  const { t, i18n } = useTranslation();
 
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isMenuOpen = Boolean(menuAnchor);
   const [helpDialogOpen, setHelpDialogOpen] = React.useState<boolean>(false);
+  const [languageMenuAnchor, setLanguageMenuAnchor] =
+    React.useState<HTMLElement | null>(null);
+  const isLanguageMenuOpen = Boolean(languageMenuAnchor);
 
-  const displayName = user?.display_name || user?.username || "用户";
+  const displayName = user?.display_name || user?.username || t("header.user");
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "U";
   const avatarColors = [
     "#2563eb",
@@ -104,12 +119,12 @@ export function Header(props: HeaderProps): JSX.Element {
     avatarColors[avatarLetter.charCodeAt(0) % avatarColors.length];
 
   const panelTitles: Record<ToolPanelView, string> = {
-    chat: "苏格拉底式AI导师",
-    invitation: "注册邀请码",
-    "lab-manual": "实验文档管理",
-    skill: "Skill管理",
-    profile: "Profile管理",
-    class: "班级管理",
+    chat: t("header.panelTitles.chat"),
+    invitation: t("header.panelTitles.invitation"),
+    "lab-manual": t("header.panelTitles.lab-manual"),
+    skill: t("header.panelTitles.skill"),
+    profile: t("header.panelTitles.profile"),
+    class: t("header.panelTitles.class"),
   };
 
   const displayTitle =
@@ -127,9 +142,9 @@ export function Header(props: HeaderProps): JSX.Element {
   const helpDialogTitle: Record<ToolPanelView, string> = {
     chat: "",
     invitation: "",
-    "lab-manual": "实验文档管理 - 构建知识基础",
-    skill: "Skill管理 - 增强tutor能力",
-    profile: "Profile管理 - AI自动生成专属学习助手",
+    "lab-manual": t("header.helpTitles.lab-manual"),
+    skill: t("header.helpTitles.skill"),
+    profile: t("header.helpTitles.profile"),
     class: "",
   };
 
@@ -144,6 +159,20 @@ export function Header(props: HeaderProps): JSX.Element {
       default:
         return null;
     }
+  };
+
+  const handleLanguageMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLanguageMenuAnchor(event.currentTarget);
+  };
+
+  const handleLanguageMenuClose = () => {
+    setLanguageMenuAnchor(null);
+  };
+
+  const handleLanguageChange = (lang: SupportedLanguage) => {
+    i18n.changeLanguage(lang);
+    onLanguageChange?.(lang);
+    handleLanguageMenuClose();
   };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -167,18 +196,24 @@ export function Header(props: HeaderProps): JSX.Element {
           <Stack direction='row' alignItems='center' spacing={2}>
             <Typography variant='h6'>{displayTitle}</Typography>
             {showHelpButton && (
-              <Tooltip title='使用指南'>
+              <Tooltip title={t("header.tooltips.userGuide")}>
                 <IconButton
                   size='small'
                   onClick={() => setHelpDialogOpen(true)}
-                  aria-label='使用指南'
+                  aria-label={t("header.tooltips.userGuide")}
                 >
                   <HelpOutline fontSize='small' />
                 </IconButton>
               </Tooltip>
             )}
             {showSessionDetails && (
-              <Tooltip title={isCollapsed ? "展开信息" : "收起信息"}>
+              <Tooltip
+                title={
+                  isCollapsed
+                    ? t("header.tooltips.expandInfo")
+                    : t("header.tooltips.collapseInfo")
+                }
+              >
                 <IconButton onClick={onToggleCollapse} size='small'>
                   {isCollapsed ? (
                     <ExpandMore fontSize='small' />
@@ -191,15 +226,32 @@ export function Header(props: HeaderProps): JSX.Element {
           </Stack>
           <Stack direction='row' spacing={1} alignItems='center'>
             {currentSession && (
-              <Tooltip title={isMaximized ? "还原窗口" : "最大化对话"}>
+              <Tooltip
+                title={
+                  isMaximized
+                    ? t("header.tooltips.restoreWindow")
+                    : t("header.tooltips.maximizeChat")
+                }
+              >
                 <IconButton onClick={onToggleMaximize}>
                   {isMaximized ? <CloseFullscreen /> : <OpenInFull />}
                 </IconButton>
               </Tooltip>
             )}
-            <Tooltip title={themeMode === "dark" ? "切换为浅色" : "切换为深色"}>
+            <Tooltip
+              title={
+                themeMode === "dark"
+                  ? t("header.tooltips.switchToLight")
+                  : t("header.tooltips.switchToDark")
+              }
+            >
               <IconButton onClick={onToggleTheme}>
                 {themeMode === "dark" ? <Brightness7 /> : <Brightness4 />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={t("language.switch")}>
+              <IconButton onClick={handleLanguageMenuOpen}>
+                <Translate />
               </IconButton>
             </Tooltip>
             <Tooltip title={displayName}>
@@ -223,7 +275,7 @@ export function Header(props: HeaderProps): JSX.Element {
 
       {showSessionDetails && (
         <Collapse in={!isCollapsed} timeout={200}>
-          <Box sx={{ px: 3, pb: 2 }}>
+          <Box sx={{ px: 3, py: 2 }}>
             <Stack
               direction='row'
               spacing={2}
@@ -237,7 +289,7 @@ export function Header(props: HeaderProps): JSX.Element {
                 alignItems='center'
                 sx={{ minWidth: 0 }}
               >
-                <Tooltip title='课程' arrow>
+                <Tooltip title={t("header.tooltips.curriculum")} arrow>
                   <Box
                     component='span'
                     sx={{
@@ -275,7 +327,7 @@ export function Header(props: HeaderProps): JSX.Element {
                 alignItems='center'
                 sx={{ minWidth: 0 }}
               >
-                <Tooltip title='Profile' arrow>
+                <Tooltip title={t("header.tooltips.profile")} arrow>
                   <Box
                     component='span'
                     sx={{
@@ -292,16 +344,37 @@ export function Header(props: HeaderProps): JSX.Element {
                     <BadgeOutlined fontSize='small' />
                   </Box>
                 </Tooltip>
-                <Typography
-                  variant='body2'
+                <Box
                   sx={{
-                    fontWeight: 600,
-                    color: "text.primary",
-                    fontFamily: "var(--font-mono)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    cursor: onProfileClick ? "pointer" : "default",
+                    borderRadius: 1,
+                    px: 1,
+                    py: 0.5,
+                    transition: "background-color 150ms ease, color 150ms ease",
+                    "&:hover": onProfileClick
+                      ? {
+                          backgroundColor: "var(--color-surface-muted)",
+                          "& .MuiTypography-root": {
+                            color: "primary.main",
+                          },
+                        }
+                      : {},
                   }}
+                  onClick={onProfileClick}
                 >
-                  {currentSession?.profile_id || "-"}
-                </Typography>
+                  <Typography
+                    variant='body2'
+                    sx={{
+                      fontWeight: 600,
+                      fontFamily: "var(--font-mono)",
+                      color: "text.primary",
+                    }}
+                  >
+                    {currentSession?.profile_name || "-"}
+                  </Typography>
+                </Box>
               </Stack>
             </Stack>
             <ProgressBar
@@ -329,7 +402,7 @@ export function Header(props: HeaderProps): JSX.Element {
           <ListItemIcon>
             <Settings fontSize='small' />
           </ListItemIcon>
-          设置
+          <ListItemText>{t("header.menu.settings")}</ListItemText>
         </MenuItem>
         <Divider />
         <MenuItem
@@ -341,8 +414,30 @@ export function Header(props: HeaderProps): JSX.Element {
           <ListItemIcon>
             <Logout fontSize='small' />
           </ListItemIcon>
-          登出
+          <ListItemText>{t("header.menu.logout")}</ListItemText>
         </MenuItem>
+      </Menu>
+
+      <Menu
+        anchorEl={languageMenuAnchor}
+        open={isLanguageMenuOpen}
+        onClose={handleLanguageMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        {(Object.keys(SUPPORTED_LANGUAGES) as SupportedLanguage[]).map(
+          (lang) => (
+            <MenuItem
+              key={lang}
+              selected={i18n.language === lang}
+              onClick={() => handleLanguageChange(lang)}
+            >
+              <ListItemText>
+                {SUPPORTED_LANGUAGES[lang].displayName}
+              </ListItemText>
+            </MenuItem>
+          ),
+        )}
       </Menu>
 
       {showHelpButton && (

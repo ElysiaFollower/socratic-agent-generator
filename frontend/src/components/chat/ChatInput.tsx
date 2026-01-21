@@ -7,6 +7,7 @@
 import React from "react";
 import { Box, IconButton, TextField } from "@mui/material";
 import { SendOutlined } from "@mui/icons-material";
+import { color } from "../../styles/css-variables";
 
 /**
  * Props for ChatInput component.
@@ -41,7 +42,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
         position: "relative",
         mt: "var(--spacing-4)",
         width: "100%",
-        maxWidth: { xs: "100%", sm: "90%", md: "70%", lg: "60%" },
+        maxWidth: { xs: "100%", sm: "80%", md: "80%", lg: "75%" },
         mx: "auto",
         px: { xs: "var(--spacing-4)", sm: "var(--spacing-6)" },
       }}
@@ -64,19 +65,18 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
             borderRadius: "var(--radius-3xl)",
             backgroundColor: "var(--color-surface)",
             color: "var(--text-primary)",
-            boxShadow: "var(--shadow-lg)",
+            boxShadow: "var(--shadow-md)",
             transition:
               "all var(--transition-duration-200) var(--transition-timing-default)",
             "& fieldset": {
-              borderColor: "transparent",
+              borderColor: color.background.surfaceMuted,
               borderWidth: "2px",
             },
             "&:hover fieldset": {
-              borderColor: "var(--color-primary-300)",
+              borderColor: color.background.surfaceMuted,
             },
             "&.Mui-focused fieldset": {
-              borderColor: "var(--color-primary-500)",
-              boxShadow: "var(--shadow-xl)",
+              borderColor: color.background.surfaceMuted,
             },
           },
           "& .MuiInputBase-input": {
@@ -106,8 +106,8 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
           bottom: "var(--spacing-8)",
           boxShadow: "var(--shadow-lg)",
           borderRadius: "var(--radius-full)",
-          width: "40px",
-          height: "40px",
+          width: "36px",
+          height: "36px",
           transition:
             "all var(--transition-duration-200) var(--transition-timing-default)",
           "&:hover": {

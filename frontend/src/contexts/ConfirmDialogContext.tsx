@@ -10,6 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Button,
   Dialog,
@@ -36,18 +37,6 @@ const ConfirmDialogContext = createContext<
   ConfirmDialogContextValue | undefined
 >(undefined);
 
-const DEFAULT_OPTIONS: Required<
-  Pick<
-    ConfirmDialogOptions,
-    "title" | "confirmLabel" | "cancelLabel" | "confirmColor"
-  >
-> = {
-  title: "确认操作",
-  confirmLabel: "确认",
-  cancelLabel: "取消",
-  confirmColor: "primary",
-};
-
 interface ConfirmDialogProviderProps {
   readonly children: React.ReactNode;
 }
@@ -56,18 +45,32 @@ export function ConfirmDialogProvider(
   props: ConfirmDialogProviderProps,
 ): JSX.Element {
   const { children } = props;
+  const { t } = useTranslation();
   const [state, setState] = useState<ConfirmDialogOptions | null>(null);
   const resolverRef = useRef<((value: boolean) => void) | null>(null);
 
-  const confirm = useCallback((options: ConfirmDialogOptions) => {
-    return new Promise<boolean>((resolve) => {
-      resolverRef.current = resolve;
-      setState({
-        ...DEFAULT_OPTIONS,
-        ...options,
+  const DEFAULT_OPTIONS = useMemo(
+    () => ({
+      title: t("common.confirm"),
+      confirmLabel: t("common.confirm"),
+      cancelLabel: t("common.cancel"),
+      confirmColor: "primary" as const,
+    }),
+    [t],
+  );
+
+  const confirm = useCallback(
+    (options: ConfirmDialogOptions) => {
+      return new Promise<boolean>((resolve) => {
+        resolverRef.current = resolve;
+        setState({
+          ...DEFAULT_OPTIONS,
+          ...options,
+        });
       });
-    });
-  }, []);
+    },
+    [DEFAULT_OPTIONS],
+  );
 
   const handleClose = useCallback((result: boolean) => {
     if (resolverRef.current) {

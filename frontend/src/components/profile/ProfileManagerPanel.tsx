@@ -5,6 +5,7 @@
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -27,7 +28,7 @@ import {
   renameProfile,
   type RenameProfileRequest,
 } from "../../api";
-import { useConfirmDialog, useNotification } from "../../hooks";
+import { useAuth, useConfirmDialog, useNotification } from "../../hooks";
 import { ProfileGeneratorAdvanced } from "./ProfileGeneratorAdvanced";
 import { ProfileCard, ProfileDetailCard } from "./ProfileCard";
 
@@ -51,8 +52,10 @@ type TabKey = "generate" | "manage";
 export function ProfileManagerPanel(
   props: ProfileManagerPanelProps,
 ): JSX.Element {
+  const { t } = useTranslation();
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
+  const { user } = useAuth();
   const { confirm } = useConfirmDialog();
   const [activeTab, setActiveTab] = useState<TabKey>("generate");
   const [profiles, setProfiles] = useState<readonly Profile[]>([]);
@@ -71,7 +74,7 @@ export function ProfileManagerPanel(
       setProfiles(list);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载Profile列表失败";
+        err instanceof Error ? err.message : t("profile.loadFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingProfiles(false);
@@ -122,9 +125,9 @@ export function ProfileManagerPanel(
 
   const handleDelete = async (profileId: string) => {
     const shouldDelete = await confirm({
-      title: "删除Profile",
-      description: "确定要删除该Profile吗？此操作无法撤销。",
-      confirmLabel: "删除",
+      title: t("profile.deleteConfirmTitle"),
+      description: t("profile.deleteConfirmDescription"),
+      confirmLabel: t("profile.deleteConfirmButton"),
       confirmColor: "error",
     });
     if (!shouldDelete) {
@@ -133,14 +136,14 @@ export function ProfileManagerPanel(
     setDeletingProfileId(profileId);
     try {
       await deleteProfile(profileId);
-      notifySuccess("Profile已删除");
+      notifySuccess(t("profile.deletedSuccess"));
       if (activeProfile?.profile_id === profileId) {
         setActiveProfile(null);
       }
       await loadProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "删除Profile失败";
+        err instanceof Error ? err.message : t("profile.deleteFailed");
       notifyError(errorMessage);
     } finally {
       setDeletingProfileId(null);
@@ -150,18 +153,18 @@ export function ProfileManagerPanel(
   const handleRenameProfile = async (profile: Profile, nextName: string) => {
     const trimmedName = nextName.trim();
     if (!trimmedName) {
-      notifyWarning("Profile名称不能为空");
+      notifyWarning(t("profile.nameRequired"));
       return;
     }
     setIsRenamingProfile(true);
     try {
       const request: RenameProfileRequest = { profile_name: trimmedName };
       await renameProfile(profile.profile_id, request);
-      notifySuccess("Profile已重命名");
+      notifySuccess(t("profile.renamedSuccess"));
       await loadProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "重命名失败，请重试";
+        err instanceof Error ? err.message : t("profile.renameFailed");
       notifyError(errorMessage);
     } finally {
       setIsRenamingProfile(false);
@@ -180,7 +183,7 @@ export function ProfileManagerPanel(
       <TextField
         value={searchText}
         onChange={(event) => setSearchText(event.target.value)}
-        placeholder='搜索Profile名称、主题或ID'
+        placeholder={t("profile.searchPlaceholder")}
         size='small'
         fullWidth
       />
@@ -191,7 +194,7 @@ export function ProfileManagerPanel(
         </Box>
       ) : filteredProfiles.length === 0 ? (
         <Typography color='text.secondary' textAlign='center' sx={{ py: 4 }}>
-          暂无Profile记录
+          {t("profile.noProfiles")}
         </Typography>
       ) : (
         <Box
@@ -218,10 +221,10 @@ export function ProfileManagerPanel(
       <Tabs
         value={activeTab}
         onChange={handleTabChange}
-        aria-label='Profile管理标签页'
+        aria-label={t("profile.tabsAriaLabel")}
       >
-        <Tab value='generate' label='生成Profile' />
-        <Tab value='manage' label='管理Profile' />
+        <Tab value='generate' label={t("profile.generateTab")} />
+        <Tab value='manage' label={t("profile.manageTab")} />
       </Tabs>
 
       {activeTab === "generate" && (
@@ -238,7 +241,7 @@ export function ProfileManagerPanel(
   const actions = onClose ? (
     <Stack direction='row' justifyContent='flex-end' sx={{ pt: 1 }}>
       <Button onClick={onClose} color='inherit'>
-        关闭
+        {t("profile.close")}
       </Button>
     </Stack>
   ) : null;
@@ -250,14 +253,21 @@ export function ProfileManagerPanel(
       fullWidth
       maxWidth='md'
     >
-      <DialogTitle>Profile 详情</DialogTitle>
+      <DialogTitle>{t("profile.detailDialogTitle")}</DialogTitle>
       <DialogContent dividers>
         {activeProfile && (
           <ProfileDetailCard
             profile={activeProfile}
-            mode='teacher'
+            mode={
+              user?.role === "admin"
+                ? "admin"
+                : user?.role === "teacher"
+                  ? "teacher"
+                  : "student"
+            }
             onRename={handleRenameProfile}
             isRenaming={isRenamingProfile}
+            onUpdate={loadProfiles}
             actions={
               <Stack
                 direction='row'
@@ -272,7 +282,7 @@ export function ProfileManagerPanel(
                   onClick={() => handleDelete(activeProfile.profile_id)}
                   disabled={deletingProfileId === activeProfile.profile_id}
                 >
-                  删除Profile
+                  {t("profile.deleteProfile")}
                 </Button>
               </Stack>
             }
@@ -281,7 +291,7 @@ export function ProfileManagerPanel(
       </DialogContent>
       <DialogActions>
         <Button onClick={() => setActiveProfile(null)} color='inherit'>
-          关闭
+          {t("profile.close")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -300,7 +310,7 @@ export function ProfileManagerPanel(
   return (
     <>
       <Dialog open onClose={onClose} fullWidth maxWidth='lg'>
-        <DialogTitle>Profile管理</DialogTitle>
+        <DialogTitle>{t("profile.dialogTitle")}</DialogTitle>
         <DialogContent dividers>{body}</DialogContent>
         <DialogActions>{actions}</DialogActions>
       </Dialog>

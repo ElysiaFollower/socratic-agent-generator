@@ -23,24 +23,49 @@ class CustomSkillGenerator:
                 (
                     "system",
                     "You are an expert skill designer for a Socratic tutoring system. "
-                    "Analyze supplemental materials and propose a custom tool/skill definition. "
+                    "Analyze supplemental materials and create a custom tool/skill definition. "
                     "Return a single JSON object that strictly follows the format instructions: "
-                    "\"{format_instructions}\". "
-                    "Requirements:\n"
-                    "- Use concise, clear names and descriptions.\n"
-                    "- tool_name must be snake_case and prefixed with 'custom_'.\n"
-                    "- Put any extra flags in meta_info (e.g., retrieval_needed).\n"
-                    "- If a retrieval index is needed, set meta_info.retrieval_needed=true, "
-                    "otherwise false.\n"
-                    "- Leave index_path null; the backend will fill it.\n"
-                    "- Respect the profile context when deciding naming and usage.\n",
+                    "\"{format_instructions}\".\n\n"
+                    "## Field Guidelines:\n\n"
+                    "1. **name** (string): A short, memorable name for the skill (2-4 words).\n"
+                    "   Examples: \"Lab Manual Consultant\", \"Concept Explainer\", \"Code Analyzer\"\n\n"
+                    "2. **description** (string): CRITICAL - This tells the LLM WHEN to use this skill. "
+                    "Must answer: \"When should I use this skill?\"\n"
+                    "   Format: \"Use this skill to [action] when [condition]. Use this when [specific scenarios].\"\n"
+                    "   Example: \"Consult the lab manual to find specific technical details, definitions, "
+                    "or step-by-step instructions. Use this when you need to verify lab details or check expected outputs.\"\n\n"
+                    "3. **tool_name** (string): snake_case, prefixed with 'custom_', e.g., 'custom_lab_manual_consultant'\n\n"
+                    "4. **skill_type** (string): Category of the skill. Common types: 'retrieval', 'analysis', 'explanation', 'calculation'\n\n"
+                    "5. **instructions** (string): Step-by-step guide for the LLM executing this skill. "
+                    "Include:\n"
+                    "   - Role definition (\"You are a...\")\n"
+                    "   - Step-by-step process\n"
+                    "   - Output format requirements\n"
+                    "   - Error handling\n"
+                    "   - Limitations\n\n"
+                    "6. **meta_info.retrieval_needed** (boolean): Set true if the skill requires searching "
+                    "the supplemental materials (vector search). Set false if the skill only needs static knowledge.\n\n"
+                    "7. **skill_key** (string): Optional unique identifier. Leave null for auto-generation.\n\n"
+                    "8. **index_path** (string): Always null - backend will fill this.\n\n"
+                    "## Context Awareness:\n"
+                    "- Consider the profile's topic, target_audience, and persona_hints when naming and describing the skill.\n"
+                    "- Align the skill's purpose with the learning objectives of the course.\n"
+                    "- Use terminology appropriate for the target_audience level.\n\n"
+                    "## Output Format:\n"
+                    "- Return ONLY the JSON object, no additional text.\n"
+                    "- All string fields must be non-empty except skill_key and index_path.",
                 ),
                 (
                     "user",
-                    "Here are the supplemental materials. Use them to create a skill draft.\n\n"
-                    "<hint>\n{hint}\n</hint>\n"
-                    "<profile_context>\n{profile_context}\n</profile_context>\n"
-                    "<materials>\n{materials}\n</materials>",
+                    "## Task\n"
+                    "Analyze the supplemental materials below and create a custom skill definition.\n\n"
+                    "## Profile Context\n"
+                    "{profile_context}\n\n"
+                    "## User Hint (if provided)\n"
+                    "{hint}\n\n"
+                    "## Supplemental Materials\n"
+                    "{materials}\n\n"
+                    "Generate a skill draft JSON that follows the format instructions above.",
                 ),
             ]
         )

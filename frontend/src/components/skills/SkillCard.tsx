@@ -27,6 +27,7 @@ import {
   AssignmentOutlined,
   Refresh,
 } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { CustomSkillInfo, CustomSkillDetail } from "../../api";
 
 /**
@@ -74,6 +75,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
     isRebuilding = false,
     isDeleting = false,
   } = props;
+  const { t } = useTranslation();
   const displayName = skill.name || "-";
   const retrievalNeeded = Boolean(skill.meta_info?.retrieval_needed);
   const isHighlighted = Boolean(highlight || selected);
@@ -102,7 +104,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
             sx={{ mt: "2px" }}
           />
           <Typography variant='caption' color='text.secondary'>
-            描述: {skill.description}
+            {t("skill.card.description")}: {skill.description}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -112,13 +114,13 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
             sx={{ mt: "2px" }}
           />
           <Typography variant='caption' color='text.secondary'>
-            状态: {skill.status}
+            {t("skill.card.status")}: {skill.status}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} alignItems='flex-start'>
           <BuildOutlined fontSize='small' color='action' sx={{ mt: "2px" }} />
           <Typography variant='caption' color='text.secondary'>
-            检索: {retrievalNeeded ? "是" : "否"}
+            {t("skill.card.retrieval")}: {retrievalNeeded ? t("skill.card.yes") : t("skill.card.no")}
           </Typography>
         </Stack>
 
@@ -131,7 +133,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='caption' color='text.secondary'>
-                工具名: {skill.tool_name}
+                {t("skill.card.toolName")}: {skill.tool_name}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -141,7 +143,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='caption' color='text.secondary'>
-                资料关联: {skill.material_ids.join(", ") || "无"}
+                {t("skill.card.materialsLinked")}: {skill.material_ids.join(", ") || t("skill.card.none")}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -151,7 +153,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='caption' color='text.secondary'>
-                创建时间: {skill.create_at || "未知"}
+                {t("skill.card.createdAt")}: {skill.create_at || t("skill.card.unknown")}
               </Typography>
             </Stack>
           </>
@@ -199,7 +201,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
             onClick={onAction}
             disabled={actionDisabled}
           >
-            {actionLabel || "查看"}
+            {actionLabel || t("skill.card.view")}
           </Button>
         )}
         {retrievalNeeded && onRebuild && (
@@ -210,7 +212,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
             onClick={() => onRebuild(skill.id)}
             disabled={isRebuilding}
           >
-            {isRebuilding ? "重建中..." : "重建索引"}
+            {isRebuilding ? t("skill.card.rebuilding") : t("skill.card.rebuildIndex")}
           </Button>
         )}
         {onDelete && (
@@ -221,7 +223,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
             onClick={() => onDelete(skill.id)}
             disabled={isDeleting}
           >
-            {isDeleting ? "删除中..." : "删除"}
+            {isDeleting ? t("skill.card.deleting") : t("skill.card.delete")}
           </Button>
         )}
       </CardActions>
@@ -260,6 +262,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
     actions,
     className,
   } = props;
+  const { t } = useTranslation();
   const displayName = skill.name || "-";
   const retrievalNeeded = Boolean(skill.meta_info?.retrieval_needed);
 
@@ -289,7 +292,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                描述: {skill.description}
+                {t("skill.card.description")}: {skill.description}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -299,7 +302,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                状态: {skill.status}
+                {t("skill.card.status")}: {skill.status}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -309,7 +312,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                检索: {retrievalNeeded ? "是" : "否"}
+                {t("skill.card.retrieval")}: {retrievalNeeded ? t("skill.card.yes") : t("skill.card.no")}
               </Typography>
             </Stack>
           </Stack>
@@ -324,7 +327,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                工具名: {skill.tool_name}
+                {t("skill.card.toolName")}: {skill.tool_name}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -334,7 +337,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                资料关联: {skill.material_ids.join(", ") || "无"}
+                {t("skill.card.materialsLinked")}: {skill.material_ids.join(", ") || t("skill.card.none")}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -344,11 +347,11 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                创建时间: {formatDateTime(skill.create_at)}
+                {t("skill.card.createdAt")}: {formatDateTime(skill.create_at)}
               </Typography>
             </Stack>
             <Typography variant='caption' color='text.secondary'>
-              技能ID: {skill.id}
+              {t("skill.card.skillId")}: {skill.id}
             </Typography>
             <Typography variant='caption' color='text.secondary'>
               Profile ID: {skill.profile_id}
@@ -358,7 +361,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
           <Divider flexItem />
 
           <Stack spacing={1}>
-            <Typography variant='subtitle2'>技能指令</Typography>
+            <Typography variant='subtitle2'>{t("skill.card.skillInstructions")}</Typography>
             {skill.instructions && typeof skill.instructions === "string" ? (
               <Box
                 sx={{
@@ -378,7 +381,7 @@ export function SkillDetailCard(props: SkillDetailCardProps): JSX.Element {
               </Box>
             ) : (
               <Typography variant='caption' color='text.secondary'>
-                暂无指令内容
+                {t("skill.card.noInstructions")}
               </Typography>
             )}
           </Stack>

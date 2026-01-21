@@ -12,6 +12,7 @@ import React, {
   useEffect,
   useCallback,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -72,6 +73,7 @@ interface LabManualPanelProps {
  * @returns React component
  */
 export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
+  const { t } = useTranslation();
   const { onUploadSuccess, onClose, variant = "dialog" } = props;
   const { notifyError, notifySuccess } = useNotification();
   const { confirm } = useConfirmDialog();
@@ -116,7 +118,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       setLabManuals(manuals);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载实验文档列表失败";
+        err instanceof Error ? err.message : t("labManual.loadFailed");
       notifyError(errorMessage);
       console.error("Failed to load lab manuals:", err);
     } finally {
@@ -136,12 +138,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       return;
     }
     notifySuccess(
-      `上传成功：${uploadResponse.lab_name} (${(
-        uploadResponse.size / 1024
-      ).toFixed(2)} KB)`,
+      t("labManual.uploadSuccess", {
+        labName: uploadResponse.lab_name,
+        size: (uploadResponse.size / 1024).toFixed(2),
+      }),
     );
     setUploadResponse(null);
-  }, [uploadResponse, notifySuccess]);
+  }, [uploadResponse, notifySuccess, t]);
 
   /**
    * Applies a selected file.
@@ -151,7 +154,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     const fileExtension = file.name.toLowerCase().split(".").pop();
     if (fileExtension && !allowedExtensions.includes(`.${fileExtension}`)) {
       notifyError(
-        `不支持的文件类型。支持的类型：${allowedExtensions.join(", ")}`,
+        t("labManual.unsupportedFileType", {
+          extensions: allowedExtensions.join(", "),
+        }),
       );
       setSelectedFile(null);
       return;
@@ -176,8 +181,8 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   );
 
   const handleDropRejected = useCallback(() => {
-    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown、.pdf");
-  }, [notifyError]);
+    notifyError(t("labManual.supportedTypesOnly"));
+  }, [notifyError, t]);
 
   const { getRootProps, getInputProps, isDragActive, isDragReject } =
     useDropzone({
@@ -188,9 +193,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       accept: {
         "text/markdown": [".md", ".markdown"],
         "text/plain": [".txt"],
-        "application/pdf": [".pdf"],  // 新增PDF支持
+        "application/pdf": [".pdf"], // 新增PDF支持
       },
-      maxSize: 10 * 1024 * 1024,  // 10MB限制（可选，后端也会验证）
+      maxSize: 10 * 1024 * 1024, // 10MB限制（可选，后端也会验证）
     });
 
   /**
@@ -213,11 +218,11 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!selectedFile) {
-      notifyError("请选择一个文件");
+      notifyError(t("labManual.selectFile"));
       return;
     }
     if (!labName.trim()) {
-      notifyError("请输入文件名");
+      notifyError(t("labManual.enterFileName"));
       return;
     }
 
@@ -236,7 +241,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       await loadLabManuals();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "上传失败，请重试";
+        err instanceof Error ? err.message : t("labManual.uploadFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -267,7 +272,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       setViewingContent(content);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载文档内容失败";
+        err instanceof Error ? err.message : t("labManual.loadContentFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingContent(false);
@@ -279,9 +284,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
    */
   const handleDelete = async (labName: string) => {
     const shouldDelete = await confirm({
-      title: "删除实验文档",
-      description: `确定要删除实验文档 "${labName}" 吗？此操作将删除整个实验目录及其所有内容，无法撤销。`,
-      confirmLabel: "删除",
+      title: t("labManual.deleteConfirmTitle"),
+      description: t("labManual.deleteConfirmDescription", { labName }),
+      confirmLabel: t("labManual.deleteConfirmButton"),
       confirmColor: "error",
     });
     if (!shouldDelete) {
@@ -292,13 +297,14 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     try {
       await deleteLabManual(labName);
       await loadLabManuals();
-      notifySuccess(`已删除实验文档：${labName}`);
+      notifySuccess(t("labManual.deletedSuccess", { labName }));
       if (viewingLabName === labName) {
         setViewingLabName(null);
         setViewingContent(null);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "删除失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("labManual.deleteFailed");
       notifyError(errorMessage);
     } finally {
       setDeletingLab(null);
@@ -312,7 +318,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
 
   const handleSaveLabName = () => {
     if (!labNameDraft.trim()) {
-      notifyError("请输入文件名");
+      notifyError(t("labManual.enterFileNamePrompt"));
       return;
     }
     setLabName(labNameDraft.trim());
@@ -355,14 +361,16 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       <Stack spacing={2} component='form' onSubmit={handleSubmit}>
         <Stack direction={"row"} alignItems='center' spacing={0.5}>
           <AttachFile fontSize='small' />
-          <Typography sx={{ fontWeight: 600 }}>上传文档</Typography>
+          <Typography sx={{ fontWeight: 600 }}>
+            {t("labManual.uploadSection")}
+          </Typography>
         </Stack>
 
         <Paper
           variant='outlined'
           {...getRootProps({
             role: "button",
-            "aria-label": "上传实验文档",
+            "aria-label": t("labManual.uploadSection"),
           })}
           sx={{
             p: 3,
@@ -397,25 +405,27 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             />
             <Typography variant='subtitle1'>
               {isDragReject
-                ? "不支持的文件类型"
+                ? t("labManual.dropzoneReject")
                 : isDragActive
-                  ? "释放鼠标以上传"
-                  : "拖拽文件到此处上传"}
+                  ? t("labManual.dropzoneActive")
+                  : t("labManual.dropzoneDefault")}
             </Typography>
             <Typography variant='body2' color='text.secondary'>
               {isDragReject
-                ? "仅支持 .md、.txt、.markdown、.pdf"
-                : "点击区域选择文件（支持 .md, .txt, .markdown, .pdf）"}
+                ? t("labManual.dropzoneRejectText")
+                : t("labManual.dropzoneHelp")}
             </Typography>
             <Typography variant='caption' color='text.secondary' sx={{ mt: 1 }}>
-              支持格式：Markdown (.md, .markdown)、纯文本 (.txt)、PDF (.pdf)
+              {t("labManual.supportedFormats")}
               <br />
-              PDF文件大小限制：10MB。扫描PDF（图片）暂不支持，请使用文本型PDF。
+              {t("labManual.pdfNote")}
             </Typography>
             {selectedFile && (
               <Typography variant='body2' sx={{ mt: 1 }}>
-                已选择：{selectedFile.name} (
-                {(selectedFile.size / 1024).toFixed(2)} KB)
+                {t("labManual.fileSelected", {
+                  fileName: selectedFile.name,
+                  size: (selectedFile.size / 1024).toFixed(2),
+                })}
               </Typography>
             )}
           </Stack>
@@ -427,99 +437,60 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
           />
         </Paper>
 
-        <Stack spacing={1}>
-          <Typography variant='caption' color='text.secondary'>
-            文件名（默认来自原始文件名）
-          </Typography>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "flex-start", sm: "center" }}
+        {selectedFile && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              width: "100%",
+            }}
           >
-            {isEditingLabName ? (
+            <Stack spacing={1} sx={{ width: "100%", maxWidth: 640, mt: 2 }}>
+              <Typography variant='caption' color='text.secondary'>
+                {t("labManual.fileNameLabel")}
+              </Typography>
               <TextField
                 size='small'
-                value={labNameDraft}
-                onChange={(event) => setLabNameDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleSaveLabName();
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    handleCancelLabName();
-                  }
-                }}
-                autoFocus
+                value={labName}
+                onChange={(event) => setLabName(event.target.value)}
                 disabled={isLoading}
-                sx={{ minWidth: { xs: "100%", sm: 260 } }}
+                sx={{ width: "100%" }}
               />
-            ) : (
-              <Typography variant='body2'>
-                {labName || "请选择文件以生成文件名"}
-              </Typography>
-            )}
-            <Stack direction='row' spacing={1} alignItems='center'>
-              {isEditingLabName ? (
-                <>
-                  <IconButton
-                    size='small'
-                    onClick={handleSaveLabName}
-                    disabled={isLoading}
-                    aria-label='保存文件名'
-                  >
-                    <Check fontSize='small' />
-                  </IconButton>
-                  <IconButton
-                    size='small'
-                    onClick={handleCancelLabName}
-                    disabled={isLoading}
-                    aria-label='取消编辑文件名'
-                  >
-                    <Close fontSize='small' />
-                  </IconButton>
-                </>
-              ) : (
-                <Tooltip title='编辑名称' arrow>
-                  <span>
-                    <IconButton
-                      size='small'
-                      onClick={handleEditLabName}
-                      disabled={!selectedFile || isLoading}
-                      aria-label='编辑文件名'
-                    >
-                      <Edit fontSize='small' />
-                    </IconButton>
-                  </span>
-                </Tooltip>
+            </Stack>
+
+            <Stack
+              direction='row'
+              spacing={1}
+              alignItems='center'
+              justifyContent='flex-end'
+              sx={{ mt: 2, width: "100%", maxWidth: 640 }}
+            >
+              {onClose && (
+                <Button onClick={onClose} color='inherit' disabled={isLoading}>
+                  {t("labManual.cancel")}
+                </Button>
+              )}
+              <Button
+                type='submit'
+                variant='contained'
+                disabled={isLoading || !selectedFile || !labName.trim()}
+                sx={{ flex: 1, maxWidth: "fit-content" }}
+              >
+                {isLoading ? t("labManual.uploading") : t("labManual.upload")}
+              </Button>
+              {selectedFile && (
+                <Button
+                  onClick={handleReset}
+                  color='inherit'
+                  disabled={isLoading}
+                >
+                  {t("labManual.reselect")}
+                </Button>
               )}
             </Stack>
-          </Stack>
-          <Typography variant='caption' color='text.secondary'>
-            将作为实验名称创建 data_raw/{labName || "实验名称"}/lab_manual.md
-          </Typography>
-        </Stack>
-
-        <Stack direction='row' spacing={1} alignItems='center'>
-          {onClose && (
-            <Button onClick={onClose} color='inherit' disabled={isLoading}>
-              取消
-            </Button>
-          )}
-          <Button
-            type='submit'
-            variant='contained'
-            disabled={isLoading || !selectedFile || !labName.trim()}
-          >
-            {isLoading ? "上传中..." : "上传"}
-          </Button>
-          {selectedFile && (
-            <Button onClick={handleReset} color='inherit' disabled={isLoading}>
-              重新选择
-            </Button>
-          )}
-        </Stack>
+          </Box>
+        )}
       </Stack>
 
       <Divider flexItem />
@@ -527,11 +498,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       <Stack spacing={2}>
         <Stack direction={"row"} alignItems='center' spacing={1}>
           <List fontSize='small' />
-          <Typography sx={{ fontWeight: 600 }}>文档管理</Typography>
+          <Typography sx={{ fontWeight: 600 }}>
+            {t("labManual.managementSection")}
+          </Typography>
         </Stack>
 
         <TextField
-          placeholder='搜索实验名称'
+          placeholder={t("labManual.searchPlaceholder")}
           value={searchQuery}
           onChange={(event) => setSearchQuery(event.target.value)}
           size='small'
@@ -549,9 +522,21 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             <CircularProgress size={24} />
           </Box>
         ) : filteredManuals.length === 0 ? (
-          <Typography color='text.secondary' textAlign='center' sx={{ py: 4 }}>
-            {labManuals.length === 0 ? "暂无实验文档" : "没有匹配的实验文档"}
-          </Typography>
+          <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+            <DescriptionOutlined
+              sx={{ fontSize: 48, color: "var(--color-border)", mb: 2 }}
+            />
+            <Typography variant='h6' sx={{ mt: 2 }}>
+              {labManuals.length === 0
+                ? t("labManual.noManuals")
+                : t("labManual.noMatchingManuals")}
+            </Typography>
+            <Typography variant='body2'>
+              {labManuals.length === 0
+                ? t("labManual.uploadFirstManual")
+                : t("labManual.tryDifferentSearch")}
+            </Typography>
+          </Box>
         ) : (
           <Box
             sx={{
@@ -575,17 +560,17 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                       </Typography>
                       <Stack direction='row' spacing={1} sx={{ mt: 1 }}>
                         {renderStatusIcon(
-                          "文档",
+                          t("labManual.documentStatus"),
                           lab.has_lab_manual,
                           <DescriptionOutlined fontSize='small' />,
                         )}
                         {renderStatusIcon(
-                          "Persona",
+                          t("labManual.personaStatus"),
                           lab.has_persona,
                           <PersonOutline fontSize='small' />,
                         )}
                         {renderStatusIcon(
-                          "Curriculum",
+                          t("labManual.curriculumStatus"),
                           lab.has_curriculum,
                           <MenuBookOutlined fontSize='small' />,
                         )}
@@ -600,7 +585,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                           onClick={() => handleViewContent(lab.lab_name)}
                           disabled={isLoadingContent}
                         >
-                          {isLoadingContent ? "加载中..." : "查看"}
+                          {isLoadingContent
+                            ? t("labManual.loading")
+                            : t("labManual.view")}
                         </Button>
                       )}
                       <Button
@@ -611,7 +598,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                         onClick={() => handleDelete(lab.lab_name)}
                         disabled={deletingLab === lab.lab_name}
                       >
-                        {deletingLab === lab.lab_name ? "删除中..." : "删除"}
+                        {deletingLab === lab.lab_name
+                          ? t("labManual.deleting")
+                          : t("labManual.delete")}
                       </Button>
                     </Stack>
                   </Stack>
@@ -627,7 +616,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   const actions = onClose ? (
     <Stack direction='row' justifyContent='flex-end' sx={{ pt: 1 }}>
       <Button onClick={onClose} color='inherit'>
-        关闭
+        {t("labManual.close")}
       </Button>
     </Stack>
   ) : null;
@@ -643,7 +632,11 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       maxWidth='md'
     >
       <DialogTitle>
-        {viewingLabName ? `${viewingLabName} - 文档内容` : "文档内容"}
+        {viewingLabName
+          ? t("labManual.contentDialogTitleWithName", {
+              labName: viewingLabName,
+            })
+          : t("labManual.contentDialogTitle")}
       </DialogTitle>
       <DialogContent dividers>
         {isLoadingContent ? (
@@ -677,12 +670,14 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
               color='text.secondary'
               sx={{ mt: 1, display: "block" }}
             >
-              文件大小: {(viewingContent.size / 1024).toFixed(2)} KB
+              {t("labManual.fileSize", {
+                size: (viewingContent.size / 1024).toFixed(2),
+              })}
             </Typography>
           </>
         ) : (
           <Typography variant='body2' color='text.secondary'>
-            暂无内容
+            {t("labManual.noContent")}
           </Typography>
         )}
       </DialogContent>
@@ -694,7 +689,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
           }}
           color='inherit'
         >
-          关闭
+          {t("labManual.close")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -713,7 +708,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   return (
     <>
       <Dialog open onClose={onClose} fullWidth maxWidth='lg'>
-        <DialogTitle>实验文档管理</DialogTitle>
+        <DialogTitle>{t("labManual.dialogTitle")}</DialogTitle>
         <DialogContent dividers>{body}</DialogContent>
         <DialogActions>{actions}</DialogActions>
       </Dialog>

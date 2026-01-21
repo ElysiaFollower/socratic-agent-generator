@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -70,6 +71,7 @@ const MAX_SPLIT_RATIO = 0.75;
 export function ProfileGeneratorAdvanced(
   props: ProfileGeneratorAdvancedProps,
 ): JSX.Element {
+  const { t } = useTranslation();
   const { onGenerateSuccess, onClose, variant = "panel" } = props;
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const [currentStep, setCurrentStep] = useState<Step>("select");
@@ -106,7 +108,7 @@ export function ProfileGeneratorAdvanced(
       setLabManuals(manuals);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载实验文档列表失败";
+        err instanceof Error ? err.message : t("labManual.loadFailed");
       setError(errorMessage);
     } finally {
       setIsLoadingManuals(false);
@@ -215,7 +217,7 @@ export function ProfileGeneratorAdvanced(
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载实验资料失败";
+        err instanceof Error ? err.message : t("profile.loadLabFailed");
       notifyWarning(errorMessage);
     } finally {
       setIsLoading(false);
@@ -243,7 +245,7 @@ export function ProfileGeneratorAdvanced(
       void loadLabManuals();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "生成Persona失败";
+        err instanceof Error ? err.message : t("profile.generatePersonaFailed");
       setPersonaError(errorMessage);
       setPersonaStatus("error");
     }
@@ -265,7 +267,7 @@ export function ProfileGeneratorAdvanced(
       void loadLabManuals();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "保存Persona失败";
+        err instanceof Error ? err.message : t("profile.savePersonaFailed");
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -309,12 +311,14 @@ export function ProfileGeneratorAdvanced(
         setCurriculumStatus("generated");
         void loadLabManuals();
       } else {
-        setCurriculumError("生成的Curriculum格式不正确");
+        setCurriculumError(t("profile.curriculumFormatError"));
         setCurriculumStatus("error");
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "生成Curriculum失败";
+        err instanceof Error
+          ? err.message
+          : t("profile.generateCurriculumFailed");
       setCurriculumError(errorMessage);
       setCurriculumStatus("error");
     }
@@ -336,7 +340,7 @@ export function ProfileGeneratorAdvanced(
       void loadLabManuals();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "保存Curriculum失败";
+        err instanceof Error ? err.message : t("profile.saveCurriculumFailed");
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -366,7 +370,9 @@ export function ProfileGeneratorAdvanced(
       })
       .catch((err) => {
         const errorMessage =
-          err instanceof Error ? err.message : "生成Persona失败";
+          err instanceof Error
+            ? err.message
+            : t("profile.generatePersonaFailed");
         setPersonaError(errorMessage);
         setPersonaStatus("error");
         return { status: "rejected" as const, error: errorMessage };
@@ -381,14 +387,16 @@ export function ProfileGeneratorAdvanced(
           void loadLabManuals();
           return { status: "fulfilled" as const };
         }
-        const errorMessage = "生成的Curriculum格式不正确";
+        const errorMessage = t("profile.curriculumFormatError");
         setCurriculumError(errorMessage);
         setCurriculumStatus("error");
         return { status: "rejected" as const, error: errorMessage };
       })
       .catch((err) => {
         const errorMessage =
-          err instanceof Error ? err.message : "生成Curriculum失败";
+          err instanceof Error
+            ? err.message
+            : t("profile.generateCurriculumFailed");
         setCurriculumError(errorMessage);
         setCurriculumStatus("error");
         return { status: "rejected" as const, error: errorMessage };
@@ -397,7 +405,7 @@ export function ProfileGeneratorAdvanced(
     // Generate both in parallel
     const results = await Promise.all([personaPromise, curriculumPromise]);
     if (results.every((result) => result.status === "rejected")) {
-      setError("生成失败");
+      setError(t("profile.generateBothFailed"));
     }
   };
 
@@ -411,7 +419,7 @@ export function ProfileGeneratorAdvanced(
    */
   const handleFinalize = async () => {
     if (!selectedLab || !persona || !curriculum) {
-      setError("请先生成Persona和Curriculum");
+      setError(t("profile.requirePersonaAndCurriculum"));
       return;
     }
 
@@ -438,14 +446,14 @@ export function ProfileGeneratorAdvanced(
         setCurriculum(normalized);
         setCurriculumStatus("generated");
       } else {
-        notifyWarning("重新加载的Curriculum结构异常");
+        notifyWarning(t("profile.curriculumReloadError"));
       }
 
       void loadLabManuals();
       setCurrentStep("finalize");
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "保存或加载失败";
+        err instanceof Error ? err.message : t("profile.saveOrLoadFailed");
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -457,7 +465,7 @@ export function ProfileGeneratorAdvanced(
    */
   const handleGenerateProfile = async () => {
     if (!selectedLab || !persona || !curriculum) {
-      setError("请先生成Persona和Curriculum");
+      setError(t("profile.requirePersonaAndCurriculum"));
       return;
     }
 
@@ -470,14 +478,16 @@ export function ProfileGeneratorAdvanced(
         profileName.trim() || undefined,
       );
       notifySuccess(
-        `Profile已生成：${profile.profile_name || profile.topic_name}`,
+        t("profile.profileGenerated", {
+          name: profile.profile_name || profile.topic_name,
+        }),
       );
       if (onGenerateSuccess) {
         onGenerateSuccess(profile);
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "生成Profile失败";
+        err instanceof Error ? err.message : t("profile.generateProfileFailed");
       setError(errorMessage);
     } finally {
       setIsGeneratingProfile(false);
@@ -521,31 +531,31 @@ export function ProfileGeneratorAdvanced(
       {variant === "dialog" && onClose && (
         <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
           <Button onClick={onClose} color='inherit'>
-            关闭
+            {t("common.close")}
           </Button>
         </Box>
       )}
 
       <Stepper activeStep={activeStepIndex} alternativeLabel>
         <Step>
-          <StepLabel>选择实验文档</StepLabel>
+          <StepLabel>{t("profile.stepSelect")}</StepLabel>
         </Step>
         <Step>
-          <StepLabel>生成Persona和Curriculum</StepLabel>
+          <StepLabel>{t("profile.stepGenerate")}</StepLabel>
         </Step>
         <Step>
-          <StepLabel>生成Profile</StepLabel>
+          <StepLabel>{t("profile.stepFinalize")}</StepLabel>
         </Step>
       </Stepper>
 
       {currentStep === "select" && (
         <Stack spacing={2}>
-          <Typography variant='h6'>选择实验文档</Typography>
+          <Typography variant='h6'>{t("profile.selectLabTitle")}</Typography>
           {isLoadingManuals ? (
             <Stack direction='row' spacing={1} alignItems='center'>
               <CircularProgress size={18} />
               <Typography variant='body2' color='text.secondary'>
-                加载中...
+                {t("profile.loading")}
               </Typography>
             </Stack>
           ) : labManuals.length === 0 ? (
@@ -558,7 +568,7 @@ export function ProfileGeneratorAdvanced(
               }}
             >
               <Typography variant='body2' color='text.secondary'>
-                暂无实验文档，请先在实验文档管理中上传文档。
+                {t("profile.noLabsHint")}
               </Typography>
             </Box>
           ) : (
@@ -594,15 +604,15 @@ export function ProfileGeneratorAdvanced(
                         sx={{ mt: 1, flexWrap: "wrap" }}
                       >
                         {renderLabChip(
-                          `文档 ${lab.has_lab_manual ? "✓" : "✗"}`,
+                          `${t("labManual.documentStatus")} ${lab.has_lab_manual ? t("profile.docReady") : t("profile.docNotReady")}`,
                           lab.has_lab_manual,
                         )}
                         {renderLabChip(
-                          `Persona ${lab.has_persona ? "✓" : "✗"}`,
+                          `Persona ${lab.has_persona ? t("profile.personaReady") : t("profile.personaNotReady")}`,
                           lab.has_persona,
                         )}
                         {renderLabChip(
-                          `Curriculum ${lab.has_curriculum ? "✓" : "✗"}`,
+                          `Curriculum ${lab.has_curriculum ? t("profile.curriculumReady") : t("profile.curriculumNotReady")}`,
                           lab.has_curriculum,
                         )}
                       </Stack>
@@ -625,7 +635,7 @@ export function ProfileGeneratorAdvanced(
             justifyContent='space-between'
           >
             <Typography variant='h6'>
-              生成Persona和Curriculum - {selectedLab}
+              {t("profile.generateTitle", { labName: selectedLab })}
             </Typography>
             <Button
               onClick={() => {
@@ -638,7 +648,7 @@ export function ProfileGeneratorAdvanced(
               startIcon={<ArrowBack />}
               color='inherit'
             >
-              返回选择
+              {t("profile.backToSelect")}
             </Button>
           </Stack>
 
@@ -659,8 +669,8 @@ export function ProfileGeneratorAdvanced(
                 disabled={personaStatus === "generating"}
               >
                 {personaStatus === "generating"
-                  ? "生成Persona中..."
-                  : "仅生成Persona"}
+                  ? t("profile.generatingPersona")
+                  : t("profile.generatePersonaOnly")}
               </Button>
               <Button
                 onClick={handleGenerateCurriculum}
@@ -668,8 +678,8 @@ export function ProfileGeneratorAdvanced(
                 disabled={curriculumStatus === "generating"}
               >
                 {curriculumStatus === "generating"
-                  ? "生成Curriculum中..."
-                  : "仅生成Curriculum"}
+                  ? t("profile.generatingCurriculum")
+                  : t("profile.generateCurriculumOnly")}
               </Button>
 
               <Button
@@ -682,8 +692,8 @@ export function ProfileGeneratorAdvanced(
               >
                 {personaStatus === "generating" ||
                 curriculumStatus === "generating"
-                  ? "生成中..."
-                  : "同时生成"}
+                  ? t("profile.generatingBoth")
+                  : t("profile.generateBoth")}
               </Button>
             </Stack>
             {persona && curriculum && (
@@ -692,7 +702,9 @@ export function ProfileGeneratorAdvanced(
                 variant='contained'
                 disabled={isLoading}
               >
-                {isLoading ? "保存并加载中..." : "下一步"}
+                {isLoading
+                  ? t("profile.savingAndLoading")
+                  : t("profile.nextStep")}
               </Button>
             )}
           </Stack>
@@ -719,7 +731,7 @@ export function ProfileGeneratorAdvanced(
                   <Stack direction='row' alignItems='center' spacing={1}>
                     <PersonOutline fontSize='small' color='action' />
                     <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                      Persona
+                      {t("profile.personaTitle")}
                     </Typography>
                   </Stack>
                   <Stack direction='row' alignItems='center' spacing={1}>
@@ -731,7 +743,7 @@ export function ProfileGeneratorAdvanced(
                       size='small'
                       disabled={isLoading || !persona}
                     >
-                      {isLoading ? "保存中..." : "保存Persona"}
+                      {isLoading ? t("common.saving") : t("common.save")}
                     </Button>
                   </Stack>
                 </Stack>
@@ -740,7 +752,7 @@ export function ProfileGeneratorAdvanced(
                 {persona ? (
                   <Stack spacing={2}>
                     <TextField
-                      label='主题名称'
+                      label={t("profile.topicNameLabel")}
                       value={persona.topic_name}
                       onChange={(e) =>
                         setPersona({ ...persona, topic_name: e.target.value })
@@ -749,7 +761,7 @@ export function ProfileGeneratorAdvanced(
                       fullWidth
                     />
                     <TextField
-                      label='目标受众'
+                      label={t("profile.targetAudienceLabel")}
                       value={persona.target_audience}
                       onChange={(e) =>
                         setPersona({
@@ -758,10 +770,12 @@ export function ProfileGeneratorAdvanced(
                         })
                       }
                       size='small'
+                      multiline
+                      maxRows={5}
                       fullWidth
                     />
                     <TextField
-                      label='人设提示（每行一个）'
+                      label={t("profile.personaHintsLabel")}
                       value={(persona.persona_hints || []).join("\n")}
                       onChange={(e) =>
                         setPersona({
@@ -778,7 +792,7 @@ export function ProfileGeneratorAdvanced(
                       minRows={3}
                     />
                     <TextField
-                      label='领域约束（每行一个）'
+                      label={t("profile.domainConstraintsLabel")}
                       value={(persona.domain_specific_constraints || []).join(
                         "\n",
                       )}
@@ -800,8 +814,8 @@ export function ProfileGeneratorAdvanced(
                 ) : (
                   <Typography variant='body2' color='text.secondary'>
                     {personaStatus === "generating"
-                      ? "正在生成..."
-                      : "Persona未生成"}
+                      ? t("profile.generating")
+                      : t("profile.personaNotGenerated")}
                   </Typography>
                 )}
               </Paper>
@@ -851,7 +865,7 @@ export function ProfileGeneratorAdvanced(
                   <Stack direction='row' alignItems='center' spacing={1}>
                     <MenuBook fontSize='small' color='action' />
                     <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                      Curriculum
+                      {t("profile.curriculumTitle")}
                     </Typography>
                   </Stack>
                   <Stack direction='row' alignItems='center' spacing={1}>
@@ -863,7 +877,7 @@ export function ProfileGeneratorAdvanced(
                       size='small'
                       disabled={isLoading || !curriculum}
                     >
-                      {isLoading ? "保存中..." : "保存Curriculum"}
+                      {isLoading ? t("common.saving") : t("common.save")}
                     </Button>
                   </Stack>
                 </Stack>
@@ -872,7 +886,9 @@ export function ProfileGeneratorAdvanced(
                 {curriculum && curriculum.root ? (
                   <Stack spacing={1}>
                     <Typography variant='caption' color='text.secondary'>
-                      共 {curriculum.root.length} 个步骤
+                      {t("profile.totalSteps", {
+                        count: curriculum.root.length,
+                      })}
                     </Typography>
                     <Stack
                       spacing={2}
@@ -884,11 +900,14 @@ export function ProfileGeneratorAdvanced(
                             variant='subtitle1'
                             sx={{ mb: 2, fontWeight: 500 }}
                           >
-                            步骤 {index + 1}: {step.step_title}
+                            {t("profile.stepTitle", {
+                              index: index + 1,
+                              title: step.step_title,
+                            })}
                           </Typography>
                           <Stack spacing={1.5}>
                             <TextField
-                              label='引导问题'
+                              label={t("profile.guidingQuestionLabel")}
                               value={step.guiding_question}
                               onChange={(e) => {
                                 const newRoot = [...curriculum.root];
@@ -904,7 +923,7 @@ export function ProfileGeneratorAdvanced(
                               minRows={2}
                             />
                             <TextField
-                              label='成功标准'
+                              label={t("profile.successCriteriaLabel")}
                               value={step.success_criteria}
                               onChange={(e) => {
                                 const newRoot = [...curriculum.root];
@@ -920,7 +939,7 @@ export function ProfileGeneratorAdvanced(
                               minRows={2}
                             />
                             <TextField
-                              label='学习目标'
+                              label={t("profile.learningObjectiveLabel")}
                               value={step.learning_objective}
                               onChange={(e) => {
                                 const newRoot = [...curriculum.root];
@@ -946,8 +965,8 @@ export function ProfileGeneratorAdvanced(
                 ) : (
                   <Typography variant='body2' color='text.secondary'>
                     {curriculumStatus === "generating"
-                      ? "正在生成..."
-                      : "Curriculum未生成"}
+                      ? t("profile.generating")
+                      : t("profile.curriculumNotGenerated")}
                   </Typography>
                 )}
               </Paper>
@@ -964,13 +983,15 @@ export function ProfileGeneratorAdvanced(
             alignItems={{ xs: "flex-start", sm: "center" }}
             justifyContent='space-between'
           >
-            <Typography variant='h6'>生成Profile - {selectedLab}</Typography>
+            <Typography variant='h6'>
+              {t("profile.finalizeTitle", { labName: selectedLab })}
+            </Typography>
             <Button
               onClick={() => setCurrentStep("generate")}
               startIcon={<ArrowBack />}
               color='inherit'
             >
-              返回
+              {t("profile.backToGenerate")}
             </Button>
           </Stack>
 
@@ -981,10 +1002,10 @@ export function ProfileGeneratorAdvanced(
             justifyContent='flex-end'
           >
             <TextField
-              label='Profile名称（可选）'
+              label={t("profile.profileNameLabel")}
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
-              placeholder='留空则自动生成'
+              placeholder={t("profile.profileNamePlaceholder")}
               size='small'
               fullWidth
             />
@@ -997,7 +1018,9 @@ export function ProfileGeneratorAdvanced(
                 whiteSpace: "nowrap",
               }}
             >
-              {isGeneratingProfile ? "生成中..." : "生成Profile"}
+              {isGeneratingProfile
+                ? t("profile.generatingProfile")
+                : t("profile.generateProfile")}
             </Button>
           </Stack>
 
@@ -1006,25 +1029,27 @@ export function ProfileGeneratorAdvanced(
             sx={{ p: 2, bgcolor: "var(--color-surface-muted)" }}
           >
             <Typography variant='subtitle2' sx={{ mb: 1 }}>
-              预览信息
+              {t("profile.previewInfo")}
             </Typography>
             <Stack spacing={0.5}>
               <Typography variant='body2' color='text.secondary'>
-                实验文档：{selectedLab}
+                {t("profile.labDocument", { labName: selectedLab })}
               </Typography>
               {persona && (
                 <>
                   <Typography variant='body2' color='text.secondary'>
-                    主题：{persona.topic_name}
+                    {t("profile.topic", { topicName: persona.topic_name })}
                   </Typography>
                   <Typography variant='body2' color='text.secondary'>
-                    目标受众：{persona.target_audience}
+                    {t("profile.targetAudience", {
+                      audience: persona.target_audience,
+                    })}
                   </Typography>
                 </>
               )}
               {curriculum && curriculum.root && (
                 <Typography variant='body2' color='text.secondary'>
-                  步骤数：{curriculum.root.length}
+                  {t("profile.stepCount", { count: curriculum.root.length })}
                 </Typography>
               )}
             </Stack>

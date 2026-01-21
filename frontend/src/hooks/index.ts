@@ -12,3 +12,4 @@ export * from "./useAuth";
 export * from "./useNotification";
 export * from "./useConfirmDialog";
 export * from "./useClipboard";
+export * from "./useUsers";

@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Box, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
 import { SocraticStep } from "../../types";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
@@ -26,16 +27,17 @@ export interface ProgressBarProps {
  */
 export function ProgressBar(props: ProgressBarProps): JSX.Element {
   const { currentStep, curriculum, isLoading = false } = props;
+  const { t } = useTranslation();
 
   if (curriculum.length === 0) {
     return (
       <Box sx={{ mt: 2 }}>
         <Stack direction='row' justifyContent='space-between' sx={{ mb: 1 }}>
           <Typography variant='caption' color='text.secondary'>
-            学习进度
+            {t("chat.progress.title")}
           </Typography>
           <Typography variant='caption' color='text.secondary'>
-            {isLoading ? "加载中..." : "暂无课程"}
+            {isLoading ? t("common.loading") : t("chat.progress.noCurriculum")}
           </Typography>
         </Stack>
         <LinearProgress
@@ -67,11 +69,16 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Stack direction='row' justifyContent='space-between' sx={{ mb: 1 }}>
+      <Stack
+        direction='row'
+        alignItems={"flex-start"}
+        sx={{ mb: 1 }}
+        spacing={1}
+      >
         <Typography variant='caption' color='text.secondary'>
-          学习进度
+          {t("chat.progress.title")}:
         </Typography>
-        <Typography variant='caption' color='text.secondary'>
+        <Typography variant='caption' color='text.primary'>
           {currentStep} / {curriculum.length}
         </Typography>
       </Stack>
@@ -127,7 +134,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
                     {step.step_title}
                   </Typography>
                   <Typography variant='caption'>
-                    学习目标: {step.learning_objective}
+                    {t("chat.progress.learningObjective")}: {step.learning_objective}
                   </Typography>
                 </Stack>
               }
@@ -160,20 +167,20 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
       <Box sx={{ mt: 1 }}>
         {currentStep < curriculum.length ? (
           <>
-            <Typography variant='caption' sx={{ fontWeight: 600 }}>
-              当前步骤: {activeStep?.step_title}
+            <Typography variant='body2' sx={{ fontWeight: 600 }}>
+              {t("chat.progress.currentStep")}: {activeStep?.step_title}
             </Typography>
             <Typography
-              variant='caption'
+              variant='body2'
               color='text.secondary'
               sx={{ display: "block", mt: 0.5 }}
             >
-              学习目标: {activeStep?.learning_objective}
+              {t("chat.progress.learningObjective")}: {activeStep?.learning_objective}
             </Typography>
           </>
         ) : (
-          <Typography variant='caption' color='text.secondary'>
-            学习流程已完成。
+          <Typography variant='body2' color='text.secondary'>
+            {t("chat.progress.completed")}
           </Typography>
         )}
       </Box>

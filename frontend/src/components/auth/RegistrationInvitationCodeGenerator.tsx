@@ -6,6 +6,7 @@
  */
 
 import React, { useState, FormEvent, useCallback, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -25,7 +26,7 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { ContentCopy, Delete, Edit } from "@mui/icons-material";
+import { ContentCopy, Delete, Edit, VpnKey } from "@mui/icons-material";
 import { useClipboard, useNotification, useAuth } from "../../hooks";
 import {
   GenerateRegistrationInvitationCodeRequest,
@@ -55,6 +56,7 @@ interface RegistrationInvitationCodeGeneratorProps {
 export function RegistrationInvitationCodeGenerator(
   props: RegistrationInvitationCodeGeneratorProps,
 ): JSX.Element {
+  const { t } = useTranslation();
   const { onClose, variant = "dialog" } = props;
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const { copyToClipboard } = useClipboard();
@@ -101,11 +103,11 @@ export function RegistrationInvitationCodeGenerator(
 
     // Check permissions
     if (user?.role === "student") {
-      notifyWarning("学生无权生成邀请码");
+      notifyWarning(t("invitation.studentNoPermission"));
       return;
     }
     if (user?.role === "teacher" && role === "teacher") {
-      notifyWarning("教师只能为学生生成邀请码");
+      notifyWarning(t("invitation.teacherOnlyStudent"));
       return;
     }
 
@@ -118,7 +120,10 @@ export function RegistrationInvitationCodeGenerator(
       const response = await generateRegistrationInvitationCode(request);
       setSuccessInfo({
         code: response.invitation_code,
-        role: role === "teacher" ? "教师" : "学生",
+        role:
+          role === "teacher"
+            ? t("sidebar.role.teacher")
+            : t("sidebar.role.student"),
         expiresAt: response.expires_at
           ? new Date(response.expires_at).toLocaleString("zh-CN")
           : "-",
@@ -126,7 +131,7 @@ export function RegistrationInvitationCodeGenerator(
       await loadInvitationCodes();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "生成邀请码失败，请重试";
+        err instanceof Error ? err.message : t("invitation.generateFailed");
       setError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -145,7 +150,7 @@ export function RegistrationInvitationCodeGenerator(
       setInvitationCodes(response.invitation_codes);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载邀请码失败";
+        err instanceof Error ? err.message : t("invitation.loadFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingCodes(false);
@@ -160,16 +165,16 @@ export function RegistrationInvitationCodeGenerator(
    * Handles deleting an invitation code.
    */
   const handleDeleteCode = async (code: string) => {
-    if (!confirm("确定要删除此邀请码吗？")) {
+    if (!confirm(t("invitation.deleteConfirm"))) {
       return;
     }
     try {
       await deleteRegistrationInvitationCode(code);
-      notifySuccess("邀请码已删除");
+      notifySuccess(t("invitation.deleted"));
       await loadInvitationCodes();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "删除邀请码失败";
+        err instanceof Error ? err.message : t("invitation.updateFailed");
       notifyError(errorMessage);
     }
   };
@@ -207,7 +212,7 @@ export function RegistrationInvitationCodeGenerator(
       return;
     }
     if (editExpiresInDays < 1 || editExpiresInDays > 365) {
-      notifyWarning("有效期必须在1-365天之间");
+      notifyWarning(t("invitation.validityRange"));
       return;
     }
     setIsUpdatingInvite(true);
@@ -216,7 +221,7 @@ export function RegistrationInvitationCodeGenerator(
         editingInviteCode,
         editExpiresInDays,
       );
-      notifySuccess("邀请码过期日期已更新");
+      notifySuccess(t("invitation.updateSuccess"));
       setInvitationCodes((prev) =>
         prev.map((code) =>
           code.invitation_code === editingInviteCode
@@ -230,7 +235,7 @@ export function RegistrationInvitationCodeGenerator(
       handleCloseEditInvite();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新邀请码失败";
+        err instanceof Error ? err.message : t("invitation.updateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingInvite(false);
@@ -242,36 +247,36 @@ export function RegistrationInvitationCodeGenerator(
       <Box component='form' onSubmit={handleSubmit} sx={{ pt: 2 }}>
         <Stack spacing={2}>
           <FormControl fullWidth disabled={isLoading}>
-            <InputLabel id='role-select-label'>目标角色</InputLabel>
+            <InputLabel id='role-select-label'>
+              {t("invitation.targetRole")}
+            </InputLabel>
             <Select
               labelId='role-select-label'
               id='role'
               value={role}
-              label='目标角色'
-              onChange={(e) =>
-                setRole(e.target.value as "teacher" | "student")
-              }
+              label={t("invitation.targetRole")}
+              onChange={(e) => setRole(e.target.value as "teacher" | "student")}
             >
               {user?.role === "admin" && (
-                <MenuItem value='teacher'>教师</MenuItem>
+                <MenuItem value='teacher'>{t("sidebar.role.teacher")}</MenuItem>
               )}
-              <MenuItem value='student'>学生</MenuItem>
+              <MenuItem value='student'>{t("sidebar.role.student")}</MenuItem>
             </Select>
           </FormControl>
           {user?.role === "teacher" && (
             <Typography variant='caption' color='text.secondary'>
-              教师只能为学生生成邀请码
+              {t("invitation.teacherOnlyStudent")}
             </Typography>
           )}
           <TextField
             id='expires'
-            label='有效期（天）'
+            label={t("invitation.expiresLabel")}
             type='number'
             inputProps={{ min: 1, max: 365 }}
             value={expiresInDays}
             onChange={(e) => setExpiresInDays(Number(e.target.value))}
             disabled={isLoading}
-            helperText='设置邀请码的有效期，默认 30 天'
+            helperText={t("invitation.defaultExpiryHelper")}
           />
         </Stack>
       </Box>
@@ -293,7 +298,7 @@ export function RegistrationInvitationCodeGenerator(
     <Chip
       size='small'
       color={expired ? "default" : "success"}
-      label={expired ? "过期" : "有效"}
+      label={expired ? t("invitation.expiredChip") : t("invitation.validChip")}
       variant={expired ? "outlined" : "filled"}
     />
   );
@@ -301,24 +306,26 @@ export function RegistrationInvitationCodeGenerator(
   const renderInvitationCodeList = () => (
     <Stack spacing={1.5}>
       <Stack direction='row' justifyContent='space-between' alignItems='center'>
-        <Typography variant='subtitle2'>注册邀请码列表</Typography>
+        <Typography variant='subtitle2'>{t("invitation.listTitle")}</Typography>
         <Stack direction='row' spacing={1} alignItems='center'>
           <FormControl size='small' sx={{ minWidth: 120 }}>
-            <InputLabel id='filter-role-label'>筛选</InputLabel>
+            <InputLabel id='filter-role-label'>
+              {t("invitation.filter")}
+            </InputLabel>
             <Select
               labelId='filter-role-label'
               id='filter-role'
               value={roleFilter}
-              label='筛选'
+              label={t("invitation.filter")}
               onChange={(e) => setRoleFilter(e.target.value)}
             >
-              <MenuItem value=''>全部</MenuItem>
-              <MenuItem value='teacher'>教师</MenuItem>
-              <MenuItem value='student'>学生</MenuItem>
+              <MenuItem value=''>{t("invitation.all")}</MenuItem>
+              <MenuItem value='teacher'>{t("sidebar.role.teacher")}</MenuItem>
+              <MenuItem value='student'>{t("sidebar.role.student")}</MenuItem>
             </Select>
           </FormControl>
           <Button onClick={loadInvitationCodes} size='small' color='inherit'>
-            刷新
+            {t("invitation.refresh")}
           </Button>
         </Stack>
       </Stack>
@@ -326,13 +333,19 @@ export function RegistrationInvitationCodeGenerator(
         <Stack direction='row' spacing={1} alignItems='center'>
           <CircularProgress size={16} />
           <Typography variant='body2' color='text.secondary'>
-            加载中...
+            {t("invitation.loading")}
           </Typography>
         </Stack>
       ) : invitationCodes.length === 0 ? (
-        <Typography variant='body2' color='text.secondary'>
-          暂无邀请码记录
-        </Typography>
+        <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+          <VpnKey sx={{ fontSize: 48, color: "var(--color-border)", mb: 2 }} />
+          <Typography variant='h6' sx={{ mt: 2 }}>
+            {t("invitation.noRecords")}
+          </Typography>
+          <Typography variant='body2'>
+            {t("invitation.generateFirst")}
+          </Typography>
+        </Box>
       ) : (
         <Stack spacing={1}>
           {invitationCodes.map((code) => {
@@ -363,11 +376,17 @@ export function RegistrationInvitationCodeGenerator(
                       {code.invitation_code}
                     </Typography>
                     <Stack direction='row' spacing={1} alignItems='center'>
-                      <Tooltip title={expired ? "邀请码已过期" : "复制邀请码"}>
+                      <Tooltip
+                        title={
+                          expired
+                            ? t("invitation.expired")
+                            : t("invitation.copyCode")
+                        }
+                      >
                         <span>
                           <IconButton
                             size='small'
-                            aria-label='复制邀请码'
+                            aria-label={t("invitation.copyCode")}
                             onClick={() =>
                               copyToClipboard(code.invitation_code)
                             }
@@ -380,23 +399,25 @@ export function RegistrationInvitationCodeGenerator(
                       {(user?.role === "admin" ||
                         code.created_by === user?.username) && (
                         <>
-                          <Tooltip title='修改过期日期'>
+                          <Tooltip title={t("invitation.modifyExpiryTooltip")}>
                             <span>
                               <IconButton
                                 size='small'
-                                aria-label='修改过期日期'
+                                aria-label={t("invitation.modifyExpiryTooltip")}
                                 onClick={() => handleOpenEditInvite(code)}
                               >
                                 <Edit fontSize='small' />
                               </IconButton>
                             </span>
                           </Tooltip>
-                          <Tooltip title='删除邀请码'>
+                          <Tooltip title={t("invitation.deleteCode")}>
                             <span>
                               <IconButton
                                 size='small'
-                                aria-label='删除邀请码'
-                                onClick={() => handleDeleteCode(code.invitation_code)}
+                                aria-label={t("invitation.deleteCode")}
+                                onClick={() =>
+                                  handleDeleteCode(code.invitation_code)
+                                }
                                 color='error'
                               >
                                 <Delete fontSize='small' />
@@ -410,14 +431,17 @@ export function RegistrationInvitationCodeGenerator(
                   </Stack>
                   <Stack direction='row' spacing={2} flexWrap='wrap'>
                     <Typography variant='caption' color='text.secondary'>
-                      角色: {code.role === "teacher" ? "教师" : "学生"}
+                      {t("invitation.role")}:{" "}
+                      {code.role === "teacher"
+                        ? t("sidebar.role.teacher")
+                        : t("sidebar.role.student")}
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
-                      创建时间:{" "}
+                      {t("invitation.createdAt")}:{" "}
                       {new Date(code.created_at).toLocaleString("zh-CN")}
                     </Typography>
                     <Typography variant='caption' color='text.secondary'>
-                      到期时间:{" "}
+                      {t("invitation.expiresAtLabel")}:{" "}
                       {code.expires_at
                         ? new Date(code.expires_at).toLocaleString("zh-CN")
                         : "-"}
@@ -436,7 +460,7 @@ export function RegistrationInvitationCodeGenerator(
     <>
       {onClose && (
         <Button onClick={onClose} color='inherit' disabled={isLoading}>
-          取消
+          {t("invitation.cancel")}
         </Button>
       )}
       <Button
@@ -444,7 +468,7 @@ export function RegistrationInvitationCodeGenerator(
         variant='contained'
         disabled={isLoading}
       >
-        {isLoading ? "生成中..." : "生成邀请码"}
+        {isLoading ? t("invitation.generating") : t("invitation.generate")}
       </Button>
     </>
   );
@@ -460,21 +484,21 @@ export function RegistrationInvitationCodeGenerator(
       fullWidth
       maxWidth='sm'
     >
-      <DialogTitle>注册邀请码生成成功</DialogTitle>
+      <DialogTitle>{t("invitation.generateSuccess")}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2}>
           <Typography variant='body2' color='text.secondary'>
-            请复制并发送给对应角色完成注册。
+            {t("invitation.copyInstruction")}
           </Typography>
           <Box>
             <Typography variant='caption' color='text.secondary'>
-              目标角色
+              {t("invitation.targetRole")}
             </Typography>
             <Typography variant='body2'>{successInfo?.role}</Typography>
           </Box>
           <Box>
             <Typography variant='caption' color='text.secondary'>
-              过期时间
+              {t("invitation.expiresAt")}
             </Typography>
             <Typography variant='body2'>{successInfo?.expiresAt}</Typography>
           </Box>
@@ -484,7 +508,7 @@ export function RegistrationInvitationCodeGenerator(
               color='text.secondary'
               sx={{ mb: 1, display: "block" }}
             >
-              邀请码
+              {t("invitation.invitationCode")}
             </Typography>
             <Stack direction='row' spacing={1}>
               <TextField
@@ -497,7 +521,7 @@ export function RegistrationInvitationCodeGenerator(
                 variant='contained'
                 onClick={() => copyToClipboard(successInfo?.code ?? "")}
               >
-                复制
+                {t("invitation.copy")}
               </Button>
             </Stack>
           </Box>
@@ -513,34 +537,42 @@ export function RegistrationInvitationCodeGenerator(
       fullWidth
       maxWidth='sm'
     >
-      <DialogTitle>修改邀请码过期日期</DialogTitle>
+      <DialogTitle>{t("invitation.modifyExpiry")}</DialogTitle>
       <DialogContent dividers>
         <Stack spacing={2} sx={{ pt: 2 }}>
           <TextField
-            label='有效期（天）'
+            label={t("invitation.expiresLabel")}
             type='number'
             inputProps={{ min: 1, max: 365 }}
             value={editExpiresInDays}
             onChange={(e) => setEditExpiresInDays(Number(e.target.value))}
             disabled={isUpdatingInvite}
             fullWidth
-            helperText='设置邀请码的有效期，范围：1-365天'
+            helperText={t("invitation.expiryHelper")}
           />
           <Typography variant='body2' color='text.secondary'>
-            新的过期时间将从当前时间开始计算
+            {t("invitation.newExpiryFromNow")}
           </Typography>
         </Stack>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleCloseEditInvite} color='inherit' disabled={isUpdatingInvite}>
-          取消
+        <Button
+          onClick={handleCloseEditInvite}
+          color='inherit'
+          disabled={isUpdatingInvite}
+        >
+          {t("invitation.cancel")}
         </Button>
         <Button
           onClick={handleUpdateInvite}
           variant='contained'
-          disabled={isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365}
+          disabled={
+            isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365
+          }
         >
-          {isUpdatingInvite ? "更新中..." : "确认更新"}
+          {isUpdatingInvite
+            ? t("invitation.updating")
+            : t("invitation.confirmUpdate")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -570,7 +602,7 @@ export function RegistrationInvitationCodeGenerator(
   return (
     <>
       <Dialog open onClose={onClose} fullWidth maxWidth='sm'>
-        <DialogTitle>注册邀请码管理</DialogTitle>
+        <DialogTitle>{t("invitation.management")}</DialogTitle>
         <DialogContent dividers>
           <Stack spacing={3}>
             {content}

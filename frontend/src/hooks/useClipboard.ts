@@ -6,6 +6,7 @@
  */
 
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useNotification } from "./useNotification";
 
 /**
@@ -14,6 +15,7 @@ import { useNotification } from "./useNotification";
  * @returns Object with copyToClipboard function
  */
 export function useClipboard() {
+  const { t } = useTranslation();
   const { notifySuccess, notifyError } = useNotification();
 
   /**
@@ -37,13 +39,13 @@ export function useClipboard() {
         // Try modern clipboard API first
         if (navigator.clipboard && window.isSecureContext) {
           await navigator.clipboard.writeText(text);
-          notifySuccess(successMessage || "已复制");
+          notifySuccess(successMessage || t("common.copied"));
           return;
         }
 
         // Fallback for older browsers or insecure contexts
         if (typeof document === "undefined") {
-          throw new Error(errorMessage || "复制失败，请手动复制");
+          throw new Error(errorMessage || t("common.copyFailed"));
         }
 
         const textArea = document.createElement("textarea");
@@ -60,18 +62,18 @@ export function useClipboard() {
         document.body.removeChild(textArea);
 
         if (!success) {
-          throw new Error(errorMessage || "复制失败，请手动复制");
+          throw new Error(errorMessage || t("common.copyFailed"));
         }
-        notifySuccess(successMessage || "已复制");
+        notifySuccess(successMessage || t("common.copied"));
       } catch (err) {
         const errorMsg =
           err instanceof Error
             ? err.message
-            : errorMessage || "复制失败，请重试";
+            : errorMessage || t("common.copyFailed");
         notifyError(errorMsg);
       }
     },
-    [notifyError, notifySuccess],
+    [notifyError, notifySuccess, t],
   );
 
   return { copyToClipboard };

@@ -331,6 +331,117 @@ def rename_profile(
     return profile_manager.rename_profile(profile_id, req.profile_name.strip())
 
 
+class UpdatePersonaHintsRequest(BaseModel):
+    """Request schema for updating persona hints."""
+
+    persona_hints: List[str] = Field(
+        description="New persona hints.",
+    )
+
+
+class UpdateCurriculumRequest(BaseModel):
+    """Request schema for updating curriculum."""
+
+    curriculum: SocraticCurriculum = Field(
+        description="New curriculum.",
+    )
+
+
+@router.put(
+    "/{profile_id}/persona-hints",
+    response_model=Profile,
+    summary="更新Profile的Persona提示",
+)
+def update_persona_hints(
+    profile_id: str,
+    req: UpdatePersonaHintsRequest,
+    profile_manager: ProfileManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Profile:
+    """Update persona hints for a profile.
+
+    Args:
+        profile_id: The profile ID to update.
+        req: UpdatePersonaHintsRequest containing new persona hints.
+        profile_manager: Injected ProfileManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Updated Profile object.
+    """
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can update persona hints.",
+        )
+
+    try:
+        profile = profile_manager.read_profile(profile_id)
+    except ProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if profile.owner_id and current_user.role == "teacher":
+        if profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update your own profiles.",
+            )
+
+    # Update persona hints
+    updated_profile = profile.model_copy(update={"persona_hints": req.persona_hints})
+    return profile_manager.save_profile(updated_profile)
+
+
+@router.put(
+    "/{profile_id}/curriculum",
+    response_model=Profile,
+    summary="更新Profile的学习步骤",
+)
+def update_curriculum(
+    profile_id: str,
+    req: UpdateCurriculumRequest,
+    profile_manager: ProfileManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Profile:
+    """Update curriculum for a profile.
+
+    Args:
+        profile_id: The profile ID to update.
+        req: UpdateCurriculumRequest containing new curriculum.
+        profile_manager: Injected ProfileManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Updated Profile object.
+    """
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can update curriculum.",
+        )
+
+    try:
+        profile = profile_manager.read_profile(profile_id)
+    except ProfileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    if profile.owner_id and current_user.role == "teacher":
+        if profile.owner_id != current_user.user_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You can only update your own profiles.",
+            )
+
+    # Update curriculum - SocraticCurriculum is a RootModel, so model_dump() returns the list directly
+    curriculum_list = req.curriculum.model_dump()
+
+    # Create SocraticCurriculum object for the Profile (Profile.curriculum expects SocraticCurriculum, not list)
+    curriculum_obj = SocraticCurriculum(curriculum_list)
+
+    updated_profile = profile.model_copy(update={"curriculum": curriculum_obj})
+    return profile_manager.save_profile(updated_profile)
+
+
 @router.delete(
     "/{profile_id}",
     summary="删除Profile",

@@ -5,6 +5,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { IconButton } from "@mui/material";
 import { Close } from "@mui/icons-material";
 import {
@@ -53,6 +54,7 @@ function NotificationContextBridge(
   props: NotificationProviderProps,
 ): JSX.Element {
   const { children } = props;
+  const { t } = useTranslation();
   const { enqueueSnackbar, closeSnackbar } = useSnackbar();
 
   const notify = useCallback(
@@ -64,14 +66,14 @@ function NotificationContextBridge(
           ((key) => (
             <IconButton
               size='small'
-              aria-label='close notification'
+              aria-label={t("notification.close")}
               onClick={() => closeSnackbar(key)}
             >
               <Close fontSize='small' />
             </IconButton>
           )),
       }),
-    [enqueueSnackbar, closeSnackbar],
+    [enqueueSnackbar, closeSnackbar, t],
   );
 
   const createNotifier = useCallback(
