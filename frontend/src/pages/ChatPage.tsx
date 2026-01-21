@@ -55,6 +55,7 @@ import {
   deleteSession,
   getProfile,
 } from "../api";
+import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../i18n";
 
 /**
  * Props for ChatPage component.
@@ -86,6 +87,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [showProfileDetail, setShowProfileDetail] = useState<boolean>(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [currentLanguage, setCurrentLanguage] =
+    useState<SupportedLanguage>("zh");
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
   const sidebarDefaultRatio = 0.15;
@@ -151,7 +154,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         const res = await createSession({
           profile_id: profile.profile_id,
           session_name: `${profile.profile_name || profile.topic_name} - ${new Date().toLocaleString()}`,
-          output_language: "zh-CN",
+          output_language: SUPPORTED_LANGUAGES[currentLanguage].llmLanguage,
         });
 
         await refreshSessions();
@@ -181,8 +184,19 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         );
       }
     },
-    [notifyError, notifySuccess, refreshSessions, sessionState, setMessages],
+    [
+      notifyError,
+      notifySuccess,
+      refreshSessions,
+      sessionState,
+      setMessages,
+      currentLanguage,
+    ],
   );
+
+  const handleLanguageChange = useCallback((language: SupportedLanguage) => {
+    setCurrentLanguage(language);
+  }, []);
 
   const handleSwitchToSession = useCallback(
     async (session: SessionSummary) => {
@@ -544,6 +558,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           onLogout={handleLogout}
           onOpenSettings={handleOpenSettings}
           onProfileClick={currentSession ? handleProfileClick : undefined}
+          currentLanguage={currentLanguage}
+          onLanguageChange={handleLanguageChange}
         />
 
         <Box

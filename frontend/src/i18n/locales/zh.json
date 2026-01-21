@@ -1,0 +1,50 @@
+{
+  "header": {
+    "panelTitles": {
+      "chat": "苏格拉底式AI导师",
+      "invitation": "注册邀请码",
+      "lab-manual": "实验文档管理",
+      "skill": "Skill管理",
+      "profile": "Profile管理",
+      "class": "班级管理"
+    },
+    "helpTitles": {
+      "lab-manual": "实验文档管理 - 构建知识基础",
+      "skill": "Skill管理 - 增强tutor能力",
+      "profile": "Profile管理 - AI自动生成专属学习助手"
+    },
+    "tooltips": {
+      "userGuide": "使用指南",
+      "expandInfo": "展开信息",
+      "collapseInfo": "收起信息",
+      "restoreWindow": "还原窗口",
+      "maximizeChat": "最大化对话",
+      "switchToLight": "切换为浅色",
+      "switchToDark": "切换为深色",
+      "curriculum": "课程",
+      "profile": "Profile"
+    },
+    "menu": {
+      "settings": "设置",
+      "logout": "登出"
+    },
+    "user": "用户"
+  },
+  "language": {
+    "switch": "切换语言",
+    "current": "当前语言"
+  },
+  "common": {
+    "loading": "加载中...",
+    "save": "保存",
+    "cancel": "取消",
+    "delete": "删除",
+    "edit": "编辑",
+    "confirm": "确认",
+    "close": "关闭",
+    "submit": "提交",
+    "back": "返回",
+    "next": "下一步",
+    "previous": "上一步"
+  }
+}

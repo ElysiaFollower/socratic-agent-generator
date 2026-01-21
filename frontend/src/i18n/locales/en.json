@@ -1,0 +1,50 @@
+{
+  "header": {
+    "panelTitles": {
+      "chat": "Socratic AI Tutor",
+      "invitation": "Registration Invite Code",
+      "lab-manual": "Lab Manual Management",
+      "skill": "Skill Management",
+      "profile": "Profile Management",
+      "class": "Class Management"
+    },
+    "helpTitles": {
+      "lab-manual": "Lab Manual Management - Building Knowledge Foundation",
+      "skill": "Skill Management - Enhance Tutor Capabilities",
+      "profile": "Profile Management - AI-Generated Personal Learning Assistant"
+    },
+    "tooltips": {
+      "userGuide": "User Guide",
+      "expandInfo": "Expand Info",
+      "collapseInfo": "Collapse Info",
+      "restoreWindow": "Restore Window",
+      "maximizeChat": "Maximize Chat",
+      "switchToLight": "Switch to Light Mode",
+      "switchToDark": "Switch to Dark Mode",
+      "curriculum": "Curriculum",
+      "profile": "Profile"
+    },
+    "menu": {
+      "settings": "Settings",
+      "logout": "Logout"
+    },
+    "user": "User"
+  },
+  "language": {
+    "switch": "Switch Language",
+    "current": "Current Language"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "confirm": "Confirm",
+    "close": "Close",
+    "submit": "Submit",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous"
+  }
+}
