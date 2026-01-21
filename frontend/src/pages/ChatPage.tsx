@@ -21,6 +21,7 @@ import {
   Dialog,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from "@mui/material";
 import AssistantIcon from "@mui/icons-material/Assistant";
 import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
@@ -89,6 +90,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [showProfileDetail, setShowProfileDetail] = useState<boolean>(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] =
     useState<SupportedLanguage>("zh");
   const sidebarMinRatio = 0.1;
@@ -152,6 +154,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
 
   const handleStartNewSession = useCallback(
     async (profile: Profile) => {
+      if (isCreatingSession) {
+        return;
+      }
+      setIsCreatingSession(true);
       try {
         const res = await createSession({
           profile_id: profile.profile_id,
@@ -184,6 +190,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         notifyError(
           error instanceof Error ? error.message : t("chat.dialogCreateFailed"),
         );
+      } finally {
+        setIsCreatingSession(false);
       }
     },
     [
@@ -194,6 +202,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       setMessages,
       currentLanguage,
       t,
+      isCreatingSession,
     ],
   );
 
@@ -711,7 +720,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                               variant='outlined'
                               size='small'
                               onClick={() => handleStartNewSession(profile)}
-                              disabled={chatLoading}
+                              disabled={chatLoading || isCreatingSession}
                               sx={{
                                 flexShrink: 0,
                                 minWidth: 0,
@@ -729,6 +738,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                                   transform: "scale(1.02)",
                                 },
                               }}
+                              startIcon={
+                                isCreatingSession ? (
+                                  <CircularProgress size={14} />
+                                ) : undefined
+                              }
                             >
                               <Box
                                 component='span'
@@ -769,7 +783,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       {showProfileSelector && (
         <ProfileSelector
           profiles={profiles}
-          isLoading={profilesLoading}
+          isLoading={profilesLoading || isCreatingSession}
           onSelect={handleStartNewSession}
           onClose={() => setShowProfileSelector(false)}
         />

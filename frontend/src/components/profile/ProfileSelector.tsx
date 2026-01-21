@@ -18,6 +18,7 @@ import {
   Button,
   TextField,
   Typography,
+  CircularProgress,
 } from "@mui/material";
 import { School } from "@mui/icons-material";
 import { Profile } from "../../types";
@@ -84,7 +85,26 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
                   <CardActionArea
                     onClick={() => onSelect(profile)}
                     disabled={isLoading}
+                    sx={{ position: "relative" }}
                   >
+                    {isLoading && (
+                      <Box
+                        sx={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          bgcolor: "rgba(255, 255, 255, 0.7)",
+                          zIndex: 1,
+                        }}
+                      >
+                        <CircularProgress size={24} />
+                      </Box>
+                    )}
                     <CardContent>
                       <Typography variant='h6' sx={{ mb: 1 }}>
                         {profile.profile_name || profile.topic_name}
