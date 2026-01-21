@@ -159,7 +159,7 @@
     "failed": "Registration failed, please try again"
   },
   "session": {
-    "historySessions": "History Sessions",
+    "historySessions": "Sessions",
     "newSession": "New Session",
     "settings": "Settings",
     "noSessions": "No sessions yet",
@@ -167,7 +167,12 @@
     "rename": "Rename",
     "delete": "Delete",
     "deleteSession": "Delete Session",
-    "deleteSessionConfirm": "Are you sure you want to delete this session? This action cannot be undone."
+    "deleteSessionConfirm": "Are you sure you want to delete this session? This action cannot be undone.",
+    "searchSessions": "Search Sessions",
+    "searchPlaceholder": "Search session name or topic",
+    "noSearchResults": "No matching sessions found",
+    "pinned": "Pin",
+    "unpinned": "Unpin"
   },
   "invitation": {
     "studentNoPermission": "Students do not have permission to generate invitation codes",

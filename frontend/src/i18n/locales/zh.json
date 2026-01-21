@@ -168,7 +168,12 @@
     "rename": "重命名",
     "delete": "删除",
     "deleteSession": "删除会话",
-    "deleteSessionConfirm": "确定要删除这个会话吗？该操作无法撤销。"
+    "deleteSessionConfirm": "确定要删除这个会话吗？该操作无法撤销。",
+    "searchSessions": "搜索会话",
+    "searchPlaceholder": "搜索会话名称或主题",
+    "noSearchResults": "未找到匹配的会话",
+    "pinned": "置顶",
+    "unpinned": "取消置顶"
   },
   "invitation": {
     "studentNoPermission": "学生无权生成邀请码",
