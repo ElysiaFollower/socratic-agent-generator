@@ -6,7 +6,7 @@ from typing import Any, Optional
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 
-from config import MAX_INPUT_TOKENS
+from config import MAX_INPUT_TOKENS, DEFAULT_OUTPUT_LANGUAGE
 from schemas.custom_skill import CustomSkillDraft
 
 logger = logging.getLogger(__name__)
@@ -15,13 +15,27 @@ logger = logging.getLogger(__name__)
 class CustomSkillGenerator:
     """Generate custom skill drafts from supplemental materials."""
 
-    def __init__(self, llm: Any):
+    def __init__(
+        self,
+        llm: Any,
+        output_language: str = DEFAULT_OUTPUT_LANGUAGE,
+    ):
+        """Initialize CustomSkillGenerator.
+
+        Args:
+            llm: LLM instance for generation.
+            output_language: Output language for generated content. This is a string
+                that will be passed directly to the LLM in the prompt. Defaults to
+                DEFAULT_OUTPUT_LANGUAGE.
+        """
         self.llm = llm
+        self.output_language = output_language or DEFAULT_OUTPUT_LANGUAGE
         self.output_parser = JsonOutputParser(pydantic_object=CustomSkillDraft)
         self.prompt = ChatPromptTemplate.from_messages(
             [
                 (
                     "system",
+                    "**Output Language**: All output must be in {output_language}.\n\n"
                     "You are an expert skill designer for a Socratic tutoring system. "
                     "Analyze supplemental materials and create a custom tool/skill definition. "
                     "Return a single JSON object that strictly follows the format instructions: "
@@ -96,6 +110,7 @@ class CustomSkillGenerator:
                     "materials": content_excerpt,
                     "hint": hint or "",
                     "profile_context": profile_context or "",
+                    "output_language": self.output_language,
                     "format_instructions": self.output_parser.get_format_instructions(),
                 }
             )

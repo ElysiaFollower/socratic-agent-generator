@@ -118,6 +118,10 @@ class CustomSkillGenerateRequest(BaseModel):
 
     material_ids: List[int] = Field(default_factory=list)
     hint: Optional[str] = Field(default=None, description="Optional generation hint")
+    output_language: Optional[str] = Field(
+        default=None,
+        description="Output language for generated skill. Defaults to DEFAULT_OUTPUT_LANGUAGE.",
+    )
 
 
 class CustomSkillGenerateResponse(BaseModel):

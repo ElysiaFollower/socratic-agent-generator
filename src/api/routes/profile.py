@@ -11,10 +11,10 @@ from pathlib import Path
 from typing import List, Optional
 
 import pdfplumber
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, Form, HTTPException, Query, UploadFile, status
 
 from api.routes.auth import get_current_user
-from config import RAW_DATA_DIR, ROOT_DIR, DOCUMENTS_DIR
+from config import RAW_DATA_DIR, ROOT_DIR, DOCUMENTS_DIR, DEFAULT_OUTPUT_LANGUAGE
 from core.dependencies import ProfileManagerDep, DocumentManagerDep, ClassManagerDep
 from core.exceptions import ProfileNotFoundError
 from generators.ProfileGenerateManager import ProfileGenerateManager
@@ -103,6 +103,10 @@ class GenerateProfileRequest(BaseModel):
         default=None,
         description="Optional lab directory name for RAG indexing and profile storage.",
     )
+    output_language: Optional[str] = Field(
+        default=None,
+        description="Output language for generated content. Defaults to DEFAULT_OUTPUT_LANGUAGE.",
+    )
 
 
 class RenameProfileRequest(BaseModel):
@@ -120,6 +124,10 @@ class GenerateProfileFromLabRequest(BaseModel):
     profile_name: Optional[str] = Field(
         default=None,
         description="Optional name for the profile. If None, auto-generated from username + lab_name + uuid.",
+    )
+    output_language: Optional[str] = Field(
+        default=None,
+        description="Output language for generated content. Defaults to DEFAULT_OUTPUT_LANGUAGE.",
     )
 
 
@@ -726,7 +734,10 @@ async def generate_profile(
         else:
             profile_name = req.profile_name
 
-        profile_generator = ProfileGenerateManager(req.lab_manual_content)
+        output_language = req.output_language or DEFAULT_OUTPUT_LANGUAGE
+        profile_generator = ProfileGenerateManager(
+            req.lab_manual_content, output_language=output_language
+        )
 
         # Compile but DO NOT save to file (logic in ProfileGenerateManager needs update)
         # We will update ProfileGenerateManager to respect output_dir=None means no save,
@@ -889,6 +900,7 @@ def save_curriculum(
 @router.post("/lab-manuals/{lab_name}/generate-persona", response_model=TutorPersona, summary="生成Persona")
 async def generate_persona_endpoint(
     lab_name: str,
+    output_language: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     document_manager: DocumentManagerDep = None
 ) -> TutorPersona:
@@ -906,7 +918,8 @@ async def generate_persona_endpoint(
     try:
         with open(lab_manual_path, "r", encoding="utf-8") as f:
             content = f.read()
-        pg = ProfileGenerateManager(content)
+        output_language = output_language or DEFAULT_OUTPUT_LANGUAGE
+        pg = ProfileGenerateManager(content, output_language=output_language)
         persona = await pg.generate_persona()
 
         lab_dir = lab_manual_path.parent
@@ -920,6 +933,7 @@ async def generate_persona_endpoint(
 @router.post("/lab-manuals/{lab_name}/generate-curriculum", response_model=SocraticCurriculum, summary="生成Curriculum")
 async def generate_curriculum_endpoint(
     lab_name: str,
+    output_language: Optional[str] = Query(default=None),
     current_user: User = Depends(get_current_user),
     document_manager: DocumentManagerDep = None
 ) -> SocraticCurriculum:
@@ -937,7 +951,8 @@ async def generate_curriculum_endpoint(
     try:
         with open(lab_manual_path, "r", encoding="utf-8") as f:
             content = f.read()
-        pg = ProfileGenerateManager(content)
+        output_language = output_language or DEFAULT_OUTPUT_LANGUAGE
+        pg = ProfileGenerateManager(content, output_language=output_language)
         curriculum = await pg.generate_curriculum()
 
         lab_dir = lab_manual_path.parent
@@ -988,7 +1003,8 @@ async def generate_profile_from_lab(
         profile_name = f"{current_user.username}_{lab_name}_{str(uuid.uuid4())[:8]}"
 
     try:
-        pg = ProfileGenerateManager(content)
+        output_language = req.output_language or DEFAULT_OUTPUT_LANGUAGE
+        pg = ProfileGenerateManager(content, output_language=output_language)
         profile = await pg.compile_profile(
             curriculum=curriculum,
             definition=persona,

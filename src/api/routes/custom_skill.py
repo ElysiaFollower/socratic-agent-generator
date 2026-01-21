@@ -395,7 +395,9 @@ async def generate_custom_skill(
         f"## Material {m.id}\n\n{m.content}" for m in materials
     )
 
-    generator = CustomSkillGenerator(get_default_llm())
+    from config import DEFAULT_OUTPUT_LANGUAGE
+    output_language = req.output_language or DEFAULT_OUTPUT_LANGUAGE
+    generator = CustomSkillGenerator(get_default_llm(), output_language=output_language)
     draft = await generator.generate(
         combined, hint=req.hint, profile_context=_format_profile_context(profile)
     )
