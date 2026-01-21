@@ -11,7 +11,16 @@ import React, {
   useRef,
   useMemo,
 } from "react";
-import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Stack,
+  Tooltip,
+  Typography,
+  Dialog,
+  DialogContent,
+  DialogActions,
+} from "@mui/material";
 import AssistantIcon from "@mui/icons-material/Assistant";
 import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
 import {
@@ -36,6 +45,7 @@ import {
   ClassManagerPanel,
   SettingsModal,
   SidebarRail,
+  ProfileDetailCard,
 } from "../components";
 import {
   createSession,
@@ -43,6 +53,7 @@ import {
   getWelcomeMessage,
   renameSession,
   deleteSession,
+  getProfile,
 } from "../api";
 
 /**
@@ -72,6 +83,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [inputValue, setInputValue] = useState<string>("");
   const [activePanel, setActivePanel] = useState<ToolPanelView>("chat");
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [showProfileDetail, setShowProfileDetail] = useState<boolean>(false);
+  const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
@@ -184,8 +197,6 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         } else {
           sessionState.setProfile(null);
         }
-
-        await sessionState.refresh();
 
         if (sessionDetail.history && sessionDetail.history.length > 0) {
           const chatHistory: ChatMessage[] = sessionDetail.history.map(
@@ -348,6 +359,22 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setActivePanel("class");
   }, []);
 
+  const handleProfileClick = useCallback(async () => {
+    if (!currentSession?.profile_id) {
+      return;
+    }
+    try {
+      const profile = await getProfile(currentSession.profile_id);
+      setSelectedProfile(profile);
+      setShowProfileDetail(true);
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+      notifyError(
+        error instanceof Error ? error.message : "获取Profile信息失败",
+      );
+    }
+  }, [currentSession?.profile_id, notifyError]);
+
   const handleOpenChatHome = useCallback(() => {
     setSessionId(null);
     setInputValue("");
@@ -419,7 +446,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   }, []);
 
   const isChatView = activePanel === "chat";
-  const contentMaxWidth = isMaximized ? "100%" : isChatView ? "80%" : "100%";
+  const contentMaxWidth = isMaximized ? "100%" : isChatView ? "90%" : "100%";
 
   return (
     <Box
@@ -516,6 +543,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           onToggleTheme={onToggleTheme}
           onLogout={handleLogout}
           onOpenSettings={handleOpenSettings}
+          onProfileClick={currentSession ? handleProfileClick : undefined}
         />
 
         <Box
@@ -720,6 +748,42 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
       />
+
+      {/* Profile Detail Dialog */}
+      <Dialog
+        open={showProfileDetail}
+        onClose={() => setShowProfileDetail(false)}
+        fullWidth
+        maxWidth='md'
+      >
+        {selectedProfile && (
+          <>
+            <DialogContent dividers>
+              <ProfileDetailCard
+                profile={selectedProfile}
+                mode={
+                  user?.role === "admin"
+                    ? "admin"
+                    : user?.role === "teacher"
+                      ? "teacher"
+                      : "student"
+                }
+                onUpdate={() => {
+                  refreshProfiles();
+                  if (
+                    currentSession?.profile_id === selectedProfile.profile_id
+                  ) {
+                    sessionState.setProfile(selectedProfile);
+                  }
+                }}
+              />
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => setShowProfileDetail(false)}>关闭</Button>
+            </DialogActions>
+          </>
+        )}
+      </Dialog>
     </Box>
   );
 }

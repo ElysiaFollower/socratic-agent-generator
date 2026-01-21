@@ -41,6 +41,8 @@ import {
   ProfileManagerHelpContent,
   SkillManagerHelpContent,
 } from "../common/HelpContent";
+import { text } from "stream/consumers";
+import { color } from "../../styles/css-variables";
 
 /**
  * Props for Header component.
@@ -60,6 +62,7 @@ export interface HeaderProps {
   readonly onToggleTheme: () => void;
   readonly onLogout: () => void;
   readonly onOpenSettings: () => void;
+  readonly onProfileClick?: () => void;
 }
 
 /**
@@ -84,6 +87,7 @@ export function Header(props: HeaderProps): JSX.Element {
     onToggleTheme,
     onLogout,
     onOpenSettings,
+    onProfileClick,
   } = props;
 
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
@@ -223,7 +227,7 @@ export function Header(props: HeaderProps): JSX.Element {
 
       {showSessionDetails && (
         <Collapse in={!isCollapsed} timeout={200}>
-          <Box sx={{ px: 3, pb: 2 }}>
+          <Box sx={{ px: 3, py: 2 }}>
             <Stack
               direction='row'
               spacing={2}
@@ -292,16 +296,37 @@ export function Header(props: HeaderProps): JSX.Element {
                     <BadgeOutlined fontSize='small' />
                   </Box>
                 </Tooltip>
-                <Typography
-                  variant='body2'
+                <Box
                   sx={{
-                    fontWeight: 600,
-                    color: "text.primary",
-                    fontFamily: "var(--font-mono)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    cursor: onProfileClick ? "pointer" : "default",
+                    borderRadius: 1,
+                    px: 1,
+                    py: 0.5,
+                    transition: "background-color 150ms ease, color 150ms ease",
+                    "&:hover": onProfileClick
+                      ? {
+                          backgroundColor: "var(--color-surface-muted)",
+                          "& .MuiTypography-root": {
+                            color: "primary.main",
+                          },
+                        }
+                      : {},
                   }}
+                  onClick={onProfileClick}
                 >
-                  {currentSession?.profile_id || "-"}
-                </Typography>
+                  <Typography
+                    variant='body2'
+                    sx={{
+                      fontWeight: 600,
+                      fontFamily: "var(--font-mono)",
+                      color: "text.primary",
+                    }}
+                  >
+                    {currentSession?.profile_name || "-"}
+                  </Typography>
+                </Box>
               </Stack>
             </Stack>
             <ProgressBar

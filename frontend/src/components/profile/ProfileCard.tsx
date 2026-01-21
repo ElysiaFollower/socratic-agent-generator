@@ -708,19 +708,19 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 暂无学习步骤
               </Typography>
             ) : (
-              <Stack spacing={1}>
+              <Stack spacing={1.5}>
                 {steps.map((step, index) => (
                   <Box
                     key={`${profile.profile_id}-step-${index}`}
                     sx={{
-                      p: 1,
+                      p: 2,
                       borderRadius: 1,
                       bgcolor: "var(--color-surface-muted)",
                     }}
                   >
                     <Typography
                       variant='body1'
-                      sx={{ fontWeight: 600, color: "primary.main", mb: 0.5 }}
+                      sx={{ fontWeight: 600, color: "primary.main", mb: 1 }}
                     >
                       第{index + 1}步: {step.step_title}
                     </Typography>

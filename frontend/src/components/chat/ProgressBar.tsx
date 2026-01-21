@@ -67,11 +67,16 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Stack direction='row' justifyContent='space-between' sx={{ mb: 1 }}>
+      <Stack
+        direction='row'
+        alignItems={"flex-start"}
+        sx={{ mb: 1 }}
+        spacing={1}
+      >
         <Typography variant='caption' color='text.secondary'>
-          学习进度
+          学习进度:
         </Typography>
-        <Typography variant='caption' color='text.secondary'>
+        <Typography variant='caption' color='text.primary'>
           {currentStep} / {curriculum.length}
         </Typography>
       </Stack>
@@ -160,11 +165,11 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
       <Box sx={{ mt: 1 }}>
         {currentStep < curriculum.length ? (
           <>
-            <Typography variant='caption' sx={{ fontWeight: 600 }}>
+            <Typography variant='body2' sx={{ fontWeight: 600 }}>
               当前步骤: {activeStep?.step_title}
             </Typography>
             <Typography
-              variant='caption'
+              variant='body2'
               color='text.secondary'
               sx={{ display: "block", mt: 0.5 }}
             >
@@ -172,7 +177,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
             </Typography>
           </>
         ) : (
-          <Typography variant='caption' color='text.secondary'>
+          <Typography variant='body2' color='text.secondary'>
             学习流程已完成。
           </Typography>
         )}

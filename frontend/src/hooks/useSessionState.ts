@@ -60,9 +60,16 @@ export function useSessionState(
     }
   }, [sessionId]);
 
+  // Only load state when we have both sessionId AND profile
   useEffect(() => {
-    void loadState();
-  }, [loadState]);
+    if (sessionId && currentProfile) {
+      void loadState();
+    } else if (!sessionId) {
+      // Reset when no session
+      setCurrentStep(0);
+      setCurriculum([]);
+    }
+  }, [sessionId, currentProfile, loadState]);
 
   const setProfileCallback = useCallback((profile: Profile | null) => {
     setCurrentProfile(profile);

@@ -758,6 +758,8 @@ export function ProfileGeneratorAdvanced(
                         })
                       }
                       size='small'
+                      multiline
+                      maxRows={5}
                       fullWidth
                     />
                     <TextField

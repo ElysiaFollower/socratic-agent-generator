@@ -31,11 +31,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import {
-  AutoFixHigh,
-  CloudUpload,
-  NoteAdd,
-} from "@mui/icons-material";
+import { AutoFixHigh, CloudUpload, NoteAdd } from "@mui/icons-material";
 import { useDropzone } from "react-dropzone";
 import {
   createCustomSkill,
@@ -57,9 +53,7 @@ interface SkillCreatePanelProps {
   readonly isLoadingProfiles: boolean;
 }
 
-export function SkillCreatePanel(
-  props: SkillCreatePanelProps,
-): JSX.Element {
+export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
   const { profiles, isLoadingProfiles } = props;
   const { notifyError, notifySuccess } = useNotification();
   const { confirm } = useConfirmDialog();
@@ -80,8 +74,7 @@ export function SkillCreatePanel(
   );
   const [viewingMaterial, setViewingMaterial] =
     useState<SkillMaterialDetail | null>(null);
-  const [isLoadingMaterial, setIsLoadingMaterial] =
-    useState<boolean>(false);
+  const [isLoadingMaterial, setIsLoadingMaterial] = useState<boolean>(false);
   const [deletingMaterialId, setDeletingMaterialId] = useState<number | null>(
     null,
   );
@@ -89,8 +82,7 @@ export function SkillCreatePanel(
   const [draftDialogOpen, setDraftDialogOpen] = useState<boolean>(false);
   const [draftForm, setDraftForm] = useState<CustomSkillDraft | null>(null);
   const [draftHint, setDraftHint] = useState<string>("");
-  const [isGeneratingDraft, setIsGeneratingDraft] =
-    useState<boolean>(false);
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState<boolean>(false);
   const [isSavingSkill, setIsSavingSkill] = useState<boolean>(false);
   const [retrievalNeeded, setRetrievalNeeded] = useState<boolean>(false);
   const [autoRebuildIndex, setAutoRebuildIndex] = useState<boolean>(true);
@@ -150,7 +142,7 @@ export function SkillCreatePanel(
   }, [loadMaterials, selectedProfileId]);
 
   const applySupplementalFile = (file: File) => {
-    const allowedExtensions = [".md", ".txt", ".markdown"];
+    const allowedExtensions = [".md", ".txt", ".markdown", ".pdf"];
     const fileExtension = file.name.toLowerCase().split(".").pop();
     if (fileExtension && !allowedExtensions.includes(`.${fileExtension}`)) {
       notifyError(
@@ -173,7 +165,7 @@ export function SkillCreatePanel(
   );
 
   const handleSupplementalDropRejected = useCallback(() => {
-    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown");
+    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown、.pdf");
   }, [notifyError]);
 
   const supplementalDropzone = useDropzone({
@@ -184,6 +176,7 @@ export function SkillCreatePanel(
     accept: {
       "text/markdown": [".md", ".markdown"],
       "text/plain": [".txt"],
+      "application/pdf": [".pdf"],
     },
   });
 
@@ -266,9 +259,7 @@ export function SkillCreatePanel(
       await deleteSkillMaterial(selectedProfileId, materialId);
       notifySuccess("补充资料已删除");
       await loadMaterials();
-      setSelectedMaterialIds((prev) =>
-        prev.filter((id) => id !== materialId),
-      );
+      setSelectedMaterialIds((prev) => prev.filter((id) => id !== materialId));
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : "删除补充资料失败";
@@ -338,10 +329,7 @@ export function SkillCreatePanel(
     setDraftDialogOpen(true);
   };
 
-  const updateDraftField = (
-    field: keyof CustomSkillDraft,
-    value: string,
-  ) => {
+  const updateDraftField = (field: keyof CustomSkillDraft, value: string) => {
     setDraftForm((prev) => {
       if (!prev) {
         return prev;
@@ -403,8 +391,7 @@ export function SkillCreatePanel(
       setDraftDialogOpen(false);
       setDraftForm(null);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "创建技能失败";
+      const errorMessage = err instanceof Error ? err.message : "创建技能失败";
       notifyError(errorMessage);
     } finally {
       setIsSavingSkill(false);
@@ -540,9 +527,7 @@ export function SkillCreatePanel(
               control={
                 <Switch
                   checked={retrievalNeeded}
-                  onChange={(event) =>
-                    setRetrievalNeeded(event.target.checked)
-                  }
+                  onChange={(event) => setRetrievalNeeded(event.target.checked)}
                 />
               }
               label='需要检索补充资料'
@@ -595,7 +580,11 @@ export function SkillCreatePanel(
     <>
       <Stack spacing={2}>
         <Paper variant='outlined' sx={{ p: 2 }}>
-          <Stack spacing={2} component='form' onSubmit={handleSupplementalUpload}>
+          <Stack
+            spacing={2}
+            component='form'
+            onSubmit={handleSupplementalUpload}
+          >
             <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>
               上传补充资料
             </Typography>
@@ -613,9 +602,7 @@ export function SkillCreatePanel(
                   if (!value) {
                     return "";
                   }
-                  const profile = profiles.find(
-                    (p) => p.profile_id === value,
-                  );
+                  const profile = profiles.find((p) => p.profile_id === value);
                   return profile?.profile_name || profile?.topic_name || "";
                 }}
                 onChange={(event) => setSelectedProfileId(event.target.value)}
@@ -632,12 +619,6 @@ export function SkillCreatePanel(
               </Select>
             </FormControl>
 
-            <Typography variant='caption' color='text.secondary'>
-              {selectedProfile
-                ? `绑定课程：${selectedProfile.profile_name || selectedProfile.topic_name}`
-                : "请选择要绑定的Profile"}
-            </Typography>
-
             <Paper
               variant='outlined'
               {...supplementalDropzone.getRootProps({
@@ -645,7 +626,7 @@ export function SkillCreatePanel(
                 "aria-label": "上传补充资料",
               })}
               sx={{
-                p: 2,
+                p: 3,
                 borderStyle: "dashed",
                 borderColor: supplementalDropzone.isDragReject
                   ? "error.main"
@@ -679,26 +660,31 @@ export function SkillCreatePanel(
                         ? "primary"
                         : "action"
                   }
-                  sx={{ fontSize: 28 }}
+                  sx={{ fontSize: 32 }}
                 />
-                {!supplementalFile && (
-                  <>
-                    <Typography variant='body2'>
-                      {supplementalDropzone.isDragReject
-                        ? "不支持的文件类型"
-                        : supplementalDropzone.isDragActive
-                          ? "释放鼠标以上传"
-                          : "拖拽文件到此处上传"}
-                    </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      {supplementalDropzone.isDragReject
-                        ? "仅支持 .md、.txt、.markdown"
-                        : "支持 .md, .txt, .markdown"}
-                    </Typography>
-                  </>
-                )}
+                <Typography variant='subtitle1'>
+                  {supplementalDropzone.isDragReject
+                    ? "不支持的文件类型"
+                    : supplementalDropzone.isDragActive
+                      ? "释放鼠标以上传"
+                      : "拖拽文件到此处上传"}
+                </Typography>
+                <Typography variant='body2' color='text.secondary'>
+                  {supplementalDropzone.isDragReject
+                    ? "仅支持 .md、.txt、.markdown、.pdf"
+                    : "点击区域选择文件"}
+                </Typography>
+                <Typography
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{ mt: 1 }}
+                >
+                  支持格式：Markdown (.md, .markdown)、纯文本 (.txt)、PDF (.pdf)
+                  <br />
+                  PDF文件大小限制：10MB。扫描PDF（图片）暂不支持，请使用文本型PDF。
+                </Typography>
                 {supplementalFile && (
-                  <Typography variant='caption'>
+                  <Typography variant='body2' sx={{ mt: 1 }}>
                     已选择：{supplementalFile.name} (
                     {(supplementalFile.size / 1024).toFixed(2)} KB)
                   </Typography>
@@ -712,37 +698,58 @@ export function SkillCreatePanel(
               />
             </Paper>
 
-            <TextField
-              size='small'
-              label='资料用途提示（可选）'
-              value={supplementalHint}
-              onChange={(event) => setSupplementalHint(event.target.value)}
-            />
-
-            <Stack direction='row' spacing={1}>
-              <Button
-                type='submit'
-                variant='contained'
-                disabled={
-                  !supplementalFile || !selectedProfileId || isUploadingSupplemental
-                }
+            {supplementalFile && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  width: "100%",
+                }}
               >
-                {isUploadingSupplemental ? "上传中..." : "上传补充资料"}
-              </Button>
-              {supplementalFile && (
-                <Button
-                  color='inherit'
-                  onClick={() => {
-                    setSupplementalFile(null);
-                    setSupplementalHint("");
-                    setSupplementalInputKey((prev) => prev + 1);
-                  }}
-                  disabled={isUploadingSupplemental}
+                <Stack spacing={1} sx={{ width: "100%", maxWidth: 640, mt: 2 }}>
+                  <Typography variant='caption' color='text.secondary'>
+                    资料用途提示（可选）
+                  </Typography>
+                  <TextField
+                    size='small'
+                    value={supplementalHint}
+                    onChange={(event) =>
+                      setSupplementalHint(event.target.value)
+                    }
+                    fullWidth
+                  />
+                </Stack>
+
+                <Stack
+                  direction='row'
+                  spacing={1}
+                  alignItems='center'
+                  justifyContent='flex-end'
+                  sx={{ mt: 2, width: "100%", maxWidth: 640 }}
                 >
-                  重新选择
-                </Button>
-              )}
-            </Stack>
+                  <Button
+                    type='submit'
+                    variant='contained'
+                    disabled={!selectedProfileId || isUploadingSupplemental}
+                    sx={{ flex: 1, maxWidth: "fit-content" }}
+                  >
+                    {isUploadingSupplemental ? "上传中..." : "上传"}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setSupplementalFile(null);
+                      setSupplementalHint("");
+                      setSupplementalInputKey((prev) => prev + 1);
+                    }}
+                    color='inherit'
+                    disabled={isUploadingSupplemental}
+                  >
+                    重新选择
+                  </Button>
+                </Stack>
+              </Box>
+            )}
           </Stack>
         </Paper>
 
@@ -778,7 +785,11 @@ export function SkillCreatePanel(
                   const isSelected = selectedMaterialIds.includes(material.id);
                   return (
                     <Paper key={material.id} variant='outlined' sx={{ p: 1.5 }}>
-                      <Stack direction='row' spacing={1} alignItems='flex-start'>
+                      <Stack
+                        direction='row'
+                        spacing={1}
+                        alignItems='flex-start'
+                      >
                         <Checkbox
                           checked={isSelected}
                           onChange={() =>
@@ -797,7 +808,10 @@ export function SkillCreatePanel(
                             {formatTimestamp(material.upload_time)}
                           </Typography>
                           {hint && (
-                            <Typography variant='caption' color='text.secondary'>
+                            <Typography
+                              variant='caption'
+                              color='text.secondary'
+                            >
                               提示：{hint}
                             </Typography>
                           )}
@@ -840,9 +854,7 @@ export function SkillCreatePanel(
                 variant='outlined'
                 startIcon={<AutoFixHigh fontSize='small' />}
                 onClick={handleGenerateDraft}
-                disabled={
-                  selectedMaterialIds.length === 0 || isGeneratingDraft
-                }
+                disabled={selectedMaterialIds.length === 0 || isGeneratingDraft}
               >
                 {isGeneratingDraft ? "生成中..." : "生成草稿"}
               </Button>
