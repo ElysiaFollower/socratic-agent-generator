@@ -75,14 +75,14 @@ def cli_main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 示例用法:
-  # 列出所有可用的Profile
+  # 列出所有可用的Profile（从数据库读取）
   python tutor_cli.py --list
 
   # 使用Profile ID启动对话
   python tutor_cli.py --profile-id <profile_id>
 
-  # 使用自定义Profile目录
-  python tutor_cli.py --profile-id <profile_id> --profiles-dir ./custom_profiles
+  # 自定义会话名称
+  python tutor_cli.py --profile-id <profile_id> --session-name "我的会话"
         """,
     )
     parser.add_argument(

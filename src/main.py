@@ -41,6 +41,10 @@ def print_banner() -> None:
     print("    - Curriculum（教学大纲）：苏格拉底式教学步骤")
     print("    - Prompt Template（提示词模板）：用于LLM对话")
     print()
+    print("存储说明：")
+    print("  - 中间产物（definition.json, curriculum.json）保存在文档目录")
+    print("  - 最终 Profile 保存到 SQLite 数据库（data/socratic_agent.db）")
+    print()
     print("=" * 70)
     print()
 
