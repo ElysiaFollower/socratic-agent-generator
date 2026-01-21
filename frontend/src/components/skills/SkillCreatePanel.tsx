@@ -494,6 +494,8 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 updateDraftField("description", event.target.value)
               }
               fullWidth
+              maxRows={3}
+              multiline
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField

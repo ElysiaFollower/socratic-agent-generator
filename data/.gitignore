@@ -1,3 +1,4 @@
 vector_stores/
 documents/
 *.db
+tiktoken_cache
