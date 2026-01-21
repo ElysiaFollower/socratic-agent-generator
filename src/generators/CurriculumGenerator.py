@@ -17,7 +17,7 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from pydantic import ValidationError
 
-from config import DEFAULT_OUTPUT_LANGUAGE, LESSON_DOMAIN, SUPPORTED_LANGUAGES
+from config import DEFAULT_OUTPUT_LANGUAGE, SUPPORTED_LANGUAGES
 from schemas.curriculum import SocraticCurriculum
 from schemas.others import DigestedManual
 from schemas.generator_intermediate import DependencyMap, CurriculumCriticResult
@@ -83,19 +83,22 @@ class CurriculumGenerator:
         self.legacy_digest_prompt = ChatPromptTemplate.from_messages([
             ("system",
              f"""<TASK>
-You are an experienced and meticulous {LESSON_DOMAIN} lab teaching assistant. 
+You are an experienced and meticulous lab teaching assistant specializing in technical education. 
 Your task is to carefully read the lab manual and decompose its content into a series of logical, progressive task steps.
 
 **Your Responsibilities**:
-- Focus on extracting operational, verifiable tasks.
+- Analyze the lab manual's domain and technical context to understand the subject matter.
+- Focus on extracting operational, verifiable tasks that students can execute.
 - Ignore background introductions, pleasantries, and other non-core content.
-- Ensure each task is clearly defined and measurable.
+- Ensure each task is clearly defined, measurable, and builds upon previous steps.
+- Maintain the logical flow and dependencies between tasks.
 
 **Output Language**: All output must be in {self.output_language}.
 
 **Output Requirements**:
 - Strictly follow the JSON format specified in {{format_instructions}}.
 - Ensure all tasks are structured and sequential.
+- Each task should be atomic and independently verifiable.
 </TASK>
 
 <LAB_MANUAL>
@@ -113,16 +116,21 @@ Your task is to carefully read the lab manual and decompose its content into a s
         self.legacy_transform_prompt = ChatPromptTemplate.from_messages([
             ("system",
              f"""<TASK>
-You are a top-tier instructional designer, especially proficient in Socratic teaching methods and {LESSON_DOMAIN} education.
+You are a top-tier instructional designer, especially proficient in Socratic teaching methods and pedagogical design across diverse technical domains.
 
-Your task is to transform a structured task list into a complete set of Socratic teaching nodes rich in pedagogical metadata.
+Your task is to transform a structured task list into a complete set of Socratic teaching nodes rich in pedagogical metadata. Analyze the task list to understand the domain context and adapt your teaching approach accordingly.
 
 **Teaching Principles**:
-1. **Concept First, Progressive Depth**: Before introducing specific operations, explain core concepts with simple analogies.
-2. **Heuristic Questioning**: Each step should not be a simple command, but should contain a question that guides students to think (e.g., "What consequences do you think tampering with this return address would bring?").
-3. **Logical Connection**: Steps should have clear causal and logical relationships, helping students understand "why" to do this.
-4. **Focus on Core**: Naturally integrate task objectives and key technical points into the conversation.
+1. **Concept First, Progressive Depth**: Before introducing specific operations, explain core concepts with simple analogies that resonate with the domain.
+2. **Heuristic Questioning**: Each step should not be a simple command, but should contain a question that guides students to think critically (e.g., "What consequences do you think tampering with this return address would bring?").
+3. **Logical Connection**: Steps should have clear causal and logical relationships, helping students understand "why" to do this, not just "how".
+4. **Focus on Core**: Naturally integrate task objectives and key technical points into the conversation flow.
 5. **Complete Loop**: Form a complete learning loop from background introduction, theoretical preparation, hands-on practice, to final summary and prevention.
+
+**Domain Adaptation**:
+- Infer the technical domain from the task list content (e.g., cybersecurity, systems programming, networking, cryptography).
+- Adapt your teaching style and examples to match the domain's conventions and terminology.
+- Ensure domain-specific safety and ethical considerations are appropriately addressed.
 
 **Output Language**: All output must be in {self.output_language}.
 
@@ -178,11 +186,16 @@ You are a rigorous systems analyst specializing in educational content decomposi
         self.socratic_architect_prompt = ChatPromptTemplate.from_messages([
             ("system",
              f"""<TASK>
-You are a top-tier instructional designer, especially proficient in Socratic teaching methods and {LESSON_DOMAIN} education.
+You are a top-tier instructional designer, especially proficient in Socratic teaching methods and pedagogical design across diverse technical domains.
 
 Your mission is to **transform a static task list into a living teaching curriculum** that guides students through a journey of discovery and understanding. This is not just content reorganization—this is **pedagogical architecture** and **cognitive path design**.
 
 Your task is to **create** a complete set of Socratic teaching nodes rich in pedagogical metadata, where each node is designed to **provoke thought**, **inspire curiosity**, and **guide discovery**.
+
+**Domain Analysis**:
+- Analyze the dependency map to infer the technical domain and subject matter context.
+- Adapt your teaching approach, terminology, and examples to match the domain's conventions.
+- Ensure domain-specific considerations (safety, ethics, best practices) are appropriately integrated.
 
 **Design Requirements**:
 1. **The "Why" Question**: For each task, design a guiding question that focuses on "why" rather than "how". The question should involve principles, not operations.
@@ -192,7 +205,7 @@ Your task is to **create** a complete set of Socratic teaching nodes rich in ped
 
 **Teaching Principles**:
 - **Concept First, Progressive Depth**: Explain core concepts with simple analogies before introducing specific operations.
-- **Heuristic Questioning**: Each step should not be a simple command, but should contain a question that guides students to think (e.g., "What consequences do you think tampering with this 'return address' would bring?").
+- **Heuristic Questioning**: Each step should not be a simple command, but should contain a question that guides students to think critically (e.g., "What consequences do you think tampering with this 'return address' would bring?").
 - **Logical Connection**: Steps should have clear causal and logical relationships, helping students understand "why" to do this.
 - **Focus on Core**: Naturally integrate task objectives and key technical points into the conversation.
 - **Complete Loop**: Form a complete learning loop from background introduction, theoretical preparation, hands-on practice, to final summary and prevention.

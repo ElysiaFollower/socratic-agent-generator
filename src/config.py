@@ -73,10 +73,6 @@ CORS_ALLOWED_ORIGINS: List[str] = [
     if origin.strip()
 ]
 
-# --- Agent Configuration ---
-
-LESSON_DOMAIN: str = os.getenv("LESSON_DOMAIN", "计算机安全")
-
 # --- LLM Configuration ---
 
 TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.7"))

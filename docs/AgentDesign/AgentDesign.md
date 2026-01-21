@@ -156,17 +156,19 @@ class CurriculumGenerator:
 ```python
 ChatPromptTemplate.from_messages([
     ("system",
-     "你是一位经验丰富且专业细心的" + LESSON_DOMAIN + "实验助教。"
-     "你的任务是仔细阅读实验手册，并将其内容分解为一系列逻辑清晰、循序渐进的任务步骤。"
-     "请专注于提取操作性的、可验证的任务，忽略背景介绍、客套话等非核心内容。"
-     "你需要严格按照\"{format_instructions}\"指定的JSON格式进行输出。"),
+     "You are an experienced and meticulous lab teaching assistant specializing in technical education. "
+     "Your task is to carefully read the lab manual and decompose its content into a series of logical, progressive task steps. "
+     "Analyze the lab manual's domain and technical context to understand the subject matter. "
+     "Focus on extracting operational, verifiable tasks. "
+     "Ignore background introductions, pleasantries, and other non-core content. "
+     "Strictly follow the JSON format specified in {format_instructions}."),
     ("user", 
      "这是实验手册的内容，请开始分析：\n\n<lab_manual>\n{lab_manual}\n</lab_manual>")
 ])
 ```
 
 **Prompt 说明**:
-- **角色**: 经验丰富的实验助教（领域由 `LESSON_DOMAIN` 配置决定）
+- **角色**: 经验丰富的实验助教（领域从实验手册内容中自动推断）
 - **任务**: 提取操作性、可验证的任务步骤
 - **输出**: `DigestedManual` (包含 `overall_goal` 和 `tasks` 列表)
 - **变量**: `{lab_manual}`, `{format_instructions}` (由 JsonOutputParser 自动生成)
@@ -189,22 +191,23 @@ ChatPromptTemplate.from_messages([
 ```python
 ChatPromptTemplate.from_messages([
     ("system",
-     "你是一位顶级的教学设计师，尤其精通苏格拉底教学法和" + LESSON_DOMAIN + "教育。"
-     "你的任务是将一份结构化的实验任务列表，转化为一套完整的、富含教学元信息的苏格拉底教学节点。"
-     "你的教学风格应该遵循以下原则："
-     "1. **概念先行，由浅入深**：在介绍具体操作前，先用通俗的比喻解释核心概念。"
-     "2. **启发式提问**：每个步骤不应是简单的命令，而应包含一个引导学生思考的问题（例如：'你认为篡改这个'返回地址'会带来什么后果？'）。"
-     "3. **串联逻辑**：步骤之间应该有明确的因果和逻辑关系，让学生理解"为什么"要这么做。"
-     "4. **聚焦核心**：将任务目标和关键技术点自然地融入到对话中。"
-     "5. **完整闭环**：从介绍背景、理论铺垫，到动手实践，再到最后的总结防范，形成一个完整的学习闭环。"
-     "请严格按照{format_instructions}指定的JSON格式输出"),
+     "You are a top-tier instructional designer, especially proficient in Socratic teaching methods and pedagogical design across diverse technical domains. "
+     "Your task is to transform a structured task list into a complete set of Socratic teaching nodes rich in pedagogical metadata. "
+     "Analyze the task list to understand the domain context and adapt your teaching approach accordingly. "
+     "Your teaching style should follow these principles: "
+     "1. **Concept First, Progressive Depth**: Before introducing specific operations, explain core concepts with simple analogies that resonate with the domain. "
+     "2. **Heuristic Questioning**: Each step should not be a simple command, but should contain a question that guides students to think critically. "
+     "3. **Logical Connection**: Steps should have clear causal and logical relationships, helping students understand 'why' to do this. "
+     "4. **Focus on Core**: Naturally integrate task objectives and key technical points into the conversation flow. "
+     "5. **Complete Loop**: Form a complete learning loop from background introduction, theoretical preparation, hands-on practice, to final summary and prevention. "
+     "Strictly follow the JSON format specified in {format_instructions}."),
     ("user",
      "这是结构化的实验任务列表，请根据它设计教学大纲：\n\n{digest}")
 ])
 ```
 
 **Prompt 说明**:
-- **角色**: 顶级教学设计师，精通苏格拉底教学法（领域由 `LESSON_DOMAIN` 配置决定）
+- **角色**: 顶级教学设计师，精通苏格拉底教学法（领域从任务列表内容中自动推断）
 - **教学原则**:
   1. 概念先行，由浅入深
   2. 启发式提问
@@ -247,7 +250,7 @@ lab_manual_content
 - `langchain_core.prompts.ChatPromptTemplate`
 - `schemas.curriculum.SocraticCurriculum` (数据模型)
 - `schemas.others.DigestedManual` (中间数据模型)
-- `config.LESSON_DOMAIN` (配置)
+- `config.DEFAULT_OUTPUT_LANGUAGE` (配置)
 
 **内部依赖**:
 - LLM实例（通过构造函数注入）
