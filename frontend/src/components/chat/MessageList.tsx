@@ -6,6 +6,7 @@
  */
 
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Avatar,
   Box,
@@ -45,6 +46,7 @@ export interface MessageListProps {
  * @returns React component
  */
 export function MessageList(props: MessageListProps): JSX.Element {
+  const { t } = useTranslation();
   const {
     messages,
     onScrollToBottom,
@@ -74,10 +76,8 @@ export function MessageList(props: MessageListProps): JSX.Element {
       >
         <Stack spacing={1} alignItems='center'>
           <WavingHand sx={{ fontSize: 32, color: "text.secondary" }} />
-          <Typography variant='h6'>欢迎来到苏格拉底式学习</Typography>
-          <Typography variant='body2'>
-            选择一个会话开始你的学习之旅，或者创建一个新会话。
-          </Typography>
+          <Typography variant='h6'>{t("chat.welcomeTitle")}</Typography>
+          <Typography variant='body2'>{t("chat.welcomeMessage")}</Typography>
         </Stack>
       </Box>
     );
@@ -203,7 +203,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
                     <Stack direction='row' spacing={1} alignItems='center'>
                       <CircularProgress size={14} />
                       <Typography variant='body2' color='text.secondary'>
-                        {message.thinkingMessage || "导师正在思考..."}
+                        {message.thinkingMessage || t("chat.tutorThinking")}
                       </Typography>
                     </Stack>
                   ) : (
@@ -228,7 +228,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
                     }}
                   >
                     {onCopyMessage && (
-                      <Tooltip title='复制' arrow>
+                      <Tooltip title={t("chat.copyMessage")} arrow>
                         <span>
                           <IconButton
                             size='small'
@@ -237,7 +237,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
                               onCopyMessage(message);
                             }}
                             disabled={actionsDisabled}
-                            aria-label='复制消息'
+                            aria-label={t("chat.copyMessage")}
                             sx={{
                               color: "text.secondary",
                               transition:
@@ -254,7 +254,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
                       </Tooltip>
                     )}
                     {onRegenerateMessage && (
-                      <Tooltip title='重新生成' arrow>
+                      <Tooltip title={t("chat.regenerateMessage")} arrow>
                         <span>
                           <IconButton
                             size='small'
@@ -263,7 +263,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
                               onRegenerateMessage(index);
                             }}
                             disabled={actionsDisabled}
-                            aria-label='重新生成'
+                            aria-label={t("chat.regenerateMessage")}
                             sx={{
                               color: "text.secondary",
                               transition:

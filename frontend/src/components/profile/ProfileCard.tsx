@@ -13,7 +13,6 @@ import {
   CardActions,
   CardContent,
   Checkbox,
-  Chip,
   Divider,
   IconButton,
   Stack,
@@ -30,7 +29,8 @@ import {
   Check,
   Close,
 } from "@mui/icons-material";
-import { Profile, SocraticStep, CurriculumData } from "../../types";
+import { useTranslation } from "react-i18next";
+import { Profile, SocraticStep } from "../../types";
 import { extractCurriculumSteps } from "../../utils/curriculum";
 import {
   updatePersonaHints,
@@ -73,6 +73,7 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
     actionDisabled,
     highlight,
   } = props;
+  const { t } = useTranslation();
   const displayName = profile.profile_name || profile.topic_name || "-";
   const stepCount = extractCurriculumSteps(profile.curriculum).length;
   const isHighlighted = Boolean(highlight || selected);
@@ -101,13 +102,13 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
             sx={{ mt: "2px" }}
           />
           <Typography variant='caption' color='text.secondary'>
-            主题: {profile.topic_name}
+            {t("profile.card.topic")}: {profile.topic_name}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} alignItems='flex-start'>
           <PeopleOutline fontSize='small' color='action' sx={{ mt: "2px" }} />
           <Typography variant='caption' color='text.secondary'>
-            目标受众: {profile.target_audience || "-"}
+            {t("profile.card.targetAudience")}: {profile.target_audience || "-"}
           </Typography>
         </Stack>
         <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -117,7 +118,7 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
             sx={{ mt: "2px" }}
           />
           <Typography variant='caption' color='text.secondary'>
-            学习步骤: {stepCount} 个
+            {t("profile.card.learningSteps")}: {stepCount}{t("profile.card.stepsCount")}
           </Typography>
         </Stack>
       </Stack>
@@ -193,6 +194,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
   } = props;
   const { notifySuccess, notifyError } = useNotification();
   const { getUserDisplayName } = useUsers();
+  const { t } = useTranslation();
   const displayName = profile.profile_name || profile.topic_name || "-";
 
   // Owner display name state
@@ -274,12 +276,12 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
         persona_hints: personaHintsInput,
       };
       await updatePersonaHints(profile.profile_id, request);
-      notifySuccess("Persona提示已更新");
+      notifySuccess(t("profile.personaHintsUpdated"));
       setEditingPersonaHints(false);
       onUpdate?.();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新Persona提示失败";
+        err instanceof Error ? err.message : t("profile.personaHintsUpdateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingPersonaHints(false);
@@ -321,12 +323,12 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
         curriculum: curriculumInput as any,
       };
       await updateProfileCurriculum(profile.profile_id, curriculumRequest);
-      notifySuccess("学习步骤已更新");
+      notifySuccess(t("profile.learningStepsUpdated"));
       setEditingCurriculum(false);
       onUpdate?.();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新学习步骤失败";
+        err instanceof Error ? err.message : t("profile.learningStepsUpdateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingCurriculum(false);
@@ -378,7 +380,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
             {canRename ? (
               <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                 <TextField
-                  label='Profile名称'
+                  label={t("profile.card.profileName")}
                   value={nameInput}
                   onChange={(event) => setNameInput(event.target.value)}
                   size='small'
@@ -390,7 +392,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                   disabled={!isNameDirty || Boolean(isRenaming)}
                   sx={{ whiteSpace: "nowrap" }}
                 >
-                  {isRenaming ? "保存中..." : "保存"}
+                  {isRenaming ? t("profile.card.saving") : t("profile.card.save")}
                 </Button>
               </Stack>
             ) : (
@@ -405,7 +407,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                主题: {profile.topic_name}
+                {t("profile.card.topic")}: {profile.topic_name}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -415,7 +417,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                受众: {profile.target_audience || "-"}
+                {t("profile.card.audience")}: {profile.target_audience || "-"}
               </Typography>
             </Stack>
           </Stack>
@@ -430,7 +432,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                创建人: {ownerDisplayName || profile.owner_id || "-"}
+                {t("profile.card.createdBy")}: {ownerDisplayName || profile.owner_id || "-"}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -440,7 +442,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                创建日期: {formatDateTime(profile.create_at)}
+                {t("profile.card.createdAt")}: {formatDateTime(profile.create_at)}
               </Typography>
             </Stack>
           </Stack>
@@ -453,12 +455,12 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               justifyContent='space-between'
               alignItems='center'
             >
-              <Typography variant='subtitle2'>Persona 提示</Typography>
+              <Typography variant='subtitle2'>{t("profile.card.personaHints")}</Typography>
               {canEditPersonaHints && !editingPersonaHints && (
                 <IconButton
                   size='small'
                   onClick={handleStartEditPersonaHints}
-                  aria-label='编辑Persona提示'
+                  aria-label={t("profile.card.editPersonaHints")}
                 >
                   <Edit fontSize='small' />
                 </IconButton>
@@ -470,7 +472,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     onClick={handleAddPersonaHint}
                     startIcon={<Edit fontSize='small' />}
                   >
-                    添加
+                    {t("profile.card.add")}
                   </Button>
                   <Button
                     size='small'
@@ -479,7 +481,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     disabled={isUpdatingPersonaHints}
                     startIcon={<Check fontSize='small' />}
                   >
-                    {isUpdatingPersonaHints ? "保存中..." : "保存"}
+                    {isUpdatingPersonaHints ? t("profile.card.saving") : t("profile.card.save")}
                   </Button>
                   <Button
                     size='small'
@@ -487,7 +489,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     onClick={handleCancelEditPersonaHints}
                     startIcon={<Close fontSize='small' />}
                   >
-                    取消
+                    {t("profile.card.cancel")}
                   </Button>
                 </Stack>
               )}
@@ -511,13 +513,13 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       multiline
                       minRows={1}
                       maxRows={3}
-                      placeholder='输入提示内容'
+                      placeholder={t("profile.card.hintPlaceholder")}
                     />
                     <IconButton
                       size='small'
                       onClick={() => handleRemovePersonaHint(index)}
                       color='error'
-                      aria-label='删除提示'
+                      aria-label={t("profile.card.deleteHint")}
                     >
                       <Close fontSize='small' />
                     </IconButton>
@@ -526,7 +528,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               </Stack>
             ) : profile.persona_hints.length === 0 ? (
               <Typography variant='caption' color='text.secondary'>
-                暂无 Persona 提示
+                {t("profile.card.noPersonaHints")}
               </Typography>
             ) : (
               <Stack spacing={0.5}>
@@ -572,12 +574,12 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               justifyContent='space-between'
               alignItems='center'
             >
-              <Typography variant='subtitle2'>学习步骤</Typography>
+              <Typography variant='subtitle2'>{t("profile.card.learningStepsTitle")}</Typography>
               {canEditCurriculum && !editingCurriculum && (
                 <IconButton
                   size='small'
                   onClick={handleStartEditCurriculum}
-                  aria-label='编辑学习步骤'
+                  aria-label={t("profile.card.editLearningSteps")}
                 >
                   <Edit fontSize='small' />
                 </IconButton>
@@ -589,7 +591,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     onClick={handleAddStep}
                     startIcon={<Edit fontSize='small' />}
                   >
-                    添加
+                    {t("profile.card.add")}
                   </Button>
                   <Button
                     size='small'
@@ -598,7 +600,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     disabled={isUpdatingCurriculum}
                     startIcon={<Check fontSize='small' />}
                   >
-                    {isUpdatingCurriculum ? "保存中..." : "保存"}
+                    {isUpdatingCurriculum ? t("profile.card.saving") : t("profile.card.save")}
                   </Button>
                   <Button
                     size='small'
@@ -606,7 +608,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     onClick={handleCancelEditCurriculum}
                     startIcon={<Close fontSize='small' />}
                   >
-                    取消
+                    {t("profile.card.cancel")}
                   </Button>
                 </Stack>
               )}
@@ -627,12 +629,12 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       variant='subtitle2'
                       sx={{ mb: 1, color: "primary.main" }}
                     >
-                      第{index + 1}步
+                      {t("profile.card.stepNumber", { index: index + 1 })}
                     </Typography>
                     <Stack spacing={1.5}>
                       <TextField
                         size='small'
-                        label='步骤标题'
+                        label={t("profile.card.stepTitleLabel")}
                         value={step.step_title}
                         onChange={(e) =>
                           handleStepFieldChange(
@@ -646,7 +648,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       />
                       <TextField
                         size='small'
-                        label='引导问题'
+                        label={t("profile.card.guidingQuestionLabel")}
                         value={step.guiding_question}
                         onChange={(e) =>
                           handleStepFieldChange(
@@ -661,7 +663,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       />
                       <TextField
                         size='small'
-                        label='成功标准'
+                        label={t("profile.card.successCriteriaLabel")}
                         value={step.success_criteria}
                         onChange={(e) =>
                           handleStepFieldChange(
@@ -676,7 +678,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       />
                       <TextField
                         size='small'
-                        label='学习目标'
+                        label={t("profile.card.learningObjectiveLabel")}
                         value={step.learning_objective}
                         onChange={(e) =>
                           handleStepFieldChange(
@@ -694,7 +696,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                           size='small'
                           onClick={() => handleRemoveStep(index)}
                           color='error'
-                          aria-label='删除步骤'
+                          aria-label={t("profile.card.deleteStep")}
                         >
                           <Close fontSize='small' />
                         </IconButton>
@@ -705,7 +707,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               </Stack>
             ) : steps.length === 0 ? (
               <Typography variant='caption' color='text.secondary'>
-                暂无学习步骤
+                {t("profile.card.noLearningSteps")}
               </Typography>
             ) : (
               <Stack spacing={1.5}>
@@ -722,28 +724,28 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       variant='body1'
                       sx={{ fontWeight: 600, color: "primary.main", mb: 1 }}
                     >
-                      第{index + 1}步: {step.step_title}
+                      {t("profile.card.stepNumberWithTitle", { index: index + 1, title: step.step_title })}
                     </Typography>
                     <Typography
                       variant='body2'
                       color='text.secondary'
                       sx={{ display: "block", mb: 0.5 }}
                     >
-                      <strong>引导问题:</strong> {step.guiding_question || "-"}
+                      <strong>{t("profile.card.guidingQuestionLabel")}:</strong> {step.guiding_question || "-"}
                     </Typography>
                     <Typography
                       variant='body2'
                       color='text.secondary'
                       sx={{ display: "block", mb: 0.5 }}
                     >
-                      <strong>成功标准:</strong> {step.success_criteria || "-"}
+                      <strong>{t("profile.card.successCriteriaLabel")}:</strong> {step.success_criteria || "-"}
                     </Typography>
                     <Typography
                       variant='body2'
                       color='text.secondary'
                       sx={{ display: "block" }}
                     >
-                      <strong>学习目标:</strong> {step.learning_objective}
+                      <strong>{t("profile.card.learningObjectiveLabel")}:</strong> {step.learning_objective}
                     </Typography>
                   </Box>
                 ))}

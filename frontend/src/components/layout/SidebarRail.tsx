@@ -15,6 +15,7 @@ import {
   UploadFile,
   Extension,
 } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import { ToolPanelView } from "../../types";
 import { PermissionGuard } from "../auth/PermissionGuard";
 
@@ -41,6 +42,7 @@ export interface SidebarRailProps {
  * @returns React component
  */
 export function SidebarRail(props: SidebarRailProps): JSX.Element {
+  const { t } = useTranslation();
   const { isCollapsed, onToggle } = props;
   const {
     isLoading,
@@ -74,26 +76,26 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
       }}
     >
       <Tooltip
-        title={isCollapsed ? "展开侧边栏" : "收起侧边栏"}
+        title={isCollapsed ? t("sidebar.rail.expandSidebar") : t("sidebar.rail.collapseSidebar")}
         placement='right'
       >
         <IconButton
           onClick={onToggle}
           size='small'
-          aria-label={isCollapsed ? "展开侧边栏" : "收起侧边栏"}
+          aria-label={isCollapsed ? t("sidebar.rail.expandSidebar") : t("sidebar.rail.collapseSidebar")}
           sx={railButtonSx}
         >
           <ChevronRight fontSize='small' />
         </IconButton>
       </Tooltip>
 
-      <Tooltip title='返回对话首页' placement='right'>
+      <Tooltip title={t("sidebar.rail.returnToChatHome")} placement='right'>
         <span>
           <IconButton
             onClick={onOpenChatHome}
             size='small'
             disabled={isLoading}
-            aria-label='返回对话首页'
+            aria-label={t("sidebar.rail.returnToChatHome")}
             color={activePanel === "chat" ? "primary" : "default"}
             sx={railButtonSx}
           >
@@ -102,13 +104,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
         </span>
       </Tooltip>
 
-      <Tooltip title='我的班级' placement='right'>
+      <Tooltip title={t("sidebar.rail.myClasses")} placement='right'>
         <span>
           <IconButton
             onClick={onOpenClassPanel}
             size='small'
             disabled={isLoading}
-            aria-label='我的班级'
+            aria-label={t("sidebar.rail.myClasses")}
             color={activePanel === "class" ? "primary" : "default"}
             sx={railButtonSx}
           >
@@ -119,13 +121,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
 
       <PermissionGuard requiredRoles={["admin", "teacher"]}>
         <Stack spacing={1} sx={{ mt: 2 }}>
-          <Tooltip title='注册邀请码' placement='right'>
+          <Tooltip title={t("sidebar.rail.registrationInviteCode")} placement='right'>
             <span>
               <IconButton
                 onClick={onOpenInvitationPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='注册邀请码'
+                aria-label={t("sidebar.rail.registrationInviteCode")}
                 color={activePanel === "invitation" ? "primary" : "default"}
                 sx={railButtonSx}
               >
@@ -133,13 +135,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='实验文档管理' placement='right'>
+          <Tooltip title={t("sidebar.rail.labManual")} placement='right'>
             <span>
               <IconButton
                 onClick={onOpenLabManualPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='实验文档管理上传实验文档'
+                aria-label={t("sidebar.rail.labManual")}
                 color={activePanel === "lab-manual" ? "primary" : "default"}
                 sx={railButtonSx}
               >
@@ -147,13 +149,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='Profile管理' placement='right'>
+          <Tooltip title={t("sidebar.rail.profileManagement")} placement='right'>
             <span>
               <IconButton
                 onClick={onOpenProfilePanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='Profile管理'
+                aria-label={t("sidebar.rail.profileManagement")}
                 color={activePanel === "profile" ? "primary" : "default"}
                 sx={railButtonSx}
               >
@@ -161,13 +163,13 @@ export function SidebarRail(props: SidebarRailProps): JSX.Element {
               </IconButton>
             </span>
           </Tooltip>
-          <Tooltip title='Skill管理' placement='right'>
+          <Tooltip title={t("sidebar.rail.skillManagement")} placement='right'>
             <span>
               <IconButton
                 onClick={onOpenSkillPanel}
                 size='small'
                 disabled={isLoading}
-                aria-label='Skill管理'
+                aria-label={t("sidebar.rail.skillManagement")}
                 color={activePanel === "skill" ? "primary" : "default"}
                 sx={railButtonSx}
               >

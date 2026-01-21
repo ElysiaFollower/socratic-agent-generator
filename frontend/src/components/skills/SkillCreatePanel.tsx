@@ -33,6 +33,7 @@ import {
 } from "@mui/material";
 import { AutoFixHigh, CloudUpload, NoteAdd } from "@mui/icons-material";
 import { useDropzone } from "react-dropzone";
+import { useTranslation } from "react-i18next";
 import {
   createCustomSkill,
   deleteSkillMaterial,
@@ -57,6 +58,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
   const { profiles, isLoadingProfiles } = props;
   const { notifyError, notifySuccess } = useNotification();
   const { confirm } = useConfirmDialog();
+  const { t } = useTranslation();
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [materials, setMaterials] = useState<readonly SkillMaterialInfo[]>([]);
@@ -99,7 +101,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
 
   const formatTimestamp = (value?: string | null): string => {
     if (!value) {
-      return "未知时间";
+      return t("skill.unknownTime");
     }
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) {
@@ -128,7 +130,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       );
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载补充资料失败";
+        err instanceof Error ? err.message : t("skill.loadMaterialsFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingMaterials(false);
@@ -145,9 +147,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
     const allowedExtensions = [".md", ".txt", ".markdown", ".pdf"];
     const fileExtension = file.name.toLowerCase().split(".").pop();
     if (fileExtension && !allowedExtensions.includes(`.${fileExtension}`)) {
-      notifyError(
-        `不支持的文件类型。支持的类型：${allowedExtensions.join(", ")}`,
-      );
+      notifyError(t("skill.unsupportedFileType"));
       setSupplementalFile(null);
       return;
     }
@@ -165,8 +165,8 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
   );
 
   const handleSupplementalDropRejected = useCallback(() => {
-    notifyError("不支持的文件类型，仅支持 .md、.txt、.markdown、.pdf");
-  }, [notifyError]);
+    notifyError(t("skill.supportedTypesOnly"));
+  }, [notifyError, t]);
 
   const supplementalDropzone = useDropzone({
     onDrop: handleSupplementalDrop,
@@ -194,11 +194,11 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
   ) => {
     event.preventDefault();
     if (!selectedProfileId) {
-      notifyError("请先选择一个Profile");
+      notifyError(t("skill.selectProfileFirst"));
       return;
     }
     if (!supplementalFile) {
-      notifyError("请选择补充资料文件");
+      notifyError(t("skill.selectMaterialFile"));
       return;
     }
     setIsUploadingSupplemental(true);
@@ -208,14 +208,14 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
         supplementalFile,
         supplementalHint.trim() || undefined,
       );
-      notifySuccess("补充资料上传成功");
+      notifySuccess(t("skill.materialUploadSuccess"));
       setSupplementalFile(null);
       setSupplementalHint("");
       setSupplementalInputKey((prev) => prev + 1);
       await loadMaterials();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "补充资料上传失败";
+        err instanceof Error ? err.message : t("skill.materialUploadFailed");
       notifyError(errorMessage);
     } finally {
       setIsUploadingSupplemental(false);
@@ -234,7 +234,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       setViewingMaterial(detail);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载补充资料失败";
+        err instanceof Error ? err.message : t("skill.loadMaterialFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingMaterial(false);
@@ -246,9 +246,9 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       return;
     }
     const shouldDelete = await confirm({
-      title: "删除补充资料",
-      description: "确定要删除这份补充资料吗？此操作无法撤销。",
-      confirmLabel: "删除",
+      title: t("skill.deleteMaterial"),
+      description: t("skill.deleteMaterialConfirm"),
+      confirmLabel: t("common.delete"),
       confirmColor: "error",
     });
     if (!shouldDelete) {
@@ -257,12 +257,12 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
     setDeletingMaterialId(materialId);
     try {
       await deleteSkillMaterial(selectedProfileId, materialId);
-      notifySuccess("补充资料已删除");
+      notifySuccess(t("skill.materialDeleted"));
       await loadMaterials();
       setSelectedMaterialIds((prev) => prev.filter((id) => id !== materialId));
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "删除补充资料失败";
+        err instanceof Error ? err.message : t("skill.deleteMaterialFailed");
       notifyError(errorMessage);
     } finally {
       setDeletingMaterialId(null);
@@ -298,11 +298,11 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
 
   const handleGenerateDraft = async () => {
     if (!selectedProfileId) {
-      notifyError("请先选择一个Profile");
+      notifyError(t("skill.selectProfileFirst"));
       return;
     }
     if (selectedMaterialIds.length === 0) {
-      notifyError("请至少选择一份补充资料");
+      notifyError(t("skill.selectAtLeastOneMaterial"));
       return;
     }
     setIsGeneratingDraft(true);
@@ -316,7 +316,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       setDraftDialogOpen(true);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "生成技能草稿失败";
+        err instanceof Error ? err.message : t("skill.generateDraftFailed");
       notifyError(errorMessage);
     } finally {
       setIsGeneratingDraft(false);
@@ -346,15 +346,15 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       return;
     }
     if (!draftForm.name.trim() || !draftForm.description.trim()) {
-      notifyError("请填写技能名称与描述");
+      notifyError(t("skill.fillNameAndDescription"));
       return;
     }
     if (!draftForm.tool_name.trim()) {
-      notifyError("请填写工具名称");
+      notifyError(t("skill.fillToolName"));
       return;
     }
     if (retrievalNeeded && selectedMaterialIds.length === 0) {
-      notifyError("检索型技能需要关联补充资料");
+      notifyError(t("skill.retrievalNeedsMaterials"));
       return;
     }
     setIsSavingSkill(true);
@@ -364,12 +364,12 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
         retrieval_needed: retrievalNeeded,
       };
       const created = await createCustomSkill(selectedProfileId, {
-        skill_key: draftForm.skill_key,
+        skill_key: draftForm.skill_key ?? undefined,
         name: draftForm.name,
         description: draftForm.description,
-        skill_type: draftForm.skill_type,
+        skill_type: draftForm.skill_type ?? undefined,
         tool_name: draftForm.tool_name,
-        instructions: draftForm.instructions,
+        instructions: draftForm.instructions ?? undefined,
         index_path: draftForm.index_path ?? undefined,
         status: retrievalNeeded ? "pending" : "ready",
         meta_info: metaInfo,
@@ -379,19 +379,20 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       if (retrievalNeeded && autoRebuildIndex) {
         try {
           await rebuildCustomSkillIndex(created.id);
-          notifySuccess("技能已创建并完成索引构建");
+          notifySuccess(t("skill.skillCreatedWithIndex"));
         } catch (err) {
           const errorMessage =
-            err instanceof Error ? err.message : "索引构建失败";
+            err instanceof Error ? err.message : t("skill.indexBuildFailed");
           notifyError(errorMessage);
         }
       } else {
-        notifySuccess("技能已创建");
+        notifySuccess(t("skill.skillCreated"));
       }
       setDraftDialogOpen(false);
       setDraftForm(null);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "创建技能失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("skill.createSkillFailed");
       notifyError(errorMessage);
     } finally {
       setIsSavingSkill(false);
@@ -408,7 +409,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       fullWidth
       maxWidth='md'
     >
-      <DialogTitle>补充资料内容</DialogTitle>
+      <DialogTitle>{t("skill.materialContent")}</DialogTitle>
       <DialogContent dividers>
         {isLoadingMaterial ? (
           <Box sx={{ py: 4, textAlign: "center" }}>
@@ -441,15 +442,17 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
               color='text.secondary'
               sx={{ mt: 1, display: "block" }}
             >
-              {viewingMaterial.filename || `资料 #${viewingMaterial.id}`} ·{" "}
+              {viewingMaterial.filename ||
+                `${t("skill.materialPrefix")}${viewingMaterial.id}`}{" "}
+              ·{" "}
               {viewingMaterial.size
                 ? `${(viewingMaterial.size / 1024).toFixed(2)} KB`
-                : "未知大小"}
+                : t("skill.unknownSize")}
             </Typography>
           </>
         ) : (
           <Typography variant='body2' color='text.secondary'>
-            暂无内容
+            {t("skill.noContent")}
           </Typography>
         )}
       </DialogContent>
@@ -461,7 +464,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
           }}
           color='inherit'
         >
-          关闭
+          {t("common.close")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -477,18 +480,18 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
       fullWidth
       maxWidth='md'
     >
-      <DialogTitle>自定义技能草稿</DialogTitle>
+      <DialogTitle>{t("skill.skillDraft")}</DialogTitle>
       <DialogContent dividers>
         {draftForm ? (
           <Stack spacing={2}>
             <TextField
-              label='技能名称'
+              label={t("skill.skillName")}
               value={draftForm.name}
               onChange={(event) => updateDraftField("name", event.target.value)}
               fullWidth
             />
             <TextField
-              label='技能描述'
+              label={t("skill.skillDescription")}
               value={draftForm.description}
               onChange={(event) =>
                 updateDraftField("description", event.target.value)
@@ -499,7 +502,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
             />
             <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
               <TextField
-                label='工具名称'
+                label={t("skill.toolName")}
                 value={draftForm.tool_name}
                 onChange={(event) =>
                   updateDraftField("tool_name", event.target.value)
@@ -507,7 +510,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 fullWidth
               />
               <TextField
-                label='技能类型'
+                label={t("skill.skillType")}
                 value={draftForm.skill_type || ""}
                 onChange={(event) =>
                   updateDraftField("skill_type", event.target.value)
@@ -516,7 +519,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
               />
             </Stack>
             <TextField
-              label='技能指令'
+              label={t("skill.skillInstructions")}
               value={draftForm.instructions || ""}
               onChange={(event) =>
                 updateDraftField("instructions", event.target.value)
@@ -532,7 +535,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                   onChange={(event) => setRetrievalNeeded(event.target.checked)}
                 />
               }
-              label='需要检索补充资料'
+              label={t("skill.needsRetrieval")}
             />
             {retrievalNeeded && (
               <FormControlLabel
@@ -544,16 +547,18 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                     }
                   />
                 }
-                label='创建后自动构建索引'
+                label={t("skill.autoRebuildIndex")}
               />
             )}
             <Typography variant='caption' color='text.secondary'>
-              关联资料数量：{selectedMaterialIds.length}
+              {t("skill.associatedMaterials", {
+                count: selectedMaterialIds.length,
+              })}
             </Typography>
           </Stack>
         ) : (
           <Typography variant='body2' color='text.secondary'>
-            暂无草稿
+            {t("skill.noDraft")}
           </Typography>
         )}
       </DialogContent>
@@ -565,14 +570,14 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
           }}
           color='inherit'
         >
-          取消
+          {t("common.cancel")}
         </Button>
         <Button
           onClick={handleSaveSkill}
           variant='contained'
           disabled={!draftForm || isSavingSkill}
         >
-          {isSavingSkill ? "保存中..." : "保存技能"}
+          {isSavingSkill ? t("skill.saving") : t("skill.saveSkill")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -588,16 +593,16 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
             onSubmit={handleSupplementalUpload}
           >
             <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>
-              上传补充资料
+              {t("skill.uploadMaterial")}
             </Typography>
 
             <FormControl size='small' fullWidth>
               <InputLabel id='profile-select-label' shrink>
-                选择Profile
+                {t("skill.selectProfile")}
               </InputLabel>
               <Select
                 labelId='profile-select-label'
-                label='选择Profile'
+                label={t("skill.selectProfile")}
                 value={selectedProfileId}
                 displayEmpty
                 renderValue={(value) => {
@@ -611,7 +616,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 disabled={isLoadingProfiles}
               >
                 <MenuItem value=''>
-                  <em>暂无可选Profile</em>
+                  <em>{t("skill.noProfilesAvailable")}</em>
                 </MenuItem>
                 {profiles.map((profile) => (
                   <MenuItem key={profile.profile_id} value={profile.profile_id}>
@@ -625,7 +630,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
               variant='outlined'
               {...supplementalDropzone.getRootProps({
                 role: "button",
-                "aria-label": "上传补充资料",
+                "aria-label": t("skill.uploadMaterial"),
               })}
               sx={{
                 p: 3,
@@ -666,29 +671,31 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 />
                 <Typography variant='subtitle1'>
                   {supplementalDropzone.isDragReject
-                    ? "不支持的文件类型"
+                    ? t("skill.dropzoneReject")
                     : supplementalDropzone.isDragActive
-                      ? "释放鼠标以上传"
-                      : "拖拽文件到此处上传"}
+                      ? t("skill.dropzoneActive")
+                      : t("skill.dropzoneDefault")}
                 </Typography>
                 <Typography variant='body2' color='text.secondary'>
                   {supplementalDropzone.isDragReject
-                    ? "仅支持 .md、.txt、.markdown、.pdf"
-                    : "点击区域选择文件"}
+                    ? t("skill.supportedTypesOnly")
+                    : t("skill.dropzoneHelp")}
                 </Typography>
                 <Typography
                   variant='caption'
                   color='text.secondary'
                   sx={{ mt: 1 }}
                 >
-                  支持格式：Markdown (.md, .markdown)、纯文本 (.txt)、PDF (.pdf)
+                  {t("skill.supportedFormats")}
                   <br />
-                  PDF文件大小限制：10MB。扫描PDF（图片）暂不支持，请使用文本型PDF。
+                  {t("skill.pdfNote")}
                 </Typography>
                 {supplementalFile && (
                   <Typography variant='body2' sx={{ mt: 1 }}>
-                    已选择：{supplementalFile.name} (
-                    {(supplementalFile.size / 1024).toFixed(2)} KB)
+                    {t("skill.fileSelected", {
+                      fileName: supplementalFile.name,
+                      size: (supplementalFile.size / 1024).toFixed(2),
+                    })}
                   </Typography>
                 )}
               </Stack>
@@ -711,7 +718,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
               >
                 <Stack spacing={1} sx={{ width: "100%", maxWidth: 640, mt: 2 }}>
                   <Typography variant='caption' color='text.secondary'>
-                    资料用途提示（可选）
+                    {t("skill.materialHintLabel")}
                   </Typography>
                   <TextField
                     size='small'
@@ -736,7 +743,9 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                     disabled={!selectedProfileId || isUploadingSupplemental}
                     sx={{ flex: 1, maxWidth: "fit-content" }}
                   >
-                    {isUploadingSupplemental ? "上传中..." : "上传"}
+                    {isUploadingSupplemental
+                      ? t("skill.uploading")
+                      : t("skill.upload")}
                   </Button>
                   <Button
                     onClick={() => {
@@ -747,7 +756,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                     color='inherit'
                     disabled={isUploadingSupplemental}
                   >
-                    重新选择
+                    {t("skill.reselect")}
                   </Button>
                 </Stack>
               </Box>
@@ -759,7 +768,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
           <Stack spacing={2}>
             <Stack direction='row' justifyContent='space-between'>
               <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>
-                补充资料列表
+                {t("skill.materialList")}
               </Typography>
               <Button
                 size='small'
@@ -767,8 +776,8 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 disabled={materials.length === 0}
               >
                 {selectedMaterialIds.length === materials.length
-                  ? "取消全选"
-                  : "全选"}
+                  ? t("skill.deselectAll")
+                  : t("skill.selectAll")}
               </Button>
             </Stack>
 
@@ -778,7 +787,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
               </Box>
             ) : materials.length === 0 ? (
               <Typography variant='body2' color='text.secondary'>
-                暂无补充资料
+                {t("skill.noMaterials")}
               </Typography>
             ) : (
               <Stack spacing={1.5}>
@@ -800,12 +809,13 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                         />
                         <Stack spacing={0.5} sx={{ flex: 1 }}>
                           <Typography variant='body2' sx={{ fontWeight: 600 }}>
-                            {material.filename || `资料 #${material.id}`}
+                            {material.filename ||
+                              `${t("skill.materialPrefix")}${material.id}`}
                           </Typography>
                           <Typography variant='caption' color='text.secondary'>
                             {material.size
                               ? `${(material.size / 1024).toFixed(2)} KB`
-                              : "未知大小"}
+                              : t("skill.unknownSize")}
                             {" · "}
                             {formatTimestamp(material.upload_time)}
                           </Typography>
@@ -814,7 +824,8 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                               variant='caption'
                               color='text.secondary'
                             >
-                              提示：{hint}
+                              {t("skill.hintPrefix")}
+                              {hint}
                             </Typography>
                           )}
                         </Stack>
@@ -823,7 +834,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                             size='small'
                             onClick={() => handleViewMaterial(material.id)}
                           >
-                            查看
+                            {t("skill.view")}
                           </Button>
                           <Button
                             size='small'
@@ -832,8 +843,8 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                             onClick={() => handleDeleteMaterial(material.id)}
                           >
                             {deletingMaterialId === material.id
-                              ? "删除中..."
-                              : "删除"}
+                              ? t("skill.deleting")
+                              : t("common.delete")}
                           </Button>
                         </Stack>
                       </Stack>
@@ -849,7 +860,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
           <Stack spacing={2}>
             <Stack direction='row' alignItems='center' spacing={1}>
               <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>
-                生成自定义技能
+                {t("skill.createSkill")}
               </Typography>
               <Button
                 size='small'
@@ -858,7 +869,9 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 onClick={handleGenerateDraft}
                 disabled={selectedMaterialIds.length === 0 || isGeneratingDraft}
               >
-                {isGeneratingDraft ? "生成中..." : "生成草稿"}
+                {isGeneratingDraft
+                  ? t("skill.generating")
+                  : t("skill.generateDraft")}
               </Button>
               <Button
                 size='small'
@@ -867,20 +880,22 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                 onClick={handleOpenManualDraft}
                 disabled={!selectedProfileId}
               >
-                新建技能
+                {t("skill.createSkill")}
               </Button>
             </Stack>
 
             <TextField
               size='small'
-              label='技能生成提示（可选）'
+              label={t("skill.generationHintLabel")}
               value={draftHint}
               onChange={(event) => setDraftHint(event.target.value)}
               fullWidth
             />
 
             <Typography variant='caption' color='text.secondary'>
-              已选择 {selectedMaterialIds.length} 份资料用于技能生成
+              {t("skill.selectedMaterialsCount", {
+                count: selectedMaterialIds.length,
+              })}
             </Typography>
           </Stack>
         </Paper>

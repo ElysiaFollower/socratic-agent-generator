@@ -5,7 +5,7 @@
  * controls for creating new sessions and managing existing ones.
  */
 
-import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   IconButton,
@@ -62,6 +62,7 @@ export interface SidebarProps {
  * @returns React component
  */
 export function Sidebar(props: SidebarProps): JSX.Element {
+  const { t } = useTranslation();
   const {
     sessions,
     currentSessionId,
@@ -83,9 +84,9 @@ export function Sidebar(props: SidebarProps): JSX.Element {
 
   const getRoleDisplayName = (role: string): string => {
     const roleMap: Record<string, string> = {
-      admin: "管理员",
-      teacher: "教师",
-      student: "学生",
+      admin: t("sidebar.role.admin"),
+      teacher: t("sidebar.role.teacher"),
+      student: t("sidebar.role.student"),
     };
     return roleMap[role] || role;
   };
@@ -178,11 +179,11 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                 {user.display_name || user.username}
               </Typography>
             </Stack>
-            <Tooltip title='收缩侧边栏'>
+            <Tooltip title={t("sidebar.collapse")}>
               <IconButton
                 onClick={onCollapse}
                 size='small'
-                aria-label='收缩侧边栏'
+                aria-label={t("sidebar.collapse")}
                 sx={{ mr: 1 }}
               >
                 <ChevronLeft fontSize='small' />
@@ -199,7 +200,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         }}
       >
         <Typography color='text.secondary' variant='subtitle2'>
-          班级
+          {t("sidebar.classSection")}
         </Typography>
         <List
           dense
@@ -218,7 +219,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                 <School fontSize='small' />
               </ListItemIcon>
               <ListItemText
-                primary='我的班级'
+                primary={t("sidebar.myClass")}
                 primaryTypographyProps={{ variant: "body2" }}
               />
             </ListItemButton>
@@ -234,7 +235,9 @@ export function Sidebar(props: SidebarProps): JSX.Element {
           }}
         >
           <Typography color='text.secondary' variant='subtitle2'>
-            {user?.role === "admin" ? "管理员功能" : "教师功能"}
+            {user?.role === "admin"
+              ? t("sidebar.adminFeatures")
+              : t("sidebar.teacherFeatures")}
           </Typography>
           <List
             dense
@@ -253,7 +256,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Key fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='注册邀请码'
+                  primary={t("sidebar.registrationCodes")}
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>
@@ -270,7 +273,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <UploadFile fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='实验文档'
+                  primary={t("sidebar.labManuals")}
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>
@@ -287,7 +290,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Description fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='Profile'
+                  primary={t("sidebar.profile")}
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>
@@ -304,7 +307,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Extension fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='Skill'
+                  primary={t("sidebar.skill")}
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

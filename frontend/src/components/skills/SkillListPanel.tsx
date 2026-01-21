@@ -24,6 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Refresh } from "@mui/icons-material";
+import { useTranslation } from "react-i18next";
 import {
   assignCustomSkill,
   deleteCustomSkill,
@@ -47,6 +48,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
   const { profiles, isLoadingProfiles } = props;
   const { notifyError, notifySuccess } = useNotification();
   const { confirm } = useConfirmDialog();
+  const { t } = useTranslation();
 
   const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [skills, setSkills] = useState<readonly CustomSkillInfo[]>([]);
@@ -132,9 +134,9 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
 
   const handleDeleteSkill = async (skillId: number) => {
     const shouldDelete = await confirm({
-      title: "删除自定义技能",
-      description: "确定要删除该技能吗？此操作无法撤销。",
-      confirmLabel: "删除",
+      title: t("skill.deleteSkill"),
+      description: t("skill.deleteSkillConfirm"),
+      confirmLabel: t("common.delete"),
       confirmColor: "error",
     });
     if (!shouldDelete) {
@@ -143,10 +145,11 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
     setDeletingSkillId(skillId);
     try {
       await deleteCustomSkill(skillId);
-      notifySuccess("技能已删除");
+      notifySuccess(t("skill.skillDeleted"));
       await loadSkills();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "删除技能失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("skill.deleteSkillFailed");
       notifyError(errorMessage);
     } finally {
       setDeletingSkillId(null);
@@ -157,10 +160,11 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
     setRebuildingSkillId(skillId);
     try {
       await rebuildCustomSkillIndex(skillId);
-      notifySuccess("索引重建完成");
+      notifySuccess(t("skill.indexRebuildSuccess"));
       await loadSkills();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "索引重建失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("skill.indexRebuildFailed");
       notifyError(errorMessage);
     } finally {
       setRebuildingSkillId(null);
@@ -169,11 +173,11 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
 
   const handleAssignSkill = async () => {
     if (!viewingSkill || !assignProfileId) {
-      notifyError("请选择目标Profile");
+      notifyError(t("skill.selectTargetProfile"));
       return;
     }
     if (assignProfileId === viewingSkill.profile_id) {
-      notifyError("请选择不同的Profile进行分配");
+      notifyError(t("skill.selectDifferentProfile"));
       return;
     }
     setIsAssigning(true);
@@ -182,9 +186,10 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
         profile_id: assignProfileId,
         material_ids: [],
       });
-      notifySuccess("技能已分配到目标Profile");
+      notifySuccess(t("skill.skillAssigned"));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "技能分配失败";
+      const errorMessage =
+        err instanceof Error ? err.message : t("skill.skillAssignFailed");
       notifyError(errorMessage);
     } finally {
       setIsAssigning(false);
@@ -228,8 +233,8 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
         });
       } catch (err) {
         const errorMessage =
-          err instanceof Error ? err.message : "添加技能到Profile失败";
-        notifyError(`${errorMessage}: ${profileId}`);
+          err instanceof Error ? err.message : t("skill.loadSkillFailed");
+        notifyError(errorMessage);
       }
     }
 
@@ -237,7 +242,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
     // The assignCustomSkill API creates a copy of the skill in the target profile
     // So effectively, we're only adding skills to new profiles
 
-    notifySuccess("技能分配已更新");
+    notifySuccess(t("common.save"));
     setIsProfileModalOpen(false);
   };
 
@@ -264,7 +269,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       fullWidth
       maxWidth='md'
     >
-      <DialogTitle>技能详情</DialogTitle>
+      <DialogTitle>{t("skill.skillDetails")}</DialogTitle>
       <DialogContent dividers>
         {isLoadingSkill ? (
           <Box sx={{ py: 4, textAlign: "center" }}>
@@ -275,13 +280,15 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
             <SkillDetailCard skill={viewingSkill} />
 
             <Stack direction='row' spacing={1} alignItems='center'>
-              <Typography variant='subtitle2'>技能使用情况</Typography>
+              <Typography variant='subtitle2'>
+                {t("skill.skillUsage")}
+              </Typography>
               <Button
                 variant='outlined'
                 size='small'
                 onClick={handleOpenProfileModal}
               >
-                编辑
+                {t("skill.edit")}
               </Button>
             </Stack>
 
@@ -314,7 +321,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
           </Stack>
         ) : (
           <Typography variant='body2' color='text.secondary'>
-            暂无内容
+            {t("skill.noContent")}
           </Typography>
         )}
       </DialogContent>
@@ -329,10 +336,10 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       fullWidth
       maxWidth='sm'
     >
-      <DialogTitle>编辑技能使用情况</DialogTitle>
+      <DialogTitle>{t("skill.editSkillUsage")}</DialogTitle>
       <DialogContent dividers>
         <Typography variant='body2' color='text.secondary' gutterBottom>
-          将此技能共享给Profile:
+          {t("skill.shareSkillToProfiles")}
         </Typography>
         <Box sx={{ py: 1, maxHeight: 400, overflow: "auto" }}>
           <Stack spacing={1}>
@@ -352,10 +359,10 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       </DialogContent>
       <DialogActions>
         <Button onClick={handleCloseProfileModal} color='inherit'>
-          取消
+          {t("common.cancel")}
         </Button>
         <Button onClick={handleSaveProfileAssignments} variant='contained'>
-          保存
+          {t("common.save")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -368,18 +375,18 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
           <Stack spacing={2}>
             <FormControl size='small' fullWidth>
               <InputLabel id='skill-profile-select-label'>
-                选择Profile
+                {t("skill.selectProfile")}
               </InputLabel>
               <Select
                 labelId='skill-profile-select-label'
-                label='选择Profile'
+                label={t("skill.selectProfile")}
                 value={selectedProfileId}
                 displayEmpty
                 onChange={(event) => setSelectedProfileId(event.target.value)}
                 disabled={isLoadingProfiles}
               >
                 <MenuItem value=''>
-                  <em>请选择Profile</em>
+                  <em>{t("skill.selectProfileHint")}</em>
                 </MenuItem>
                 {profiles.map((profile) => (
                   <MenuItem key={profile.profile_id} value={profile.profile_id}>
@@ -396,7 +403,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
                   onChange={(event) => setShowDetails(event.target.checked)}
                 />
               }
-              label='显示详情'
+              label={t("skill.showDetails")}
             />
           </Stack>
         </Paper>
@@ -407,7 +414,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
           </Box>
         ) : skills.length === 0 ? (
           <Typography variant='body2' color='text.secondary' textAlign='center'>
-            暂无自定义技能
+            {t("skill.noCustomSkills")}
           </Typography>
         ) : (
           <Box

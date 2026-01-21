@@ -11,6 +11,7 @@ import React, {
   useRef,
   useMemo,
 } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -73,6 +74,7 @@ interface ChatPageProps {
  */
 export function ChatPage(props: ChatPageProps): JSX.Element {
   const { themeMode, onToggleTheme } = props;
+  const { t } = useTranslation();
   const { user, logout } = useAuth();
   const { notifySuccess, notifyError } = useNotification();
   const { copyToClipboard } = useClipboard();
@@ -162,7 +164,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         setMessages([], res.session_id);
         setShowProfileSelector(false);
         setActivePanel("chat");
-        notifySuccess("对话创建成功");
+        notifySuccess(t("chat.dialogCreated"));
 
         sessionState.setProfile(profile);
 
@@ -180,7 +182,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       } catch (error) {
         console.error("Failed to create session:", error);
         notifyError(
-          error instanceof Error ? error.message : "创建对话失败，请重试",
+          error instanceof Error ? error.message : t("chat.dialogCreateFailed"),
         );
       }
     },
@@ -191,6 +193,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       sessionState,
       setMessages,
       currentLanguage,
+      t,
     ],
   );
 
@@ -308,9 +311,13 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       if (!message.content.trim()) {
         return;
       }
-      await copyToClipboard(message.content, "已复制消息", "复制失败，请重试");
+      await copyToClipboard(
+        message.content,
+        t("chat.messageCopied"),
+        t("chat.copyFailed"),
+      );
     },
-    [copyToClipboard],
+    [copyToClipboard, t],
   );
 
   const handleRegenerateMessage = useCallback(
@@ -319,7 +326,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         return;
       }
       if (chatLoading) {
-        notifyError("正在生成回复，请稍后重试");
+        notifyError(t("chat.generatingReply"));
         return;
       }
       const userIndex = (() => {
@@ -331,18 +338,26 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         return -1;
       })();
       if (userIndex < 0) {
-        notifyError("未找到可重新生成的用户提问");
+        notifyError(t("chat.userQuestionNotFound"));
         return;
       }
       const userMessage = messages[userIndex];
       if (!userMessage.content.trim()) {
-        notifyError("用户提问为空，无法重新生成");
+        notifyError(t("chat.userQuestionEmpty"));
         return;
       }
       setMessages(messages.slice(0, userIndex + 1), sessionId);
       await sendMessage(userMessage.content, { appendUserMessage: false });
     },
-    [chatLoading, messages, notifyError, sendMessage, sessionId, setMessages],
+    [
+      chatLoading,
+      messages,
+      notifyError,
+      sendMessage,
+      sessionId,
+      setMessages,
+      t,
+    ],
   );
 
   const handleLogout = useCallback(async () => {
@@ -384,10 +399,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     } catch (error) {
       console.error("Failed to fetch profile:", error);
       notifyError(
-        error instanceof Error ? error.message : "获取Profile信息失败",
+        error instanceof Error ? error.message : t("chat.fetchProfileFailed"),
       );
     }
-  }, [currentSession?.profile_id, notifyError]);
+  }, [currentSession?.profile_id, notifyError, t]);
 
   const handleOpenChatHome = useCallback(() => {
     setSessionId(null);
@@ -525,7 +540,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                   "&:hover": { bgcolor: "var(--color-surface-muted)" },
                 }}
                 onMouseDown={handleResizeStart}
-                title='拖动调整宽度'
+                title={t("chat.resizeWidth")}
               />
             </Box>
           )}
@@ -658,12 +673,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                     >
                       {profiles.length > 0 && (
                         <Tooltip
-                          title='快速从Profile新建会话'
+                          title={t("chat.quickCreateHint")}
                           placement='top'
                           arrow
                         >
                           <Box
-                            aria-label='快速从Profile新建会话'
+                            aria-label={t("chat.quickCreateHint")}
                             sx={{
                               flexShrink: 0,
                               width: 32,
@@ -739,8 +754,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 disabled={!sessionId || chatLoading}
                 placeholder={
                   sessionId
-                    ? "输入你的想法或问题... (Enter发送，Shift+Enter换行)"
-                    : "请先选择一个会话开始学习"
+                    ? t("chat.inputPlaceholder")
+                    : t("chat.selectSessionHint")
                 }
                 onChange={handleInputChange}
                 onSend={handleSend}
@@ -795,7 +810,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               />
             </DialogContent>
             <DialogActions>
-              <Button onClick={() => setShowProfileDetail(false)}>关闭</Button>
+              <Button onClick={() => setShowProfileDetail(false)}>
+                {t("common.close")}
+              </Button>
             </DialogActions>
           </>
         )}

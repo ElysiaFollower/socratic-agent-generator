@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   IconButton,
@@ -46,6 +47,7 @@ export interface SessionHistoryListProps {
 export function SessionHistoryList(
   props: SessionHistoryListProps,
 ): JSX.Element {
+  const { t } = useTranslation();
   const {
     sessions,
     currentSessionId,
@@ -82,9 +84,9 @@ export function SessionHistoryList(
 
   const handleDelete = async (sessionId: string) => {
     const shouldDelete = await confirm({
-      title: "删除会话",
-      description: "确定要删除这个会话吗？该操作无法撤销。",
-      confirmLabel: "删除",
+      title: t("session.deleteSession"),
+      description: t("session.deleteSessionConfirm"),
+      confirmLabel: t("session.delete"),
       confirmColor: "error",
     });
     if (shouldDelete) {
@@ -114,14 +116,14 @@ export function SessionHistoryList(
           color='text.secondary'
           sx={{ px: 2, py: 1 }}
         >
-          历史会话
+          {t("session.historySessions")}
         </Typography>
-        <Tooltip title='新建对话'>
+        <Tooltip title={t("session.newSession")}>
           <span>
             <IconButton
               onClick={onNewSession}
               size='small'
-              aria-label='新建对话'
+              aria-label={t("session.newSession")}
               disabled={isLoading}
               sx={{ mr: 1 }}
             >
@@ -149,7 +151,7 @@ export function SessionHistoryList(
             }}
             secondaryAction={
               <Stack direction='row' spacing={0.5} className='session-actions'>
-                <Tooltip title='设置'>
+                <Tooltip title={t("session.settings")}>
                   <IconButton
                     size='small'
                     onClick={(event) =>
@@ -210,10 +212,10 @@ export function SessionHistoryList(
           <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
             <Forum sx={{ fontSize: 36, color: "var(--color-border)" }} />
             <Typography variant='body2' sx={{ mt: 1 }}>
-              还没有任何会话
+              {t("session.noSessions")}
             </Typography>
             <Typography variant='caption'>
-              点击上方按钮开始新的学习之旅
+              {t("session.startLearningJourney")}
             </Typography>
           </Box>
         )}
@@ -247,7 +249,7 @@ export function SessionHistoryList(
           <ListItemIcon>
             <Edit fontSize='small' />
           </ListItemIcon>
-          重命名
+          {t("session.rename")}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -261,7 +263,7 @@ export function SessionHistoryList(
           <ListItemIcon>
             <Delete fontSize='small' color='error' />
           </ListItemIcon>
-          删除
+          {t("session.delete")}
         </MenuItem>
       </Menu>
     </Box>
