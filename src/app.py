@@ -3,6 +3,9 @@
 This module initializes the FastAPI application and registers all route handlers.
 """
 
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,11 +14,18 @@ from config import (
     CORS_ALLOWED_ORIGINS,
     API_HOST,
     API_PORT,
+    DATA_DIR,
 )
 from api.routes import auth, profile, session, interaction, adapter, class_route
 from api.routes import custom_skill
 from utils.model_manager import check_and_download_models
 from utils.skills import warmup_embeddings
+
+# Configure tiktoken to use local cache (avoid network download issues in China)
+# This prevents SSL errors when downloading encoding files from Azure blob storage
+tiktoken_cache_dir = DATA_DIR / "tiktoken_cache"
+tiktoken_cache_dir.mkdir(parents=True, exist_ok=True)
+os.environ["TIKTOKEN_CACHE_DIR"] = str(tiktoken_cache_dir)
 
 # Setup logging
 setup_logging()
@@ -50,9 +60,27 @@ app.include_router(custom_skill.router)
 
 
 @app.on_event("startup")
-def warmup_embeddings_on_startup() -> None:
-    """Warm up shared embeddings to avoid first-request latency."""
+def startup_tasks() -> None:
+    """Warm up shared embeddings and pre-cache tiktoken encodings."""
     warmup_embeddings()
+    # Pre-cache tiktoken encoding to avoid SSL errors during requests
+    _preload_tiktoken_encodings()
+
+
+def _preload_tiktoken_encodings() -> None:
+    """Pre-load tiktoken encodings to cache them locally.
+
+    This prevents SSL/connection errors when tiktoken tries to download
+    encoding files from Azure blob storage during the first request.
+    """
+    try:
+        import tiktoken
+        # Pre-load common encodings used by the system
+        tiktoken.get_encoding("cl100k_base")  # GPT-4/GPT-3.5-turbo
+        print("✓ tiktoken encoding cached successfully")
+    except Exception as e:
+        print(f"⚠ Failed to pre-cache tiktoken encoding: {e}")
+        print("  Will attempt to download during first request (may fail in China)")
 
 
 @app.get("/", summary="API 根路径", tags=["Info"])
