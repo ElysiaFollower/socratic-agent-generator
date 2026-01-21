@@ -64,6 +64,18 @@ class RenameSessionRequest(BaseModel):
     session_name: str = Field(description="New name for the session.")
 
 
+class UpdateSessionLanguageRequest(BaseModel):
+    """Request model for updating session output language.
+
+    Used by PUT /api/sessions/{id}/output-language endpoint.
+    """
+
+    output_language: str = Field(
+        description="New output language for the session.",
+        default=DEFAULT_OUTPUT_LANGUAGE,
+    )
+
+
 # --- OpenAI Adapter Schemas ---
 
 

@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from api.routes.auth import get_current_user
 from core.dependencies import ProfileManagerDep, SessionManagerDep, TutorManagerDep, ClassManagerDep
 from core.exceptions import ProfileNotFoundError, SessionNotFoundError
-from schemas.message import CreateSessionRequest, RenameSessionRequest
+from schemas.message import CreateSessionRequest, RenameSessionRequest, UpdateSessionLanguageRequest
 from schemas.session import Session, SessionSummary
 from schemas.user import User
 
@@ -140,6 +140,51 @@ def rename_session(
             session_id, owner_id=current_user.user_id
         )
         return {"success": True, "message": "会话重命名成功"}
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put(
+    "/{session_id}/output-language",
+    summary="更新会话输出语言"
+)
+def update_session_language(
+    session_id: str,
+    req: UpdateSessionLanguageRequest,
+    session_manager: SessionManagerDep,
+    tutor_manager: TutorManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Update output language for a session.
+
+    Args:
+        session_id: The ID of the session to update.
+        req: UpdateSessionLanguageRequest containing new output_language.
+        session_manager: Injected SessionManager instance.
+        tutor_manager: Injected TutorManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Success message with updated output_language.
+
+    Raises:
+        HTTPException: 404 if session not found.
+    """
+    try:
+        session_manager.update_output_language(
+            session_id,
+            req.output_language,
+            owner_id=current_user.user_id
+        )
+        # 清除 Tutor 缓存，强制重新加载（会读取新的 output_language）
+        tutor_manager.remove_from_cache(
+            session_id, owner_id=current_user.user_id
+        )
+        return {
+            "success": True,
+            "message": "输出语言更新成功",
+            "output_language": req.output_language
+        }
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

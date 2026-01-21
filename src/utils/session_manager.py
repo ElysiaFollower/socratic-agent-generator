@@ -158,6 +158,28 @@ class SessionManager:
         self.db.commit()
         logger.info("Renamed session %s to %s", session_id, session_name)
 
+    def update_output_language(
+        self, session_id: str, output_language: str, owner_id: str
+    ) -> None:
+        """Update output_language for a session.
+
+        Args:
+            session_id: The ID of the session to update.
+            output_language: The new output language.
+            owner_id: Owner ID for validation.
+
+        Raises:
+            SessionNotFoundError: If the session does not exist.
+        """
+        model = self._get_model(session_id, owner_id)
+        model.output_language = output_language
+        self.db.commit()
+        logger.info(
+            "Updated output_language for session %s to %s",
+            session_id,
+            output_language
+        )
+
     def save_session(self, session: Session, owner_id: Optional[str] = None) -> None:
         """Save a session to DB.
 
