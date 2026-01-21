@@ -119,7 +119,11 @@ export function Sidebar(props: SidebarProps): JSX.Element {
         minWidth: 32,
         color: "text.secondary",
       },
-      "&:hover": { bgcolor: hoverBg },
+      "&:hover": {
+        bgcolor: hoverBg,
+        "& .MuiListItemText-primary": { fontWeight: 600 },
+        "& .MuiListItemIcon-root": { color: "text.primary" },
+      },
       "&.Mui-selected": {
         bgcolor: hoverBg,
         "& .MuiListItemText-primary": { fontWeight: 600 },
@@ -266,7 +270,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <UploadFile fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='实验文档管理'
+                  primary='实验文档'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>
@@ -283,7 +287,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Description fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='Profile管理'
+                  primary='Profile'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>
@@ -300,7 +304,7 @@ export function Sidebar(props: SidebarProps): JSX.Element {
                   <Extension fontSize='small' />
                 </ListItemIcon>
                 <ListItemText
-                  primary='Skill管理'
+                  primary='Skill'
                   primaryTypographyProps={{ variant: "body2" }}
                 />
               </ListItemButton>

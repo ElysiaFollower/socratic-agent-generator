@@ -25,7 +25,7 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { ContentCopy, Delete, Edit } from "@mui/icons-material";
+import { ContentCopy, Delete, Edit, VpnKey } from "@mui/icons-material";
 import { useClipboard, useNotification, useAuth } from "../../hooks";
 import {
   GenerateRegistrationInvitationCodeRequest,
@@ -330,9 +330,13 @@ export function RegistrationInvitationCodeGenerator(
           </Typography>
         </Stack>
       ) : invitationCodes.length === 0 ? (
-        <Typography variant='body2' color='text.secondary'>
-          暂无邀请码记录
-        </Typography>
+        <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+          <VpnKey sx={{ fontSize: 48, color: "var(--color-border)", mb: 2 }} />
+          <Typography variant='h6' sx={{ mt: 2 }}>
+            暂无邀请码记录
+          </Typography>
+          <Typography variant='body2'>点击上方按钮生成第一个邀请码</Typography>
+        </Box>
       ) : (
         <Stack spacing={1}>
           {invitationCodes.map((code) => {

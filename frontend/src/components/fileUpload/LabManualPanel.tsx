@@ -188,9 +188,9 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       accept: {
         "text/markdown": [".md", ".markdown"],
         "text/plain": [".txt"],
-        "application/pdf": [".pdf"],  // 新增PDF支持
+        "application/pdf": [".pdf"], // 新增PDF支持
       },
-      maxSize: 10 * 1024 * 1024,  // 10MB限制（可选，后端也会验证）
+      maxSize: 10 * 1024 * 1024, // 10MB限制（可选，后端也会验证）
     });
 
   /**
@@ -427,99 +427,60 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
           />
         </Paper>
 
-        <Stack spacing={1}>
-          <Typography variant='caption' color='text.secondary'>
-            文件名（默认来自原始文件名）
-          </Typography>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1}
-            alignItems={{ xs: "flex-start", sm: "center" }}
+        {selectedFile && (
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              width: "100%",
+            }}
           >
-            {isEditingLabName ? (
+            <Stack spacing={1} sx={{ width: "100%", maxWidth: 640, mt: 2 }}>
+              <Typography variant='caption' color='text.secondary'>
+                文件名
+              </Typography>
               <TextField
                 size='small'
-                value={labNameDraft}
-                onChange={(event) => setLabNameDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.preventDefault();
-                    handleSaveLabName();
-                  }
-                  if (event.key === "Escape") {
-                    event.preventDefault();
-                    handleCancelLabName();
-                  }
-                }}
-                autoFocus
+                value={labName}
+                onChange={(event) => setLabName(event.target.value)}
                 disabled={isLoading}
-                sx={{ minWidth: { xs: "100%", sm: 260 } }}
+                sx={{ width: "100%" }}
               />
-            ) : (
-              <Typography variant='body2'>
-                {labName || "请选择文件以生成文件名"}
-              </Typography>
-            )}
-            <Stack direction='row' spacing={1} alignItems='center'>
-              {isEditingLabName ? (
-                <>
-                  <IconButton
-                    size='small'
-                    onClick={handleSaveLabName}
-                    disabled={isLoading}
-                    aria-label='保存文件名'
-                  >
-                    <Check fontSize='small' />
-                  </IconButton>
-                  <IconButton
-                    size='small'
-                    onClick={handleCancelLabName}
-                    disabled={isLoading}
-                    aria-label='取消编辑文件名'
-                  >
-                    <Close fontSize='small' />
-                  </IconButton>
-                </>
-              ) : (
-                <Tooltip title='编辑名称' arrow>
-                  <span>
-                    <IconButton
-                      size='small'
-                      onClick={handleEditLabName}
-                      disabled={!selectedFile || isLoading}
-                      aria-label='编辑文件名'
-                    >
-                      <Edit fontSize='small' />
-                    </IconButton>
-                  </span>
-                </Tooltip>
+            </Stack>
+
+            <Stack
+              direction='row'
+              spacing={1}
+              alignItems='center'
+              justifyContent='flex-end'
+              sx={{ mt: 2, width: "100%", maxWidth: 640 }}
+            >
+              {onClose && (
+                <Button onClick={onClose} color='inherit' disabled={isLoading}>
+                  取消
+                </Button>
+              )}
+              <Button
+                type='submit'
+                variant='contained'
+                disabled={isLoading || !selectedFile || !labName.trim()}
+                sx={{ flex: 1, maxWidth: "fit-content" }}
+              >
+                {isLoading ? "上传中..." : "上传"}
+              </Button>
+              {selectedFile && (
+                <Button
+                  onClick={handleReset}
+                  color='inherit'
+                  disabled={isLoading}
+                >
+                  重新选择
+                </Button>
               )}
             </Stack>
-          </Stack>
-          <Typography variant='caption' color='text.secondary'>
-            将作为实验名称创建 data_raw/{labName || "实验名称"}/lab_manual.md
-          </Typography>
-        </Stack>
-
-        <Stack direction='row' spacing={1} alignItems='center'>
-          {onClose && (
-            <Button onClick={onClose} color='inherit' disabled={isLoading}>
-              取消
-            </Button>
-          )}
-          <Button
-            type='submit'
-            variant='contained'
-            disabled={isLoading || !selectedFile || !labName.trim()}
-          >
-            {isLoading ? "上传中..." : "上传"}
-          </Button>
-          {selectedFile && (
-            <Button onClick={handleReset} color='inherit' disabled={isLoading}>
-              重新选择
-            </Button>
-          )}
-        </Stack>
+          </Box>
+        )}
       </Stack>
 
       <Divider flexItem />
@@ -549,9 +510,19 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             <CircularProgress size={24} />
           </Box>
         ) : filteredManuals.length === 0 ? (
-          <Typography color='text.secondary' textAlign='center' sx={{ py: 4 }}>
-            {labManuals.length === 0 ? "暂无实验文档" : "没有匹配的实验文档"}
-          </Typography>
+          <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
+            <DescriptionOutlined
+              sx={{ fontSize: 48, color: "var(--color-border)", mb: 2 }}
+            />
+            <Typography variant='h6' sx={{ mt: 2 }}>
+              {labManuals.length === 0 ? "暂无实验文档" : "没有匹配的实验文档"}
+            </Typography>
+            <Typography variant='body2'>
+              {labManuals.length === 0
+                ? "上传您的第一个实验文档"
+                : "尝试不同的搜索词"}
+            </Typography>
+          </Box>
         ) : (
           <Box
             sx={{

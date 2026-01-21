@@ -15,6 +15,7 @@ import {
   Checkbox,
   Chip,
   Divider,
+  IconButton,
   Stack,
   TextField,
   Typography,
@@ -26,8 +27,11 @@ import {
   PeopleOutline,
   CalendarTodayOutlined,
   PersonOutline,
+  Edit,
+  Check,
+  Close,
 } from "@mui/icons-material";
-import { Profile } from "../../types";
+import { Profile, SocraticStep, CurriculumData } from "../../types";
 import { extractCurriculumSteps } from "../../utils/curriculum";
 
 /**
@@ -159,9 +163,16 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
  */
 export interface ProfileDetailCardProps {
   readonly profile: Profile;
-  readonly mode?: "teacher" | "student";
+  readonly mode?: "teacher" | "student" | "admin";
   readonly onRename?: (profile: Profile, name: string) => void;
   readonly isRenaming?: boolean;
+  readonly onUpdatePersonaHints?: (profile: Profile, hints: string[]) => void;
+  readonly isUpdatingPersonaHints?: boolean;
+  readonly onUpdateCurriculum?: (
+    profile: Profile,
+    curriculum: CurriculumData,
+  ) => void;
+  readonly isUpdatingCurriculum?: boolean;
   readonly actions?: React.ReactNode;
 }
 
@@ -172,7 +183,17 @@ export interface ProfileDetailCardProps {
  * @returns React component
  */
 export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
-  const { profile, mode = "student", onRename, isRenaming, actions } = props;
+  const {
+    profile,
+    mode = "student",
+    onRename,
+    isRenaming,
+    onUpdatePersonaHints,
+    isUpdatingPersonaHints,
+    onUpdateCurriculum,
+    isUpdatingCurriculum,
+    actions,
+  } = props;
   const displayName = profile.profile_name || profile.topic_name || "-";
   const [nameInput, setNameInput] = useState<string>(displayName);
   const steps = useMemo(
@@ -180,11 +201,36 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
     [profile.curriculum],
   );
 
+  // Edit state management
+  const [editingPersonaHints, setEditingPersonaHints] =
+    useState<boolean>(false);
+  const [personaHintsInput, setPersonaHintsInput] = useState<string[]>(
+    profile.persona_hints.slice(),
+  );
+  const [editingCurriculum, setEditingCurriculum] = useState<boolean>(false);
+  const [curriculumInput, setCurriculumInput] = useState<
+    readonly SocraticStep[]
+  >(steps.slice());
+
   useEffect(() => {
     setNameInput(profile.profile_name || profile.topic_name || "");
   }, [profile.profile_id, profile.profile_name, profile.topic_name]);
 
-  const canRename = mode === "teacher" && Boolean(onRename);
+  // Sync edit states with profile data
+  useEffect(() => {
+    if (!editingPersonaHints) {
+      setPersonaHintsInput(profile.persona_hints.slice());
+    }
+  }, [profile.persona_hints, editingPersonaHints]);
+
+  useEffect(() => {
+    if (!editingCurriculum) {
+      const currentSteps = extractCurriculumSteps(profile.curriculum);
+      setCurriculumInput(currentSteps.slice());
+    }
+  }, [profile.curriculum, editingCurriculum]);
+
+  const canRename = mode in ["teacher", "admin"] && Boolean(onRename);
   const trimmedName = nameInput.trim();
   const isNameDirty = trimmedName !== displayName && trimmedName.length > 0;
 
@@ -198,6 +244,96 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
     }
     return parsed.toLocaleString("zh-CN");
   };
+
+  // Persona hints edit handlers
+  const handleStartEditPersonaHints = () => {
+    setEditingPersonaHints(true);
+    setPersonaHintsInput(profile.persona_hints.slice());
+  };
+
+  const handleSavePersonaHints = () => {
+    if (onUpdatePersonaHints) {
+      onUpdatePersonaHints(profile, personaHintsInput);
+    }
+    setEditingPersonaHints(false);
+  };
+
+  const handleCancelEditPersonaHints = () => {
+    setPersonaHintsInput(profile.persona_hints.slice());
+    setEditingPersonaHints(false);
+  };
+
+  const handlePersonaHintChange = (index: number, value: string) => {
+    const newHints = [...personaHintsInput];
+    newHints[index] = value;
+    setPersonaHintsInput(newHints);
+  };
+
+  const handleAddPersonaHint = () => {
+    setPersonaHintsInput([...personaHintsInput, ""]);
+  };
+
+  const handleRemovePersonaHint = (index: number) => {
+    const newHints = personaHintsInput.filter((_, i) => i !== index);
+    setPersonaHintsInput(newHints);
+  };
+
+  // Curriculum edit handlers
+  const handleStartEditCurriculum = () => {
+    setEditingCurriculum(true);
+    const currentSteps = extractCurriculumSteps(profile.curriculum);
+    setCurriculumInput(currentSteps.slice());
+  };
+
+  const handleSaveCurriculum = () => {
+    if (onUpdateCurriculum) {
+      // Convert array to CurriculumData format (preserve original structure)
+      const curriculumData: CurriculumData = Array.isArray(profile.curriculum)
+        ? curriculumInput.slice()
+        : { root: curriculumInput.slice() };
+      onUpdateCurriculum(profile, curriculumData);
+    }
+    setEditingCurriculum(false);
+  };
+
+  const handleCancelEditCurriculum = () => {
+    const currentSteps = extractCurriculumSteps(profile.curriculum);
+    setCurriculumInput(currentSteps.slice());
+    setEditingCurriculum(false);
+  };
+
+  const handleStepFieldChange = (
+    index: number,
+    field: keyof SocraticStep,
+    value: string,
+  ) => {
+    const newSteps = [...curriculumInput];
+    newSteps[index] = {
+      ...newSteps[index],
+      [field]: value,
+    };
+    setCurriculumInput(newSteps);
+  };
+
+  const handleAddStep = () => {
+    const newStep: SocraticStep = {
+      step_title: "",
+      guiding_question: "",
+      success_criteria: "",
+      learning_objective: "",
+    };
+    setCurriculumInput([...curriculumInput, newStep]);
+  };
+
+  const handleRemoveStep = (index: number) => {
+    const newSteps = curriculumInput.filter((_, i) => i !== index);
+    setCurriculumInput(newSteps);
+  };
+
+  const canEditPersonaHints =
+    mode in ["teacher", "admin"] && Boolean(onUpdatePersonaHints);
+  const canEditCurriculum =
+    mode in ["teacher", "admin"] && Boolean(onUpdateCurriculum);
 
   return (
     <Card variant='outlined'>
@@ -283,8 +419,78 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
           <Divider flexItem />
 
           <Stack spacing={1}>
-            <Typography variant='subtitle2'>Persona 提示</Typography>
-            {profile.persona_hints.length === 0 ? (
+            <Stack
+              direction='row'
+              justifyContent='space-between'
+              alignItems='center'
+            >
+              <Typography variant='subtitle2'>Persona 提示</Typography>
+              {canEditPersonaHints && !editingPersonaHints && (
+                <IconButton
+                  size='small'
+                  onClick={handleStartEditPersonaHints}
+                  aria-label='编辑Persona提示'
+                >
+                  <Edit fontSize='small' />
+                </IconButton>
+              )}
+            </Stack>
+            {editingPersonaHints ? (
+              <Stack spacing={1}>
+                {personaHintsInput.map((hint, index) => (
+                  <Stack
+                    key={`edit-persona-${index}`}
+                    direction='row'
+                    spacing={1}
+                    alignItems='center'
+                  >
+                    <TextField
+                      size='small'
+                      value={hint}
+                      onChange={(e) =>
+                        handlePersonaHintChange(index, e.target.value)
+                      }
+                      fullWidth
+                      placeholder='输入提示内容'
+                    />
+                    <IconButton
+                      size='small'
+                      onClick={() => handleRemovePersonaHint(index)}
+                      color='error'
+                      aria-label='删除提示'
+                    >
+                      <Close fontSize='small' />
+                    </IconButton>
+                  </Stack>
+                ))}
+                <Stack direction='row' spacing={1}>
+                  <Button
+                    size='small'
+                    onClick={handleAddPersonaHint}
+                    startIcon={<Edit fontSize='small' />}
+                  >
+                    添加提示
+                  </Button>
+                  <Button
+                    size='small'
+                    variant='contained'
+                    onClick={handleSavePersonaHints}
+                    disabled={isUpdatingPersonaHints}
+                    startIcon={<Check fontSize='small' />}
+                  >
+                    {isUpdatingPersonaHints ? "保存中..." : "保存"}
+                  </Button>
+                  <Button
+                    size='small'
+                    color='inherit'
+                    onClick={handleCancelEditPersonaHints}
+                    startIcon={<Close fontSize='small' />}
+                  >
+                    取消
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : profile.persona_hints.length === 0 ? (
               <Typography variant='caption' color='text.secondary'>
                 暂无 Persona 提示
               </Typography>
@@ -302,8 +508,141 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
           </Stack>
 
           <Stack spacing={1}>
-            <Typography variant='subtitle2'>学习步骤</Typography>
-            {steps.length === 0 ? (
+            <Stack
+              direction='row'
+              justifyContent='space-between'
+              alignItems='center'
+            >
+              <Typography variant='subtitle2'>学习步骤</Typography>
+              {canEditCurriculum && !editingCurriculum && (
+                <IconButton
+                  size='small'
+                  onClick={handleStartEditCurriculum}
+                  aria-label='编辑学习步骤'
+                >
+                  <Edit fontSize='small' />
+                </IconButton>
+              )}
+            </Stack>
+            {editingCurriculum ? (
+              <Stack spacing={2}>
+                {curriculumInput.map((step, index) => (
+                  <Box
+                    key={`edit-step-${index}`}
+                    sx={{
+                      p: 2,
+                      borderRadius: 1,
+                      border: "1px solid var(--color-border)",
+                      bgcolor: "var(--color-surface)",
+                    }}
+                  >
+                    <Typography
+                      variant='subtitle2'
+                      sx={{ mb: 1, color: "primary.main" }}
+                    >
+                      第{index + 1}步
+                    </Typography>
+                    <Stack spacing={1.5}>
+                      <TextField
+                        size='small'
+                        label='步骤标题'
+                        value={step.step_title}
+                        onChange={(e) =>
+                          handleStepFieldChange(
+                            index,
+                            "step_title",
+                            e.target.value,
+                          )
+                        }
+                        fullWidth
+                        required
+                      />
+                      <TextField
+                        size='small'
+                        label='引导问题'
+                        value={step.guiding_question}
+                        onChange={(e) =>
+                          handleStepFieldChange(
+                            index,
+                            "guiding_question",
+                            e.target.value,
+                          )
+                        }
+                        fullWidth
+                        multiline
+                        minRows={2}
+                      />
+                      <TextField
+                        size='small'
+                        label='成功标准'
+                        value={step.success_criteria}
+                        onChange={(e) =>
+                          handleStepFieldChange(
+                            index,
+                            "success_criteria",
+                            e.target.value,
+                          )
+                        }
+                        fullWidth
+                        multiline
+                        minRows={2}
+                      />
+                      <TextField
+                        size='small'
+                        label='学习目标'
+                        value={step.learning_objective}
+                        onChange={(e) =>
+                          handleStepFieldChange(
+                            index,
+                            "learning_objective",
+                            e.target.value,
+                          )
+                        }
+                        fullWidth
+                        multiline
+                        minRows={2}
+                      />
+                      <Stack direction='row' justifyContent='flex-end'>
+                        <IconButton
+                          size='small'
+                          onClick={() => handleRemoveStep(index)}
+                          color='error'
+                          aria-label='删除步骤'
+                        >
+                          <Close fontSize='small' />
+                        </IconButton>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                ))}
+                <Stack direction='row' spacing={1} alignItems='center'>
+                  <Button
+                    size='small'
+                    onClick={handleAddStep}
+                    startIcon={<Edit fontSize='small' />}
+                  >
+                    添加步骤
+                  </Button>
+                  <Button
+                    size='small'
+                    variant='contained'
+                    onClick={handleSaveCurriculum}
+                    disabled={isUpdatingCurriculum}
+                    startIcon={<Check fontSize='small' />}
+                  >
+                    {isUpdatingCurriculum ? "保存中..." : "保存"}
+                  </Button>
+                  <Button
+                    size='small'
+                    color='inherit'
+                    onClick={handleCancelEditCurriculum}
+                    startIcon={<Close fontSize='small' />}
+                  >
+                    取消
+                  </Button>
+                </Stack>
+              </Stack>
+            ) : steps.length === 0 ? (
               <Typography variant='caption' color='text.secondary'>
                 暂无学习步骤
               </Typography>
@@ -318,11 +657,32 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       bgcolor: "var(--color-surface-muted)",
                     }}
                   >
-                    <Typography variant='body2' sx={{ fontWeight: 600 }}>
-                      {step.step_title}
+                    <Typography
+                      variant='body2'
+                      sx={{ fontWeight: 600, color: "primary.main", mb: 0.5 }}
+                    >
+                      第{index + 1}步: {step.step_title}
                     </Typography>
-                    <Typography variant='caption' color='text.secondary'>
-                      {step.learning_objective}
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
+                      <strong>引导问题:</strong> {step.guiding_question || "-"}
+                    </Typography>
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                      sx={{ display: "block", mb: 0.5 }}
+                    >
+                      <strong>成功标准:</strong> {step.success_criteria || "-"}
+                    </Typography>
+                    <Typography
+                      variant='caption'
+                      color='text.secondary'
+                      sx={{ display: "block" }}
+                    >
+                      <strong>学习目标:</strong> {step.learning_objective}
                     </Typography>
                   </Box>
                 ))}
