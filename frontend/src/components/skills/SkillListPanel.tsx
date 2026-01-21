@@ -96,7 +96,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       setSkills(list);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载自定义技能失败";
+        err instanceof Error ? err.message : t("skill.loadCustomFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingSkills(false);
@@ -125,7 +125,7 @@ export function SkillListPanel(props: SkillListPanelProps): JSX.Element {
       setSelectedProfiles(new Set([detail.profile_id]));
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载技能详情失败";
+        err instanceof Error ? err.message : t("skill.loadDetailFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingSkill(false);

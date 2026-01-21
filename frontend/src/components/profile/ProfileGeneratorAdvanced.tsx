@@ -478,7 +478,9 @@ export function ProfileGeneratorAdvanced(
         profileName.trim() || undefined,
       );
       notifySuccess(
-        `Profile已生成：${profile.profile_name || profile.topic_name}`,
+        t("profile.profileGenerated", {
+          name: profile.profile_name || profile.topic_name,
+        }),
       );
       if (onGenerateSuccess) {
         onGenerateSuccess(profile);

@@ -150,7 +150,7 @@ export function RegistrationInvitationCodeGenerator(
       setInvitationCodes(response.invitation_codes);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "加载邀请码失败";
+        err instanceof Error ? err.message : t("invitation.loadFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingCodes(false);
@@ -235,7 +235,7 @@ export function RegistrationInvitationCodeGenerator(
       handleCloseEditInvite();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新邀请码失败";
+        err instanceof Error ? err.message : t("invitation.updateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingInvite(false);

@@ -6,6 +6,7 @@
  */
 
 import React, { useState, FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
@@ -38,6 +39,7 @@ interface RegisterProps {
  */
 export function Register(props: RegisterProps): JSX.Element {
   const { onRegisterSuccess, onSwitchToLogin } = props;
+  const { t } = useTranslation();
   const { login } = useAuth();
   const { notifyError, notifyInfo, notifyWarning } = useNotification();
   const [username, setUsername] = useState<string>("");
@@ -60,27 +62,27 @@ export function Register(props: RegisterProps): JSX.Element {
 
     // Validation
     if (!username.trim()) {
-      notifyWarning("请输入用户名");
+      notifyWarning(t("register.usernameRequired"));
       return;
     }
     if (!password.trim()) {
-      notifyWarning("请输入密码");
+      notifyWarning(t("register.passwordRequired"));
       return;
     }
     if (password !== confirmPassword) {
-      notifyWarning("两次输入的密码不一致");
+      notifyWarning(t("register.passwordMismatch"));
       return;
     }
     if (password.length < 6) {
-      notifyWarning("密码长度至少为6位");
+      notifyWarning(t("register.passwordTooShort"));
       return;
     }
     if (role === "admin" && !adminToken.trim()) {
-      notifyWarning("注册管理员需要提供管理员令牌");
+      notifyWarning(t("register.adminTokenRequired"));
       return;
     }
     if ((role === "teacher" || role === "student") && !invitationCode.trim()) {
-      notifyWarning("注册教师或学生需要提供邀请码");
+      notifyWarning(t("register.invitationCodeRequired"));
       return;
     }
     setIsLoading(true);
@@ -114,7 +116,7 @@ export function Register(props: RegisterProps): JSX.Element {
         const loginErrorMessage =
           loginError instanceof Error
             ? loginError.message
-            : "注册成功，但自动登录失败，请手动登录";
+            : t("register.successButLoginFailed");
         notifyInfo(loginErrorMessage);
         // Still switch to login page after a delay
         setTimeout(() => {
@@ -125,7 +127,7 @@ export function Register(props: RegisterProps): JSX.Element {
       }
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "注册失败，请重试";
+        err instanceof Error ? err.message : t("register.failed");
       notifyError(errorMessage);
     } finally {
       setIsLoading(false);
@@ -148,17 +150,17 @@ export function Register(props: RegisterProps): JSX.Element {
         <Stack spacing={3}>
           <Box textAlign='center'>
             <Typography variant='h5' sx={{ fontWeight: 700 }}>
-              注册新账户
+              {t("register.title")}
             </Typography>
             <Typography variant='body2' color='text.secondary' sx={{ mt: 1 }}>
-              创建您的账户以开始使用
+              {t("register.subtitle")}
             </Typography>
           </Box>
 
           <Stack component='form' spacing={2} onSubmit={handleSubmit}>
             <TextField
               id='username'
-              label='用户名'
+              label={t("register.username")}
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               disabled={isLoading}
@@ -167,18 +169,18 @@ export function Register(props: RegisterProps): JSX.Element {
             />
             <TextField
               id='password'
-              label='密码'
+              label={t("register.password")}
               type='password'
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               disabled={isLoading}
               fullWidth
               required
-              helperText='至少 6 位'
+              helperText={t("register.passwordHelper")}
             />
             <TextField
               id='confirmPassword'
-              label='确认密码'
+              label={t("register.confirmPassword")}
               type='password'
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -188,27 +190,27 @@ export function Register(props: RegisterProps): JSX.Element {
             />
 
             <FormControl fullWidth required disabled={isLoading}>
-              <InputLabel id='role-label'>身份</InputLabel>
+              <InputLabel id='role-label'>{t("register.role")}</InputLabel>
               <Select
                 labelId='role-label'
                 id='role'
                 value={role}
-                label='身份'
+                label={t("register.role")}
                 onChange={(e) => {
                   setRole(e.target.value as UserRole);
                   setAdminToken("");
                   setInvitationCode("");
                 }}
               >
-                <MenuItem value='student'>学生</MenuItem>
-                <MenuItem value='teacher'>教师</MenuItem>
-                <MenuItem value='admin'>管理员</MenuItem>
+                <MenuItem value='student'>{t("register.roleStudent")}</MenuItem>
+                <MenuItem value='teacher'>{t("register.roleTeacher")}</MenuItem>
+                <MenuItem value='admin'>{t("register.roleAdmin")}</MenuItem>
               </Select>
             </FormControl>
 
             <TextField
               id='displayName'
-              label='显示名称（可选）'
+              label={t("register.displayName")}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               disabled={isLoading}
@@ -216,7 +218,7 @@ export function Register(props: RegisterProps): JSX.Element {
             />
             <TextField
               id='email'
-              label='邮箱（可选）'
+              label={t("register.email")}
               type='email'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -227,21 +229,21 @@ export function Register(props: RegisterProps): JSX.Element {
             {role === "admin" && (
               <TextField
                 id='adminToken'
-                label='管理员令牌'
+                label={t("register.adminToken")}
                 type='password'
                 value={adminToken}
                 onChange={(e) => setAdminToken(e.target.value)}
                 disabled={isLoading}
                 fullWidth
                 required
-                helperText='从 .env 文件获取'
+                helperText={t("register.adminTokenHelper")}
               />
             )}
 
             {(role === "teacher" || role === "student") && (
               <TextField
                 id='invitationCode'
-                label='邀请码'
+                label={t("register.invitationCode")}
                 value={invitationCode}
                 onChange={(e) => setInvitationCode(e.target.value)}
                 disabled={isLoading}
@@ -249,14 +251,14 @@ export function Register(props: RegisterProps): JSX.Element {
                 required
                 helperText={
                   role === "teacher"
-                    ? "需要教师邀请码"
-                    : "需要学生邀请码"
+                    ? t("register.teacherCodeHelper")
+                    : t("register.studentCodeHelper")
                 }
               />
             )}
 
             <Button type='submit' variant='contained' disabled={isLoading}>
-              {isLoading ? "注册中..." : "注册"}
+              {isLoading ? t("register.registering") : t("register.submit")}
             </Button>
           </Stack>
 
@@ -266,7 +268,7 @@ export function Register(props: RegisterProps): JSX.Element {
               onClick={onSwitchToLogin}
               disabled={isLoading}
             >
-              已有账户？立即登录
+              {t("register.hasAccount")}
             </Button>
           )}
         </Stack>

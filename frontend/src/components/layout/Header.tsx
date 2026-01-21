@@ -33,7 +33,7 @@ import {
   OpenInFull,
   BadgeOutlined,
   Settings,
-  Language,
+  Translate,
 } from "@mui/icons-material";
 import { SessionSummary, SocraticStep, ToolPanelView, User } from "../../types";
 import { ProgressBar } from "../chat/ProgressBar";
@@ -43,8 +43,6 @@ import {
   ProfileManagerHelpContent,
   SkillManagerHelpContent,
 } from "../common/HelpContent";
-import { text } from "stream/consumers";
-import { color } from "../../styles/css-variables";
 import { useTranslation } from "react-i18next";
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../../i18n";
 
@@ -253,7 +251,7 @@ export function Header(props: HeaderProps): JSX.Element {
             </Tooltip>
             <Tooltip title={t("language.switch")}>
               <IconButton onClick={handleLanguageMenuOpen}>
-                <Language />
+                <Translate />
               </IconButton>
             </Tooltip>
             <Tooltip title={displayName}>

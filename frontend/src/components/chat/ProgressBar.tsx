@@ -5,6 +5,7 @@
  */
 
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { Box, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
 import { SocraticStep } from "../../types";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
@@ -26,16 +27,17 @@ export interface ProgressBarProps {
  */
 export function ProgressBar(props: ProgressBarProps): JSX.Element {
   const { currentStep, curriculum, isLoading = false } = props;
+  const { t } = useTranslation();
 
   if (curriculum.length === 0) {
     return (
       <Box sx={{ mt: 2 }}>
         <Stack direction='row' justifyContent='space-between' sx={{ mb: 1 }}>
           <Typography variant='caption' color='text.secondary'>
-            学习进度
+            {t("chat.progress.title")}
           </Typography>
           <Typography variant='caption' color='text.secondary'>
-            {isLoading ? "加载中..." : "暂无课程"}
+            {isLoading ? t("common.loading") : t("chat.progress.noCurriculum")}
           </Typography>
         </Stack>
         <LinearProgress
@@ -74,7 +76,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
         spacing={1}
       >
         <Typography variant='caption' color='text.secondary'>
-          学习进度:
+          {t("chat.progress.title")}:
         </Typography>
         <Typography variant='caption' color='text.primary'>
           {currentStep} / {curriculum.length}
@@ -132,7 +134,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
                     {step.step_title}
                   </Typography>
                   <Typography variant='caption'>
-                    学习目标: {step.learning_objective}
+                    {t("chat.progress.learningObjective")}: {step.learning_objective}
                   </Typography>
                 </Stack>
               }
@@ -166,19 +168,19 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
         {currentStep < curriculum.length ? (
           <>
             <Typography variant='body2' sx={{ fontWeight: 600 }}>
-              当前步骤: {activeStep?.step_title}
+              {t("chat.progress.currentStep")}: {activeStep?.step_title}
             </Typography>
             <Typography
               variant='body2'
               color='text.secondary'
               sx={{ display: "block", mt: 0.5 }}
             >
-              学习目标: {activeStep?.learning_objective}
+              {t("chat.progress.learningObjective")}: {activeStep?.learning_objective}
             </Typography>
           </>
         ) : (
           <Typography variant='body2' color='text.secondary'>
-            学习流程已完成。
+            {t("chat.progress.completed")}
           </Typography>
         )}
       </Box>

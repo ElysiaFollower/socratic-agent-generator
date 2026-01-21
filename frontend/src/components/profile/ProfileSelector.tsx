@@ -5,6 +5,7 @@
  */
 
 import React, { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   Card,
@@ -42,6 +43,7 @@ export interface ProfileSelectorProps {
  */
 export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
   const { profiles, isLoading, onSelect, onClose } = props;
+  const { t } = useTranslation();
   const [searchText, setSearchText] = useState<string>("");
 
   const filteredProfiles = useMemo(() => {
@@ -66,13 +68,13 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
 
   return (
     <Dialog open onClose={onClose} fullWidth maxWidth='md'>
-      <DialogTitle>选择学习课程</DialogTitle>
+      <DialogTitle>{t("profile.selector.title")}</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ mb: 2 }}>
           <TextField
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
-            placeholder='搜索课程名称、主题或受众'
+            placeholder={t("profile.selector.searchPlaceholder")}
             size='small'
             fullWidth
           />
@@ -114,19 +116,19 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
                         color='text.secondary'
                         sx={{ mb: 1 }}
                       >
-                        目标受众: {profile.target_audience}
+                        {t("profile.selector.targetAudience")}: {profile.target_audience}
                       </Typography>
                       <Typography
                         variant='body2'
                         color='text.secondary'
                         sx={{ mb: 1 }}
                       >
-                        课程主题: {profile.topic_name}
+                        {t("profile.selector.courseTopic")}: {profile.topic_name}
                       </Typography>
                       <Typography variant='caption' color='text.secondary'>
-                        学习步骤:{" "}
-                        {extractCurriculumSteps(profile.curriculum).length}{" "}
-                        个步骤
+                        {t("profile.selector.learningSteps")}:{" "}
+                        {extractCurriculumSteps(profile.curriculum).length}
+                        {t("profile.selector.stepsCount")}
                       </Typography>
                     </CardContent>
                   </CardActionArea>
@@ -138,23 +140,23 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
           <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
             <School sx={{ fontSize: 48, color: "var(--color-border)" }} />
             <Typography variant='h6' sx={{ mt: 2 }}>
-              未找到匹配的课程
+              {t("profile.selector.noMatchingCourses")}
             </Typography>
-            <Typography variant='body2'>请尝试其他关键词</Typography>
+            <Typography variant='body2'>{t("profile.selector.tryOtherKeywords")}</Typography>
           </Box>
         ) : (
           <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
             <School sx={{ fontSize: 48, color: "var(--color-border)" }} />
             <Typography variant='h6' sx={{ mt: 2 }}>
-              暂无可用的课程配置
+              {t("profile.selector.noCoursesAvailable")}
             </Typography>
-            <Typography variant='body2'>请等待老师添加学习课程</Typography>
+            <Typography variant='body2'>{t("profile.selector.waitForTeacher")}</Typography>
           </Box>
         )}
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} color='inherit'>
-          取消
+          {t("common.cancel")}
         </Button>
       </DialogActions>
     </Dialog>

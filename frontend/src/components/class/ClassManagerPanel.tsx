@@ -125,7 +125,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
 
   const isTeacher = user?.role === "teacher" || user?.role === "admin";
   const formatRole = (role?: string) =>
-    role === "teacher" ? t("class.role.teacher") : role === "student" ? t("class.role.student") : "-";
+    role === "teacher"
+      ? t("class.role.teacher")
+      : role === "student"
+        ? t("class.role.student")
+        : "-";
   const formatDate = (value: string) => {
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) {
@@ -161,7 +165,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       const response = await listClasses();
       setClasses(response);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t("class.loadClassesFailed");
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.loadClassesFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingClasses(false);
@@ -271,7 +276,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
         [selectedClassId]: response.length,
       }));
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t("class.loadMembersFailed");
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.loadMembersFailed");
       notifyError(errorMessage);
     } finally {
       setIsLoadingMembers(false);
@@ -330,7 +336,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     if (!code) {
       return;
     }
-    await copyToClipboard(code, t("class.inviteCodeCopied"), t("common.copyFailed"));
+    await copyToClipboard(
+      code,
+      t("class.inviteCodeCopied"),
+      t("common.copyFailed"),
+    );
   };
 
   const handleCreateClass = async () => {
@@ -370,7 +380,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       setSelectedClassId(created.class_id);
       await refreshProfiles();
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t("class.classCreateFailed");
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.classCreateFailed");
       notifyError(errorMessage);
     } finally {
       setIsCreatingClass(false);
@@ -391,7 +402,8 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       await loadClasses();
       setSelectedClassId(joined.class_id);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : t("class.classJoinFailed");
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.classJoinFailed");
       notifyError(errorMessage);
     }
   };
@@ -419,7 +431,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       ]);
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : t("class.inviteCodeGenerateFailed");
+        err instanceof Error
+          ? err.message
+          : t("class.inviteCodeGenerateFailed");
       notifyError(errorMessage);
     }
   };
@@ -549,17 +563,17 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const handleRenameProfile = async (profile: Profile, nextName: string) => {
     const trimmedName = nextName.trim();
     if (!trimmedName) {
-      notifyWarning("Profile名称不能为空");
+      notifyWarning(t("class.profileNameRequired"));
       return;
     }
     setIsRenamingProfile(true);
     try {
       await renameProfile(profile.profile_id, { profile_name: trimmedName });
-      notifySuccess("Profile已更新");
+      notifySuccess(t("class.profileUpdated"));
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新Profile失败";
+        err instanceof Error ? err.message : t("class.updateProfileFailed");
       notifyError(errorMessage);
     } finally {
       setIsRenamingProfile(false);
@@ -573,7 +587,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     setIsUpdatingPersonaHints(true);
     try {
       // TODO: Implement API call to update persona hints
-      notifyWarning("更新Persona提示功能暂未实现");
+      notifyWarning(t("class.updatePersonaHintsNotImplemented"));
       console.log("Update persona hints:", {
         profileId: profile.profile_id,
         hints,
@@ -581,7 +595,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新Persona提示失败";
+        err instanceof Error
+          ? err.message
+          : t("class.updatePersonaHintsFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingPersonaHints(false);
@@ -595,7 +611,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     setIsUpdatingCurriculum(true);
     try {
       // TODO: Implement API call to update curriculum
-      notifyWarning("更新学习步骤功能暂未实现");
+      notifyWarning(t("class.updateCurriculumNotImplemented"));
       console.log("Update curriculum:", {
         profileId: profile.profile_id,
         curriculum,
@@ -603,7 +619,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : "更新学习步骤失败";
+        err instanceof Error ? err.message : t("class.updateCurriculumFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingCurriculum(false);
@@ -816,7 +832,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
               onClick={handleGenerateInvite}
               disabled={!selectedClassId || isLoadingInvites}
             >
-              {isLoadingInvites ? t("class.generating") : t("class.generateInvite")}
+              {isLoadingInvites
+                ? t("class.generating")
+                : t("class.generateInvite")}
             </Button>
           </Stack>
         </Stack>
@@ -858,7 +876,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                       </Typography>
                       <Stack direction='row' spacing={1} alignItems='center'>
                         <Tooltip
-                          title={expired ? t("class.codeExpired") : t("class.copyInviteCode")}
+                          title={
+                            expired
+                              ? t("class.codeExpired")
+                              : t("class.copyInviteCode")
+                          }
                         >
                           <span>
                             <IconButton
@@ -905,7 +927,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                         <Chip
                           size='small'
                           color={expired ? "default" : "success"}
-                          label={expired ? t("class.expired") : t("class.effective")}
+                          label={
+                            expired ? t("class.expired") : t("class.effective")
+                          }
                           variant={expired ? "outlined" : "filled"}
                         />
                       </Stack>
@@ -936,7 +960,9 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           alignItems='center'
           justifyContent='space-between'
         >
-          <Typography variant='subtitle2'>{t("class.profilesInClass")}</Typography>
+          <Typography variant='subtitle2'>
+            {t("class.profilesInClass")}
+          </Typography>
           <Button
             size='small'
             variant='outlined'

@@ -1,11 +1,13 @@
 import { createTheme } from "@mui/material/styles";
+import { zhCN, enUS } from "@mui/material/locale";
 import type { PaletteMode } from "@mui/material";
 
 /**
  * Creates the application theme based on the design tokens.
  * This theme is synchronized with the CSS custom properties in globals.css.
  */
-export const createAppTheme = (mode: PaletteMode) => {
+export const createAppTheme = (mode: PaletteMode, locale?: string) => {
+  const muiLocale = locale === "zh" ? zhCN : enUS;
   const isDark = mode === "dark";
 
   // Color definitions aligned with design tokens
@@ -85,6 +87,7 @@ export const createAppTheme = (mode: PaletteMode) => {
   };
 
   return createTheme({
+    ...muiLocale,
     palette: {
       mode,
       // Brand colors
@@ -144,7 +147,9 @@ export const createAppTheme = (mode: PaletteMode) => {
         hover: isDark ? `rgba(255, 255, 255, 0.08)` : `rgba(0, 0, 0, 0.04)`,
         selected: isDark ? `rgba(255, 255, 255, 0.16)` : `rgba(0, 0, 0, 0.08)`,
         disabled: isDark ? `rgba(255, 255, 255, 0.3)` : `rgba(0, 0, 0, 0.26)`,
-        disabledBackground: isDark ? `rgba(255, 255, 255, 0.12)` : `rgba(0, 0, 0, 0.12)`,
+        disabledBackground: isDark
+          ? `rgba(255, 255, 255, 0.12)`
+          : `rgba(0, 0, 0, 0.12)`,
       },
     },
     typography: {
@@ -273,7 +278,8 @@ export const createAppTheme = (mode: PaletteMode) => {
             borderRadius: "var(--radius-xl)",
             fontWeight: 600,
             padding: "var(--spacing-2) var(--spacing-4)",
-            transition: "all var(--transition-duration-200) var(--transition-timing-default)",
+            transition:
+              "all var(--transition-duration-200) var(--transition-timing-default)",
           },
           contained: {
             "&:hover": {
@@ -309,7 +315,8 @@ export const createAppTheme = (mode: PaletteMode) => {
           root: {
             borderRadius: "var(--radius-xl)",
             border: "1px solid var(--color-border)",
-            transition: "all var(--transition-duration-200) var(--transition-timing-default)",
+            transition:
+              "all var(--transition-duration-200) var(--transition-timing-default)",
             "&:hover": {
               boxShadow: "var(--shadow-md)",
               borderColor: "var(--color-primary-300)",
@@ -322,7 +329,8 @@ export const createAppTheme = (mode: PaletteMode) => {
           root: {
             "& .MuiOutlinedInput-root": {
               borderRadius: "var(--radius-lg)",
-              transition: "all var(--transition-duration-200) var(--transition-timing-default)",
+              transition:
+                "all var(--transition-duration-200) var(--transition-timing-default)",
             },
           },
         },
