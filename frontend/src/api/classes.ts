@@ -129,3 +129,11 @@ export async function updateClassInvitationCode(
     throw new Error(`更新邀请码失败: ${handleApiError(error)}`);
   }
 }
+
+export async function deleteClass(classId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/classes/${classId}`);
+  } catch (error) {
+    throw new Error(`删除班级失败: ${handleApiError(error)}`);
+  }
+}

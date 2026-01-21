@@ -246,3 +246,36 @@ class ClassManager:
             model.expires_at,
         )
         return model
+
+    def delete_class(self, class_id: str, owner_id: str) -> None:
+        """Delete a class and all related data.
+
+        Only the class owner can delete the class.
+
+        Args:
+            class_id: Class ID to delete.
+            owner_id: Owner ID (must match class owner).
+
+        Raises:
+            ClassNotFoundError: If class not found.
+            ValueError: If user is not the owner.
+        """
+        class_model = self.get_class(class_id)
+        if class_model.owner_id != owner_id:
+            raise ValueError("Only class owner can delete the class")
+
+        # Delete all related data in correct order due to foreign key constraints
+        # Delete invitation codes first
+        self.db.query(ClassInvitationCodeModel).filter(
+            ClassInvitationCodeModel.class_id == class_id
+        ).delete()
+
+        # Delete memberships
+        self.db.query(ClassMembershipModel).filter(
+            ClassMembershipModel.class_id == class_id
+        ).delete()
+
+        # Delete the class
+        self.db.delete(class_model)
+        self.db.commit()
+        logger.info("Deleted class: %s", class_id)

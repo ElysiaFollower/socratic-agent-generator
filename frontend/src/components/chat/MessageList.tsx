@@ -7,6 +7,7 @@
 
 import React from "react";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "../../hooks";
 import {
   Avatar,
   Box,
@@ -46,6 +47,9 @@ export interface MessageListProps {
  * @returns React component
  */
 export function MessageList(props: MessageListProps): JSX.Element {
+  // 获取本地的用户名
+  const { user } = useAuth();
+  const displayName = user?.display_name || user?.username;
   const { t } = useTranslation();
   const {
     messages,
@@ -75,9 +79,10 @@ export function MessageList(props: MessageListProps): JSX.Element {
         }}
       >
         <Stack spacing={1} alignItems='center'>
-          <WavingHand sx={{ fontSize: 32, color: "text.secondary" }} />
-          <Typography variant='h6'>{t("chat.welcomeTitle")}</Typography>
-          <Typography variant='body2'>{t("chat.welcomeMessage")}</Typography>
+          <Typography variant='h4'>
+            {`Hi ${displayName}. ` + t("chat.welcomeTitle")}
+          </Typography>
+          <Typography variant='body1'>{t("chat.welcomeMessage")}</Typography>
         </Stack>
       </Box>
     );

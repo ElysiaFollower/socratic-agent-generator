@@ -28,19 +28,19 @@ import {
 import {
   Add,
   CalendarTodayOutlined,
+  ClassTwoTone,
   ContentCopy,
-  Delete,
   DescriptionOutlined,
   Edit,
   PeopleOutline,
   Person,
+  VpnKeyOff,
 } from "@mui/icons-material";
 import {
   ClassInfo,
   ClassMemberInfo,
   InvitationCodeInfo,
   Profile,
-  CurriculumData,
 } from "../../types";
 import {
   createClass,
@@ -53,14 +53,17 @@ import {
   generateClassInvitationCode,
   deleteClassInvitationCode,
   updateClassInvitationCode,
+  deleteClass,
 } from "../../api";
 import {
   useAuth,
   useClipboard,
+  useConfirmDialog,
   useNotification,
   useProfiles,
 } from "../../hooks";
 import { ProfileCard, ProfileDetailCard } from "../profile/ProfileCard";
+import { color } from "../../styles/css-variables";
 
 /**
  * Props for ClassManagerPanel component.
@@ -82,6 +85,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   const { user } = useAuth();
   const { notifyError, notifySuccess, notifyWarning } = useNotification();
   const { copyToClipboard } = useClipboard();
+  const { confirm } = useConfirmDialog();
   const { profiles, refresh: refreshProfiles } = useProfiles();
 
   const [classes, setClasses] = useState<readonly ClassInfo[]>([]);
@@ -177,11 +181,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     void loadClasses();
   }, [loadClasses]);
 
-  useEffect(() => {
-    if (!selectedClassId && classes.length > 0) {
-      setSelectedClassId(classes[0].class_id);
-    }
-  }, [classes, selectedClassId]);
+  // useEffect(() => {
+  //   if (!selectedClassId && classes.length > 0) {
+  //     setSelectedClassId(classes[0].class_id);
+  //   }
+  // }, [classes, selectedClassId]);
 
   useEffect(() => {
     if (filteredClasses.length === 0) {
@@ -249,6 +253,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       setInvites([]);
       return;
     }
+    // 额外检查：如果selectedClassId为空，直接返回（防止删除后的无效请求）
+    if (!selectedClassId) {
+      setInvites([]);
+      return;
+    }
     setIsLoadingInvites(true);
     try {
       const response = await listClassInvitations(selectedClassId);
@@ -264,6 +273,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
 
   const loadMembers = useCallback(async () => {
     if (!selectedClassId || !isTeacher) {
+      setMembers([]);
+      return;
+    }
+    // 额外检查：如果selectedClassId为空，直接返回（防止删除后的无效请求）
+    if (!selectedClassId) {
       setMembers([]);
       return;
     }
@@ -376,6 +390,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       }
 
       notifySuccess(t("class.classCreated"));
+      setIsCreateClassOpen(false);
       await loadClasses();
       setSelectedClassId(created.class_id);
       await refreshProfiles();
@@ -604,25 +619,28 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     }
   };
 
-  const handleUpdateCurriculum = async (
-    profile: Profile,
-    curriculum: CurriculumData,
-  ) => {
-    setIsUpdatingCurriculum(true);
+  const handleDeleteClass = async (classId: string) => {
     try {
-      // TODO: Implement API call to update curriculum
-      notifyWarning(t("class.updateCurriculumNotImplemented"));
-      console.log("Update curriculum:", {
-        profileId: profile.profile_id,
-        curriculum,
+      await deleteClass(classId);
+      notifySuccess(t("class.classDeleted"));
+      setClasses((prev) => prev.filter((item) => item.class_id !== classId));
+      setClassMemberCounts((prev) => {
+        if (!(classId in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[classId];
+        return next;
       });
+      setInvites([]);
+      setMembers([]);
+      setSelectedClassId((prev) => (prev === classId ? null : prev));
+      await loadClasses();
       await refreshProfiles();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : t("class.updateCurriculumFailed");
+        err instanceof Error ? err.message : t("class.classDeleteFailed");
       notifyError(errorMessage);
-    } finally {
-      setIsUpdatingCurriculum(false);
     }
   };
 
@@ -920,7 +938,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                               }
                               color='error'
                             >
-                              <Delete fontSize='small' />
+                              <VpnKeyOff fontSize='small' />
                             </IconButton>
                           </span>
                         </Tooltip>
@@ -1095,9 +1113,41 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           {classList}
           {selectedClass && (
             <Paper variant='outlined' sx={{ p: 2 }}>
-              <Typography variant='subtitle1' sx={{ mb: 1, fontWeight: 600 }}>
-                {t("class.classDetails")} - {selectedClass.name}
-              </Typography>
+              <Stack
+                direction='row'
+                alignItems='center'
+                justifyContent='space-between'
+                sx={{ mb: 1 }}
+              >
+                <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
+                  {t("class.classDetails")} - {selectedClass.name}
+                </Typography>
+                {isTeacher && selectedClass.owner_id === user?.user_id && (
+                  <Tooltip title={t("class.deleteClass")}>
+                    <IconButton
+                      sx={{
+                        transition: "all 0.3s ease",
+                        color: color.text.secondary,
+                        "&:hover": {
+                          color: "error.main",
+                        },
+                      }}
+                      onClick={async () => {
+                        const shouldDelete = await confirm({
+                          title: t("class.deleteClass"),
+                          description: t("class.deleteClassConfirm"),
+                          confirmColor: "error",
+                        });
+                        if (shouldDelete) {
+                          void handleDeleteClass(selectedClass.class_id);
+                        }
+                      }}
+                    >
+                      <ClassTwoTone />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </Stack>
               {isTeacher ? teacherDetail : studentDetail}
             </Paper>
           )}
@@ -1304,14 +1354,6 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
               }
               onRename={isTeacher ? handleRenameProfile : undefined}
               isRenaming={isRenamingProfile}
-              onUpdatePersonaHints={
-                isTeacher ? handleUpdatePersonaHints : undefined
-              }
-              isUpdatingPersonaHints={isUpdatingPersonaHints}
-              onUpdateCurriculum={
-                isTeacher ? handleUpdateCurriculum : undefined
-              }
-              isUpdatingCurriculum={isUpdatingCurriculum}
               actions={
                 isTeacher && selectedClassId ? (
                   <Stack

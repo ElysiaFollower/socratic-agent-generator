@@ -615,6 +615,10 @@
     "updatePersonaHintsNotImplemented": "Update persona hints feature not implemented",
     "updatePersonaHintsFailed": "Failed to update persona hints",
     "updateCurriculumNotImplemented": "Update learning steps feature not implemented",
-    "updateCurriculumFailed": "Failed to update learning steps"
+    "updateCurriculumFailed": "Failed to update learning steps",
+    "deleteClass": "Disband Class",
+    "deleteClassConfirm": "Are you sure you want to disband this class? This will delete the class and all its related data, which cannot be undone.",
+    "classDeleted": "Class disbanded",
+    "classDeleteFailed": "Failed to disband class"
   }
 }

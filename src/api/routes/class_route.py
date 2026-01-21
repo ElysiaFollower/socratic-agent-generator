@@ -445,3 +445,54 @@ def update_profile_visibility(
         update={"visible_class_ids": list(visible_ids)}
     )
     return profile_manager.save_profile(updated_profile)
+
+
+@router.delete("/{class_id}", summary="删除班级")
+def delete_class(
+    class_id: str,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Delete a class and all related data.
+
+    Only the class owner can delete the class.
+
+    Args:
+        class_id: Class ID to delete.
+        class_manager: Injected ClassManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Dictionary with success message.
+
+    Raises:
+        HTTPException: If permission denied or class not found.
+    """
+    try:
+        class_model = class_manager.get_class(class_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only teachers can delete classes.",
+        )
+    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only class owners can delete the class.",
+        )
+
+    try:
+        class_manager.delete_class(class_id, current_user.user_id)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        )
+
+    return {"success": True, "message": "Class deleted successfully"}

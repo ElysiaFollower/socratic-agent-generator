@@ -269,6 +269,20 @@ export const createAppTheme = (mode: PaletteMode, locale?: string) => {
       "var(--shadow-2xl)",
     ] as any,
     components: {
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            height: "60px",
+          },
+        },
+      },
+      MuiToolbar: {
+        styleOverrides: {
+          root: {
+            minHeight: "60px",
+          },
+        },
+      },
       MuiButton: {
         defaultProps: {
           disableElevation: true,
