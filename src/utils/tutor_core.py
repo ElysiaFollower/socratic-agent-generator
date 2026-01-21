@@ -476,7 +476,12 @@ class Tutor:
     def get_welcome_message(self) -> str:
         """Generate welcome message for the session."""
         topic_name = self.session.profile.topic_name
-        return f"你好！今天我们来挑战一下\"{topic_name}\"。准备好了吗？"
+        output_language = self.session.output_language
+
+        if output_language == "English":
+            return f'Hello! Today let\'s explore "{topic_name}". Are you ready?'
+        else:
+            return f"你好！今天我们来挑战一下\"{topic_name}\"。准备好了吗？"
 
     def process_message(self, user_input: str) -> ResponseMessage:
         """Process a single user message synchronously."""

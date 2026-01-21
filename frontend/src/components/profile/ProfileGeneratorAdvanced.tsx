@@ -721,7 +721,10 @@ export function ProfileGeneratorAdvanced(
                 minWidth: 0,
               }}
             >
-              <Paper variant='outlined' sx={{ p: 2, height: "100%" }}>
+              <Paper
+                variant='outlined'
+                sx={{ p: 2, height: "100%", position: "relative" }}
+              >
                 <Stack
                   direction='row'
                   alignItems='center'
@@ -818,6 +821,32 @@ export function ProfileGeneratorAdvanced(
                       : t("profile.personaNotGenerated")}
                   </Typography>
                 )}
+
+                {/* Loading overlay for persona generation */}
+                {personaStatus === "generating" && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      bgcolor: "rgba(255, 255, 255, 0.7)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 1,
+                      zIndex: 1,
+                    }}
+                  >
+                    <Stack spacing={1} alignItems='center'>
+                      <CircularProgress size={24} />
+                      <Typography variant='body2' color='text.secondary'>
+                        {t("profile.generatingPersona")}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                )}
               </Paper>
             </Box>
 
@@ -855,7 +884,10 @@ export function ProfileGeneratorAdvanced(
                 minWidth: 0,
               }}
             >
-              <Paper variant='outlined' sx={{ p: 2, height: "100%" }}>
+              <Paper
+                variant='outlined'
+                sx={{ p: 2, height: "100%", position: "relative" }}
+              >
                 <Stack
                   direction='row'
                   alignItems='center'
@@ -968,6 +1000,32 @@ export function ProfileGeneratorAdvanced(
                       ? t("profile.generating")
                       : t("profile.curriculumNotGenerated")}
                   </Typography>
+                )}
+
+                {/* Loading overlay for curriculum generation */}
+                {curriculumStatus === "generating" && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      bgcolor: "rgba(255, 255, 255, 0.7)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 1,
+                      zIndex: 1,
+                    }}
+                  >
+                    <Stack spacing={1} alignItems='center'>
+                      <CircularProgress size={24} />
+                      <Typography variant='body2' color='text.secondary'>
+                        {t("profile.generatingCurriculum")}
+                      </Typography>
+                    </Stack>
+                  </Box>
                 )}
               </Paper>
             </Box>
