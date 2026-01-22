@@ -13,6 +13,7 @@ import {
   Button,
   Box,
 } from "@mui/material";
+import { useTranslation } from "react-i18next";
 
 /**
  * Props for HelpDialog component.
@@ -32,6 +33,7 @@ export interface HelpDialogProps {
  */
 export function HelpDialog(props: HelpDialogProps): JSX.Element {
   const { open, onClose, title, content } = props;
+  const { t } = useTranslation();
 
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth='md'>
@@ -41,7 +43,7 @@ export function HelpDialog(props: HelpDialogProps): JSX.Element {
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose} variant='contained' color='primary'>
-          关闭
+          {t("common.close")}
         </Button>
       </DialogActions>
     </Dialog>
