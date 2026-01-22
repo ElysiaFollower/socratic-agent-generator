@@ -152,60 +152,6 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     setShowProfileSelector(true);
   }, []);
 
-  const handleStartNewSession = useCallback(
-    async (profile: Profile) => {
-      if (isCreatingSession) {
-        return;
-      }
-      setIsCreatingSession(true);
-      try {
-        const res = await createSession({
-          profile_id: profile.profile_id,
-          session_name: `${profile.profile_name || profile.topic_name} - ${new Date().toLocaleString()}`,
-          output_language: SUPPORTED_LANGUAGES[currentLanguage].llmLanguage,
-        });
-
-        await refreshSessions();
-        setSessionId(res.session_id);
-        setMessages([], res.session_id);
-        setShowProfileSelector(false);
-        setActivePanel("chat");
-        notifySuccess(t("chat.dialogCreated"));
-
-        sessionState.setProfile(profile);
-
-        try {
-          await sessionState.refresh();
-        } catch (stateError) {
-          console.error("Failed to get new session state:", stateError);
-        }
-
-        const welcome = await getWelcomeMessage(res.session_id);
-        setMessages(
-          [{ role: "assistant", content: welcome.welcome, isThinking: false }],
-          res.session_id,
-        );
-      } catch (error) {
-        console.error("Failed to create session:", error);
-        notifyError(
-          error instanceof Error ? error.message : t("chat.dialogCreateFailed"),
-        );
-      } finally {
-        setIsCreatingSession(false);
-      }
-    },
-    [
-      notifyError,
-      notifySuccess,
-      refreshSessions,
-      sessionState,
-      setMessages,
-      currentLanguage,
-      t,
-      isCreatingSession,
-    ],
-  );
-
   const handleLanguageChange = useCallback((language: SupportedLanguage) => {
     setCurrentLanguage(language);
   }, []);
@@ -272,6 +218,62 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       }
     },
     [sessionState, setMessagesIfEmpty],
+  );
+
+  const handleStartNewSession = useCallback(
+    async (profile: Profile) => {
+      if (isCreatingSession) {
+        return;
+      }
+      setIsCreatingSession(true);
+      try {
+        const sessionName = `${profile.profile_name || profile.topic_name} - ${new Date().toLocaleString()}`;
+        const res = await createSession({
+          profile_id: profile.profile_id,
+          session_name: sessionName,
+          output_language: SUPPORTED_LANGUAGES[currentLanguage].llmLanguage,
+        });
+
+        setMessages([], res.session_id);
+        setShowProfileSelector(false);
+
+        // Refresh sessions list in background
+        void refreshSessions();
+
+        // Construct a SessionSummary object from the data we have
+        const newSession: SessionSummary = {
+          session_id: res.session_id,
+          session_name: sessionName,
+          profile_id: profile.profile_id,
+          profile_name: profile.profile_name || profile.topic_name,
+          topic_name: profile.topic_name,
+          create_at: new Date().toISOString(),
+          update_at: new Date().toISOString(),
+        };
+
+        // Use the same logic as clicking a session item
+        await handleSwitchToSession(newSession);
+
+        notifySuccess(t("chat.dialogCreated"));
+      } catch (error) {
+        console.error("Failed to create session:", error);
+        notifyError(
+          error instanceof Error ? error.message : t("chat.dialogCreateFailed"),
+        );
+      } finally {
+        setIsCreatingSession(false);
+      }
+    },
+    [
+      notifyError,
+      notifySuccess,
+      refreshSessions,
+      handleSwitchToSession,
+      setMessages,
+      currentLanguage,
+      t,
+      isCreatingSession,
+    ],
   );
 
   const handleRenameSession = useCallback(

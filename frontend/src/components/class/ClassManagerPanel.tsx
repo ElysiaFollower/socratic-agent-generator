@@ -34,6 +34,7 @@ import {
   Edit,
   PeopleOutline,
   Person,
+  School,
   VpnKeyOff,
 } from "@mui/icons-material";
 import {
@@ -272,11 +273,6 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
   }, [isTeacher, notifyError, selectedClassId]);
 
   const loadMembers = useCallback(async () => {
-    if (!selectedClassId || !isTeacher) {
-      setMembers([]);
-      return;
-    }
-    // 额外检查：如果selectedClassId为空，直接返回（防止删除后的无效请求）
     if (!selectedClassId) {
       setMembers([]);
       return;
@@ -296,7 +292,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     } finally {
       setIsLoadingMembers(false);
     }
-  }, [isTeacher, notifyError, selectedClassId]);
+  }, [notifyError, selectedClassId]);
 
   useEffect(() => {
     void loadInvites();
@@ -415,7 +411,13 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
       setJoinCode("");
       setIsJoinClassOpen(false);
       await loadClasses();
+      await refreshProfiles();
       setSelectedClassId(joined.class_id);
+      // Load members and invites for the newly joined class
+      await loadMembers();
+      if (isTeacher) {
+        await loadInvites();
+      }
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : t("class.classJoinFailed");
@@ -802,176 +804,11 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     return Date.now() > expiresTime;
   };
 
-  const teacherDetail = (
+  // Unified class detail view for both teachers and students.
+  // Only teachers see the invite codes section.
+  const classDetail = (
     <Stack spacing={2}>
-      <Stack spacing={1}>
-        <Typography variant='subtitle2'>{t("class.members")}</Typography>
-        {isLoadingMembers ? (
-          <CircularProgress size={20} />
-        ) : members.length === 0 ? (
-          <Typography variant='caption' color='text.secondary'>
-            {t("class.noMembers")}
-          </Typography>
-        ) : (
-          <Stack spacing={1}>
-            {members.map((member) => (
-              <Stack key={member.user_id} direction='row' spacing={1}>
-                <Person fontSize='small' color='action' />
-                <Typography variant='body2'>
-                  {member.display_name || member.username}
-                </Typography>
-                <Chip size='small' label={formatRole(member.role_in_class)} />
-              </Stack>
-            ))}
-          </Stack>
-        )}
-      </Stack>
-
-      <Stack spacing={1}>
-        <Stack
-          direction='row'
-          alignItems='center'
-          justifyContent='space-between'
-        >
-          <Typography variant='subtitle2'>{t("class.inviteCodes")}</Typography>
-          <Stack direction='row' spacing={1}>
-            <TextField
-              type='number'
-              size='small'
-              label={t("class.expiresInDays")}
-              value={expiresInDays}
-              onChange={(e) => setExpiresInDays(Number(e.target.value))}
-              inputProps={{ min: 1, max: 365 }}
-              sx={{ width: 120 }}
-            />
-            <Button
-              size='small'
-              variant='outlined'
-              onClick={handleGenerateInvite}
-              disabled={!selectedClassId || isLoadingInvites}
-            >
-              {isLoadingInvites
-                ? t("class.generating")
-                : t("class.generateInvite")}
-            </Button>
-          </Stack>
-        </Stack>
-        {isLoadingInvites ? (
-          <CircularProgress size={20} />
-        ) : invites.length === 0 ? (
-          <Typography variant='caption' color='text.secondary'>
-            {t("class.noInviteCodes")}
-          </Typography>
-        ) : (
-          <Stack spacing={1}>
-            {invites.map((invite) => {
-              const expired = isCodeExpired(invite.expires_at);
-              return (
-                <Box
-                  key={invite.invitation_code}
-                  sx={{
-                    border: "1px solid var(--color-border)",
-                    borderRadius: 1,
-                    p: 1.5,
-                    bgcolor: "var(--color-surface)",
-                  }}
-                >
-                  <Stack spacing={1}>
-                    <Stack
-                      direction='row'
-                      alignItems='center'
-                      justifyContent='space-between'
-                    >
-                      <Typography
-                        variant='body2'
-                        color={expired ? "text.secondary" : "text.primary"}
-                        sx={{
-                          fontWeight: 600,
-                          fontFamily: "monospace",
-                        }}
-                      >
-                        {invite.invitation_code}
-                      </Typography>
-                      <Stack direction='row' spacing={1} alignItems='center'>
-                        <Tooltip
-                          title={
-                            expired
-                              ? t("class.codeExpired")
-                              : t("class.copyInviteCode")
-                          }
-                        >
-                          <span>
-                            <IconButton
-                              size='small'
-                              aria-label={t("class.copyInviteCode")}
-                              onClick={() =>
-                                copyToClipboard(
-                                  invite.invitation_code,
-                                  t("class.inviteCodeCopied"),
-                                  t("common.copyFailed"),
-                                )
-                              }
-                              disabled={expired}
-                            >
-                              <ContentCopy fontSize='small' />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={t("class.modifyExpiry")}>
-                          <span>
-                            <IconButton
-                              size='small'
-                              aria-label={t("class.modifyExpiry")}
-                              onClick={() => handleOpenEditInvite(invite)}
-                            >
-                              <Edit fontSize='small' />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={t("class.deleteInviteCode")}>
-                          <span>
-                            <IconButton
-                              size='small'
-                              aria-label={t("class.deleteInviteCode")}
-                              onClick={() =>
-                                handleDeleteInvite(invite.invitation_code)
-                              }
-                              color='error'
-                            >
-                              <VpnKeyOff fontSize='small' />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Chip
-                          size='small'
-                          color={expired ? "default" : "success"}
-                          label={
-                            expired ? t("class.expired") : t("class.effective")
-                          }
-                          variant={expired ? "outlined" : "filled"}
-                        />
-                      </Stack>
-                    </Stack>
-                    <Stack direction='row' spacing={2} flexWrap='wrap'>
-                      <Typography variant='caption' color='text.secondary'>
-                        {t("class.createdAt")}:{" "}
-                        {new Date(invite.created_at).toLocaleString("zh-CN")}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        {t("class.expiresAt")}:{" "}
-                        {invite.expires_at
-                          ? new Date(invite.expires_at).toLocaleString("zh-CN")
-                          : "-"}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Box>
-              );
-            })}
-          </Stack>
-        )}
-      </Stack>
-
+      {/* Profile List Section - shown first */}
       <Stack spacing={1}>
         <Stack
           direction='row'
@@ -981,15 +818,17 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           <Typography variant='subtitle2'>
             {t("class.profilesInClass")}
           </Typography>
-          <Button
-            size='small'
-            variant='outlined'
-            startIcon={<Add />}
-            onClick={() => setIsAddProfileOpen(true)}
-            disabled={!selectedClassId}
-          >
-            {t("class.addProfile")}
-          </Button>
+          {isTeacher && (
+            <Button
+              size='small'
+              variant='outlined'
+              startIcon={<Add />}
+              onClick={() => setIsAddProfileOpen(true)}
+              disabled={!selectedClassId}
+            >
+              {t("class.addProfile")}
+            </Button>
+          )}
         </Stack>
         {visibleProfilesForClass.length === 0 ? (
           <Typography variant='caption' color='text.secondary'>
@@ -999,7 +838,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" },
               gap: 2,
             }}
           >
@@ -1013,32 +852,198 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
           </Box>
         )}
       </Stack>
-    </Stack>
-  );
 
-  const studentDetail = (
-    <Stack spacing={1}>
-      <Typography variant='subtitle2'>{t("class.visibleProfiles")}</Typography>
-      {visibleProfilesForClass.length === 0 ? (
-        <Typography variant='caption' color='text.secondary'>
-          {t("class.noVisibleProfiles")}
-        </Typography>
-      ) : (
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 2,
-          }}
-        >
-          {visibleProfilesForClass.map((profile) => (
-            <ProfileCard
-              key={profile.profile_id}
-              profile={profile}
-              onClick={() => setActiveProfile(profile)}
-            />
-          ))}
-        </Box>
+      {/* Member List Section - horizontal chip layout */}
+      <Stack spacing={1}>
+        <Typography variant='subtitle2'>{t("class.members")}</Typography>
+        {isLoadingMembers ? (
+          <CircularProgress size={20} />
+        ) : members.length === 0 ? (
+          <Typography variant='caption' color='text.secondary'>
+            {t("class.noMembers")}
+          </Typography>
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 1,
+            }}
+          >
+            {members.map((member) => {
+              const isTeacherOrAdmin = member.role_in_class === "teacher";
+              return (
+                <Chip
+                  sx={{ px: 1, py: 1 }}
+                  key={member.user_id}
+                  icon={
+                    isTeacherOrAdmin ? (
+                      <School fontSize='small' />
+                    ) : (
+                      <Person fontSize='small' />
+                    )
+                  }
+                  label={member.display_name || member.username}
+                  size='small'
+                />
+              );
+            })}
+          </Box>
+        )}
+      </Stack>
+
+      {/* Invite Codes Section - teachers only */}
+      {isTeacher && (
+        <Stack spacing={1}>
+          <Stack
+            direction='row'
+            alignItems='center'
+            justifyContent='space-between'
+          >
+            <Typography variant='subtitle2'>
+              {t("class.inviteCodes")}
+            </Typography>
+            <Stack direction='row' spacing={1}>
+              <TextField
+                type='number'
+                size='small'
+                label={t("class.expiresInDays")}
+                value={expiresInDays}
+                onChange={(e) => setExpiresInDays(Number(e.target.value))}
+                inputProps={{ min: 1, max: 365 }}
+                sx={{ width: 120 }}
+              />
+              <Button
+                size='small'
+                variant='outlined'
+                onClick={handleGenerateInvite}
+                disabled={!selectedClassId || isLoadingInvites}
+              >
+                {isLoadingInvites
+                  ? t("class.generating")
+                  : t("class.generateInvite")}
+              </Button>
+            </Stack>
+          </Stack>
+          {isLoadingInvites ? (
+            <CircularProgress size={20} />
+          ) : invites.length === 0 ? (
+            <Typography variant='caption' color='text.secondary'>
+              {t("class.noInviteCodes")}
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {invites.map((invite) => {
+                const expired = isCodeExpired(invite.expires_at);
+                return (
+                  <Box
+                    key={invite.invitation_code}
+                    sx={{
+                      border: "1px solid var(--color-border)",
+                      borderRadius: 1,
+                      p: 1.5,
+                      bgcolor: "var(--color-surface)",
+                    }}
+                  >
+                    <Stack spacing={1}>
+                      <Stack
+                        direction='row'
+                        alignItems='center'
+                        justifyContent='space-between'
+                      >
+                        <Typography
+                          variant='body2'
+                          color={expired ? "text.secondary" : "text.primary"}
+                          sx={{
+                            fontWeight: 600,
+                            fontFamily: "monospace",
+                          }}
+                        >
+                          {invite.invitation_code}
+                        </Typography>
+                        <Stack direction='row' spacing={1} alignItems='center'>
+                          <Tooltip
+                            title={
+                              expired
+                                ? t("class.codeExpired")
+                                : t("class.copyInviteCode")
+                            }
+                          >
+                            <span>
+                              <IconButton
+                                size='small'
+                                aria-label={t("class.copyInviteCode")}
+                                onClick={() =>
+                                  copyToClipboard(
+                                    invite.invitation_code,
+                                    t("class.inviteCodeCopied"),
+                                    t("common.copyFailed"),
+                                  )
+                                }
+                                disabled={expired}
+                              >
+                                <ContentCopy fontSize='small' />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={t("class.modifyExpiry")}>
+                            <span>
+                              <IconButton
+                                size='small'
+                                aria-label={t("class.modifyExpiry")}
+                                onClick={() => handleOpenEditInvite(invite)}
+                              >
+                                <Edit fontSize='small' />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Tooltip title={t("class.deleteInviteCode")}>
+                            <span>
+                              <IconButton
+                                size='small'
+                                aria-label={t("class.deleteInviteCode")}
+                                onClick={() =>
+                                  handleDeleteInvite(invite.invitation_code)
+                                }
+                                color='error'
+                              >
+                                <VpnKeyOff fontSize='small' />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                          <Chip
+                            size='small'
+                            color={expired ? "default" : "success"}
+                            label={
+                              expired
+                                ? t("class.expired")
+                                : t("class.effective")
+                            }
+                            variant={expired ? "outlined" : "filled"}
+                          />
+                        </Stack>
+                      </Stack>
+                      <Stack direction='row' spacing={2} flexWrap='wrap'>
+                        <Typography variant='caption' color='text.secondary'>
+                          {t("class.createdAt")}:{" "}
+                          {new Date(invite.created_at).toLocaleString("zh-CN")}
+                        </Typography>
+                        <Typography variant='caption' color='text.secondary'>
+                          {t("class.expiresAt")}:{" "}
+                          {invite.expires_at
+                            ? new Date(invite.expires_at).toLocaleString(
+                                "zh-CN",
+                              )
+                            : "-"}
+                        </Typography>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Stack>
+          )}
+        </Stack>
       )}
     </Stack>
   );
@@ -1148,7 +1153,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                   </Tooltip>
                 )}
               </Stack>
-              {isTeacher ? teacherDetail : studentDetail}
+              {classDetail}
             </Paper>
           )}
         </Stack>
