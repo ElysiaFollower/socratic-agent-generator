@@ -22,11 +22,11 @@ import {
   TextField,
   Typography,
   Chip,
-  CircularProgress,
   IconButton,
   Tooltip,
 } from "@mui/material";
 import { ContentCopy, Delete, Edit, VpnKey } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { useClipboard, useNotification, useAuth } from "../../hooks";
 import {
   GenerateRegistrationInvitationCodeRequest,
@@ -569,6 +569,7 @@ export function RegistrationInvitationCodeGenerator(
           disabled={
             isUpdatingInvite || editExpiresInDays < 1 || editExpiresInDays > 365
           }
+          startIcon={isUpdatingInvite ? <CircularProgress size={16} /> : undefined}
         >
           {isUpdatingInvite
             ? t("invitation.updating")

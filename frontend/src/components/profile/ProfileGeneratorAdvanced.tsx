@@ -13,7 +13,6 @@ import {
   Button,
   ButtonBase,
   Chip,
-  CircularProgress,
   Divider,
   Paper,
   Stack,
@@ -31,6 +30,7 @@ import {
   MenuBook,
   PersonOutline,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import {
   listLabManuals,
   getPersona,
@@ -604,15 +604,15 @@ export function ProfileGeneratorAdvanced(
                         sx={{ mt: 1, flexWrap: "wrap" }}
                       >
                         {renderLabChip(
-                          `${t("labManual.documentStatus")} ${lab.has_lab_manual ? t("profile.docReady") : t("profile.docNotReady")}`,
+                          `${lab.has_lab_manual ? t("profile.docReady") : t("profile.docNotReady")}`,
                           lab.has_lab_manual,
                         )}
                         {renderLabChip(
-                          `Persona ${lab.has_persona ? t("profile.personaReady") : t("profile.personaNotReady")}`,
+                          `${lab.has_persona ? t("profile.personaReady") : t("profile.personaNotReady")}`,
                           lab.has_persona,
                         )}
                         {renderLabChip(
-                          `Curriculum ${lab.has_curriculum ? t("profile.curriculumReady") : t("profile.curriculumNotReady")}`,
+                          `${lab.has_curriculum ? t("profile.curriculumReady") : t("profile.curriculumNotReady")}`,
                           lab.has_curriculum,
                         )}
                       </Stack>
@@ -701,6 +701,9 @@ export function ProfileGeneratorAdvanced(
                 onClick={handleFinalize}
                 variant='contained'
                 disabled={isLoading}
+                startIcon={
+                  isLoading ? <CircularProgress size={16} /> : undefined
+                }
               >
                 {isLoading
                   ? t("profile.savingAndLoading")
@@ -745,6 +748,9 @@ export function ProfileGeneratorAdvanced(
                       color='success'
                       size='small'
                       disabled={isLoading || !persona}
+                      startIcon={
+                        isLoading ? <CircularProgress size={14} /> : undefined
+                      }
                     >
                       {isLoading ? t("common.saving") : t("common.save")}
                     </Button>
@@ -840,7 +846,7 @@ export function ProfileGeneratorAdvanced(
                     }}
                   >
                     <Stack spacing={1} alignItems='center'>
-                      <CircularProgress size={24} />
+                      {/* <CircularProgress size={24} /> */}
                       <Typography variant='body2' color='text.secondary'>
                         {t("profile.generatingPersona")}
                       </Typography>
@@ -908,6 +914,9 @@ export function ProfileGeneratorAdvanced(
                       color='success'
                       size='small'
                       disabled={isLoading || !curriculum}
+                      startIcon={
+                        isLoading ? <CircularProgress size={14} /> : undefined
+                      }
                     >
                       {isLoading ? t("common.saving") : t("common.save")}
                     </Button>
@@ -1020,7 +1029,7 @@ export function ProfileGeneratorAdvanced(
                     }}
                   >
                     <Stack spacing={1} alignItems='center'>
-                      <CircularProgress size={24} />
+                      {/* <CircularProgress size={24} /> */}
                       <Typography variant='body2' color='text.secondary'>
                         {t("profile.generatingCurriculum")}
                       </Typography>

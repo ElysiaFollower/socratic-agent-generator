@@ -15,7 +15,6 @@ import {
   Box,
   Button,
   Checkbox,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -32,6 +31,7 @@ import {
   Typography,
 } from "@mui/material";
 import { AutoFixHigh, CloudUpload, NoteAdd } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { useDropzone } from "react-dropzone";
 import { useTranslation } from "react-i18next";
 import {
@@ -576,6 +576,7 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
           onClick={handleSaveSkill}
           variant='contained'
           disabled={!draftForm || isSavingSkill}
+          startIcon={isSavingSkill ? <CircularProgress size={16} /> : undefined}
         >
           {isSavingSkill ? t("skill.saving") : t("skill.saveSkill")}
         </Button>
@@ -741,6 +742,11 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                     type='submit'
                     variant='contained'
                     disabled={!selectedProfileId || isUploadingSupplemental}
+                    startIcon={
+                      isUploadingSupplemental ? (
+                        <CircularProgress size={16} />
+                      ) : undefined
+                    }
                     sx={{ flex: 1, maxWidth: "fit-content" }}
                   >
                     {isUploadingSupplemental
@@ -841,6 +847,11 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
                             color='error'
                             disabled={deletingMaterialId === material.id}
                             onClick={() => handleDeleteMaterial(material.id)}
+                            startIcon={
+                              deletingMaterialId === material.id ? (
+                                <CircularProgress size={14} />
+                              ) : undefined
+                            }
                           >
                             {deletingMaterialId === material.id
                               ? t("skill.deleting")
@@ -865,7 +876,13 @@ export function SkillCreatePanel(props: SkillCreatePanelProps): JSX.Element {
               <Button
                 size='small'
                 variant='outlined'
-                startIcon={<AutoFixHigh fontSize='small' />}
+                startIcon={
+                  isGeneratingDraft ? (
+                    <CircularProgress size={14} />
+                  ) : (
+                    <AutoFixHigh fontSize='small' />
+                  )
+                }
                 onClick={handleGenerateDraft}
                 disabled={selectedMaterialIds.length === 0 || isGeneratingDraft}
               >

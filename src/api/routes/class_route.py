@@ -374,17 +374,6 @@ def list_class_members(
             detail="Class not found",
         )
 
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only teachers can view class members.",
-        )
-    if current_user.role == "teacher" and class_model.owner_id != current_user.user_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only class owners can view members.",
-        )
-
     members = class_manager.list_members(class_id)
     return [ClassMemberInfo(**member) for member in members]
 

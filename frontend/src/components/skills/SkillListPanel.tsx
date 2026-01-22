@@ -8,7 +8,6 @@ import React, { useCallback, useEffect, useState } from "react";
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -24,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Refresh } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { useTranslation } from "react-i18next";
 import {
   assignCustomSkill,

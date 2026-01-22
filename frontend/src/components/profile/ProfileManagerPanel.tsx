@@ -9,7 +9,6 @@ import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,6 +20,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Delete } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { Profile } from "../../types";
 import {
   deleteProfile,

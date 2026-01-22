@@ -5,7 +5,7 @@
  */
 
 import React from "react";
-import { Box, IconButton, TextField } from "@mui/material";
+import { Box, IconButton, TextField, CircularProgress } from "@mui/material";
 import { SendOutlined } from "@mui/icons-material";
 import { color } from "../../styles/css-variables";
 
@@ -15,6 +15,7 @@ import { color } from "../../styles/css-variables";
 export interface ChatInputProps {
   readonly value: string;
   readonly disabled: boolean;
+  readonly loading?: boolean;
   readonly placeholder?: string;
   readonly onChange: (value: string) => void;
   readonly onSend: () => void;
@@ -27,7 +28,14 @@ export interface ChatInputProps {
  * @returns React component
  */
 export function ChatInput(props: ChatInputProps): JSX.Element {
-  const { value, disabled, placeholder, onChange, onSend } = props;
+  const {
+    value,
+    disabled,
+    loading = false,
+    placeholder,
+    onChange,
+    onSend,
+  } = props;
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -96,10 +104,12 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
       />
       <IconButton
         onClick={onSend}
-        disabled={disabled || !value.trim()}
+        disabled={disabled || loading || !value.trim()}
         aria-label='发送消息'
         sx={{
-          backgroundColor: "var(--color-primary)",
+          backgroundColor: loading
+            ? "var(--color-neutral-300)"
+            : "var(--color-primary)",
           color: "#ffffff",
           position: "absolute",
           right: "var(--spacing-8)",
@@ -111,9 +121,11 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
           transition:
             "all var(--transition-duration-200) var(--transition-timing-default)",
           "&:hover": {
-            backgroundColor: "var(--color-primary-700)",
-            transform: "translateY(-1px)",
-            boxShadow: "var(--shadow-xl)",
+            backgroundColor: loading
+              ? "var(--color-neutral-300)"
+              : "var(--color-primary-700)",
+            transform: loading ? "none" : "translateY(-1px)",
+            boxShadow: loading ? "none" : "var(--shadow-xl)",
           },
           "&:active": {
             transform: "translateY(0)",
@@ -126,7 +138,16 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
           },
         }}
       >
-        <SendOutlined />
+        {loading ? (
+          <CircularProgress
+            size={20}
+            sx={{
+              color: "var(--color-neutral-500)",
+            }}
+          />
+        ) : (
+          <SendOutlined />
+        )}
       </IconButton>
     </Box>
   );

@@ -16,7 +16,6 @@ import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -44,6 +43,7 @@ import {
   AttachFile,
   List,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { useDropzone } from "react-dropzone";
 import {
   uploadLabManual,
@@ -594,7 +594,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                         variant='contained'
                         color='error'
                         size='small'
-                        startIcon={<Delete fontSize='small' />}
+                        startIcon={
+                          deletingLab === lab.lab_name ? (
+                            <CircularProgress size={14} />
+                          ) : (
+                            <Delete fontSize='small' />
+                          )
+                        }
                         onClick={() => handleDelete(lab.lab_name)}
                         disabled={deletingLab === lab.lab_name}
                       >
