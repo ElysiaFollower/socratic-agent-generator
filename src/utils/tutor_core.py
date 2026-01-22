@@ -661,6 +661,10 @@ class Tutor:
 
             # Stream response immediately (optimized for TTFT)
             reply = ""
+            tool_called = False
+            tool_call_count = 0
+            tool_call_in_progress = False
+            tool_call_completed = False
             try:
                 async for event in self.main_chain_with_history.astream_events(
                     {
@@ -673,8 +677,41 @@ class Tutor:
                     version="v2",
                 ):
                     event_name = event.get("event", "")
+                    event_data = event.get("data", {})
+                    
+                    # Track tool calls for debugging and fallback detection
+                    # Key design: Keep stream alive during tool execution
+                    if event_name == "on_tool_start":
+                        tool_called = True
+                        tool_call_count += 1
+                        tool_call_in_progress = True
+                        tool_call_completed = False
+                        tool_name = event_data.get("name", "unknown")
+                        logger.debug(
+                            "Tool called: %s (call #%d), keeping stream alive",
+                            tool_name,
+                            tool_call_count,
+                        )
+                        # Keep connection alive, don't end stream output
+                    elif event_name == "on_tool_end":
+                        tool_call_in_progress = False
+                        tool_call_completed = True
+                        tool_output = event_data.get("output", "")
+                        logger.debug(
+                            "Tool execution completed, output length: %d, "
+                            "waiting for model response",
+                            len(str(tool_output)),
+                        )
+                        # Tool call completed, wait for model to continue output
+                    
+                    # Handle streaming LLM output
+                    # Key design: Stream output stays alive throughout the entire process:
+                    # - Before tool call: normal streaming
+                    # - During tool call: stream paused but connection stays alive
+                    # - After tool call: continue waiting for model to stream response
+                    # - After model completes: stream ends
                     if event_name in ("on_llm_stream", "on_chat_model_stream"):
-                        chunk = event.get("data", {}).get("chunk")
+                        chunk = event_data.get("chunk")
                         if chunk:
                             token = None
                             if hasattr(chunk, "content"):
@@ -687,17 +724,170 @@ class Tutor:
                             if token:
                                 reply += token
                                 yield token
+                                # Log if this is output after tool call completion
+                                if tool_call_completed and not tool_call_in_progress:
+                                    logger.debug(
+                                        "Model streaming response after tool call completion"
+                                    )
                     elif event_name == "on_chain_end":
-                        output = event.get("data", {}).get("output", "")
-                        if output and isinstance(output, str) and not reply:
-                            reply = output
-                            yield output
+                        # Check if this is the Agent's final output
+                        chain_name = event.get("name", "")
+                        agent_chain_names = (
+                            "Agent",
+                            "AgentExecutor",
+                            "RunnableWithMessageHistory",
+                        )
+                        is_agent_final = chain_name in agent_chain_names
+                        
+                        # Log all chain_end events for debugging
+                        logger.debug(
+                            "on_chain_end event: name=%s, is_agent_final=%s, "
+                            "current_reply_length=%d, tool_called=%s",
+                            chain_name,
+                            is_agent_final,
+                            len(reply),
+                            tool_called,
+                        )
+                        
+                        # Only process agent's final output, ignore intermediate
+                        # chain ends (e.g., individual tool executions)
+                        if not is_agent_final:
+                            continue
+                        
+                        # Extract output - handle nested structures
+                        # LangChain AgentExecutor may return output in nested format:
+                        # - Direct string: output = "text"
+                        # - Nested dict: output = {"output": "text"}
+                        # - Object with content: output.content
+                        raw_output = event_data.get("output", "")
+                        logger.debug(
+                            "Raw output from on_chain_end: type=%s, value=%s",
+                            type(raw_output).__name__,
+                            str(raw_output)[:200] if raw_output else "empty",
+                        )
+                        
+                        output = raw_output
+                        if isinstance(output, dict):
+                            # Try nested output structure (AgentExecutor format)
+                            final_output = output.get("output", output.get("content", ""))
+                            if isinstance(final_output, str):
+                                output = final_output
+                            elif hasattr(final_output, "content"):
+                                output = final_output.content
+                            else:
+                                output = str(final_output) if final_output else ""
+                        elif hasattr(output, "content"):
+                            # Handle object with content attribute
+                            output = output.content
+                        
+                        # Convert to string if not already
+                        if not isinstance(output, str):
+                            output = str(output) if output else ""
+                        
+                        # Process final output
+                        if output:
+                            output = output.strip()
+                            if output:
+                                logger.debug(
+                                    "Final output extracted: length=%d, "
+                                    "starts_with_reply=%s",
+                                    len(output),
+                                    output.startswith(reply) if reply else False,
+                                )
+                                
+                                if not reply:
+                                    # No streamed reply, use final output
+                                    # This handles the case where tool was called but
+                                    # LLM didn't stream any tokens
+                                    reply = output
+                                    yield output
+                                    logger.info(
+                                        "Using final output from on_chain_end "
+                                        "(no stream): %d chars",
+                                        len(output),
+                                    )
+                                elif output != reply:
+                                    # Final output differs from streamed reply
+                                    # Check if output contains the reply (common case)
+                                    if output.startswith(reply):
+                                        # Output is an extension of reply
+                                        additional = output[len(reply):]
+                                        if additional:
+                                            reply = output
+                                            yield additional
+                                            logger.info(
+                                                "Extended reply with final output: "
+                                                "+%d chars",
+                                                len(additional),
+                                            )
+                                    elif reply in output:
+                                        # Reply is contained in output (but not at start)
+                                        # This can happen if output was reordered
+                                        # Use the full output
+                                        additional = output.replace(reply, "", 1)
+                                        if additional:
+                                            reply = output
+                                            yield additional
+                                            logger.info(
+                                                "Reply found in output, extended: "
+                                                "+%d chars",
+                                                len(additional),
+                                            )
+                                    elif len(output) > len(reply):
+                                        # Output is different and longer
+                                        # This is unusual, log warning
+                                        logger.warning(
+                                            "Final output differs significantly from "
+                                            "streamed reply. Streamed: %d chars, "
+                                            "Final: %d chars",
+                                            len(reply),
+                                            len(output),
+                                        )
+                                        # Still use final output for history
+                                        reply = output
+                                    else:
+                                        # Output is shorter or same length but different
+                                        # Keep the streamed reply, but log for debugging
+                                        logger.debug(
+                                            "Final output shorter than streamed reply, "
+                                            "keeping streamed version"
+                                        )
+                        
+                        # Log for debugging
+                        logger.debug(
+                            "Agent chain ended, final reply length: %d, "
+                            "tool_called: %s, tool_call_count: %d, "
+                            "tool_call_completed: %s",
+                            len(reply),
+                            tool_called,
+                            tool_call_count,
+                            tool_call_completed,
+                        )
+                            
             except Exception as e:
                 logger.error("Streaming failed: %s", e, exc_info=True)
                 # If streaming failed and no reply was collected, set a fallback message
                 if not reply:
                     reply = "抱歉，我在生成回复时遇到了问题。请稍后再试。"
                     yield reply
+            
+            # Final check: if tool was called but no reply was generated, log warning
+            # This handles the edge case where tools were called but LLM didn't
+            # generate any output (neither streamed nor final)
+            # Key design: We keep stream alive during tool execution, and wait for
+            # model to continue output after tool completion. Only if no output
+            # is generated at all, we provide fallback.
+            if tool_called and not reply:
+                logger.warning(
+                    "Tool was called (%d times) but no reply was generated. "
+                    "This may indicate a bug.",
+                    tool_call_count,
+                )
+                reply = (
+                    "我已经处理了你的请求，但似乎没有生成回复。"
+                    "请告诉我你还需要什么帮助。"
+                )
+                yield reply
 
             # Add AI response to history with incremental token counting
             # Only add non-empty replies to history
