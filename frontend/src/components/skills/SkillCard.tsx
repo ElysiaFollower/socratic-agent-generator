@@ -27,6 +27,7 @@ import {
   AssignmentOutlined,
   Refresh,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { useTranslation } from "react-i18next";
 import { CustomSkillInfo, CustomSkillDetail } from "../../api";
 
@@ -208,11 +209,20 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
           <Button
             variant='outlined'
             size='small'
-            startIcon={<Refresh fontSize='small' />}
+            startIcon={
+              isRebuilding ? undefined : <Refresh fontSize='small' />
+            }
             onClick={() => onRebuild(skill.id)}
             disabled={isRebuilding}
           >
-            {isRebuilding ? t("skill.card.rebuilding") : t("skill.card.rebuildIndex")}
+            {isRebuilding ? (
+              <Stack direction='row' spacing={1} alignItems='center'>
+                <CircularProgress size={14} />
+                <span>{t("skill.card.rebuilding")}</span>
+              </Stack>
+            ) : (
+              t("skill.card.rebuildIndex")
+            )}
           </Button>
         )}
         {onDelete && (
@@ -222,6 +232,7 @@ export function SkillCard(props: SkillCardProps): JSX.Element {
             color='error'
             onClick={() => onDelete(skill.id)}
             disabled={isDeleting}
+            startIcon={isDeleting ? <CircularProgress size={14} /> : undefined}
           >
             {isDeleting ? t("skill.card.deleting") : t("skill.card.delete")}
           </Button>

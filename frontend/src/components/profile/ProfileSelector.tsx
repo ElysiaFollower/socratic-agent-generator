@@ -19,9 +19,9 @@ import {
   Button,
   TextField,
   Typography,
-  CircularProgress,
 } from "@mui/material";
 import { School } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { Profile } from "../../types";
 import { extractCurriculumSteps } from "../../utils/curriculum";
 
@@ -116,14 +116,16 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
                         color='text.secondary'
                         sx={{ mb: 1 }}
                       >
-                        {t("profile.selector.targetAudience")}: {profile.target_audience}
+                        {t("profile.selector.targetAudience")}:{" "}
+                        {profile.target_audience}
                       </Typography>
                       <Typography
                         variant='body2'
                         color='text.secondary'
                         sx={{ mb: 1 }}
                       >
-                        {t("profile.selector.courseTopic")}: {profile.topic_name}
+                        {t("profile.selector.courseTopic")}:{" "}
+                        {profile.topic_name}
                       </Typography>
                       <Typography variant='caption' color='text.secondary'>
                         {t("profile.selector.learningSteps")}:{" "}
@@ -142,7 +144,9 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
             <Typography variant='h6' sx={{ mt: 2 }}>
               {t("profile.selector.noMatchingCourses")}
             </Typography>
-            <Typography variant='body2'>{t("profile.selector.tryOtherKeywords")}</Typography>
+            <Typography variant='body2'>
+              {t("profile.selector.tryOtherKeywords")}
+            </Typography>
           </Box>
         ) : (
           <Box sx={{ py: 6, textAlign: "center", color: "text.secondary" }}>
@@ -150,7 +154,9 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
             <Typography variant='h6' sx={{ mt: 2 }}>
               {t("profile.selector.noCoursesAvailable")}
             </Typography>
-            <Typography variant='body2'>{t("profile.selector.waitForTeacher")}</Typography>
+            <Typography variant='body2'>
+              {t("profile.selector.waitForTeacher")}
+            </Typography>
           </Box>
         )}
       </DialogContent>

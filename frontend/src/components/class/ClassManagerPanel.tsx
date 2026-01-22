@@ -12,7 +12,6 @@ import {
   Card,
   CardContent,
   Chip,
-  CircularProgress,
   Divider,
   Dialog,
   DialogActions,
@@ -37,6 +36,7 @@ import {
   School,
   VpnKeyOff,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import {
   ClassInfo,
   ClassMemberInfo,
@@ -1256,6 +1256,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
             variant='contained'
             onClick={() => void handleCreateClass()}
             disabled={isCreatingClass || Boolean(createdClassId)}
+            startIcon={isCreatingClass ? <CircularProgress size={16} /> : undefined}
           >
             {isCreatingClass ? t("class.creating") : t("class.createClass")}
           </Button>
@@ -1432,6 +1433,7 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
               editExpiresInDays < 1 ||
               editExpiresInDays > 365
             }
+            startIcon={isUpdatingInvite ? <CircularProgress size={16} /> : undefined}
           >
             {isUpdatingInvite ? t("class.updating") : t("class.confirmUpdate")}
           </Button>

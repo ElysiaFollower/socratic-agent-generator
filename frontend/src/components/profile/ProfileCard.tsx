@@ -29,6 +29,7 @@ import {
   Check,
   Close,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import { useTranslation } from "react-i18next";
 import { Profile, SocraticStep } from "../../types";
 import { extractCurriculumSteps } from "../../utils/curriculum";
@@ -391,6 +392,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                   onClick={() => onRename?.(profile, trimmedName)}
                   disabled={!isNameDirty || Boolean(isRenaming)}
                   sx={{ whiteSpace: "nowrap" }}
+                  startIcon={isRenaming ? <CircularProgress size={14} /> : undefined}
                 >
                   {isRenaming ? t("profile.card.saving") : t("profile.card.save")}
                 </Button>
@@ -479,7 +481,13 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     variant='contained'
                     onClick={handleSavePersonaHints}
                     disabled={isUpdatingPersonaHints}
-                    startIcon={<Check fontSize='small' />}
+                    startIcon={
+                      isUpdatingPersonaHints ? (
+                        <CircularProgress size={14} />
+                      ) : (
+                        <Check fontSize='small' />
+                      )
+                    }
                   >
                     {isUpdatingPersonaHints ? t("profile.card.saving") : t("profile.card.save")}
                   </Button>
@@ -598,7 +606,13 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                     variant='contained'
                     onClick={handleSaveCurriculum}
                     disabled={isUpdatingCurriculum}
-                    startIcon={<Check fontSize='small' />}
+                    startIcon={
+                      isUpdatingCurriculum ? (
+                        <CircularProgress size={14} />
+                      ) : (
+                        <Check fontSize='small' />
+                      )
+                    }
                   >
                     {isUpdatingCurriculum ? t("profile.card.saving") : t("profile.card.save")}
                   </Button>

@@ -13,7 +13,6 @@ import {
   Button,
   ButtonBase,
   Chip,
-  CircularProgress,
   Divider,
   Paper,
   Stack,
@@ -31,6 +30,7 @@ import {
   MenuBook,
   PersonOutline,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import {
   listLabManuals,
   getPersona,
@@ -701,6 +701,7 @@ export function ProfileGeneratorAdvanced(
                 onClick={handleFinalize}
                 variant='contained'
                 disabled={isLoading}
+                startIcon={isLoading ? <CircularProgress size={16} /> : undefined}
               >
                 {isLoading
                   ? t("profile.savingAndLoading")
@@ -745,6 +746,7 @@ export function ProfileGeneratorAdvanced(
                       color='success'
                       size='small'
                       disabled={isLoading || !persona}
+                      startIcon={isLoading ? <CircularProgress size={14} /> : undefined}
                     >
                       {isLoading ? t("common.saving") : t("common.save")}
                     </Button>
@@ -908,6 +910,7 @@ export function ProfileGeneratorAdvanced(
                       color='success'
                       size='small'
                       disabled={isLoading || !curriculum}
+                      startIcon={isLoading ? <CircularProgress size={14} /> : undefined}
                     >
                       {isLoading ? t("common.saving") : t("common.save")}
                     </Button>

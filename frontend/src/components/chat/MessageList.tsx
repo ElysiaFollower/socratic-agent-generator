@@ -11,7 +11,6 @@ import { useAuth } from "../../hooks";
 import {
   Avatar,
   Box,
-  CircularProgress,
   IconButton,
   Paper,
   Stack,
@@ -25,6 +24,7 @@ import {
   SmartToy,
   WavingHand,
 } from "@mui/icons-material";
+import { CircularProgress } from "../common/CircularProgress";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChatMessage } from "../../types";
