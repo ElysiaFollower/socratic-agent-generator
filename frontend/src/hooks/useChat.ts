@@ -141,12 +141,6 @@ export function useChat(
               }
               return newMessages;
             });
-            if ((streamContentRef.current[targetSessionId] || '').length > 0) {
-              setIsLoadingBySession((prev) => ({
-                ...prev,
-                [targetSessionId]: false,
-              }));
-            }
           },
           // onComplete: Stream finished
           () => {

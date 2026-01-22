@@ -767,7 +767,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               )}
               <ChatInput
                 value={inputValue}
-                disabled={!sessionId || chatLoading}
+                disabled={!sessionId}
+                loading={chatLoading}
                 placeholder={
                   sessionId
                     ? t("chat.inputPlaceholder")
