@@ -9,7 +9,6 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../hooks";
 import {
-  Avatar,
   Box,
   IconButton,
   Paper,
@@ -19,10 +18,7 @@ import {
 } from "@mui/material";
 import {
   ContentCopy,
-  PersonOutline,
   Replay,
-  SmartToy,
-  WavingHand,
 } from "@mui/icons-material";
 import { CircularProgress } from "../common/CircularProgress";
 import ReactMarkdown from "react-markdown";
@@ -163,22 +159,6 @@ export function MessageList(props: MessageListProps): JSX.Element {
               alignItems='flex-start'
               sx={{ maxWidth: "100%" }}
             >
-              <Avatar
-                sx={{
-                  width: 32,
-                  height: 32,
-                  bgcolor: isUser
-                    ? "var(--color-surface-muted)"
-                    : "var(--color-surface-muted)",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                {isUser ? (
-                  <PersonOutline fontSize='small' />
-                ) : (
-                  <SmartToy fontSize='small' />
-                )}
-              </Avatar>
               <Box
                 sx={{
                   display: "flex",
@@ -197,10 +177,10 @@ export function MessageList(props: MessageListProps): JSX.Element {
                     py: 1,
                     borderRadius: isUser ? 1.5 : 2,
                     bgcolor: isUser
-                      ? "var(--color-primary)"
+                      ? "secondary.main"
                       : "var(--color-surface-muted)",
                     color: isUser ? "#ffffff" : "var(--text-primary)",
-                    maxWidth: "min(860px, 100%)",
+                    maxWidth: isUser ? "70%" : "100%",
                     borderColor: "transparent",
                   }}
                 >

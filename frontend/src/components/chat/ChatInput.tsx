@@ -4,9 +4,9 @@
  * This component provides a textarea for user input with send functionality.
  */
 
-import React from "react";
+import React, { useRef } from "react";
 import { Box, IconButton, TextField, CircularProgress } from "@mui/material";
-import { SendOutlined } from "@mui/icons-material";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { color } from "../../styles/css-variables";
 
 /**
@@ -37,10 +37,21 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
     onSend,
   } = props;
 
+  // Local ref to prevent double submissions
+  const isSendingRef = useRef(false);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSend();
+      // Prevent double submission by checking if we're already sending
+      if (!isSendingRef.current && !disabled && !loading && value.trim()) {
+        isSendingRef.current = true;
+        onSend();
+        // Reset the ref after a short delay to allow subsequent sends
+        setTimeout(() => {
+          isSendingRef.current = false;
+        }, 500);
+      }
     }
   };
 
@@ -50,9 +61,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
         position: "relative",
         mt: "var(--spacing-4)",
         width: "100%",
-        maxWidth: { xs: "100%", sm: "80%", md: "80%", lg: "75%" },
-        mx: "auto",
-        px: { xs: "var(--spacing-4)", sm: "var(--spacing-6)" },
+        maxWidth: "100%",
       }}
     >
       <TextField
@@ -112,7 +121,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
             : "var(--color-primary)",
           color: "#ffffff",
           position: "absolute",
-          right: "var(--spacing-8)",
+          right: "var(--spacing-4)",
           bottom: "var(--spacing-8)",
           boxShadow: "var(--shadow-lg)",
           borderRadius: "var(--radius-full)",
@@ -146,7 +155,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
             }}
           />
         ) : (
-          <SendOutlined />
+          <ArrowUpwardIcon />
         )}
       </IconButton>
     </Box>

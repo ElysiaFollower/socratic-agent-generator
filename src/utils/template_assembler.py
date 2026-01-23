@@ -184,9 +184,9 @@ class PromptAssembler(TemplateAssembler):
         Raises:
             ValueError: If step_index is out of range.
         """
-        if step_index < 1:
-            raise ValueError("Invalid step index; must be >= 1")
-        elif step_index > curriculum.get_len():
+        if step_index < 0:
+            raise ValueError("Invalid step index; must be >= 0")
+        elif step_index >= curriculum.get_len():
             return (
                 "Task Complete. No additional task. "
                 "Just Congratulations to user!"

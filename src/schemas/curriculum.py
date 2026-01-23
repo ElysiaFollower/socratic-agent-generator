@@ -44,21 +44,21 @@ class SocraticCurriculum(RootModel[List[SocraticStep]]): # may have some problem
     )
     
     def get_step_title(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].step_title
+        "start from 0"
+        return self.root[stepIndex].step_title
     def get_guiding_question(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].guiding_question
+        "start from 0"
+        return self.root[stepIndex].guiding_question
     def get_success_criteria(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].success_criteria
+        "start from 0"
+        return self.root[stepIndex].success_criteria
     def get_learning_objective(self, stepIndex: int) -> str:
-        "start from 1"
-        return self.root[stepIndex-1].learning_objective
-    
+        "start from 0"
+        return self.root[stepIndex].learning_objective
+
     def get_step(self, stepIndex: int) -> SocraticStep:
-        "start from 1"
-        return self.root[stepIndex-1]
+        "start from 0"
+        return self.root[stepIndex]
     
     def get_len(self) -> int:
         return len(self.root)

@@ -17,7 +17,7 @@ from schemas.profile import Profile
 class SessionState(BaseModel):
     stepIndex: int = Field(
         description="The index of the current step.",
-        default=1
+        default=0
     )
 
 class Session(BaseModel):
@@ -40,7 +40,7 @@ class Session(BaseModel):
         description="The profile of the session."
     )
     state: SessionState = Field(
-        description="The state of the session. eg: the current step of curriculum; start from 1",
+        description="The state of the session. eg: the current step of curriculum; start from 0",
         default=SessionState()
     )
     

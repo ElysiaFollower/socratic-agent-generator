@@ -486,7 +486,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   }, []);
 
   const isChatView = activePanel === "chat";
-  const contentMaxWidth = isMaximized ? "100%" : isChatView ? "90%" : "100%";
+  const contentMaxWidth = {
+    xs: "100%",
+    sm: isMaximized ? "100%" : isChatView ? "60%" : "100%",
+  };
 
   return (
     <Box

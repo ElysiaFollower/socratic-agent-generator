@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { Box, LinearProgress, Stack, Tooltip, Typography } from "@mui/material";
 import { SocraticStep } from "../../types";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
+import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 
 /**
  * Props for ProgressBar component.
@@ -79,7 +80,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
           {t("chat.progress.title")}:
         </Typography>
         <Typography variant='caption' color='text.primary'>
-          {currentStep} / {curriculum.length}
+          {currentStep} / {curriculum.length - 1}
         </Typography>
       </Stack>
       <Box
@@ -118,23 +119,34 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
         {curriculum.map((step, index) => {
           const isComplete = isFinished || index < currentStep;
           const isActive = index === currentStep && !isFinished;
-          const dotColor = isActive
-            ? "primary.main"
-            : isComplete
-              ? "primary.main"
-              : "divider";
+          const dotColor = isComplete ? "primary.main" : "divider";
 
           return (
             <Tooltip
               key={`${step.step_title}-${index}`}
               title={
                 <Stack spacing={0.5}>
-                  <Typography sx={{ fontWeight: 600 }}>
-                    <TaskAltIcon fontSize='small' sx={{ mr: 0.5 }} />
+                  <Typography
+                    variant='body1'
+                    sx={{
+                      fontWeight: 600,
+                      display: "flex",
+                      alignItems: "center",
+                    }}
+                  >
+                    {isComplete ? (
+                      <TaskAltIcon fontSize='small' sx={{ mr: 0.5 }} />
+                    ) : (
+                      <RadioButtonUncheckedIcon
+                        fontSize='small'
+                        sx={{ mr: 0.5 }}
+                      />
+                    )}
                     {step.step_title}
                   </Typography>
-                  <Typography variant='caption'>
-                    {t("chat.progress.learningObjective")}: {step.learning_objective}
+                  <Typography variant='body2'>
+                    {t("chat.progress.learningObjective")}:{" "}
+                    {step.learning_objective}
                   </Typography>
                 </Stack>
               }
@@ -150,11 +162,12 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
               <Box
                 component='span'
                 sx={{
-                  width: 10,
-                  height: 10,
+                  width: 12,
+                  height: 12,
                   borderRadius: "50%",
                   bgcolor: dotColor,
-                  border: isActive ? "2px solid var(--color-primary)" : "none",
+                  border: isActive ? 2 : "none",
+                  borderColor: isActive ? "primary.main" : "transparent",
                   zIndex: 1,
                   transition: "transform 0.2s ease",
                   "&:hover": { transform: "scale(1.1)" },
@@ -175,7 +188,8 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
               color='text.secondary'
               sx={{ display: "block", mt: 0.5 }}
             >
-              {t("chat.progress.learningObjective")}: {activeStep?.learning_objective}
+              {t("chat.progress.learningObjective")}:{" "}
+              {activeStep?.learning_objective}
             </Typography>
           </>
         ) : (
