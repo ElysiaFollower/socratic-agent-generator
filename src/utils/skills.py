@@ -9,7 +9,7 @@ import logging
 import os
 import threading
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Callable, Optional, Dict
 
 import frontmatter
 from langchain_community.vectorstores import FAISS
@@ -20,6 +20,7 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharac
 
 from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR, DOCUMENTS_DIR, ROOT_DIR
 from core.database import SessionLocal
+from schemas.session import Session
 from utils.document_manager import DocumentManager
 
 logger = logging.getLogger(__name__)
@@ -503,22 +504,27 @@ class PedagogicalStrategySkill(BaseSkill):
 
 
 class AssessmentSkill(BaseSkill):
-    """Skill for assessing student progress and managing curriculum flow."""
+    """Skill for assessing student progress and providing guidance.
 
-    def __init__(self, session):
+    This skill helps the main LLM understand the student's learning state
+    and provides information about the next step, but does NOT advance
+    the step. Step advancement is controlled exclusively by StepEvaluator.
+    """
+
+    def __init__(self, session: Session) -> None:
         """Initialize the AssessmentSkill.
 
         Args:
-            session: The Tutor session object (mutable).
+            session: The Tutor session object (read-only for assessment).
         """
         super().__init__("assessment")
         self.session = session
 
-    def get_tool(self):
-        """Get the tool for marking steps as complete.
-        
+    def get_tool(self) -> Callable:
+        """Get the tool for assessing student progress.
+
         Returns:
-            LangChain tool function for step completion.
+            LangChain tool function for student assessment.
         """
         # Load instructions when tool is created (on-demand)
         self._load_instructions()
@@ -527,16 +533,23 @@ class AssessmentSkill(BaseSkill):
         tool_description = self.description
 
         @tool(tool_name)
-        def complete_current_step(reason: str = "") -> str:
-            """Mark the current learning step as complete.
-            
-            Call this tool when the student has satisfied the success criteria.
-            
+        def assess_student_progress(reason: str = "") -> str:
+            """Assess student progress and provide next step information.
+
+            This tool evaluates the student's current learning state against
+            the success criteria and provides information about the next step.
+            It does NOT advance the step - step advancement is controlled
+            exclusively by StepEvaluator.
+
             Args:
-                reason: Optional reason for marking the step complete (for logging).
-                
+                reason: Optional reason for the assessment (for logging).
+
             Returns:
-                Message indicating step completion and next step information.
+                Assessment result and next step information. The format is:
+                - Current step assessment
+                - Whether student meets success criteria (informational only)
+                - Next step title, objective, and guiding question
+                - Instructions on how to guide the student
             """
             current_step_idx = self.session.state.stepIndex
             curriculum = self.session.get_curriculum()
@@ -544,31 +557,43 @@ class AssessmentSkill(BaseSkill):
             if current_step_idx > curriculum.get_len():
                 return "The curriculum is already complete."
 
-            # Advance step
-            self.session.state.stepIndex += 1
+            # Get current step info
+            current_step_title = curriculum.get_step_title(current_step_idx)
+            current_objective = curriculum.get_learning_objective(current_step_idx)
+            current_criteria = curriculum.get_success_criteria(current_step_idx)
 
-            # Check if finished
-            if self.session.state.stepIndex > curriculum.get_len():
+            # Get next step info (for reference, not advancing)
+            next_step_idx = current_step_idx + 1
+            if next_step_idx > curriculum.get_len():
                 return (
-                    "Step marked as complete.\n"
-                    "CONGRATULATIONS: The student has completed the entire curriculum.\n"
-                    "Wrap up the session."
+                    f"ASSESSMENT: Current Step {current_step_idx}\n"
+                    f"Title: {current_step_title}\n"
+                    f"Objective: {current_objective}\n"
+                    f"Success Criteria: {current_criteria}\n\n"
+                    "The student is on the final step. Once they meet the "
+                    "success criteria, the curriculum will be complete."
                 )
 
-            # Get next step info
-            next_step_title = curriculum.get_step_title(self.session.state.stepIndex)
-            next_objective = curriculum.get_learning_objective(self.session.state.stepIndex)
-            next_question = curriculum.get_guiding_question(self.session.state.stepIndex)
+            next_step_title = curriculum.get_step_title(next_step_idx)
+            next_objective = curriculum.get_learning_objective(next_step_idx)
+            next_question = curriculum.get_guiding_question(next_step_idx)
 
             return (
-                f"Step {current_step_idx} marked as complete.\n"
-                f"NEW STEP: {next_step_title}\n"
-                f"OBJECTIVE: {next_objective}\n"
-                f"GUIDING QUESTION: {next_question}\n\n"
-                f"INSTRUCTIONS: Congratulate the student and proceed to the new step."
+                f"ASSESSMENT: Current Step {current_step_idx}\n"
+                f"Title: {current_step_title}\n"
+                f"Objective: {current_objective}\n"
+                f"Success Criteria: {current_criteria}\n\n"
+                f"NEXT STEP INFORMATION (for reference only):\n"
+                f"Step {next_step_idx}: {next_step_title}\n"
+                f"Objective: {next_objective}\n"
+                f"Guiding Question: {next_question}\n\n"
+                f"INSTRUCTIONS: Continue guiding the student toward meeting "
+                f"the current step's success criteria. When the evaluator "
+                f"determines the criteria are met, the step will advance "
+                f"automatically."
             )
 
-        complete_current_step.name = tool_name
-        complete_current_step.description = tool_description
+        assess_student_progress.name = tool_name
+        assess_student_progress.description = tool_description
 
-        return complete_current_step
+        return assess_student_progress

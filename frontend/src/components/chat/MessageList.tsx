@@ -97,6 +97,14 @@ export function MessageList(props: MessageListProps): JSX.Element {
           "& ul": { listStyleType: "disc" },
           "& ol": { listStyleType: "decimal" },
           "& li": { mb: 0.5 },
+          "& hr": {
+            border: "none",
+            borderTop: `1px solid ${
+              isUser ? "rgba(255, 255, 255, 0.2)" : "var(--color-border)"
+            }`,
+            my: 2,
+            mx: 0,
+          },
           "& code": {
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",

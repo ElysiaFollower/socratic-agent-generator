@@ -354,6 +354,22 @@ class Tutor:
             "success_criteria": curriculum.get_success_criteria(step_index),
         }
 
+    def _advance_step(self) -> None:
+        """Advance to the next step.
+
+        This is the unified method for step advancement. All step advancement
+        should go through this method to ensure consistency and maintainability.
+
+        Note: This method only increments stepIndex by 1. It does not perform
+        boundary checks, save the session, or generate transition messages.
+        Callers are responsible for those operations.
+
+        For cheat code scenarios that need boundary checking, callers should
+        perform the boundary check before or after calling this method.
+        """
+        self.session.state.stepIndex += 1
+        logger.info("Step advanced to: %d", self.session.state.stepIndex)
+
     async def _evaluate_step_async(
         self,
         step_info: Dict[str, Any],
@@ -378,12 +394,13 @@ class Tutor:
                 user_input=user_input,
             )
 
-            # If confidence is low, use fallback (don't advance step, let main
-            # LLM decide through AssessmentSkill)
+            # If confidence is low, return conservative result (don't advance step)
+            # Note: This does not trigger any fallback mechanism. The step simply
+            # won't advance, and the student continues on the current step.
             if result.confidence < EVALUATION_FALLBACK_THRESHOLD:
                 logger.warning(
-                    "Evaluator confidence low (%.2f < %.2f), using "
-                    "AssessmentSkill fallback",
+                    "Evaluator confidence low (%.2f < %.2f), returning "
+                    "conservative result (confidence=0.0, step will not advance)",
                     result.confidence,
                     EVALUATION_FALLBACK_THRESHOLD,
                 )
@@ -393,8 +410,7 @@ class Tutor:
             return result
         except Exception as e:
             logger.error("Evaluator call failed: %s", e, exc_info=True)
-            # Return conservative result, let main LLM decide through
-            # AssessmentSkill
+            # Return conservative result (confidence=0, step will not advance)
             return EvaluationResult(confidence=0.0)
 
     async def _generate_transition_message(
@@ -438,14 +454,34 @@ class Tutor:
         # 1. New stepIndex (system prompt contains new step information)
         # 2. Full conversation history (including just now's reply and user answer)
         # 3. Can naturally summarize and transition previous conversation
-
-        transition_input = "好的，让我们继续学习下一部分内容。"
+        
+        # Add a system note to inform the model that this is an evaluator-triggered
+        # transition. The model should generate a bridging message that:
+        # 1) Acknowledges the student's achievement and summarizes what they've learned
+        # 2) Naturally introduces the next step using the new step's guiding question
+        # Make it feel like a natural continuation of the conversation.
+        transition_system_note = (
+            "[系统说明：后台的评估器已判断学生成功完成了当前步骤的学习目标，"
+            "系统已自动推进到下一步。请生成一个承上启下的过渡消息，要求："
+            "1) 肯定学生的成就，简要总结他们刚才掌握的内容；"
+            "2) 自然地引入下一步的学习内容，使用新步骤的引导问题。"
+            "让过渡感觉自然流畅，就像对话的自然延续。]"
+        )
+        
+        # Use a system instruction as input to trigger the transition message generation.
+        # This input will NOT be added to history to avoid fabricating user messages.
+        # The model will understand from the system note that this is a system-triggered
+        # transition, not a real user request.
+        # The input is only used to satisfy the prompt template requirement.
+        transition_input = "[系统触发：请生成过渡消息]"
 
         reply = ""
         async for event in self.main_chain_with_history.astream_events(
             {
                 "system_prompt_with_state": formatted_system_prompt,
-                "truncate_history_note": self.truncate_history_note,
+                "truncate_history_note": (
+                    f"{self.truncate_history_note}\n\n{transition_system_note}"
+                ),
                 "input": transition_input,
                 "agent_scratchpad": [],
             },
@@ -468,9 +504,9 @@ class Tutor:
                         reply += token
                         yield token
 
-        # Add transition message to history
+        # Add only the transition message (AI reply) to history.
+        # Do NOT add the empty transition_input to avoid fabricating user messages.
         if reply:
-            self._add_message_to_history(transition_input, "human")
             self._add_message_to_history(reply, "ai")
 
     def get_welcome_message(self) -> str:
@@ -491,9 +527,18 @@ class Tutor:
         if user_input == CHEAT_CODE:
             logger.debug("Cheat code detected, skipping to next step")
             curriculum_len = self.session.get_curriculum().get_len()
-            self.session.state.stepIndex = min(
-                self.session.state.stepIndex, curriculum_len
-            ) + 1
+            current_step = self.session.state.stepIndex
+            # Cheat code logic: advance step but ensure we don't exceed curriculum length
+            # Original logic: min(stepIndex, curriculum_len) + 1
+            if current_step <= curriculum_len:
+                self._advance_step()
+                # Ensure we don't exceed curriculum length (handles edge case where
+                # current_step == curriculum_len, advance would exceed)
+                if self.session.state.stepIndex > curriculum_len:
+                    self.session.state.stepIndex = curriculum_len + 1
+            else:
+                # Already beyond curriculum, set to completion state
+                self.session.state.stepIndex = curriculum_len + 1
             self.save()
             if self.session.state.stepIndex <= curriculum_len:
                 guiding_question = (
@@ -576,9 +621,18 @@ class Tutor:
             # ... cheat code logic ...
             logger.debug("Cheat code detected")
             curriculum_len = self.session.get_curriculum().get_len()
-            self.session.state.stepIndex = min(
-                self.session.state.stepIndex, curriculum_len
-            ) + 1
+            current_step = self.session.state.stepIndex
+            # Cheat code logic: advance step but ensure we don't exceed curriculum length
+            # Original logic: min(stepIndex, curriculum_len) + 1
+            if current_step <= curriculum_len:
+                self._advance_step()
+                # Ensure we don't exceed curriculum length (handles edge case where
+                # current_step == curriculum_len, advance would exceed)
+                if self.session.state.stepIndex > curriculum_len:
+                    self.session.state.stepIndex = curriculum_len + 1
+            else:
+                # Already beyond curriculum, set to completion state
+                self.session.state.stepIndex = curriculum_len + 1
             await self.async_save()
             if self.session.state.stepIndex <= curriculum_len:
                 guiding_question = (
@@ -642,6 +696,8 @@ class Tutor:
                 self._evaluate_step_async(step_info, conversation_context, user_input)
             )
 
+            # Note: Step advancement is controlled exclusively by StepEvaluator.
+            # AssessmentSkill provides assessment information but does not advance steps.
             formatted_system_prompt = self.prompt_assembler.assemble(
                 self.session.profile.curriculum,
                 self.session.state.stepIndex,
@@ -897,11 +953,10 @@ class Tutor:
             # Wait for evaluation to complete
             evaluation_result = await evaluation_task
 
-            # Clear evaluation lock (at evaluation completion)
-            async with self._evaluation_lock:
-                self.evaluation_pending = False
-
             # If evaluation passed, generate transition message
+            # Note: Step advancement goes through _advance_step() method for consistency.
+            # AssessmentSkill does not advance steps - it only provides information.
+            transition_message = ""
             if evaluation_result.passed:
                 logger.info(
                     "Step evaluation passed: step=%d, confidence=%.2f, threshold=%.2f",
@@ -909,13 +964,31 @@ class Tutor:
                     evaluation_result.confidence,
                     EVALUATION_PASS_THRESHOLD,
                 )
-                # Advance step
-                self.session.state.stepIndex += 1
+                # Advance step using unified method
+                self._advance_step()
                 await self.async_save()
+
+                # Add visual separator before transition message
+                # This makes the semantic boundary clear between current step reply
+                # and next step transition message
+                separator = "\n\n---\n\n"
+                yield separator
+                transition_message += separator
 
                 # Generate transition message
                 async for token in self._generate_transition_message():
                     yield token
+                    transition_message += token
+
+            # Clear evaluation lock (after transition message is complete, if any)
+            # This ensures the entire response (including transition) is complete
+            # before allowing the next user input
+            async with self._evaluation_lock:
+                self.evaluation_pending = False
+
+            # Update reply to include transition message if evaluation passed
+            if transition_message:
+                reply += transition_message
 
             # Ensure save task completes and save final state
             try:

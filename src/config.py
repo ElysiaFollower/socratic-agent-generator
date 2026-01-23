@@ -96,7 +96,7 @@ EVALUATION_PASS_THRESHOLD: float = float(
 )
 
 # Fallback threshold (0.0-1.0). When evaluator output confidence < this value,
-# use AssessmentSkill as fallback.
+# return conservative result (confidence=0.0) and do not advance the step.
 EVALUATION_FALLBACK_THRESHOLD: float = float(
     os.getenv("EVALUATION_FALLBACK_THRESHOLD", "0.50")
 )

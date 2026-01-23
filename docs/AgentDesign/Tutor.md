@@ -282,9 +282,10 @@ def _extract_evaluation_context(self, max_tokens: int = 2000) -> str:
 ### 6.1 当前实现状态
 
 **评估器实现**：
-- ❌ **独立评估器未实现**：当前使用Skill-based Tool调用方式（`AssessmentSkill`）
-- ❌ **上下文感知未实现**：仅考虑单次回答，未提取多轮对话上下文
-- ✅ **状态推进已实现**：通过`complete_current_step` tool推进`stepIndex`
+- ✅ **独立评估器已实现**：`StepEvaluator`独立评估并控制步骤推进
+- ✅ **上下文感知已实现**：提取多轮对话上下文进行评估
+- ✅ **状态推进已实现**：通过`StepEvaluator`自动推进`stepIndex`（唯一推进机制）
+- ✅ **AssessmentSkill已重构**：`assess_student_progress`工具提供评估信息，但不推进步骤
 
 **详细分析**：见 `docs/26-01-19-skiils/PROGRESS_EVALUATION_DISCUSSION.md`
 

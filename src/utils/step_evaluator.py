@@ -18,35 +18,39 @@ from config import (
 logger = logging.getLogger(__name__)
 
 # Evaluation prompt template
-EVALUATION_PROMPT_TEMPLATE = """你是一个教学评估专家。你的任务是评估学生是否满足当前学习步骤的成功标准。
+EVALUATION_PROMPT_TEMPLATE = """You are an educational assessment expert. Your task is to evaluate whether a student meets the success criteria for the current learning step.
 
-## 任务目标
-评估学生是否满足成功标准，输出一个0-1之间的浮点数（保留两位小数），表示学生满足标准的置信度。
+## Task Objective
+Evaluate whether the student meets the success criteria. Output a floating-point number between 0 and 1 (with 2 decimal places) representing your confidence that the student meets the criteria.
 
-## 当前步骤信息
-步骤标题：{step_title}
-学习目标：{learning_objective}
-成功标准：{success_criteria}
+## Current Step Information
+Step Title: {step_title}
+Learning Objective: {learning_objective}
+Success Criteria: {success_criteria}
 
-## 对话上下文
+## Conversation Context
+<conversation_context>
 {conversation_context}
+</conversation_context>
 
-## 学生最新回答
+## Student's Latest Response
+<student_response>
 {user_input}
+</student_response>
 
-## 评估标准
-请综合考虑以下因素：
-1. 学生是否明确理解了核心概念
-2. 学生的回答是否准确且完整
-3. 在多轮对话中，学生是否表现出渐进式理解
-4. 学生是否达到了成功标准的要求
+## Evaluation Criteria
+Please consider the following factors comprehensively:
+1. Whether the student clearly understands the core concepts
+2. Whether the student's response is accurate and complete
+3. Whether the student demonstrates progressive understanding across multiple conversation turns
+4. Whether the student has met the requirements of the success criteria
 
-## 输出要求
-只输出一个0-1之间的浮点数（保留两位小数），表示学生满足成功标准的置信度。
+## Output Requirements
+Output only a floating-point number between 0 and 1 (with 2 decimal places) representing your confidence that the student meets the success criteria.
 
-通过阈值：{pass_threshold}（置信度 >= {pass_threshold} 时判定为满足标准）
+Pass Threshold: {pass_threshold} (A confidence score >= {pass_threshold} indicates the student meets the criteria)
 
-不要输出任何其他内容，只输出数字。
+Do not output any other content. Output only the number.
 """
 
 
@@ -180,13 +184,13 @@ class StepEvaluator:
             Formatted context string. Returns empty string if context is empty.
         """
         if not context:
-            return "（暂无对话上下文）"
+            return "(No conversation context available)"
 
         formatted = []
         for msg in context:
             role = msg.get("role", "unknown")
             content = msg.get("content", "")
-            role_display = "学生" if role == "user" else "导师"
+            role_display = "Student" if role == "user" else "Tutor"
             formatted.append(f"{role_display}: {content}")
         return "\n".join(formatted)
 
