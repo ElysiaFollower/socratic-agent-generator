@@ -139,7 +139,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const {
     messages,
     setMessagesIfEmpty,
-    isLoading: chatLoading,
+    isLoading: chatLoading, // Current session message loading state (does not affect other operations)
     sendMessage,
     setMessages,
     removeSession,
@@ -488,7 +488,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const isChatView = activePanel === "chat";
   const contentMaxWidth = {
     xs: "100%",
-    sm: isMaximized ? "100%" : isChatView ? "60%" : "100%",
+    sm: isMaximized ? "100%" : isChatView ? "80%" : "100%",
+    md: isMaximized ? "100%" : isChatView ? "70%" : "100%",
+    lg: isMaximized ? "100%" : isChatView ? "60%" : "100%",
   };
 
   return (
@@ -507,7 +509,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             <SidebarRail
               isCollapsed={isSidebarCollapsed}
               onToggle={handleToggleSidebar}
-              isLoading={profilesLoading || chatLoading}
+              isLoading={profilesLoading}
               activePanel={activePanel}
               onOpenChatHome={handleOpenChatHome}
               onOpenInvitationPanel={handleOpenInvitationPanel}
@@ -528,7 +530,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               <Sidebar
                 sessions={sessions}
                 currentSessionId={sessionId}
-                isLoading={profilesLoading || chatLoading}
+                isLoading={profilesLoading}
                 onNewSession={handleNewSession}
                 onSelectSession={handleSwitchToSession}
                 onRenameSession={handleRenameSession}
@@ -725,7 +727,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                               variant='outlined'
                               size='small'
                               onClick={() => handleStartNewSession(profile)}
-                              disabled={chatLoading || isCreatingSession}
+                              disabled={isCreatingSession}
                               sx={{
                                 flexShrink: 0,
                                 minWidth: 0,

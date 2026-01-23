@@ -91,7 +91,13 @@ export function MessageList(props: MessageListProps): JSX.Element {
         const showActions =
           !message.isThinking && (onCopyMessage || onRegenerateMessage);
         const markdownStyles = {
-          "& p": { m: 0, mb: 1, lineHeight: 1.7 },
+          "& p": {
+            m: 0,
+            mb: 1,
+            lineHeight: 1.7,
+            wordBreak: "break-word",
+            overflowWrap: "break-word",
+          },
           "& p:last-child": { mb: 0 },
           "& ul, & ol": { pl: 2, my: 1, listStylePosition: "outside" },
           "& ul": { listStyleType: "disc" },
@@ -161,121 +167,116 @@ export function MessageList(props: MessageListProps): JSX.Element {
               width: "100%",
             }}
           >
-            <Stack
-              direction={isUser ? "row-reverse" : "row"}
-              spacing={1}
-              alignItems='flex-start'
-              sx={{ maxWidth: "100%" }}
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: isUser ? "flex-end" : "flex-start",
+                maxWidth: isUser ? "70%" : "100%",
+                "&:hover .message-actions": {
+                  opacity: 1,
+                  transform: "translateY(0)",
+                },
+              }}
             >
-              <Box
+              <Paper
+                variant='outlined'
                 sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: isUser ? "flex-end" : "flex-start",
-                  "&:hover .message-actions": {
-                    opacity: 1,
-                    transform: "translateY(0)",
-                  },
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: isUser ? 1.5 : 2,
+                  bgcolor: isUser
+                    ? "secondary.main"
+                    : "var(--color-surface-muted)",
+                  color: isUser ? "#ffffff" : "var(--text-primary)",
+                  borderColor: "transparent",
+                  display: "inline-block",
+                  maxWidth: "100%",
                 }}
               >
-                <Paper
-                  variant='outlined'
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    borderRadius: isUser ? 1.5 : 2,
-                    bgcolor: isUser
-                      ? "secondary.main"
-                      : "var(--color-surface-muted)",
-                    color: isUser ? "#ffffff" : "var(--text-primary)",
-                    maxWidth: isUser ? "70%" : "100%",
-                    borderColor: "transparent",
-                  }}
-                >
-                  {message.role === "assistant" && message.isThinking ? (
-                    <Stack direction='row' spacing={1} alignItems='center'>
-                      <CircularProgress size={14} />
-                      <Typography variant='body2' color='text.secondary'>
-                        {message.thinkingMessage || t("chat.tutorThinking")}
-                      </Typography>
-                    </Stack>
-                  ) : (
-                    <Box sx={markdownStyles}>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                        {message.content}
-                      </ReactMarkdown>
-                    </Box>
-                  )}
-                </Paper>
-                {showActions && (
-                  <Box
-                    className='message-actions'
-                    sx={{
-                      mt: 0.5,
-                      ml: 2,
-                      display: "flex",
-                      gap: 0.5,
-                      opacity: 0,
-                      transform: "translateY(4px)",
-                      transition: "opacity 150ms ease, transform 150ms ease",
-                    }}
-                  >
-                    {onCopyMessage && (
-                      <Tooltip title={t("chat.copyMessage")} arrow>
-                        <span>
-                          <IconButton
-                            size='small'
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onCopyMessage(message);
-                            }}
-                            disabled={actionsDisabled}
-                            aria-label={t("chat.copyMessage")}
-                            sx={{
-                              color: "text.secondary",
-                              transition:
-                                "transform 150ms ease, color 150ms ease",
-                              "&:hover": {
-                                transform: "scale(1.04)",
-                                color: "primary.main",
-                              },
-                            }}
-                          >
-                            <ContentCopy fontSize='inherit' />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    )}
-                    {onRegenerateMessage && (
-                      <Tooltip title={t("chat.regenerateMessage")} arrow>
-                        <span>
-                          <IconButton
-                            size='small'
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              onRegenerateMessage(index);
-                            }}
-                            disabled={actionsDisabled}
-                            aria-label={t("chat.regenerateMessage")}
-                            sx={{
-                              color: "text.secondary",
-                              transition:
-                                "transform 150ms ease, color 150ms ease",
-                              "&:hover": {
-                                transform: "scale(1.04)",
-                                color: "primary.main",
-                              },
-                            }}
-                          >
-                            <Replay fontSize='inherit' />
-                          </IconButton>
-                        </span>
-                      </Tooltip>
-                    )}
+                {message.role === "assistant" && message.isThinking ? (
+                  <Stack direction='row' spacing={1} alignItems='center'>
+                    <CircularProgress size={14} />
+                    <Typography variant='body2' color='text.secondary'>
+                      {message.thinkingMessage || t("chat.tutorThinking")}
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <Box sx={markdownStyles}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {message.content}
+                    </ReactMarkdown>
                   </Box>
                 )}
-              </Box>
-            </Stack>
+              </Paper>
+              {showActions && (
+                <Box
+                  className='message-actions'
+                  sx={{
+                    mt: 0.5,
+                    display: "flex",
+                    gap: 0.5,
+                    opacity: 0,
+                    transform: "translateY(4px)",
+                    transition: "opacity 150ms ease, transform 150ms ease",
+                    justifyContent: isUser ? "flex-end" : "flex-start",
+                  }}
+                >
+                  {onCopyMessage && (
+                    <Tooltip title={t("chat.copyMessage")} arrow>
+                      <span>
+                        <IconButton
+                          size='small'
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onCopyMessage(message);
+                          }}
+                          disabled={actionsDisabled}
+                          aria-label={t("chat.copyMessage")}
+                          sx={{
+                            color: "text.secondary",
+                            transition:
+                              "transform 150ms ease, color 150ms ease",
+                            "&:hover": {
+                              transform: "scale(1.04)",
+                              color: "primary.main",
+                            },
+                          }}
+                        >
+                          <ContentCopy fontSize='inherit' />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                  {onRegenerateMessage && (
+                    <Tooltip title={t("chat.regenerateMessage")} arrow>
+                      <span>
+                        <IconButton
+                          size='small'
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onRegenerateMessage(index);
+                          }}
+                          disabled={actionsDisabled}
+                          aria-label={t("chat.regenerateMessage")}
+                          sx={{
+                            color: "text.secondary",
+                            transition:
+                              "transform 150ms ease, color 150ms ease",
+                            "&:hover": {
+                              transform: "scale(1.04)",
+                              color: "primary.main",
+                            },
+                          }}
+                        >
+                          <Replay fontSize='inherit' />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                </Box>
+              )}
+            </Box>
           </Box>
         );
       })}
