@@ -597,32 +597,34 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           sx={{
             flex: 1,
             overflow: "hidden",
-            px: 3,
-            py: 0,
             width: "100%",
-            maxWidth: contentMaxWidth,
-            mx: isMaximized ? 0 : "auto",
           }}
         >
           {isChatView ? (
             <Box
+              className="chat-scrollable-container"
               sx={{
                 height: "100%",
                 overflow: "auto",
                 width: "100%",
-                py: 2,
-                scrollbarWidth: "none",
-                "&::-webkit-scrollbar": {
-                  display: "none",
-                },
               }}
             >
-              <MessageList
-                messages={messages}
-                onCopyMessage={handleCopyMessage}
-                onRegenerateMessage={handleRegenerateMessage}
-                actionsDisabled={chatLoading}
-              />
+              <Box
+                sx={{
+                  px: 3,
+                  py: 2,
+                  width: "100%",
+                  maxWidth: contentMaxWidth,
+                  mx: isMaximized ? 0 : "auto",
+                }}
+              >
+                <MessageList
+                  messages={messages}
+                  onCopyMessage={handleCopyMessage}
+                  onRegenerateMessage={handleRegenerateMessage}
+                  actionsDisabled={chatLoading}
+                />
+              </Box>
             </Box>
           ) : (
             <Box

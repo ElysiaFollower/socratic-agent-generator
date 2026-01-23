@@ -448,3 +448,64 @@ body {
     animation-iteration-count: infinite !important;
   }
 }
+
+/* ============================================================================
+   SCROLLBAR STYLES - Chat Page Only (Prevent Layout Shift + Subtle Scrollbar)
+   ============================================================================ */
+
+/* 
+ * 滚动条样式仅应用于对话页面，避免影响其他页面（如Header）
+ * 使用 .chat-scrollable-container 类来限定作用范围
+ */
+
+.chat-scrollable-container {
+  /* Prevent layout shift - Reserve space for scrollbar */
+  scrollbar-gutter: stable;
+  
+  /* Firefox browser support */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+/* Dark theme support for Firefox */
+[data-theme='dark'] .chat-scrollable-container {
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+/* WebKit browsers (Chrome, Safari, Edge) - Custom scrollbar styling */
+.chat-scrollable-container::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.chat-scrollable-container::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.chat-scrollable-container::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+  transition: background 0.2s ease;
+}
+
+.chat-scrollable-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.chat-scrollable-container::-webkit-scrollbar-thumb:active {
+  background: rgba(0, 0, 0, 0.35);
+}
+
+/* Dark theme support for WebKit */
+[data-theme='dark'] .chat-scrollable-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+[data-theme='dark'] .chat-scrollable-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+[data-theme='dark'] .chat-scrollable-container::-webkit-scrollbar-thumb:active {
+  background: rgba(255, 255, 255, 0.35);
+}
