@@ -90,12 +90,12 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
 
   const content = (
     <CardContent>
+      <Box>
+        <Typography variant='subtitle1' sx={{ fontWeight: 600, mb: 2 }} noWrap>
+          {displayName}
+        </Typography>
+      </Box>
       <Stack spacing={0.5}>
-        <Stack direction='row' spacing={1} alignItems='flex-start'>
-          <Typography variant='subtitle1' sx={{ fontWeight: 600 }} noWrap>
-            {displayName}
-          </Typography>
-        </Stack>
         <Stack direction='row' spacing={1} alignItems='flex-start'>
           <DescriptionOutlined
             fontSize='small'
@@ -119,7 +119,8 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
             sx={{ mt: "2px" }}
           />
           <Typography variant='caption' color='text.secondary'>
-            {t("profile.card.learningSteps")}: {stepCount}{t("profile.card.stepsCount")}
+            {t("profile.card.learningSteps")}: {stepCount}
+            {t("profile.card.stepsCount")}
           </Typography>
         </Stack>
       </Stack>
@@ -282,7 +283,9 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
       onUpdate?.();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : t("profile.personaHintsUpdateFailed");
+        err instanceof Error
+          ? err.message
+          : t("profile.personaHintsUpdateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingPersonaHints(false);
@@ -329,7 +332,9 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
       onUpdate?.();
     } catch (err) {
       const errorMessage =
-        err instanceof Error ? err.message : t("profile.learningStepsUpdateFailed");
+        err instanceof Error
+          ? err.message
+          : t("profile.learningStepsUpdateFailed");
       notifyError(errorMessage);
     } finally {
       setIsUpdatingCurriculum(false);
@@ -392,9 +397,13 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                   onClick={() => onRename?.(profile, trimmedName)}
                   disabled={!isNameDirty || Boolean(isRenaming)}
                   sx={{ whiteSpace: "nowrap" }}
-                  startIcon={isRenaming ? <CircularProgress size={14} /> : undefined}
+                  startIcon={
+                    isRenaming ? <CircularProgress size={14} /> : undefined
+                  }
                 >
-                  {isRenaming ? t("profile.card.saving") : t("profile.card.save")}
+                  {isRenaming
+                    ? t("profile.card.saving")
+                    : t("profile.card.save")}
                 </Button>
               </Stack>
             ) : (
@@ -434,7 +443,8 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                {t("profile.card.createdBy")}: {ownerDisplayName || profile.owner_id || "-"}
+                {t("profile.card.createdBy")}:{" "}
+                {ownerDisplayName || profile.owner_id || "-"}
               </Typography>
             </Stack>
             <Stack direction='row' spacing={1} alignItems='flex-start'>
@@ -444,7 +454,8 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                 sx={{ mt: "2px" }}
               />
               <Typography variant='body2' color='text.secondary'>
-                {t("profile.card.createdAt")}: {formatDateTime(profile.create_at)}
+                {t("profile.card.createdAt")}:{" "}
+                {formatDateTime(profile.create_at)}
               </Typography>
             </Stack>
           </Stack>
@@ -457,7 +468,9 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               justifyContent='space-between'
               alignItems='center'
             >
-              <Typography variant='subtitle2'>{t("profile.card.personaHints")}</Typography>
+              <Typography variant='subtitle2'>
+                {t("profile.card.personaHints")}
+              </Typography>
               {canEditPersonaHints && !editingPersonaHints && (
                 <IconButton
                   size='small'
@@ -489,7 +502,9 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       )
                     }
                   >
-                    {isUpdatingPersonaHints ? t("profile.card.saving") : t("profile.card.save")}
+                    {isUpdatingPersonaHints
+                      ? t("profile.card.saving")
+                      : t("profile.card.save")}
                   </Button>
                   <Button
                     size='small'
@@ -582,7 +597,9 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               justifyContent='space-between'
               alignItems='center'
             >
-              <Typography variant='subtitle2'>{t("profile.card.learningStepsTitle")}</Typography>
+              <Typography variant='subtitle2'>
+                {t("profile.card.learningStepsTitle")}
+              </Typography>
               {canEditCurriculum && !editingCurriculum && (
                 <IconButton
                   size='small'
@@ -614,7 +631,9 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       )
                     }
                   >
-                    {isUpdatingCurriculum ? t("profile.card.saving") : t("profile.card.save")}
+                    {isUpdatingCurriculum
+                      ? t("profile.card.saving")
+                      : t("profile.card.save")}
                   </Button>
                   <Button
                     size='small'
@@ -738,28 +757,36 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
                       variant='body1'
                       sx={{ fontWeight: 600, color: "primary.main", mb: 1 }}
                     >
-                      {t("profile.card.stepNumberWithTitle", { index: index + 1, title: step.step_title })}
+                      {t("profile.card.stepNumberWithTitle", {
+                        index: index + 1,
+                        title: step.step_title,
+                      })}
                     </Typography>
                     <Typography
                       variant='body2'
                       color='text.secondary'
                       sx={{ display: "block", mb: 0.5 }}
                     >
-                      <strong>{t("profile.card.guidingQuestionLabel")}:</strong> {step.guiding_question || "-"}
+                      <strong>{t("profile.card.guidingQuestionLabel")}:</strong>{" "}
+                      {step.guiding_question || "-"}
                     </Typography>
                     <Typography
                       variant='body2'
                       color='text.secondary'
                       sx={{ display: "block", mb: 0.5 }}
                     >
-                      <strong>{t("profile.card.successCriteriaLabel")}:</strong> {step.success_criteria || "-"}
+                      <strong>{t("profile.card.successCriteriaLabel")}:</strong>{" "}
+                      {step.success_criteria || "-"}
                     </Typography>
                     <Typography
                       variant='body2'
                       color='text.secondary'
                       sx={{ display: "block" }}
                     >
-                      <strong>{t("profile.card.learningObjectiveLabel")}:</strong> {step.learning_objective}
+                      <strong>
+                        {t("profile.card.learningObjectiveLabel")}:
+                      </strong>{" "}
+                      {step.learning_objective}
                     </Typography>
                   </Box>
                 ))}

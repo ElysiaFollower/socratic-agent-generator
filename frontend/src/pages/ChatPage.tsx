@@ -92,7 +92,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] =
-    useState<SupportedLanguage>("zh");
+    useState<SupportedLanguage>("en");
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
   const sidebarDefaultRatio = 0.15;

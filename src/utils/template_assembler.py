@@ -129,10 +129,10 @@ class BaseTemplateAssembler(TemplateAssembler):
             Formatted curriculum string with step titles and objectives.
         """
         formatted_steps = []
-        for i in range(1, curriculum.get_len() + 1):
+        for i in range(curriculum.get_len()):
             step_title = curriculum.get_step_title(i)
             learning_objective = curriculum.get_learning_objective(i)
-            formatted_steps.append(f"{i}. {step_title}: {learning_objective}")
+            formatted_steps.append(f"{i + 1}. {step_title}: {learning_objective}")
         return "\n".join(formatted_steps)
 
 
@@ -184,9 +184,10 @@ class PromptAssembler(TemplateAssembler):
         Raises:
             ValueError: If step_index is out of range.
         """
-        if step_index < 0:
-            raise ValueError("Invalid step index; must be >= 0")
-        elif step_index >= curriculum.get_len():
+        # step_index is 1-based, so valid range is 1 to curriculum.get_len()
+        if step_index < 1:
+            raise ValueError("Invalid step index; must be >= 1")
+        elif step_index > curriculum.get_len():
             return (
                 "Task Complete. No additional task. "
                 "Just Congratulations to user!"
@@ -202,24 +203,24 @@ class PromptAssembler(TemplateAssembler):
 
         # Get or build static context from cache
         if cache_key not in self._static_cache:
-            static_context = self._build_static_context(
-                curriculum, output_language, skills
-            )
+            static_context = self._build_static_context(output_language, skills)
             self._static_cache[cache_key] = static_context
         else:
             static_context = self._static_cache[cache_key]
 
         # Prepare dynamic context for current step (changes every call)
+        # Convert from 1-based to 0-based index for curriculum methods
+        zero_based_index = step_index - 1
         dynamic_context = {
             "current_step": {
-                "step_title": curriculum.get_step_title(step_index),
+                "step_title": curriculum.get_step_title(zero_based_index),
                 "learning_objective": curriculum.get_learning_objective(
-                    step_index
+                    zero_based_index
                 ),
                 "guiding_question": curriculum.get_guiding_question(
-                    step_index
+                    zero_based_index
                 ),
-                "success_criteria": curriculum.get_success_criteria(step_index),
+                "success_criteria": curriculum.get_success_criteria(zero_based_index),
             },
         }
 
@@ -232,17 +233,16 @@ class PromptAssembler(TemplateAssembler):
 
     def _build_static_context(
         self,
-        curriculum: SocraticCurriculum,
         output_language: str,
         skills: Optional[List],
     ) -> Dict[str, str]:
         """Build static context that can be cached.
 
-        Static parts include persona, domain rules, curriculum overview, and
-        skills summary. These don't change between steps, so they can be cached.
+        Static parts include skills summary. These don't change between steps,
+        so they can be cached. Curriculum-related content is already in the
+        template from profile generation.
 
         Args:
-            curriculum: SocraticCurriculum containing learning steps.
             output_language: Output language for the tutor.
             skills: Optional list of BaseSkill instances.
 

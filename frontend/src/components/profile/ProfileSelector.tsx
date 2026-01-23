@@ -8,9 +8,6 @@ import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Box,
-  Card,
-  CardActionArea,
-  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
@@ -22,8 +19,8 @@ import {
 } from "@mui/material";
 import { School } from "@mui/icons-material";
 import { CircularProgress } from "../common/CircularProgress";
+import { ProfileCard } from "./ProfileCard";
 import { Profile } from "../../types";
-import { extractCurriculumSteps } from "../../utils/curriculum";
 
 /**
  * Props for ProfileSelector component.
@@ -83,58 +80,32 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
           <Grid container spacing={2}>
             {filteredProfiles.map((profile) => (
               <Grid item xs={12} md={6} key={profile.profile_id}>
-                <Card variant='outlined'>
-                  <CardActionArea
+                <Box sx={{ position: "relative" }}>
+                  <ProfileCard
+                    profile={profile}
                     onClick={() => onSelect(profile)}
-                    disabled={isLoading}
-                    sx={{ position: "relative" }}
-                  >
-                    {isLoading && (
-                      <Box
-                        sx={{
-                          position: "absolute",
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          bgcolor: "rgba(255, 255, 255, 0.7)",
-                          zIndex: 1,
-                        }}
-                      >
-                        <CircularProgress size={24} />
-                      </Box>
-                    )}
-                    <CardContent>
-                      <Typography variant='h6' sx={{ mb: 1 }}>
-                        {profile.profile_name || profile.topic_name}
-                      </Typography>
-                      <Typography
-                        variant='body2'
-                        color='text.secondary'
-                        sx={{ mb: 1 }}
-                      >
-                        {t("profile.selector.targetAudience")}:{" "}
-                        {profile.target_audience}
-                      </Typography>
-                      <Typography
-                        variant='body2'
-                        color='text.secondary'
-                        sx={{ mb: 1 }}
-                      >
-                        {t("profile.selector.courseTopic")}:{" "}
-                        {profile.topic_name}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        {t("profile.selector.learningSteps")}:{" "}
-                        {extractCurriculumSteps(profile.curriculum).length}
-                        {t("profile.selector.stepsCount")}
-                      </Typography>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
+                    actionDisabled={isLoading}
+                  />
+                  {isLoading && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        bgcolor: "rgba(255, 255, 255, 0.7)",
+                        zIndex: 1,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <CircularProgress size={24} />
+                    </Box>
+                  )}
+                </Box>
               </Grid>
             ))}
           </Grid>
