@@ -172,7 +172,7 @@ class PromptAssembler(TemplateAssembler):
 
         Args:
             curriculum: SocraticCurriculum containing learning steps.
-            step_index: Current step index (1-based).
+            step_index: Current step index (0-based).
             output_language: Output language for the tutor. Defaults to
                 DEFAULT_OUTPUT_LANGUAGE.
             skills: Optional list of BaseSkill instances to include in prompt.
@@ -184,10 +184,10 @@ class PromptAssembler(TemplateAssembler):
         Raises:
             ValueError: If step_index is out of range.
         """
-        # step_index is 1-based, so valid range is 1 to curriculum.get_len()
-        if step_index < 1:
-            raise ValueError("Invalid step index; must be >= 1")
-        elif step_index > curriculum.get_len():
+        # step_index is 0-based (same as SessionState.stepIndex)
+        if step_index < 0:
+            raise ValueError("Invalid step index; must be >= 0")
+        elif step_index >= curriculum.get_len():
             return (
                 "Task Complete. No additional task. "
                 "Just Congratulations to user!"
@@ -209,18 +209,17 @@ class PromptAssembler(TemplateAssembler):
             static_context = self._static_cache[cache_key]
 
         # Prepare dynamic context for current step (changes every call)
-        # Convert from 1-based to 0-based index for curriculum methods
-        zero_based_index = step_index - 1
+        # step_index is 0-based, matching SocraticCurriculum methods
         dynamic_context = {
             "current_step": {
-                "step_title": curriculum.get_step_title(zero_based_index),
+                "step_title": curriculum.get_step_title(step_index),
                 "learning_objective": curriculum.get_learning_objective(
-                    zero_based_index
+                    step_index
                 ),
                 "guiding_question": curriculum.get_guiding_question(
-                    zero_based_index
+                    step_index
                 ),
-                "success_criteria": curriculum.get_success_criteria(zero_based_index),
+                "success_criteria": curriculum.get_success_criteria(step_index),
             },
         }
 

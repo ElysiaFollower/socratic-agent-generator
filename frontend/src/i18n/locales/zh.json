@@ -776,6 +776,10 @@
     "deleteClass": "解散班级",
     "deleteClassConfirm": "确定要解散班级吗？此操作将删除班级及其所有相关数据，无法撤销。",
     "classDeleted": "班级已解散",
-    "classDeleteFailed": "解散班级失败"
+    "classDeleteFailed": "解散班级失败",
+    "leaveClass": "离开班级",
+    "leaveClassConfirm": "确定要离开此班级吗？",
+    "classLeft": "已成功离开班级",
+    "classLeaveFailed": "离开班级失败"
   }
 }

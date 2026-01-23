@@ -4,7 +4,7 @@
  * This component displays a modal with available profiles for selection.
  */
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Box,
@@ -30,6 +30,7 @@ export interface ProfileSelectorProps {
   readonly isLoading: boolean;
   readonly onSelect: (profile: Profile) => void;
   readonly onClose: () => void;
+  readonly onOpen?: () => void | Promise<void>;
 }
 
 /**
@@ -39,9 +40,14 @@ export interface ProfileSelectorProps {
  * @returns React component
  */
 export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
-  const { profiles, isLoading, onSelect, onClose } = props;
+  const { profiles, isLoading, onSelect, onClose, onOpen } = props;
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState<string>("");
+
+  // Refresh profiles when dialog opens
+  useEffect(() => {
+    void onOpen?.();
+  }, [onOpen]);
 
   const filteredProfiles = useMemo(() => {
     const query = searchText.trim().toLowerCase();

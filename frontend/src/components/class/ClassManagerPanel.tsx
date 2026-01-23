@@ -31,6 +31,7 @@ import {
   ContentCopy,
   DescriptionOutlined,
   Edit,
+  ExitToApp,
   PeopleOutline,
   Person,
   School,
@@ -46,6 +47,7 @@ import {
 import {
   createClass,
   joinClass,
+  leaveClass,
   listClassInvitations,
   listClassMembers,
   listClasses,
@@ -459,7 +461,12 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     if (!selectedClassId) {
       return;
     }
-    if (!confirm(t("class.deleteConfirm"))) {
+    const shouldDelete = await confirm({
+      title: t("class.deleteInviteCode"),
+      description: t("class.deleteInviteCodeConfirm"),
+      confirmColor: "error",
+    });
+    if (!shouldDelete) {
       return;
     }
     try {
@@ -642,6 +649,31 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
     } catch (err) {
       const errorMessage =
         err instanceof Error ? err.message : t("class.classDeleteFailed");
+      notifyError(errorMessage);
+    }
+  };
+
+  const handleLeaveClass = async (classId: string) => {
+    try {
+      await leaveClass(classId);
+      notifySuccess(t("class.classLeft"));
+      setClasses((prev) => prev.filter((item) => item.class_id !== classId));
+      setClassMemberCounts((prev) => {
+        if (!(classId in prev)) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[classId];
+        return next;
+      });
+      setInvites([]);
+      setMembers([]);
+      setSelectedClassId((prev) => (prev === classId ? null : prev));
+      await loadClasses();
+      await refreshProfiles();
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : t("class.classLeaveFailed");
       notifyError(errorMessage);
     }
   };
@@ -1127,31 +1159,57 @@ export function ClassManagerPanel(props: ClassManagerPanelProps): JSX.Element {
                 <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
                   {t("class.classDetails")} - {selectedClass.name}
                 </Typography>
-                {isTeacher && selectedClass.owner_id === user?.user_id && (
-                  <Tooltip title={t("class.deleteClass")}>
-                    <IconButton
-                      sx={{
-                        transition: "all 0.3s ease",
-                        color: color.text.secondary,
-                        "&:hover": {
-                          color: "error.main",
-                        },
-                      }}
-                      onClick={async () => {
-                        const shouldDelete = await confirm({
-                          title: t("class.deleteClass"),
-                          description: t("class.deleteClassConfirm"),
-                          confirmColor: "error",
-                        });
-                        if (shouldDelete) {
-                          void handleDeleteClass(selectedClass.class_id);
-                        }
-                      }}
-                    >
-                      <ClassTwoTone />
-                    </IconButton>
-                  </Tooltip>
-                )}
+                <Stack direction='row' spacing={1}>
+                  {isTeacher && selectedClass.owner_id === user?.user_id ? (
+                    <Tooltip title={t("class.deleteClass")}>
+                      <IconButton
+                        sx={{
+                          transition: "all 0.3s ease",
+                          color: color.text.secondary,
+                          "&:hover": {
+                            color: "error.main",
+                          },
+                        }}
+                        onClick={async () => {
+                          const shouldDelete = await confirm({
+                            title: t("class.deleteClass"),
+                            description: t("class.deleteClassConfirm"),
+                            confirmColor: "error",
+                          });
+                          if (shouldDelete) {
+                            void handleDeleteClass(selectedClass.class_id);
+                          }
+                        }}
+                      >
+                        <ClassTwoTone />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title={t("class.leaveClass")}>
+                      <IconButton
+                        sx={{
+                          transition: "all 0.3s ease",
+                          color: color.text.secondary,
+                          "&:hover": {
+                            color: "error.main",
+                          },
+                        }}
+                        onClick={async () => {
+                          const shouldLeave = await confirm({
+                            title: t("class.leaveClass"),
+                            description: t("class.leaveClassConfirm"),
+                            confirmColor: "error",
+                          });
+                          if (shouldLeave) {
+                            void handleLeaveClass(selectedClass.class_id);
+                          }
+                        }}
+                      >
+                        <ExitToApp />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Stack>
               </Stack>
               {classDetail}
             </Paper>

@@ -279,3 +279,39 @@ class ClassManager:
         self.db.delete(class_model)
         self.db.commit()
         logger.info("Deleted class: %s", class_id)
+
+    def leave_class(self, class_id: str, user_id: str) -> None:
+        """Leave a class (remove user's membership).
+
+        Non-owner members can leave a class. The class owner cannot leave.
+
+        Args:
+            class_id: Class ID to leave.
+            user_id: User ID leaving the class.
+
+        Raises:
+            ClassNotFoundError: If class not found.
+            ValueError: If user is the class owner or not a member.
+        """
+        class_model = self.get_class(class_id)
+
+        # Class owner cannot leave their own class
+        if class_model.owner_id == user_id:
+            raise ValueError("Class owner cannot leave the class")
+
+        # Check if user is a member
+        membership = (
+            self.db.query(ClassMembershipModel)
+            .filter(
+                ClassMembershipModel.class_id == class_id,
+                ClassMembershipModel.user_id == user_id,
+            )
+            .first()
+        )
+        if not membership:
+            raise ValueError("User is not a member of this class")
+
+        # Delete the membership
+        self.db.delete(membership)
+        self.db.commit()
+        logger.info("User %s left class %s", user_id, class_id)

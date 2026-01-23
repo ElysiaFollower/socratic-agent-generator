@@ -485,3 +485,43 @@ def delete_class(
         )
 
     return {"success": True, "message": "Class deleted successfully"}
+
+
+@router.delete(
+    "/{class_id}/leave",
+    summary="离开班级",
+)
+def leave_class(
+    class_id: str,
+    class_manager: ClassManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> dict:
+    """Leave a class (remove current user's membership).
+
+    Non-owner members can leave a class. The class owner cannot leave their own class.
+
+    Args:
+        class_id: Class ID to leave.
+        class_manager: Injected ClassManager instance.
+        current_user: Current authenticated user.
+
+    Returns:
+        Dictionary with success message.
+
+    Raises:
+        HTTPException: If user is owner or not a member, or class not found.
+    """
+    try:
+        class_manager.leave_class(class_id, current_user.user_id)
+    except ClassNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Class not found",
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e),
+        )
+
+    return {"success": True, "message": "Left class successfully"}

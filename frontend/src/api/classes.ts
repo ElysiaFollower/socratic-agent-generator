@@ -137,3 +137,11 @@ export async function deleteClass(classId: string): Promise<void> {
     throw new Error(`删除班级失败: ${handleApiError(error)}`);
   }
 }
+
+export async function leaveClass(classId: string): Promise<void> {
+  try {
+    await apiClient.delete(`/api/classes/${classId}/leave`);
+  } catch (error) {
+    throw new Error(`离开班级失败: ${handleApiError(error)}`);
+  }
+}

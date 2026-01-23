@@ -792,6 +792,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           isLoading={profilesLoading || isCreatingSession}
           onSelect={handleStartNewSession}
           onClose={() => setShowProfileSelector(false)}
+          onOpen={refreshProfiles}
         />
       )}
 

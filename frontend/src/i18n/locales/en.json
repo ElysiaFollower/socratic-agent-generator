@@ -641,6 +641,10 @@
     "deleteClass": "Disband Class",
     "deleteClassConfirm": "Are you sure you want to disband this class? This will delete the class and all its related data, which cannot be undone.",
     "classDeleted": "Class disbanded",
-    "classDeleteFailed": "Failed to disband class"
+    "classDeleteFailed": "Failed to disband class",
+    "leaveClass": "Leave Class",
+    "leaveClassConfirm": "Are you sure you want to leave this class?",
+    "classLeft": "Left class successfully",
+    "classLeaveFailed": "Failed to leave class"
   }
 }
