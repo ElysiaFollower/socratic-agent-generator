@@ -90,7 +90,10 @@ cd socratic-agent-generator
 
 # Configure environment variables
 cp .env.example .env
-# Edit .env: DEEPSEEK_API_KEY, JWT_SECRET_KEY, ADMIN_TOKEN
+# Edit .env and configure the following required variables:
+#   - DEEPSEEK_API_KEY: Your DeepSeek API key (required for LLM functionality)
+#   - JWT_SECRET_KEY: Secret key for JWT token signing (required for authentication)
+#   - ADMIN_TOKEN: Secret token for admin registration (required - must be set in .env before registering admin accounts)
 
 # Install backend dependencies
 conda create -n SocraticAgent python=3.9 -y
@@ -111,7 +114,9 @@ python src/app.py
 cd frontend && npm run dev
 ```
 
-Database is automatically initialized on first startup. Access the application at `http://localhost:5173` and register an account (admin registration requires `ADMIN_TOKEN`).
+Database is automatically initialized on first startup. Access the application at `http://localhost:5173` and register an account.
+
+**Important**: To register an admin account, you **must** configure `ADMIN_TOKEN` in your `.env` file before starting the backend server. The admin registration form will require this token. If `ADMIN_TOKEN` is not set in `.env`, admin registration will fail with an error.
 
 ## Usage
 
@@ -162,80 +167,6 @@ Teachers/admins can create classes, generate invitation codes, and control profi
 
 Teachers can create custom skills with automatic vector indexing for extending tutor capabilities.
 
-## API Documentation
-
-### Authentication
-
-- `POST /api/auth/register`: User registration (requires `ADMIN_TOKEN` for admin role or valid invitation code)
-- `POST /api/auth/login`: User login
-- `POST /api/auth/logout`: User logout
-- `GET /api/auth/me`: Get current user info
-- `POST /api/auth/invitation-codes/generate`: Generate registration invitation code (admin/teacher)
-- `GET /api/auth/invitation-codes`: List registration invitation codes (admin/teacher)
-- `DELETE /api/auth/invitation-codes/{code}`: Delete invitation code (admin/teacher)
-- `PATCH /api/auth/invitation-codes/{code}`: Update invitation code expiration (admin/teacher)
-
-### Profile Management
-
-- `GET /api/profiles`: List visible profiles (filtered by user classes)
-- `GET /api/profiles/{profile_id}`: Get profile details
-- `POST /api/profiles`: Create profile (admin/teacher only)
-- `PUT /api/profiles/{profile_id}/rename`: Rename profile
-- `DELETE /api/profiles/{profile_id}`: Delete profile
-- `POST /api/profiles/upload-lab-manual`: Upload lab manual (Markdown/PDF)
-- `GET /api/profiles/lab-manuals`: List lab manuals
-- `GET /api/profiles/lab-manuals/{lab_name}/content`: Get lab manual content
-- `DELETE /api/profiles/lab-manuals/{lab_name}`: Delete lab manual
-- `GET /api/profiles/lab-manuals/{lab_name}/persona`: Get persona
-- `POST /api/profiles/lab-manuals/{lab_name}/persona`: Save persona
-- `GET /api/profiles/lab-manuals/{lab_name}/curriculum`: Get curriculum
-- `POST /api/profiles/lab-manuals/{lab_name}/curriculum`: Save curriculum
-- `POST /api/profiles/lab-manuals/{lab_name}/generate-persona`: Generate persona
-- `POST /api/profiles/lab-manuals/{lab_name}/generate-curriculum`: Generate curriculum
-- `POST /api/profiles/lab-manuals/{lab_name}/generate-profile`: Generate profile from lab manual
-- `POST /api/profiles/generate`: Generate profile from content
-- `PATCH /api/classes/{class_id}/profiles/{profile_id}`: Update profile visibility for class
-
-### Session Management
-
-- `GET /api/sessions`: List user sessions
-- `POST /api/sessions/create`: Create session
-- `GET /api/sessions/{session_id}`: Get session details
-- `DELETE /api/sessions/{session_id}`: Delete session
-- `PUT /api/sessions/{session_id}/rename`: Rename session
-
-### Interaction
-
-- `POST /api/sessions/{session_id}/messages/stream`: Send message (SSE streaming)
-- `GET /api/tutor/{session_id}/welcome`: Get welcome message
-- `GET /api/tutor/{session_id}/state`: Get learning progress
-
-### Class Management
-
-- `GET /api/classes`: List user classes
-- `POST /api/classes`: Create class (teacher/admin)
-- `POST /api/classes/join`: Join class via invitation code
-- `POST /api/classes/{class_id}/invite`: Generate invitation code
-- `GET /api/classes/{class_id}/invites`: List class invitation codes
-- `DELETE /api/classes/{class_id}/invites/{code}`: Delete invitation code
-- `PATCH /api/classes/{class_id}/invites/{code}`: Update invitation code expiration
-- `GET /api/classes/{class_id}/members`: List class members
-- `PATCH /api/classes/{class_id}/profiles/{profile_id}`: Update profile visibility for class
-
-### Custom Skills
-
-- `GET /api/profiles/{profile_id}/skills`: List skills for a profile
-- `GET /api/skills/{skill_id}`: Get skill details
-- `POST /api/profiles/{profile_id}/skills/generate`: Generate skill from materials
-- `POST /api/profiles/{profile_id}/skills`: Create skill (teacher/admin)
-- `PATCH /api/skills/{skill_id}`: Update skill
-- `DELETE /api/skills/{skill_id}`: Delete skill
-- `POST /api/skills/{skill_id}/index`: Rebuild skill index
-- `POST /api/profiles/{profile_id}/skill-materials`: Upload skill material
-- `GET /api/profiles/{profile_id}/skill-materials`: List skill materials
-
-**Note**: Most endpoints require JWT authentication via `Authorization: Bearer <token>` header. User data is isolated by `owner_id`. Profile visibility is controlled by `visible_class_ids`.
-
 ## Technical Stack
 
 **Backend**: Python 3.8+, FastAPI, LangChain, SQLAlchemy, SQLite, Pydantic, JWT (python-jose), Uvicorn
@@ -244,34 +175,13 @@ Teachers can create custom skills with automatic vector indexing for extending t
 
 **Storage**: SQLite (user data, profiles, sessions, classes, skills), File system (documents, vector indices), In-memory cache (active tutor instances)
 
-## Troubleshooting
-
-**Database initialization**: Database auto-creates on startup. Manual initialization: `python -c "from src.core.database import init_db; init_db()"`
-
-**CLI tool requires admin user**: Ensure at least one admin user exists before using `main.py`
-
-**Profile visibility**: Check `visible_class_ids` field and user class membership
-
-**API authentication**: Verify JWT token expiration (default 7 days) and `JWT_SECRET_KEY` configuration
+## API
 
 Full API documentation available at `http://localhost:8000/docs` (Swagger UI).
 
-## Citation
-
-If you use this system in your research, please cite:
-
-```bibtex
-@software{socratic_agent_generator,
-  title = {Socratic Agent Generator},
-  author = {ElysiaFollower},
-  year = {2025},
-  url = {https://github.com/ElysiaFollower/socratic-agent-generator}
-}
-```
-
 ## License
 
-MIT License. See [LICENSE](LICENSE) file for details.
+MIT License. 
 
 ## Contact
 
