@@ -441,4 +441,10 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  /* Exception for loading indicators - they are essential for UX */
+  .MuiCircularProgress-root svg,
+  .MuiCircularProgress-root circle {
+    animation-duration: 1.4s !important;
+    animation-iteration-count: infinite !important;
+  }
 }

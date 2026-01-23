@@ -5,7 +5,8 @@
  */
 
 import React, { useRef } from "react";
-import { Box, IconButton, TextField, CircularProgress } from "@mui/material";
+import { Box, IconButton, TextField } from "@mui/material";
+import { CircularProgress } from "../common/CircularProgress";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { color } from "../../styles/css-variables";
 

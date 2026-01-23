@@ -1,12 +1,18 @@
 /**
- * Custom CircularProgress component using native CSS animation
- * to ensure consistent spinning behavior across all machines
+ * CircularProgress component wrapper for Material-UI CircularProgress.
+ *
+ * This is a thin wrapper around Material-UI's CircularProgress component
+ * to ensure consistent API and browser compatibility.
  */
-import { Box, SxProps, Theme } from "@mui/material";
+import {
+  CircularProgress as MuiCircularProgress,
+  SxProps,
+  Theme,
+} from "@mui/material";
 
 interface CircularProgressProps {
-  size?: number;
-  color?:
+  readonly size?: number;
+  readonly color?:
     | "primary"
     | "secondary"
     | "error"
@@ -14,109 +20,39 @@ interface CircularProgressProps {
     | "success"
     | "warning"
     | "inherit";
-  thickness?: number;
-  value?: number;
-  variant?: "determinate" | "indeterminate";
-  sx?: SxProps<Theme>;
-  className?: string;
+  readonly thickness?: number;
+  readonly value?: number;
+  readonly variant?: "determinate" | "indeterminate";
+  readonly sx?: SxProps<Theme>;
+  readonly className?: string;
 }
 
-const colorMap = {
-  primary: "#1976d2",
-  secondary: "#9c27b0",
-  error: "#d32f2f",
-  info: "#0288d1",
-  success: "#2e7d32",
-  warning: "#ed6c02",
-  inherit: "currentColor",
-};
-
-export const CircularProgress = ({
+/**
+ * CircularProgress component using Material-UI's implementation.
+ *
+ * This wrapper ensures consistent API while leveraging Material-UI's
+ * well-tested and visually polished CircularProgress component.
+ */
+export function CircularProgress({
   size = 40,
   color = "primary",
-  thickness = 3.6,
+  thickness,
   value,
   variant = "indeterminate",
   sx,
   className,
-}: CircularProgressProps) => {
-  const strokeColor = colorMap[color];
-  const radius = (size - thickness) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDasharray = circumference;
-  const strokeDashoffset =
-    variant === "determinate" && value !== undefined
-      ? circumference - (value / 100) * circumference
-      : circumference * 0.75;
-
+}: CircularProgressProps): JSX.Element {
   return (
-    <Box
+    <MuiCircularProgress
+      size={size}
+      color={color}
+      thickness={thickness}
+      value={value}
+      variant={variant}
+      sx={sx}
       className={className}
-      sx={{
-        width: size,
-        height: size,
-        display: "inline-block",
-        position: "relative",
-        ...sx,
-      }}
-    >
-      <svg
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
-        style={{
-          display: "block",
-          animation:
-            variant === "indeterminate"
-              ? "mui-circular-rotate 1.4s linear infinite"
-              : undefined,
-        }}
-      >
-        <style>{`
-          @keyframes mui-circular-rotate {
-            0% {
-              transform: rotate(0deg);
-            }
-            100% {
-              transform: rotate(360deg);
-            }
-          }
-          @keyframes mui-circular-dash {
-            0% {
-              stroke-dasharray: ${circumference};
-              stroke-dashoffset: ${circumference * 0.75};
-            }
-            50% {
-              stroke-dasharray: ${circumference};
-              stroke-dashoffset: ${circumference * 0.25};
-            }
-            100% {
-              stroke-dasharray: ${circumference};
-              stroke-dashoffset: ${circumference * 0.75};
-            }
-          }
-        `}</style>
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill='none'
-          stroke={strokeColor}
-          strokeWidth={thickness}
-          strokeDasharray={strokeDasharray}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap='round'
-          style={
-            variant === "indeterminate"
-              ? {
-                  animation: "mui-circular-dash 1.4s ease-in-out infinite",
-                }
-              : undefined
-          }
-        />
-      </svg>
-    </Box>
+    />
   );
-};
+}
 
 export default CircularProgress;

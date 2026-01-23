@@ -22,8 +22,8 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import AssistantIcon from "@mui/icons-material/Assistant";
 import { CircularProgress } from "../components/common/CircularProgress";
+import AssistantIcon from "@mui/icons-material/Assistant";
 import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
 import {
   useProfiles,
