@@ -158,6 +158,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
         return (
           <Box
             key={index}
+            data-message-id={message.messageId}
             sx={{
               display: "flex",
               justifyContent: isUser ? "flex-end" : "flex-start",

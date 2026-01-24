@@ -10,6 +10,7 @@ import {
   SessionSummary,
   CreateSessionRequest,
   RenameSessionRequest,
+  StepCompletion,
 } from '../types';
 
 /**
@@ -111,6 +112,27 @@ export async function deleteSession(
   }
 }
 
+/**
+ * Fetches step completion records for a session.
+ *
+ * @param sessionId - The unique identifier of the session
+ * @returns Promise resolving to step completion list
+ * @throws Error if the API request fails
+ */
+export async function getSessionStepCompletions(
+  sessionId: string,
+): Promise<readonly StepCompletion[]> {
+  try {
+    const response = await apiClient.get<readonly StepCompletion[]>(
+      `/api/sessions/${sessionId}/step-completions`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch step completions: ${handleApiError(error)}`,
+    );
+  }
+}
 
 
 

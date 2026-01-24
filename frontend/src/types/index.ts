@@ -53,6 +53,7 @@ export interface ChatMessage {
   readonly content: string;
   readonly isThinking?: boolean;
   readonly thinkingMessage?: string;
+  readonly messageId?: number;
 }
 
 /**
@@ -63,6 +64,7 @@ export interface SessionHistoryMessage {
   readonly type: 'human' | 'ai';
   readonly content: string;
   readonly timestamp?: string;
+  readonly message_id?: number;
 }
 
 /**
@@ -126,6 +128,8 @@ export interface SendMessageResponse {
     readonly stepIndex: number;
   };
   readonly is_finished: boolean;
+  readonly message_id?: number;
+  readonly step_completion?: StepCompletion;
 }
 
 /**
@@ -135,6 +139,14 @@ export interface SessionState {
   readonly stepIndex: number;
   readonly totalSteps: number;
   readonly isFinished: boolean;
+}
+
+/**
+ * Represents a step completion mapping.
+ */
+export interface StepCompletion {
+  readonly step_index: number;
+  readonly message_id: number;
 }
 
 /**

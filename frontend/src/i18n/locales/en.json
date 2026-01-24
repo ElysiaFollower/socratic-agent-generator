@@ -136,7 +136,8 @@
       "noCurriculum": "No curriculum yet",
       "currentStep": "Current Step",
       "learningObjective": "Learning Objective",
-      "completed": "Learning process completed"
+      "completed": "Learning process completed",
+      "stepMessageMissing": "No message found for this step"
     }
   },
   "login": {

@@ -137,7 +137,8 @@
       "noCurriculum": "暂无课程",
       "currentStep": "当前步骤",
       "learningObjective": "学习目标",
-      "completed": "学习流程已完成"
+      "completed": "学习流程已完成",
+      "stepMessageMissing": "未找到该步骤对应的消息"
     }
   },
   "login": {

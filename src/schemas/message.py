@@ -3,12 +3,13 @@
 This module defines Pydantic models for API request and response messages.
 """
 
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
 from config import DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME
 from schemas.session import SessionState
+from schemas.step_completion import StepCompletion
 
 class ResponseMessage(BaseModel):
     """Response message from tutor after processing user input.
@@ -26,6 +27,14 @@ class ResponseMessage(BaseModel):
     is_finished: bool = Field(
         description="Whether the entire curriculum is completed.",
         default=False,
+    )
+    message_id: Optional[int] = Field(
+        default=None,
+        description="Message id of the assistant reply for this turn.",
+    )
+    step_completion: Optional[StepCompletion] = Field(
+        default=None,
+        description="Step completion record when evaluation passes.",
     )
 
 

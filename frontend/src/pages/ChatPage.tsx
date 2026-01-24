@@ -24,7 +24,13 @@ import {
 } from "@mui/material";
 import { CircularProgress } from "../components/common/CircularProgress";
 import AssistantIcon from "@mui/icons-material/Assistant";
-import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
+import {
+  Profile,
+  SessionSummary,
+  ChatMessage,
+  ToolPanelView,
+  StepCompletion,
+} from "../types";
 import {
   useProfiles,
   useSessions,
@@ -53,6 +59,7 @@ import {
   createSession,
   getSession,
   getWelcomeMessage,
+  getSessionStepCompletions,
   renameSession,
   deleteSession,
   getProfile,
@@ -77,7 +84,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const { themeMode, onToggleTheme } = props;
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { notifySuccess, notifyError } = useNotification();
+  const { notifySuccess, notifyError, notifyWarning } = useNotification();
   const { copyToClipboard } = useClipboard();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showProfileSelector, setShowProfileSelector] =
@@ -112,6 +119,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     startX: number;
     startWidth: number;
   } | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [stepCompletionBySession, setStepCompletionBySession] = useState<
+    Record<string, Record<number, number>>
+  >({});
 
   const {
     profiles,
@@ -136,6 +147,25 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     void sessionState.refresh();
   }, [sessionState]);
 
+  const handleStepCompletion = useCallback(
+    (completion: StepCompletion, targetSessionId: string) => {
+      setStepCompletionBySession((prev) => {
+        const existing = prev[targetSessionId] || {};
+        if (existing[completion.step_index] === completion.message_id) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [targetSessionId]: {
+            ...existing,
+            [completion.step_index]: completion.message_id,
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const {
     messages,
     setMessagesIfEmpty,
@@ -143,10 +173,39 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     sendMessage,
     setMessages,
     removeSession,
-  } = useChat(sessionId, handleStateUpdate);
+  } = useChat(sessionId, handleStateUpdate, handleStepCompletion);
 
   const currentSession =
     sessions.find((s) => s.session_id === sessionId) || null;
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    let isActive = true;
+    const loadStepCompletions = async () => {
+      try {
+        const completions = await getSessionStepCompletions(sessionId);
+        if (!isActive) {
+          return;
+        }
+        const mapped: Record<number, number> = {};
+        completions.forEach((completion) => {
+          mapped[completion.step_index] = completion.message_id;
+        });
+        setStepCompletionBySession((prev) => ({
+          ...prev,
+          [sessionId]: mapped,
+        }));
+      } catch (error) {
+        console.error("Failed to load step completions:", error);
+      }
+    };
+    void loadStepCompletions();
+    return () => {
+      isActive = false;
+    };
+  }, [sessionId]);
 
   const handleNewSession = useCallback(() => {
     setShowProfileSelector(true);
@@ -176,6 +235,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               role: msg.type === "human" ? "user" : "assistant",
               content: msg.content,
               isThinking: false,
+              messageId: msg.message_id,
             }),
           );
           // Only seed history if we haven't already captured streaming output.
@@ -297,6 +357,14 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           setSessionId(null);
         }
         removeSession(sessionIdToDelete);
+        setStepCompletionBySession((prev) => {
+          if (!(sessionIdToDelete in prev)) {
+            return prev;
+          }
+          const next = { ...prev };
+          delete next[sessionIdToDelete];
+          return next;
+        });
       } catch (error) {
         console.error("Failed to delete session:", error);
       }
@@ -329,6 +397,43 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       );
     },
     [copyToClipboard, t],
+  );
+
+  const scrollToMessageId = useCallback(
+    (messageId: number) => {
+      if (!messageId || messageId < 0) {
+        notifyWarning(t("chat.progress.stepMessageMissing"));
+        return;
+      }
+      const container = chatScrollRef.current;
+      const target = container
+        ? (container.querySelector(
+            `[data-message-id="${messageId}"]`,
+          ) as HTMLElement | null)
+        : null;
+      if (!target) {
+        notifyWarning(t("chat.progress.stepMessageMissing"));
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [notifyWarning, t],
+  );
+
+  const handleStepClick = useCallback(
+    (stepIndex: number) => {
+      if (!sessionId) {
+        return;
+      }
+      const sessionMap = stepCompletionBySession[sessionId] || {};
+      const recordedMessageId = sessionMap[stepIndex];
+      if (!recordedMessageId) {
+        notifyWarning(t("chat.progress.stepMessageMissing"));
+        return;
+      }
+      scrollToMessageId(recordedMessageId - 1);
+    },
+    [notifyWarning, scrollToMessageId, sessionId, stepCompletionBySession, t],
   );
 
   const handleRegenerateMessage = useCallback(
@@ -580,6 +685,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           currentStep={sessionState.currentStep}
           curriculum={sessionState.curriculum}
           isProgressLoading={sessionState.isLoading}
+          onStepClick={handleStepClick}
           onToggleMaximize={handleMaximizeToggle}
           onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
           activePanel={activePanel}
@@ -603,6 +709,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           {isChatView ? (
             <Box
               className='chat-scrollable-container'
+              ref={chatScrollRef}
               sx={{
                 height: "100%",
                 overflow: "auto",

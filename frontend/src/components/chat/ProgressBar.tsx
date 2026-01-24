@@ -18,6 +18,7 @@ export interface ProgressBarProps {
   readonly currentStep: number;
   readonly curriculum: readonly SocraticStep[];
   readonly isLoading?: boolean;
+  readonly onStepClick?: (stepIndex: number) => void;
 }
 
 /**
@@ -27,7 +28,7 @@ export interface ProgressBarProps {
  * @returns React component
  */
 export function ProgressBar(props: ProgressBarProps): JSX.Element {
-  const { currentStep, curriculum, isLoading = false } = props;
+  const { currentStep, curriculum, isLoading = false, onStepClick } = props;
   const { t } = useTranslation();
 
   if (curriculum.length === 0) {
@@ -120,6 +121,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
           const isComplete = isFinished || index < currentStep;
           const isActive = index === currentStep && !isFinished;
           const dotColor = isComplete ? "primary.main" : "divider";
+          const isClickable = Boolean(onStepClick) && isComplete;
 
           return (
             <Tooltip
@@ -162,6 +164,22 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
             >
               <Box
                 component='span'
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : -1}
+                aria-disabled={isClickable ? undefined : true}
+                onClick={
+                  isClickable ? () => onStepClick?.(index) : undefined
+                }
+                onKeyDown={
+                  isClickable
+                    ? (event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onStepClick?.(index);
+                        }
+                      }
+                    : undefined
+                }
                 sx={{
                   width: 12,
                   height: 12,
@@ -171,7 +189,8 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
                   borderColor: isActive ? "primary.main" : "transparent",
                   zIndex: 1,
                   transition: "transform 0.2s ease",
-                  "&:hover": { transform: "scale(1.1)" },
+                  cursor: isClickable ? "pointer" : "default",
+                  "&:hover": isClickable ? { transform: "scale(1.1)" } : {},
                 }}
               />
             </Tooltip>
