@@ -582,7 +582,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         };
       });
 
-      return [{ value: defaultLlmOption, label: defaultLabel }, ...providerOptions];
+      return [
+        { value: defaultLlmOption, label: defaultLabel },
+        ...providerOptions,
+      ];
     },
     [defaultLlmOption, t],
   );
@@ -594,7 +597,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     } catch (error) {
       setLlmOptions(buildLlmOptions());
       notifyWarning(
-        error instanceof Error ? error.message : t("settings.messages.fetchFailed"),
+        error instanceof Error
+          ? error.message
+          : t("settings.messages.fetchFailed"),
       );
     }
   }, [buildLlmOptions, notifyWarning, t]);
@@ -666,7 +671,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     xs: "100%",
     sm: isMaximized ? "100%" : isChatView ? "80%" : "100%",
     md: isMaximized ? "100%" : isChatView ? "70%" : "100%",
-    lg: isMaximized ? "100%" : isChatView ? "60%" : "100%",
+    lg: isMaximized ? "100%" : isChatView ? "65%" : "100%",
   };
 
   return (
