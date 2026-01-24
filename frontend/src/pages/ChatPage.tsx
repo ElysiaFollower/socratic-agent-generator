@@ -24,7 +24,14 @@ import {
 } from "@mui/material";
 import { CircularProgress } from "../components/common/CircularProgress";
 import AssistantIcon from "@mui/icons-material/Assistant";
-import { Profile, SessionSummary, ChatMessage, ToolPanelView } from "../types";
+import {
+  Profile,
+  SessionSummary,
+  ChatMessage,
+  ToolPanelView,
+  StepCompletion,
+  LLMSettingsResponse,
+} from "../types";
 import {
   useProfiles,
   useSessions,
@@ -53,11 +60,14 @@ import {
   createSession,
   getSession,
   getWelcomeMessage,
+  getSessionStepCompletions,
   renameSession,
   deleteSession,
   getProfile,
+  getLLMSettings,
 } from "../api";
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../i18n";
+import { LLM_PROVIDERS } from "../utils/llmProviders";
 
 /**
  * Props for ChatPage component.
@@ -77,7 +87,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const { themeMode, onToggleTheme } = props;
   const { t } = useTranslation();
   const { user, logout } = useAuth();
-  const { notifySuccess, notifyError } = useNotification();
+  const { notifySuccess, notifyError, notifyWarning } = useNotification();
   const { copyToClipboard } = useClipboard();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showProfileSelector, setShowProfileSelector] =
@@ -93,6 +103,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] =
     useState<SupportedLanguage>("en");
+  const defaultLlmOption = "__default__";
+  const [llmOptions, setLlmOptions] = useState<
+    readonly { value: string; label: string }[]
+  >([{ value: defaultLlmOption, label: "默认" }]);
+  const [selectedLlm, setSelectedLlm] = useState<string>(defaultLlmOption);
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
   const sidebarDefaultRatio = 0.15;
@@ -112,6 +127,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     startX: number;
     startWidth: number;
   } | null>(null);
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [stepCompletionBySession, setStepCompletionBySession] = useState<
+    Record<string, Record<number, number>>
+  >({});
 
   const {
     profiles,
@@ -136,6 +155,25 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     void sessionState.refresh();
   }, [sessionState]);
 
+  const handleStepCompletion = useCallback(
+    (completion: StepCompletion, targetSessionId: string) => {
+      setStepCompletionBySession((prev) => {
+        const existing = prev[targetSessionId] || {};
+        if (existing[completion.step_index] === completion.message_id) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [targetSessionId]: {
+            ...existing,
+            [completion.step_index]: completion.message_id,
+          },
+        };
+      });
+    },
+    [],
+  );
+
   const {
     messages,
     setMessagesIfEmpty,
@@ -143,10 +181,39 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     sendMessage,
     setMessages,
     removeSession,
-  } = useChat(sessionId, handleStateUpdate);
+  } = useChat(sessionId, handleStateUpdate, handleStepCompletion);
 
   const currentSession =
     sessions.find((s) => s.session_id === sessionId) || null;
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+    let isActive = true;
+    const loadStepCompletions = async () => {
+      try {
+        const completions = await getSessionStepCompletions(sessionId);
+        if (!isActive) {
+          return;
+        }
+        const mapped: Record<number, number> = {};
+        completions.forEach((completion) => {
+          mapped[completion.step_index] = completion.message_id;
+        });
+        setStepCompletionBySession((prev) => ({
+          ...prev,
+          [sessionId]: mapped,
+        }));
+      } catch (error) {
+        console.error("Failed to load step completions:", error);
+      }
+    };
+    void loadStepCompletions();
+    return () => {
+      isActive = false;
+    };
+  }, [sessionId]);
 
   const handleNewSession = useCallback(() => {
     setShowProfileSelector(true);
@@ -176,6 +243,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               role: msg.type === "human" ? "user" : "assistant",
               content: msg.content,
               isThinking: false,
+              messageId: msg.message_id,
             }),
           );
           // Only seed history if we haven't already captured streaming output.
@@ -297,6 +365,14 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           setSessionId(null);
         }
         removeSession(sessionIdToDelete);
+        setStepCompletionBySession((prev) => {
+          if (!(sessionIdToDelete in prev)) {
+            return prev;
+          }
+          const next = { ...prev };
+          delete next[sessionIdToDelete];
+          return next;
+        });
       } catch (error) {
         console.error("Failed to delete session:", error);
       }
@@ -314,8 +390,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       return;
     }
     setInputValue("");
-    await sendMessage(message);
-  }, [inputValue, sendMessage]);
+    const providerOverride =
+      selectedLlm === defaultLlmOption ? undefined : selectedLlm;
+    await sendMessage(message, { provider: providerOverride });
+  }, [inputValue, sendMessage, selectedLlm, defaultLlmOption]);
 
   const handleCopyMessage = useCallback(
     async (message: ChatMessage) => {
@@ -329,6 +407,43 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       );
     },
     [copyToClipboard, t],
+  );
+
+  const scrollToMessageId = useCallback(
+    (messageId: number) => {
+      if (!messageId || messageId < 0) {
+        notifyWarning(t("chat.progress.stepMessageMissing"));
+        return;
+      }
+      const container = chatScrollRef.current;
+      const target = container
+        ? (container.querySelector(
+            `[data-message-id="${messageId}"]`,
+          ) as HTMLElement | null)
+        : null;
+      if (!target) {
+        notifyWarning(t("chat.progress.stepMessageMissing"));
+        return;
+      }
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [notifyWarning, t],
+  );
+
+  const handleStepClick = useCallback(
+    (stepIndex: number) => {
+      if (!sessionId) {
+        return;
+      }
+      const sessionMap = stepCompletionBySession[sessionId] || {};
+      const recordedMessageId = sessionMap[stepIndex];
+      if (!recordedMessageId) {
+        notifyWarning(t("chat.progress.stepMessageMissing"));
+        return;
+      }
+      scrollToMessageId(recordedMessageId - 1);
+    },
+    [notifyWarning, scrollToMessageId, sessionId, stepCompletionBySession, t],
   );
 
   const handleRegenerateMessage = useCallback(
@@ -358,7 +473,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         return;
       }
       setMessages(messages.slice(0, userIndex + 1), sessionId);
-      await sendMessage(userMessage.content, { appendUserMessage: false });
+      const providerOverride =
+        selectedLlm === defaultLlmOption ? undefined : selectedLlm;
+      await sendMessage(userMessage.content, {
+        appendUserMessage: false,
+        provider: providerOverride,
+      });
     },
     [
       chatLoading,
@@ -368,6 +488,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       sessionId,
       setMessages,
       t,
+      selectedLlm,
+      defaultLlmOption,
     ],
   );
 
@@ -430,6 +552,65 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     [refreshProfiles],
   );
 
+  const buildLlmOptions = useCallback(
+    (settings?: LLMSettingsResponse) => {
+      const defaultProviderLabel = settings
+        ? LLM_PROVIDERS.find(
+            (provider) => provider.value === settings.default_provider,
+          )?.label
+        : undefined;
+
+      const defaultLabel = defaultProviderLabel
+        ? t("chat.llmDefaultWithProvider", { provider: defaultProviderLabel })
+        : t("chat.llmDefault");
+
+      const providerModels =
+        settings?.providers.reduce<Record<string, string | null>>(
+          (acc, provider) => {
+            acc[provider.provider] = provider.model ?? null;
+            return acc;
+          },
+          {},
+        ) || {};
+
+      const providerOptions = LLM_PROVIDERS.map((provider) => {
+        const modelLabel =
+          providerModels[provider.value] || provider.defaultModel;
+        return {
+          value: provider.value,
+          label: `${provider.label} · ${modelLabel}`,
+        };
+      });
+
+      return [
+        { value: defaultLlmOption, label: defaultLabel },
+        ...providerOptions,
+      ];
+    },
+    [defaultLlmOption, t],
+  );
+
+  const refreshLlmSettings = useCallback(async () => {
+    try {
+      const settings = await getLLMSettings();
+      setLlmOptions(buildLlmOptions(settings));
+    } catch (error) {
+      setLlmOptions(buildLlmOptions());
+      notifyWarning(
+        error instanceof Error
+          ? error.message
+          : t("settings.messages.fetchFailed"),
+      );
+    }
+  }, [buildLlmOptions, notifyWarning, t]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    void refreshLlmSettings();
+  }, [user, refreshLlmSettings]);
+
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
       if (!resizeState.current) {
@@ -490,7 +671,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     xs: "100%",
     sm: isMaximized ? "100%" : isChatView ? "80%" : "100%",
     md: isMaximized ? "100%" : isChatView ? "70%" : "100%",
-    lg: isMaximized ? "100%" : isChatView ? "60%" : "100%",
+    lg: isMaximized ? "100%" : isChatView ? "65%" : "100%",
   };
 
   return (
@@ -580,6 +761,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           currentStep={sessionState.currentStep}
           curriculum={sessionState.curriculum}
           isProgressLoading={sessionState.isLoading}
+          onStepClick={handleStepClick}
           onToggleMaximize={handleMaximizeToggle}
           onToggleCollapse={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
           activePanel={activePanel}
@@ -602,7 +784,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         >
           {isChatView ? (
             <Box
-              className="chat-scrollable-container"
+              className='chat-scrollable-container'
+              ref={chatScrollRef}
               sx={{
                 height: "100%",
                 overflow: "auto",
@@ -616,6 +799,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                   width: "100%",
                   maxWidth: contentMaxWidth,
                   mx: isMaximized ? 0 : "auto",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
                 <MessageList
@@ -631,6 +817,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               sx={{
                 height: "100%",
                 overflow: "auto",
+                px: 1,
                 scrollbarWidth: "none",
                 "&::-webkit-scrollbar": {
                   display: "none",
@@ -783,6 +970,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 }
                 onChange={handleInputChange}
                 onSend={handleSend}
+                llmOptions={llmOptions}
+                selectedLlm={selectedLlm}
+                onLlmChange={setSelectedLlm}
               />
             </Box>
           </Box>
@@ -803,6 +993,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+        onSettingsUpdated={refreshLlmSettings}
       />
 
       {/* Profile Detail Dialog */}

@@ -16,10 +16,7 @@ import {
   Typography,
   Tooltip,
 } from "@mui/material";
-import {
-  ContentCopy,
-  Replay,
-} from "@mui/icons-material";
+import { ContentCopy, Replay } from "@mui/icons-material";
 import { CircularProgress } from "../common/CircularProgress";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -85,7 +82,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
   }
 
   return (
-    <Stack spacing={2} sx={{ width: "100%", px: 0 }}>
+    <Stack spacing={2} sx={{ width: "100%", px: 0, flex: 1 }}>
       {messages.map((message, index) => {
         const isUser = message.role === "user";
         const showActions =
@@ -161,6 +158,7 @@ export function MessageList(props: MessageListProps): JSX.Element {
         return (
           <Box
             key={index}
+            data-message-id={message.messageId}
             sx={{
               display: "flex",
               justifyContent: isUser ? "flex-end" : "flex-start",

@@ -56,6 +56,7 @@ export interface HeaderProps {
   readonly currentStep: number;
   readonly curriculum: readonly SocraticStep[];
   readonly isProgressLoading: boolean;
+  readonly onStepClick?: (stepIndex: number) => void;
   readonly onToggleMaximize: () => void;
   readonly onToggleCollapse: () => void;
   readonly activePanel: ToolPanelView;
@@ -83,6 +84,7 @@ export function Header(props: HeaderProps): JSX.Element {
     currentStep,
     curriculum,
     isProgressLoading,
+    onStepClick,
     onToggleMaximize,
     onToggleCollapse,
     activePanel,
@@ -381,6 +383,7 @@ export function Header(props: HeaderProps): JSX.Element {
               currentStep={currentStep}
               curriculum={curriculum}
               isLoading={isProgressLoading}
+              onStepClick={onStepClick}
             />
           </Box>
         </Collapse>

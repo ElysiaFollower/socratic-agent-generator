@@ -8,10 +8,17 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.routes.auth import get_current_user
-from core.dependencies import ProfileManagerDep, SessionManagerDep, TutorManagerDep, ClassManagerDep
+from core.dependencies import (
+    ProfileManagerDep,
+    SessionManagerDep,
+    TutorManagerDep,
+    ClassManagerDep,
+    StepCompletionManagerDep,
+)
 from core.exceptions import ProfileNotFoundError, SessionNotFoundError
 from schemas.message import CreateSessionRequest, RenameSessionRequest, UpdateSessionLanguageRequest
 from schemas.session import Session, SessionSummary
+from schemas.step_completion import StepCompletion
 from schemas.user import User
 
 router = APIRouter(prefix="/api/sessions", tags=["Session"])
@@ -108,6 +115,32 @@ def get_session(
         )
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.get(
+    "/{session_id}/step-completions",
+    response_model=List[StepCompletion],
+    summary="获取会话的步骤完成记录",
+)
+def list_step_completions(
+    session_id: str,
+    session_manager: SessionManagerDep,
+    step_completion_manager: StepCompletionManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> List[StepCompletion]:
+    """List step completion records for a session."""
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    records = step_completion_manager.list_completions(session_id)
+    return [
+        StepCompletion(step_index=record.step_index, message_id=record.message_id)
+        for record in records
+    ]
 
 
 @router.put("/{session_id}/rename", summary="重命名会话")

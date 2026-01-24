@@ -17,6 +17,7 @@ from utils import document_manager
 from utils import user_manager
 from utils import class_manager
 from utils import custom_skill_manager
+from utils import step_completion_manager
 
 # Singleton for TutorManager (memory cache)
 _tutor_manager_instance: tutor_manager.TutorManager = None
@@ -94,6 +95,13 @@ def get_custom_skill_manager(
     return custom_skill_manager.CustomSkillManager(db)
 
 
+def get_step_completion_manager(
+    db: Session = Depends(get_db),
+) -> step_completion_manager.StepCompletionManager:
+    """Get StepCompletionManager instance with request-scoped DB session."""
+    return step_completion_manager.StepCompletionManager(db)
+
+
 # Type aliases for dependency injection
 ProfileManagerDep = Annotated[
     profile_manager.ProfileManager, Depends(get_profile_manager)
@@ -115,4 +123,8 @@ ClassManagerDep = Annotated[
 ]
 CustomSkillManagerDep = Annotated[
     custom_skill_manager.CustomSkillManager, Depends(get_custom_skill_manager)
+]
+StepCompletionManagerDep = Annotated[
+    step_completion_manager.StepCompletionManager,
+    Depends(get_step_completion_manager),
 ]

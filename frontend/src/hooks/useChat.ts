@@ -6,7 +6,7 @@
  */
 
 import {useState, useCallback, useRef} from 'react';
-import {ChatMessage} from '../types';
+import {ChatMessage, StepCompletion} from '../types';
 import {sendMessageStream} from '../api/tutor';
 import {getRandomThinkingMessage} from '../utils/constants';
 
@@ -22,7 +22,11 @@ export interface UseChatReturn {
   readonly errorBySession: Readonly<Record<string, string | null>>;
   readonly sendMessage: (
     message: string,
-    options?: {readonly appendUserMessage?: boolean},
+    options?: {
+      readonly appendUserMessage?: boolean;
+      readonly provider?: string;
+      readonly model?: string;
+    },
   ) => Promise<void>;
   readonly clearMessages: (targetSessionId?: string | null) => void;
   readonly setMessages: (
@@ -46,6 +50,10 @@ export interface UseChatReturn {
 export function useChat(
   sessionId: string | null,
   onStateUpdate?: () => void,
+  onStepCompletion?: (
+    completion: StepCompletion,
+    targetSessionId: string,
+  ) => void,
 ): UseChatReturn {
   const [messagesBySession, setMessagesBySession] = useState<
     Record<string, readonly ChatMessage[]>
@@ -79,10 +87,55 @@ export function useChat(
     [],
   );
 
+  const applyMessageIds = useCallback(
+    (targetSessionId: string, assistantMessageId: number) => {
+      if (!assistantMessageId || assistantMessageId < 1) {
+        return;
+      }
+      updateSessionMessages(targetSessionId, (prev) => {
+        const newMessages = [...prev];
+        let assistantIndex = -1;
+        for (let i = newMessages.length - 1; i >= 0; i -= 1) {
+          if (newMessages[i]?.role === 'assistant') {
+            assistantIndex = i;
+            break;
+          }
+        }
+        if (assistantIndex < 0) {
+          return prev;
+        }
+        const assistantMessage = newMessages[assistantIndex];
+        if (!assistantMessage.messageId) {
+          newMessages[assistantIndex] = {
+            ...assistantMessage,
+            messageId: assistantMessageId,
+          };
+        }
+        for (let i = assistantIndex - 1; i >= 0; i -= 1) {
+          if (newMessages[i]?.role === 'user') {
+            if (!newMessages[i].messageId) {
+              newMessages[i] = {
+                ...newMessages[i],
+                messageId: assistantMessageId - 1,
+              };
+            }
+            break;
+          }
+        }
+        return newMessages;
+      });
+    },
+    [updateSessionMessages],
+  );
+
   const sendMessage = useCallback(
     async (
       message: string,
-      options?: {readonly appendUserMessage?: boolean},
+      options?: {
+        readonly appendUserMessage?: boolean;
+        readonly provider?: string;
+        readonly model?: string;
+      },
     ) => {
       if (!sessionId || !message.trim()) {
         return;
@@ -122,6 +175,7 @@ export function useChat(
         await sendMessageStream(
           targetSessionId,
           userMsg,
+          { provider: options?.provider, model: options?.model },
           // onToken: Update message content in real-time
           (token: string) => {
             streamContentRef.current[targetSessionId] =
@@ -143,11 +197,17 @@ export function useChat(
             });
           },
           // onComplete: Stream finished
-          () => {
+          (response) => {
             setIsLoadingBySession((prev) => ({
               ...prev,
               [targetSessionId]: false,
             }));
+            if (response.message_id) {
+              applyMessageIds(targetSessionId, response.message_id);
+            }
+            if (response.step_completion && onStepCompletion) {
+              onStepCompletion(response.step_completion, targetSessionId);
+            }
             if (onStateUpdate) {
               onStateUpdate();
             }
@@ -209,7 +269,13 @@ export function useChat(
         }));
       }
     },
-    [sessionId, onStateUpdate, updateSessionMessages],
+    [
+      sessionId,
+      onStateUpdate,
+      onStepCompletion,
+      applyMessageIds,
+      updateSessionMessages,
+    ],
   );
 
   const clearMessages = useCallback((targetSessionId?: string | null) => {
@@ -310,4 +376,3 @@ export function useChat(
     removeSession,
   };
 }
-

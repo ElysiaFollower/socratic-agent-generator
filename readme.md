@@ -1,5 +1,7 @@
 # Socratic Agent Generator
 
+> [中文版本](docs/README.zh.md)
+
 An intelligent tutoring system based on the Socratic method that automatically converts technical lab manuals into personalized AI tutors, providing progressive dialogue-based learning experiences through an interactive web interface.
 
 ## Overview
@@ -9,6 +11,7 @@ An intelligent tutoring system based on the Socratic method that automatically c
 The key contribution of this system is **automated transformation of static, passive technical lab manuals into interactive, node-structured Socratic tutoring agents**. Unlike existing approaches that require manual tutor configuration, this system enables **one-click conversion** from documents to deployable AI tutors while maintaining human oversight for pedagogical rigor.
 
 **The transformation process**:
+
 1. **Upload Document**: Provide a technical lab manual (Markdown/PDF)
 2. **Automated Generation**: AI analyzes the document and **creates** (not just extracts):
    - **Persona**: A unique teaching character with dialogue style and pedagogical approach
@@ -35,7 +38,7 @@ The key contribution of this system is **automated transformation of static, pas
 
 Built on **Python 3.8+**, **FastAPI**, and **LangChain**:
 
-- **Profile Generators** (`generators/`): 
+- **Profile Generators** (`generators/`):
   - `PersonaGenerator`: Creates teaching personas from technical documents (transforms technical features into dialogue styles)
   - `CurriculumGenerator`: Creates structured Socratic curricula (transforms technical dependencies into pedagogical logic)
   - `ProfileGenerateManager`: Orchestrates the generation pipeline
@@ -79,7 +82,7 @@ SessionManager → SQLite (sessions table)
 
 - Python 3.8+
 - Node.js 18+
-- DeepSeek API Key ([platform.deepseek.com](https://platform.deepseek.com/))
+- An API key from a supported LLM provider (optional if users will configure their own keys)
 
 ### Installation
 
@@ -91,9 +94,12 @@ cd socratic-agent-generator
 # Configure environment variables
 cp .env.example .env
 # Edit .env and configure the following required variables:
-#   - DEEPSEEK_API_KEY: Your DeepSeek API key (required for LLM functionality)
 #   - JWT_SECRET_KEY: Secret key for JWT token signing (required for authentication)
 #   - ADMIN_TOKEN: Secret token for admin registration (required - must be set in .env before registering admin accounts)
+# Optional LLM presets (shared by all users unless they configure their own key in Settings):
+#   - DEEPSEEK_API_KEY / OPENAI_API_KEY / GLM_API_KEY / MINIMAX_API_KEY
+#   - DEFAULT_LLM_PROVIDER: Default provider used when no user-specific key is set
+#   - LLM_API_KEY_ENCRYPTION_KEY: Encryption key for storing user-configured API keys in the database
 
 # Install backend dependencies
 conda create -n SocraticAgent python=3.9 -y
@@ -118,6 +124,13 @@ Database is automatically initialized on first startup. Access the application a
 
 **Important**: To register an admin account, you **must** configure `ADMIN_TOKEN` in your `.env` file before starting the backend server. The admin registration form will require this token. If `ADMIN_TOKEN` is not set in `.env`, admin registration will fail with an error.
 
+## LLM Configuration
+
+- Env API keys act as **global presets** shared by all users.
+- Users can add their own API keys in the **Settings** panel; per-user keys take priority over presets.
+- `DEFAULT_LLM_PROVIDER` is used when a user has not selected a provider.
+- User-configured keys are stored **encrypted** in the database (controlled by `LLM_API_KEY_ENCRYPTION_KEY`).
+
 ## Usage
 
 ### Creating AI Tutors
@@ -132,12 +145,14 @@ Database is automatically initialized on first startup. Access the application a
 3. **Deploy & Learn**: The generated Profile becomes a complete tutor ready for interactive learning sessions
 
 **Web Interface** (Recommended):
+
 - Upload lab manual via web interface
 - System automatically generates Persona and Curriculum
 - Review and modify generated components before finalizing
 - Profile saved to database and ready for deployment
 
 **CLI Tool** (`src/main.py`):
+
 ```bash
 # Place lab manual at: data/documents/{lab_name}/lab_manual.md
 # Requires existing admin user in database (uses first admin as owner)
@@ -145,8 +160,9 @@ python src/main.py [lab_name]
 ```
 
 Interactive commands:
+
 - `[rp]` / `regenerate-persona`: Regenerate persona
-- `[rc]` / `regenerate-curriculum`: Regenerate curriculum  
+- `[rc]` / `regenerate-curriculum`: Regenerate curriculum
 - `[c]` / `continue`: Compile and save profile to database
 - `[q]` / `quit`: Exit
 
@@ -181,7 +197,7 @@ Full API documentation available at `http://localhost:8000/docs` (Swagger UI).
 
 ## License
 
-MIT License. 
+MIT License.
 
 ## Contact
 

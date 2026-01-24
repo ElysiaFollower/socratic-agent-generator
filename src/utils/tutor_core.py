@@ -13,10 +13,11 @@ import logging
 import asyncio
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union, Tuple
 
 import pytz
 from langchain_community.chat_message_histories import ChatMessageHistory
+from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
@@ -34,6 +35,7 @@ from core.database import SessionLocal
 from schemas.message import ResponseMessage
 from schemas.profile import Profile
 from schemas.session import Session
+from schemas.step_completion import StepCompletion
 from utils.session_manager import SessionManager
 from utils.skills import (
     AssessmentSkill,
@@ -43,7 +45,9 @@ from utils.skills import (
 from utils.custom_skill_runtime import CustomDbSkill
 from utils.custom_skill_manager import CustomSkillManager
 from utils.step_evaluator import EvaluationResult, StepEvaluator
+from utils.step_completion_manager import StepCompletionManager
 from utils.template_assembler import PromptAssembler
+from utils.llm_manager import get_llm_manager
 
 logger = logging.getLogger(__name__)
 
@@ -67,7 +71,14 @@ class Tutor:
             llm: Optional LLM instance. If None, uses default LLM from config.
         """
         self.session = session
+        self.user_id = session.owner_id
+        self._llm_manager = get_llm_manager()
         self.llm = llm or get_default_llm()
+        self._chain_cache: Dict[Tuple[str, str], RunnableWithMessageHistory] = {}
+        self._llm_cache: Dict[Tuple[str, str], Any] = {}
+        self._current_provider: Optional[str] = None
+        self._current_model: Optional[str] = None
+        self._next_message_id = 1
         self.history = self._restore_history_from_session()
         self.truncate_history_note = (
             f"History is truncated under max_history_tokens: "
@@ -113,6 +124,7 @@ class Tutor:
             self.assessment_skill.get_tool(),
         ]
         tools.extend([skill.get_tool() for skill in self.custom_skills])
+        self.tools = tools
 
         # Main prompt template
         main_prompt = ChatPromptTemplate.from_messages(
@@ -124,33 +136,67 @@ class Tutor:
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
         )
+        self.main_prompt = main_prompt
 
-        # Main agent chain (without history)
+        logger.info("Tutor initialized for session: %s", session.session_id)
+
+    def _create_agent_executor(self, llm: Any):
+        """Create a tool-calling agent executor for the given LLM."""
         try:
             from langchain.agents import create_tool_calling_agent
             from langchain.agents import AgentExecutor
         except ImportError:
-            # Fallback for some environment configurations
             from langchain_classic.agents import create_tool_calling_agent
             from langchain_classic.agents import AgentExecutor
 
-        agent = create_tool_calling_agent(self.llm, tools, main_prompt)
-        self.agent_executor = AgentExecutor(
+        agent = create_tool_calling_agent(llm, self.tools, self.main_prompt)
+        return AgentExecutor(
             agent=agent,
-            tools=tools,
+            tools=self.tools,
             verbose=LANGCHAIN_VERBOSE,
             handle_parsing_errors=True,
             max_iterations=LANGCHAIN_MAX_ITERATIONS,
         )
 
-        # Main agent chain with history
-        self.main_chain_with_history = RunnableWithMessageHistory(
-            self.agent_executor,
+    def _get_chain(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> RunnableWithMessageHistory:
+        """Get a chain for the selected provider/model."""
+        cache_key = (provider or "default", model or "default")
+        cached = self._chain_cache.get(cache_key)
+        if cached:
+            self.llm = self._llm_cache.get(cache_key, self.llm)
+            return cached
+        if not self.user_id:
+            llm = self.llm
+        else:
+            llm = self._llm_manager.get_llm(self.user_id, provider, model)
+        self._llm_cache[cache_key] = llm
+        self.llm = llm
+        executor = self._create_agent_executor(llm)
+        chain = RunnableWithMessageHistory(
+            executor,
             lambda sid: self.truncated_history,
             input_messages_key="input",
             history_messages_key="history",
         )
-        logger.info("Tutor initialized for session: %s", session.session_id)
+        self._chain_cache[cache_key] = chain
+        return chain
+
+    def _select_llm(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> RunnableWithMessageHistory:
+        """Select LLM for this request and return the chain."""
+        self._current_provider = provider
+        self._current_model = model
+        chain = self._get_chain(provider, model)
+        # Recompute token counts for the selected LLM tokenizer.
+        self.current_history_tokens = self._get_current_history_tokens(self.history)
+        return chain
 
     @classmethod
     def from_id(
@@ -204,23 +250,62 @@ class Tutor:
     def _restore_history_from_session(self) -> ChatMessageHistory:
         """Restore conversation history from session."""
         history = ChatMessageHistory()
+        next_message_id = self._next_message_id
         for msg in self.session.history:
             msg_type = msg.get("type")
             content = msg.get("content", "")
+            message_id = msg.get("message_id")
+            if not isinstance(message_id, int):
+                message_id = next_message_id
+                next_message_id += 1
+            else:
+                next_message_id = max(next_message_id, message_id + 1)
             if msg_type == "human":
-                history.add_user_message(content)
+                message = HumanMessage(
+                    content=content,
+                    additional_kwargs={"message_id": message_id},
+                )
+                self._append_history_message(history, message)
             elif msg_type == "ai":
-                history.add_ai_message(content)
+                message = AIMessage(
+                    content=content,
+                    additional_kwargs={"message_id": message_id},
+                )
+                self._append_history_message(history, message)
             else:
                 raise ValueError(f"Unknown message type: {msg}")
+        self._next_message_id = next_message_id
         return history
 
     def _save_history_to_session(self) -> None:
         """Save conversation history to session."""
-        self.session.history = [
-            {"type": msg.type, "content": msg.content}
-            for msg in self.history.messages
-        ]
+        history_payload = []
+        for msg in self.history.messages:
+            message_id = None
+            if hasattr(msg, "additional_kwargs") and isinstance(
+                msg.additional_kwargs, dict
+            ):
+                message_id = msg.additional_kwargs.get("message_id")
+            if not isinstance(message_id, int):
+                message_id = self._next_message_id
+                self._next_message_id += 1
+                if hasattr(msg, "additional_kwargs") and isinstance(
+                    msg.additional_kwargs, dict
+                ):
+                    msg.additional_kwargs["message_id"] = message_id
+            history_payload.append(
+                {"type": msg.type, "content": msg.content, "message_id": message_id}
+            )
+        self.session.history = history_payload
+
+    def _append_history_message(
+        self, history: ChatMessageHistory, message: Any
+    ) -> None:
+        """Append a message object to history."""
+        if hasattr(history, "add_message"):
+            history.add_message(message)
+            return
+        history.messages.append(message)
 
     def _get_current_history_tokens(self, history: ChatMessageHistory) -> int:
         """Calculate total tokens in conversation history."""
@@ -276,17 +361,27 @@ class Tutor:
         
         return history
     
-    def _add_message_to_history(self, message: str, role: str) -> None:
+    def _add_message_to_history(self, message: str, role: str) -> int:
         """Add a message to history and update token count incrementally.
         
         Args:
             message: Message content to add.
             role: Message role ("human" or "ai").
         """
+        message_id = self._next_message_id
+        self._next_message_id += 1
         if role == "human":
-            self.history.add_user_message(message)
+            history_message = HumanMessage(
+                content=message,
+                additional_kwargs={"message_id": message_id},
+            )
+            self._append_history_message(self.history, history_message)
         elif role == "ai":
-            self.history.add_ai_message(message)
+            history_message = AIMessage(
+                content=message,
+                additional_kwargs={"message_id": message_id},
+            )
+            self._append_history_message(self.history, history_message)
         else:
             raise ValueError(f"Unknown message role: {role}")
         
@@ -295,6 +390,25 @@ class Tutor:
         self.current_history_tokens = (
             self.current_history_tokens or 0
         ) + message_tokens
+        return message_id
+
+    def _record_step_completion(self, step_index: int, message_id: int) -> None:
+        """Persist a step completion record."""
+        try:
+            with SessionLocal() as db:
+                manager = StepCompletionManager(db)
+                manager.record_completion(
+                    self.session.session_id,
+                    step_index,
+                    message_id,
+                )
+        except Exception as exc:
+            logger.warning(
+                "Failed to record step completion: session=%s step=%d error=%s",
+                self.session.session_id,
+                step_index,
+                exc,
+            )
 
     def extract_step_context(self, max_tokens: int = 2000) -> List[Dict[str, str]]:
         """Extract conversation context for evaluation.
@@ -475,8 +589,9 @@ class Tutor:
         # The input is only used to satisfy the prompt template requirement.
         transition_input = "[系统触发：请生成过渡消息]"
 
+        chain = self._get_chain(self._current_provider, self._current_model)
         reply = ""
-        async for event in self.main_chain_with_history.astream_events(
+        async for event in chain.astream_events(
             {
                 "system_prompt_with_state": formatted_system_prompt,
                 "truncate_history_note": (
@@ -519,8 +634,14 @@ class Tutor:
         else:
             return f"你好！今天我们来挑战一下\"{topic_name}\"。准备好了吗？"
 
-    def process_message(self, user_input: str) -> ResponseMessage:
+    def process_message(
+        self,
+        user_input: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> ResponseMessage:
         """Process a single user message synchronously."""
+        chain = self._select_llm(provider, model)
         self.truncated_history = self._truncate_history(self.truncated_history)
 
         # Handle cheat code
@@ -577,7 +698,7 @@ class Tutor:
             ],
         )
 
-        result = self.main_chain_with_history.invoke(
+        result = chain.invoke(
             {
                 "system_prompt_with_state": formatted_system_prompt,
                 "truncate_history_note": self.truncate_history_note,
@@ -590,7 +711,7 @@ class Tutor:
 
         # Add messages to history with incremental token counting
         self._add_message_to_history(user_input, "human")
-        self._add_message_to_history(response, "ai")
+        assistant_message_id = self._add_message_to_history(response, "ai")
 
         self.save()
 
@@ -598,10 +719,14 @@ class Tutor:
             reply=response,
             state=self.session.state,
             is_finished=False,
+            message_id=assistant_message_id,
         )
 
     async def stream_message(
-        self, user_input: str
+        self,
+        user_input: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> AsyncGenerator[Union[str, ResponseMessage], None]:
         """Process a user message and stream the response.
 
@@ -614,7 +739,10 @@ class Tutor:
         6. Clear evaluation lock
         7. If evaluation passed, generate transition message
         """
+        chain = self._select_llm(provider, model)
         reply = ""
+        assistant_message_id: Optional[int] = None
+        step_completion_info: Optional[StepCompletion] = None
         self.truncated_history = self._truncate_history(self.truncated_history)
 
         if user_input == CHEAT_CODE:
@@ -722,7 +850,7 @@ class Tutor:
             tool_call_in_progress = False
             tool_call_completed = False
             try:
-                async for event in self.main_chain_with_history.astream_events(
+                async for event in chain.astream_events(
                     {
                         "system_prompt_with_state": formatted_system_prompt,
                         "truncate_history_note": self.truncate_history_note,
@@ -948,7 +1076,7 @@ class Tutor:
             # Add AI response to history with incremental token counting
             # Only add non-empty replies to history
             if reply:
-                self._add_message_to_history(reply, "ai")
+                assistant_message_id = self._add_message_to_history(reply, "ai")
 
             # Wait for evaluation to complete
             evaluation_result = await evaluation_task
@@ -964,6 +1092,15 @@ class Tutor:
                     evaluation_result.confidence,
                     EVALUATION_PASS_THRESHOLD,
                 )
+                completed_step_index = self.session.state.stepIndex
+                if assistant_message_id is not None:
+                    self._record_step_completion(
+                        completed_step_index, assistant_message_id
+                    )
+                    step_completion_info = StepCompletion(
+                        step_index=completed_step_index,
+                        message_id=assistant_message_id,
+                    )
                 # Advance step using unified method
                 self._advance_step()
                 await self.async_save()
@@ -1010,4 +1147,6 @@ class Tutor:
             reply=reply,
             state=self.session.state,
             is_finished=False,
+            message_id=assistant_message_id,
+            step_completion=step_completion_info,
         )

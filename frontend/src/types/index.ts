@@ -49,10 +49,11 @@ export interface Profile {
  * Represents a chat message in the conversation history.
  */
 export interface ChatMessage {
-  readonly role: 'user' | 'assistant';
+  readonly role: "user" | "assistant";
   readonly content: string;
   readonly isThinking?: boolean;
   readonly thinkingMessage?: string;
+  readonly messageId?: number;
 }
 
 /**
@@ -60,9 +61,10 @@ export interface ChatMessage {
  * Backend returns messages with type "human" (user) or "ai" (assistant).
  */
 export interface SessionHistoryMessage {
-  readonly type: 'human' | 'ai';
+  readonly type: "human" | "ai";
   readonly content: string;
   readonly timestamp?: string;
+  readonly message_id?: number;
 }
 
 /**
@@ -108,6 +110,8 @@ export interface CreateSessionRequest {
  */
 export interface MessageRequest {
   readonly message: string;
+  readonly provider?: string;
+  readonly model?: string;
 }
 
 /**
@@ -126,6 +130,8 @@ export interface SendMessageResponse {
     readonly stepIndex: number;
   };
   readonly is_finished: boolean;
+  readonly message_id?: number;
+  readonly step_completion?: StepCompletion;
 }
 
 /**
@@ -138,10 +144,59 @@ export interface SessionState {
 }
 
 /**
+ * Represents a step completion mapping.
+ */
+export interface StepCompletion {
+  readonly step_index: number;
+  readonly message_id: number;
+}
+
+/**
  * Welcome message response.
  */
 export interface WelcomeMessageResponse {
   readonly welcome: string;
+}
+
+/**
+ * LLM provider status for settings UI.
+ */
+export interface LLMProviderStatus {
+  readonly provider: string;
+  readonly has_api_key: boolean;
+  readonly model?: string | null;
+  readonly source?: "user" | "preset" | "none";
+}
+
+/**
+ * LLM settings response.
+ */
+export interface LLMSettingsResponse {
+  readonly providers: readonly LLMProviderStatus[];
+  readonly default_provider: string;
+  readonly default_model?: string | null;
+}
+
+export interface SaveLLMProviderRequest {
+  readonly provider: string;
+  readonly api_key: string;
+  readonly model?: string;
+}
+
+export interface SetDefaultLLMProviderRequest {
+  readonly provider: string;
+  readonly model?: string;
+}
+
+export interface TestLLMLatencyRequest {
+  readonly provider: string;
+  readonly api_key: string;
+  readonly model?: string;
+}
+
+export interface TestLLMLatencyResponse {
+  readonly ok: boolean;
+  readonly latency_ms?: number;
 }
 
 /**
@@ -154,18 +209,18 @@ export interface HealthCheckResponse {
 /**
  * User role types.
  */
-export type UserRole = 'admin' | 'teacher' | 'student';
+export type UserRole = "admin" | "teacher" | "student";
 
 /**
  * Main workspace panel views.
  */
 export type ToolPanelView =
-  | 'chat'
-  | 'invitation'
-  | 'lab-manual'
-  | 'skill'
-  | 'profile'
-  | 'class';
+  | "chat"
+  | "invitation"
+  | "lab-manual"
+  | "skill"
+  | "profile"
+  | "class";
 
 /**
  * Represents a class managed by teachers and joined by students.
@@ -176,7 +231,7 @@ export interface ClassInfo {
   readonly owner_id: string;
   readonly created_at: string;
   readonly updated_at: string;
-  readonly role_in_class?: 'teacher' | 'student';
+  readonly role_in_class?: "teacher" | "student";
 }
 
 /**
@@ -186,7 +241,7 @@ export interface ClassMemberInfo {
   readonly user_id: string;
   readonly username: string;
   readonly display_name?: string;
-  readonly role_in_class: 'teacher' | 'student';
+  readonly role_in_class: "teacher" | "student";
   readonly joined_at: string;
 }
 

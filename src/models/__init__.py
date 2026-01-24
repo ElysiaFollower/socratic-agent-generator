@@ -11,3 +11,5 @@ from .skill_material import SkillMaterial
 from .custom_skill import CustomSkill
 from .custom_skill_material import CustomSkillMaterial
 from .custom_skill_chunk import CustomSkillChunk
+from .step_completion import StepCompletionModel
+from .llm_provider_setting import LLMProviderSetting, UserLLMPreference
