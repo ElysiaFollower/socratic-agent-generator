@@ -131,7 +131,8 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
                     sx={{
                       fontWeight: 600,
                       display: "flex",
-                      alignItems: "center",
+                      pt: 1,
+                      alignItems: "flex-start",
                     }}
                   >
                     {isComplete ? (
@@ -153,7 +154,7 @@ export function ProgressBar(props: ProgressBarProps): JSX.Element {
               slotProps={{
                 tooltip: {
                   sx: {
-                    maxWidth: "30vw",
+                    maxWidth: "40vw",
                   },
                 },
               }}

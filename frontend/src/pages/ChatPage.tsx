@@ -602,7 +602,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         >
           {isChatView ? (
             <Box
-              className="chat-scrollable-container"
+              className='chat-scrollable-container'
               sx={{
                 height: "100%",
                 overflow: "auto",
@@ -616,6 +616,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                   width: "100%",
                   maxWidth: contentMaxWidth,
                   mx: isMaximized ? 0 : "auto",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
                 }}
               >
                 <MessageList
