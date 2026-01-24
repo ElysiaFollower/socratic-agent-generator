@@ -54,6 +54,19 @@ def save_llm_settings(
     return {"success": True}
 
 
+@router.delete("/llm/{provider}", summary="删除单个供应商配置")
+def delete_llm_settings(
+    provider: str,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, bool]:
+    manager = get_llm_manager()
+    try:
+        manager.delete_provider_setting(current_user.user_id, provider)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return {"success": True}
+
+
 @router.post("/llm/default", summary="设置默认供应商")
 def set_default_provider(
     req: LLMDefaultRequest,

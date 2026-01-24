@@ -75,9 +75,11 @@
     "llm": {
       "defaultProvider": "Default provider",
       "providerConfig": "Provider configuration",
+      "providerList": "Provider list",
       "provider": "Provider",
       "status": "Status",
       "configured": "Configured",
+      "preset": "Preset",
       "notConfigured": "Not configured",
       "apiKey": "API Key",
       "modelOptional": "Model (optional)",
@@ -96,12 +98,14 @@
       "fetchFailed": "Failed to fetch LLM settings",
       "saveSuccess": "Saved",
       "saveFailed": "Failed to save LLM settings",
+      "presetRestored": "Preset restored",
       "defaultUpdated": "Default provider updated",
       "defaultFailed": "Failed to update default provider",
       "latencyFailed": "Latency test failed",
       "apiKeyRequired": "Please enter API key",
       "apiKeyRequiredForTest": "Please enter API key first"
-    }
+    },
+    "resizeWidth": "Drag to resize settings width"
   },
   "sidebar": {
     "collapse": "Collapse sidebar",

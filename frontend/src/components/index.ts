@@ -21,7 +21,7 @@ export * from "./auth/ProtectedRoute";
 export * from "./auth/PermissionGuard";
 export * from "./auth/RegistrationInvitationCodeGenerator";
 export * from "./class/ClassManagerPanel";
-export * from "./SettingsModal";
+export * from "./settings/SettingsModal";
 export * from "./layout/SidebarRail";
 export * from "./session/SessionHistoryList";
 export * from "./common/HelpDialog";

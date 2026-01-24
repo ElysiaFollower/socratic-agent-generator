@@ -75,9 +75,11 @@
     "llm": {
       "defaultProvider": "默认供应商",
       "providerConfig": "供应商配置",
+      "providerList": "供应商列表",
       "provider": "供应商",
       "status": "状态",
       "configured": "已配置",
+      "preset": "预设配置",
       "notConfigured": "未配置",
       "apiKey": "API Key",
       "modelOptional": "模型（可选）",
@@ -96,12 +98,14 @@
       "fetchFailed": "获取 LLM 设置失败",
       "saveSuccess": "保存成功",
       "saveFailed": "保存 LLM 设置失败",
+      "presetRestored": "已恢复预置配置",
       "defaultUpdated": "默认供应商已更新",
       "defaultFailed": "更新默认供应商失败",
       "latencyFailed": "延时测试失败",
       "apiKeyRequired": "请输入 API Key",
       "apiKeyRequiredForTest": "请先输入 API Key"
-    }
+    },
+    "resizeWidth": "拖动调整设置窗口宽度"
   },
   "sidebar": {
     "collapse": "收缩侧边栏",

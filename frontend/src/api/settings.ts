@@ -61,3 +61,18 @@ export async function testLLMLatency(
     throw new Error(`Failed to test LLM latency: ${handleApiError(error)}`);
   }
 }
+
+export async function deleteLLMProviderSettings(
+  provider: string,
+): Promise<{ success: boolean }> {
+  try {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/settings/llm/${provider}`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to delete LLM settings: ${handleApiError(error)}`,
+    );
+  }
+}

@@ -3,6 +3,7 @@
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
+from typing import Literal
 
 
 class LLMProviderSettingRequest(BaseModel):
@@ -30,6 +31,7 @@ class LLMProviderStatus(BaseModel):
     provider: str
     has_api_key: bool
     model: Optional[str] = None
+    source: Literal["user", "preset", "none"] = "none"
 
 
 class LLMSettingsResponse(BaseModel):

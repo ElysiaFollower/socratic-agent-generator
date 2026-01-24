@@ -57,6 +57,11 @@ class LLMManager:
         if provider not in LLM_PROVIDERS:
             raise ValueError(f"Unsupported provider: {provider}")
 
+    def _get_env_api_key(self, provider: str) -> Optional[str]:
+        """Return provider API key from environment if set."""
+        env_key = LLM_PROVIDERS.get(provider, {}).get("env_key")
+        return os.getenv(env_key) if env_key else None
+
     def list_provider_statuses(self, user_id: str) -> List[Dict[str, object]]:
         """Return per-provider status for the user (no API keys)."""
         with SessionLocal() as db:
@@ -67,13 +72,20 @@ class LLMManager:
             )
             settings_by_provider = {s.provider: s for s in settings}
 
-        results: List[Dict[str, Optional[str]]] = []
+        results: List[Dict[str, object]] = []
         for provider in LLM_PROVIDERS.keys():
             setting = settings_by_provider.get(provider)
+            env_key = self._get_env_api_key(provider)
+            source = "none"
+            if setting and setting.api_key:
+                source = "user"
+            elif env_key:
+                source = "preset"
             results.append(
                 {
                     "provider": provider,
-                    "has_api_key": bool(setting and setting.api_key),
+                    "has_api_key": source != "none",
+                    "source": source,
                     "model": setting.model if setting else None,
                 }
             )
@@ -110,6 +122,23 @@ class LLMManager:
                 )
                 db.add(setting)
             db.commit()
+        self.invalidate_user(user_id)
+
+    def delete_provider_setting(self, user_id: str, provider: str) -> None:
+        """Delete a provider setting for the user."""
+        self._validate_provider(provider)
+        with SessionLocal() as db:
+            setting = (
+                db.query(LLMProviderSetting)
+                .filter(
+                    LLMProviderSetting.user_id == user_id,
+                    LLMProviderSetting.provider == provider,
+                )
+                .first()
+            )
+            if setting:
+                db.delete(setting)
+                db.commit()
         self.invalidate_user(user_id)
 
     def get_default_provider(self, user_id: str) -> Tuple[str, Optional[str]]:

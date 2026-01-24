@@ -49,7 +49,7 @@ export interface Profile {
  * Represents a chat message in the conversation history.
  */
 export interface ChatMessage {
-  readonly role: 'user' | 'assistant';
+  readonly role: "user" | "assistant";
   readonly content: string;
   readonly isThinking?: boolean;
   readonly thinkingMessage?: string;
@@ -61,7 +61,7 @@ export interface ChatMessage {
  * Backend returns messages with type "human" (user) or "ai" (assistant).
  */
 export interface SessionHistoryMessage {
-  readonly type: 'human' | 'ai';
+  readonly type: "human" | "ai";
   readonly content: string;
   readonly timestamp?: string;
   readonly message_id?: number;
@@ -165,6 +165,7 @@ export interface LLMProviderStatus {
   readonly provider: string;
   readonly has_api_key: boolean;
   readonly model?: string | null;
+  readonly source?: "user" | "preset" | "none";
 }
 
 /**
@@ -208,18 +209,18 @@ export interface HealthCheckResponse {
 /**
  * User role types.
  */
-export type UserRole = 'admin' | 'teacher' | 'student';
+export type UserRole = "admin" | "teacher" | "student";
 
 /**
  * Main workspace panel views.
  */
 export type ToolPanelView =
-  | 'chat'
-  | 'invitation'
-  | 'lab-manual'
-  | 'skill'
-  | 'profile'
-  | 'class';
+  | "chat"
+  | "invitation"
+  | "lab-manual"
+  | "skill"
+  | "profile"
+  | "class";
 
 /**
  * Represents a class managed by teachers and joined by students.
@@ -230,7 +231,7 @@ export interface ClassInfo {
   readonly owner_id: string;
   readonly created_at: string;
   readonly updated_at: string;
-  readonly role_in_class?: 'teacher' | 'student';
+  readonly role_in_class?: "teacher" | "student";
 }
 
 /**
@@ -240,7 +241,7 @@ export interface ClassMemberInfo {
   readonly user_id: string;
   readonly username: string;
   readonly display_name?: string;
-  readonly role_in_class: 'teacher' | 'student';
+  readonly role_in_class: "teacher" | "student";
   readonly joined_at: string;
 }
 
