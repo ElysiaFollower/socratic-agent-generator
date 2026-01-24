@@ -107,15 +107,16 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
     };
   }, []);
 
-  const buildLocalStorageKey = useCallback(
-    (provider: string) => `llm_api_key_${provider}`,
-    [],
-  );
-
-  const buildLocalStorageModelKey = useCallback(
-    (provider: string) => `llm_model_${provider}`,
-    [],
-  );
+  // One-time cleanup: remove old localStorage API keys
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    LLM_PROVIDERS.forEach((provider) => {
+      localStorage.removeItem(`llm_api_key_${provider.value}`);
+      localStorage.removeItem(`llm_model_${provider.value}`);
+    });
+  }, []);
 
   const loadSettings = useCallback(async () => {
     try {
@@ -125,18 +126,12 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
       setProviderInputs((prev) => {
         const next = { ...prev };
         LLM_PROVIDERS.forEach((provider) => {
-          const storedKey = localStorage.getItem(
-            buildLocalStorageKey(provider.value),
-          );
-          const storedModel = localStorage.getItem(
-            buildLocalStorageModelKey(provider.value),
-          );
           const backendModel =
             data.providers.find((item) => item.provider === provider.value)
               ?.model || "";
           next[provider.value] = {
-            apiKey: storedKey || next[provider.value]?.apiKey || "",
-            model: storedModel || next[provider.value]?.model || backendModel,
+            apiKey: "",
+            model: backendModel,
           };
         });
         return next;
@@ -148,7 +143,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
           : t("settings.messages.fetchFailed"),
       );
     }
-  }, [buildLocalStorageKey, buildLocalStorageModelKey, notifyError, t]);
+  }, [notifyError, t]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -164,8 +159,6 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
         setSavingProvider(provider);
         try {
           await deleteLLMProviderSettings(provider);
-          localStorage.removeItem(buildLocalStorageKey(provider));
-          localStorage.removeItem(buildLocalStorageModelKey(provider));
           setProviderInputs((prev) => ({
             ...prev,
             [provider]: {
@@ -193,14 +186,6 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
           api_key: input.apiKey.trim(),
           model: input.model.trim() || undefined,
         });
-        localStorage.setItem(
-          buildLocalStorageKey(provider),
-          input.apiKey.trim(),
-        );
-        localStorage.setItem(
-          buildLocalStorageModelKey(provider),
-          input.model.trim(),
-        );
         notifySuccess(t("settings.messages.saveSuccess"));
         await loadSettings();
         onSettingsUpdated?.();
@@ -215,8 +200,6 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
       }
     },
     [
-      buildLocalStorageKey,
-      buildLocalStorageModelKey,
       loadSettings,
       notifyError,
       notifySuccess,

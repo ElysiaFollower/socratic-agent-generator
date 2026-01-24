@@ -16,6 +16,8 @@ import {
   Typography,
 } from "@mui/material";
 import SpeedOutlinedIcon from "@mui/icons-material/SpeedOutlined";
+import TuneIcon from "@mui/icons-material/Tune";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import { useTranslation } from "react-i18next";
 import { LLMProviderStatus } from "../../types";
 import { LLM_PROVIDERS, getProviderOption } from "../../utils/llmProviders";
@@ -64,9 +66,12 @@ export function LlmSettingsTab(props: LlmSettingsTabProps): JSX.Element {
     <Stack spacing={2} sx={{ mt: 2 }}>
       <Paper variant='outlined' sx={{ p: 2 }}>
         <Stack spacing={2}>
-          <Typography variant='subtitle2'>
-            {t("settings.llm.defaultProvider")}
-          </Typography>
+          <Stack direction='row' spacing={1} alignItems='center'>
+            <TuneIcon fontSize='small' />
+            <Typography variant='subtitle2'>
+              {t("settings.llm.defaultProvider")}
+            </Typography>
+          </Stack>
           <Stack direction='row' spacing={2} alignItems='center'>
             <FormControl fullWidth size='small'>
               <InputLabel>{t("settings.llm.defaultProvider")}</InputLabel>
@@ -101,9 +106,12 @@ export function LlmSettingsTab(props: LlmSettingsTabProps): JSX.Element {
 
       <Paper variant='outlined' sx={{ p: 2 }}>
         <Stack spacing={2}>
-          <Typography variant='subtitle2'>
-            {t("settings.llm.providerList")}
-          </Typography>
+          <Stack direction='row' spacing={1} alignItems='center'>
+            <AutoAwesomeIcon fontSize='small' />
+            <Typography variant='subtitle2'>
+              {t("settings.llm.providerList")}
+            </Typography>
+          </Stack>
           {LLM_PROVIDERS.map((provider) => {
             const status = providerStatuses.find(
               (item) => item.provider === provider.value,
@@ -114,92 +122,96 @@ export function LlmSettingsTab(props: LlmSettingsTabProps): JSX.Element {
             };
 
             return (
-              <Paper key={provider.value} variant='outlined' sx={{ p: 2 }}>
-                <Stack spacing={2}>
-                  <Stack
-                    direction='row'
-                    spacing={2}
-                    alignItems='center'
-                    justifyContent='space-between'
-                  >
-                    <Stack direction='row' spacing={1} alignItems='center'>
-                      <Typography variant='subtitle2'>
-                        {provider.label}
-                      </Typography>
-                      <Typography variant='caption' color='text.secondary'>
-                        {t("settings.llm.status")}:
-                      </Typography>
-                      <Chip
-                        size='small'
-                        color={
-                          status?.source === "user"
-                            ? "success"
-                            : status?.source === "preset"
-                              ? "info"
-                              : "default"
-                        }
-                        label={
-                          status?.source === "user"
-                            ? t("settings.llm.configured")
-                            : status?.source === "preset"
-                              ? t("settings.llm.preset")
-                              : t("settings.llm.notConfigured")
-                        }
-                      />
-                    </Stack>
-                    <Stack direction='row' spacing={1}>
-                      <Button
-                        size='small'
-                        variant='contained'
-                        onClick={() => onSaveProvider(provider.value)}
-                        disabled={savingProvider === provider.value}
-                      >
-                        {t("common.save")}
-                      </Button>
-                      <Button
-                        size='small'
-                        variant='outlined'
-                        startIcon={<SpeedOutlinedIcon />}
-                        onClick={() => onTestProvider(provider.value)}
-                        disabled={testingProvider === provider.value}
-                      >
-                        {t("settings.llm.testLatency")}
-                      </Button>
-                    </Stack>
-                  </Stack>
-
-                  <TextField
-                    fullWidth
-                    label={t("settings.llm.apiKey")}
-                    type='text'
-                    value={input.apiKey}
-                    onChange={(e) =>
-                      onProviderInputChange(provider.value, {
-                        apiKey: e.target.value,
-                      })
-                    }
-                    placeholder={t("settings.placeholders.apiKey")}
-                  />
-                  <TextField
-                    fullWidth
-                    label={t("settings.llm.modelOptional")}
-                    value={input.model}
-                    onChange={(e) =>
-                      onProviderInputChange(provider.value, {
-                        model: e.target.value,
-                      })
-                    }
-                    placeholder={
-                      getProviderOption(provider.value)?.defaultModel || ""
-                    }
-                  />
-                  {testMessages[provider.value] && (
-                    <Typography variant='caption' color='text.secondary'>
-                      {testMessages[provider.value]}
+              <Stack spacing={2}>
+                <Stack
+                  direction='row'
+                  spacing={2}
+                  alignItems='center'
+                  justifyContent='space-between'
+                >
+                  <Stack direction='row' spacing={1} alignItems='center'>
+                    <Typography variant='body1' fontWeight={600}>
+                      {provider.label}
                     </Typography>
-                  )}
+                    <Typography variant='caption' color='text.secondary'>
+                      {t("settings.llm.status")}:
+                    </Typography>
+                    <Chip
+                      size='small'
+                      color={
+                        status?.source === "user"
+                          ? "success"
+                          : status?.source === "preset"
+                            ? "info"
+                            : "default"
+                      }
+                      label={
+                        status?.source === "user"
+                          ? t("settings.llm.configured")
+                          : status?.source === "preset"
+                            ? t("settings.llm.preset")
+                            : t("settings.llm.notConfigured")
+                      }
+                    />
+                  </Stack>
+                  <Stack direction='row' spacing={1}>
+                    <Button
+                      size='small'
+                      variant='contained'
+                      onClick={() => onSaveProvider(provider.value)}
+                      disabled={savingProvider === provider.value}
+                    >
+                      {t("common.save")}
+                    </Button>
+                    <Button
+                      size='small'
+                      variant='outlined'
+                      startIcon={<SpeedOutlinedIcon />}
+                      onClick={() => onTestProvider(provider.value)}
+                      disabled={testingProvider === provider.value}
+                    >
+                      {t("settings.llm.testLatency")}
+                    </Button>
+                  </Stack>
                 </Stack>
-              </Paper>
+
+                <TextField
+                  fullWidth
+                  label={t("settings.llm.apiKey")}
+                  type='text'
+                  value={input.apiKey}
+                  onChange={(e) =>
+                    onProviderInputChange(provider.value, {
+                      apiKey: e.target.value,
+                    })
+                  }
+                  placeholder={
+                    status?.source === "user" || status?.source === "preset"
+                      ? "************"
+                      : t("settings.placeholders.apiKey")
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  fullWidth
+                  label={t("settings.llm.modelOptional")}
+                  value={input.model}
+                  onChange={(e) =>
+                    onProviderInputChange(provider.value, {
+                      model: e.target.value,
+                    })
+                  }
+                  placeholder={
+                    getProviderOption(provider.value)?.defaultModel || ""
+                  }
+                  InputLabelProps={{ shrink: true }}
+                />
+                {testMessages[provider.value] && (
+                  <Typography variant='caption' color='text.secondary'>
+                    {testMessages[provider.value]}
+                  </Typography>
+                )}
+              </Stack>
             );
           })}
         </Stack>
