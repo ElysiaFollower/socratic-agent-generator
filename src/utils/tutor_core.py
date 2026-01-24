@@ -13,7 +13,7 @@ import logging
 import asyncio
 from copy import deepcopy
 from datetime import datetime
-from typing import Any, AsyncGenerator, Dict, List, Optional, Union
+from typing import Any, AsyncGenerator, Dict, List, Optional, Union, Tuple
 
 import pytz
 from langchain_community.chat_message_histories import ChatMessageHistory
@@ -47,6 +47,7 @@ from utils.custom_skill_manager import CustomSkillManager
 from utils.step_evaluator import EvaluationResult, StepEvaluator
 from utils.step_completion_manager import StepCompletionManager
 from utils.template_assembler import PromptAssembler
+from utils.llm_manager import get_llm_manager
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,13 @@ class Tutor:
             llm: Optional LLM instance. If None, uses default LLM from config.
         """
         self.session = session
+        self.user_id = session.owner_id
+        self._llm_manager = get_llm_manager()
         self.llm = llm or get_default_llm()
+        self._chain_cache: Dict[Tuple[str, str], RunnableWithMessageHistory] = {}
+        self._llm_cache: Dict[Tuple[str, str], Any] = {}
+        self._current_provider: Optional[str] = None
+        self._current_model: Optional[str] = None
         self._next_message_id = 1
         self.history = self._restore_history_from_session()
         self.truncate_history_note = (
@@ -117,6 +124,7 @@ class Tutor:
             self.assessment_skill.get_tool(),
         ]
         tools.extend([skill.get_tool() for skill in self.custom_skills])
+        self.tools = tools
 
         # Main prompt template
         main_prompt = ChatPromptTemplate.from_messages(
@@ -128,33 +136,67 @@ class Tutor:
                 MessagesPlaceholder(variable_name="agent_scratchpad"),
             ]
         )
+        self.main_prompt = main_prompt
 
-        # Main agent chain (without history)
+        logger.info("Tutor initialized for session: %s", session.session_id)
+
+    def _create_agent_executor(self, llm: Any):
+        """Create a tool-calling agent executor for the given LLM."""
         try:
             from langchain.agents import create_tool_calling_agent
             from langchain.agents import AgentExecutor
         except ImportError:
-            # Fallback for some environment configurations
             from langchain_classic.agents import create_tool_calling_agent
             from langchain_classic.agents import AgentExecutor
 
-        agent = create_tool_calling_agent(self.llm, tools, main_prompt)
-        self.agent_executor = AgentExecutor(
+        agent = create_tool_calling_agent(llm, self.tools, self.main_prompt)
+        return AgentExecutor(
             agent=agent,
-            tools=tools,
+            tools=self.tools,
             verbose=LANGCHAIN_VERBOSE,
             handle_parsing_errors=True,
             max_iterations=LANGCHAIN_MAX_ITERATIONS,
         )
 
-        # Main agent chain with history
-        self.main_chain_with_history = RunnableWithMessageHistory(
-            self.agent_executor,
+    def _get_chain(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> RunnableWithMessageHistory:
+        """Get a chain for the selected provider/model."""
+        cache_key = (provider or "default", model or "default")
+        cached = self._chain_cache.get(cache_key)
+        if cached:
+            self.llm = self._llm_cache.get(cache_key, self.llm)
+            return cached
+        if not self.user_id:
+            llm = self.llm
+        else:
+            llm = self._llm_manager.get_llm(self.user_id, provider, model)
+        self._llm_cache[cache_key] = llm
+        self.llm = llm
+        executor = self._create_agent_executor(llm)
+        chain = RunnableWithMessageHistory(
+            executor,
             lambda sid: self.truncated_history,
             input_messages_key="input",
             history_messages_key="history",
         )
-        logger.info("Tutor initialized for session: %s", session.session_id)
+        self._chain_cache[cache_key] = chain
+        return chain
+
+    def _select_llm(
+        self,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> RunnableWithMessageHistory:
+        """Select LLM for this request and return the chain."""
+        self._current_provider = provider
+        self._current_model = model
+        chain = self._get_chain(provider, model)
+        # Recompute token counts for the selected LLM tokenizer.
+        self.current_history_tokens = self._get_current_history_tokens(self.history)
+        return chain
 
     @classmethod
     def from_id(
@@ -547,8 +589,9 @@ class Tutor:
         # The input is only used to satisfy the prompt template requirement.
         transition_input = "[系统触发：请生成过渡消息]"
 
+        chain = self._get_chain(self._current_provider, self._current_model)
         reply = ""
-        async for event in self.main_chain_with_history.astream_events(
+        async for event in chain.astream_events(
             {
                 "system_prompt_with_state": formatted_system_prompt,
                 "truncate_history_note": (
@@ -591,8 +634,14 @@ class Tutor:
         else:
             return f"你好！今天我们来挑战一下\"{topic_name}\"。准备好了吗？"
 
-    def process_message(self, user_input: str) -> ResponseMessage:
+    def process_message(
+        self,
+        user_input: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> ResponseMessage:
         """Process a single user message synchronously."""
+        chain = self._select_llm(provider, model)
         self.truncated_history = self._truncate_history(self.truncated_history)
 
         # Handle cheat code
@@ -649,7 +698,7 @@ class Tutor:
             ],
         )
 
-        result = self.main_chain_with_history.invoke(
+        result = chain.invoke(
             {
                 "system_prompt_with_state": formatted_system_prompt,
                 "truncate_history_note": self.truncate_history_note,
@@ -674,7 +723,10 @@ class Tutor:
         )
 
     async def stream_message(
-        self, user_input: str
+        self,
+        user_input: str,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
     ) -> AsyncGenerator[Union[str, ResponseMessage], None]:
         """Process a user message and stream the response.
 
@@ -687,6 +739,7 @@ class Tutor:
         6. Clear evaluation lock
         7. If evaluation passed, generate transition message
         """
+        chain = self._select_llm(provider, model)
         reply = ""
         assistant_message_id: Optional[int] = None
         step_completion_info: Optional[StepCompletion] = None
@@ -797,7 +850,7 @@ class Tutor:
             tool_call_in_progress = False
             tool_call_completed = False
             try:
-                async for event in self.main_chain_with_history.astream_events(
+                async for event in chain.astream_events(
                     {
                         "system_prompt_with_state": formatted_system_prompt,
                         "truncate_history_note": self.truncate_history_note,

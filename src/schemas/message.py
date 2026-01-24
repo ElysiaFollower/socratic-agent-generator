@@ -62,6 +62,12 @@ class MessageRequest(BaseModel):
     """
 
     message: str = Field(description="User's text message (base64-encoded).")
+    provider: Optional[str] = Field(
+        default=None, description="Optional LLM provider override"
+    )
+    model: Optional[str] = Field(
+        default=None, description="Optional model override"
+    )
 
 
 class RenameSessionRequest(BaseModel):

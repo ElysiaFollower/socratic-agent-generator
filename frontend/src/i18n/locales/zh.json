@@ -65,6 +65,44 @@
   "notification": {
     "close": "关闭通知"
   },
+  "settings": {
+    "title": "设置",
+    "tabs": {
+      "llm": "LLM 配置",
+      "preferences": "偏好设置",
+      "account": "账户设置"
+    },
+    "llm": {
+      "defaultProvider": "默认供应商",
+      "providerConfig": "供应商配置",
+      "provider": "供应商",
+      "status": "状态",
+      "configured": "已配置",
+      "notConfigured": "未配置",
+      "apiKey": "API Key",
+      "modelOptional": "模型（可选）",
+      "saveProvider": "保存配置",
+      "testLatency": "延时测试",
+      "saveDefault": "保存默认",
+      "latencyResult": "延时约 {{ms}} ms",
+      "testComplete": "测试完成"
+    },
+    "placeholders": {
+      "apiKey": "sk-...",
+      "preferences": "可在此处添加通知、语言、快捷键等设置项。",
+      "account": "可在此处添加邮箱、密码、权限等设置项。"
+    },
+    "messages": {
+      "fetchFailed": "获取 LLM 设置失败",
+      "saveSuccess": "保存成功",
+      "saveFailed": "保存 LLM 设置失败",
+      "defaultUpdated": "默认供应商已更新",
+      "defaultFailed": "更新默认供应商失败",
+      "latencyFailed": "延时测试失败",
+      "apiKeyRequired": "请输入 API Key",
+      "apiKeyRequiredForTest": "请先输入 API Key"
+    }
+  },
   "sidebar": {
     "collapse": "收缩侧边栏",
     "classSection": "班级",
@@ -96,6 +134,9 @@
     "inputPlaceholder": "输入你的想法或问题... (Enter发送，Shift+Enter换行)",
     "selectSessionHint": "请先选择一个会话开始学习",
     "quickCreateHint": "快速从Profile新建会话",
+    "llmSelectorLabel": "模型",
+    "llmDefault": "默认",
+    "llmDefaultWithProvider": "默认（{{provider}}）",
     "dialogCreated": "对话创建成功",
     "dialogCreateFailed": "创建对话失败，请重试",
     "generatingReply": "正在生成回复，请稍后重试",

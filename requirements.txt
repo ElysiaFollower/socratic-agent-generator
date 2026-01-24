@@ -17,6 +17,7 @@ langchain>=0.1.0                   # LangChain核心库
 langchain-core>=0.1.0              # LangChain核心组件
 langchain-community>=0.0.10        # LangChain社区扩展（包含ChatMessageHistory）
 langchain-deepseek>=0.0.1          # DeepSeek API集成
+langchain-openai>=0.1.0            # OpenAI-compatible API integration
 langchain-huggingface>=0.0.1       # HuggingFace integration for embeddings
 
 # RAG & Embeddings

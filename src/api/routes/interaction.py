@@ -6,7 +6,7 @@ This module handles HTTP endpoints for interacting with tutors.
 import base64
 import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
@@ -84,6 +84,8 @@ async def _stream_generator(
     user_input: str,
     owner_id: str,
     tutor_manager: tutor_manager.TutorManager,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
 ):
     """Stream generator for processing Tutor's async streaming responses.
 
@@ -117,7 +119,7 @@ async def _stream_generator(
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
             return
 
-        async for chunk in tutor.stream_message(user_input):
+        async for chunk in tutor.stream_message(user_input, provider=provider, model=model):
             if isinstance(chunk, str):
                 # Token chunk
                 event_data = {"type": "token", "data": chunk}
@@ -171,6 +173,8 @@ async def stream_message(
             decoded_message,
             current_user.user_id,
             tutor_manager,
+            provider=req.provider,
+            model=req.model,
         ),
         media_type="text/event-stream",
     )

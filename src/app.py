@@ -17,6 +17,7 @@ from config import (
     DATA_DIR,
 )
 from api.routes import auth, profile, session, interaction, adapter, class_route
+from api.routes import settings
 from api.routes import custom_skill
 from utils.model_manager import check_and_download_models
 from utils.skills import warmup_embeddings
@@ -57,6 +58,7 @@ app.include_router(interaction.router)
 app.include_router(adapter.router)
 app.include_router(class_route.router)
 app.include_router(custom_skill.router)
+app.include_router(settings.router)
 
 
 @app.on_event("startup")

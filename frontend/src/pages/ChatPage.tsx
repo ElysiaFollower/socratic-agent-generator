@@ -30,6 +30,7 @@ import {
   ChatMessage,
   ToolPanelView,
   StepCompletion,
+  LLMSettingsResponse,
 } from "../types";
 import {
   useProfiles,
@@ -63,8 +64,10 @@ import {
   renameSession,
   deleteSession,
   getProfile,
+  getLLMSettings,
 } from "../api";
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../i18n";
+import { LLM_PROVIDERS } from "../utils/llmProviders";
 
 /**
  * Props for ChatPage component.
@@ -100,6 +103,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [isCreatingSession, setIsCreatingSession] = useState<boolean>(false);
   const [currentLanguage, setCurrentLanguage] =
     useState<SupportedLanguage>("en");
+  const defaultLlmOption = "__default__";
+  const [llmOptions, setLlmOptions] = useState<
+    readonly { value: string; label: string }[]
+  >([{ value: defaultLlmOption, label: "默认" }]);
+  const [selectedLlm, setSelectedLlm] = useState<string>(defaultLlmOption);
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
   const sidebarDefaultRatio = 0.15;
@@ -382,8 +390,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       return;
     }
     setInputValue("");
-    await sendMessage(message);
-  }, [inputValue, sendMessage]);
+    const providerOverride =
+      selectedLlm === defaultLlmOption ? undefined : selectedLlm;
+    await sendMessage(message, { provider: providerOverride });
+  }, [inputValue, sendMessage, selectedLlm, defaultLlmOption]);
 
   const handleCopyMessage = useCallback(
     async (message: ChatMessage) => {
@@ -463,7 +473,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
         return;
       }
       setMessages(messages.slice(0, userIndex + 1), sessionId);
-      await sendMessage(userMessage.content, { appendUserMessage: false });
+      const providerOverride =
+        selectedLlm === defaultLlmOption ? undefined : selectedLlm;
+      await sendMessage(userMessage.content, {
+        appendUserMessage: false,
+        provider: providerOverride,
+      });
     },
     [
       chatLoading,
@@ -473,6 +488,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       sessionId,
       setMessages,
       t,
+      selectedLlm,
+      defaultLlmOption,
     ],
   );
 
@@ -534,6 +551,60 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     },
     [refreshProfiles],
   );
+
+  const buildLlmOptions = useCallback(
+    (settings?: LLMSettingsResponse) => {
+      const defaultProviderLabel = settings
+        ? LLM_PROVIDERS.find(
+            (provider) => provider.value === settings.default_provider,
+          )?.label
+        : undefined;
+
+      const defaultLabel = defaultProviderLabel
+        ? t("chat.llmDefaultWithProvider", { provider: defaultProviderLabel })
+        : t("chat.llmDefault");
+
+      const providerModels =
+        settings?.providers.reduce<Record<string, string | null>>(
+          (acc, provider) => {
+            acc[provider.provider] = provider.model ?? null;
+            return acc;
+          },
+          {},
+        ) || {};
+
+      const providerOptions = LLM_PROVIDERS.map((provider) => {
+        const modelLabel =
+          providerModels[provider.value] || provider.defaultModel;
+        return {
+          value: provider.value,
+          label: `${provider.label} · ${modelLabel}`,
+        };
+      });
+
+      return [{ value: defaultLlmOption, label: defaultLabel }, ...providerOptions];
+    },
+    [defaultLlmOption, t],
+  );
+
+  const refreshLlmSettings = useCallback(async () => {
+    try {
+      const settings = await getLLMSettings();
+      setLlmOptions(buildLlmOptions(settings));
+    } catch (error) {
+      setLlmOptions(buildLlmOptions());
+      notifyWarning(
+        error instanceof Error ? error.message : t("settings.messages.fetchFailed"),
+      );
+    }
+  }, [buildLlmOptions, notifyWarning, t]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    void refreshLlmSettings();
+  }, [user, refreshLlmSettings]);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -893,6 +964,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
                 }
                 onChange={handleInputChange}
                 onSend={handleSend}
+                llmOptions={llmOptions}
+                selectedLlm={selectedLlm}
+                onLlmChange={setSelectedLlm}
               />
             </Box>
           </Box>
@@ -913,6 +987,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       <SettingsModal
         isOpen={showSettings}
         onClose={() => setShowSettings(false)}
+        onSettingsUpdated={refreshLlmSettings}
       />
 
       {/* Profile Detail Dialog */}

@@ -22,7 +22,11 @@ export interface UseChatReturn {
   readonly errorBySession: Readonly<Record<string, string | null>>;
   readonly sendMessage: (
     message: string,
-    options?: {readonly appendUserMessage?: boolean},
+    options?: {
+      readonly appendUserMessage?: boolean;
+      readonly provider?: string;
+      readonly model?: string;
+    },
   ) => Promise<void>;
   readonly clearMessages: (targetSessionId?: string | null) => void;
   readonly setMessages: (
@@ -127,7 +131,11 @@ export function useChat(
   const sendMessage = useCallback(
     async (
       message: string,
-      options?: {readonly appendUserMessage?: boolean},
+      options?: {
+        readonly appendUserMessage?: boolean;
+        readonly provider?: string;
+        readonly model?: string;
+      },
     ) => {
       if (!sessionId || !message.trim()) {
         return;
@@ -167,6 +175,7 @@ export function useChat(
         await sendMessageStream(
           targetSessionId,
           userMsg,
+          { provider: options?.provider, model: options?.model },
           // onToken: Update message content in real-time
           (token: string) => {
             streamContentRef.current[targetSessionId] =

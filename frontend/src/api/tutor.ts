@@ -74,6 +74,7 @@ export type StreamErrorCallback = (error: string) => void;
  *
  * @param sessionId - The unique identifier of the session
  * @param message - The user message to send
+ * @param options - Optional provider/model overrides
  * @param onToken - Callback invoked for each token received
  * @param onComplete - Callback invoked when stream completes
  * @param onError - Callback invoked on error
@@ -82,6 +83,7 @@ export type StreamErrorCallback = (error: string) => void;
 export async function sendMessageStream(
   sessionId: string,
   message: string,
+  options: { readonly provider?: string; readonly model?: string } | undefined,
   onToken: StreamTokenCallback,
   onComplete: StreamCompleteCallback,
   onError: StreamErrorCallback,
@@ -93,6 +95,12 @@ export async function sendMessageStream(
     );
 
     const token = getAuthToken();
+    const payload = {
+      message: encodedMessage,
+      ...(options?.provider ? { provider: options.provider } : {}),
+      ...(options?.model ? { model: options.model } : {}),
+    };
+
     const response = await fetch(
       `/api/sessions/${sessionId}/messages/stream`,
       {
@@ -101,7 +109,7 @@ export async function sendMessageStream(
           'Content-Type': 'application/json',
           ...(token ? {Authorization: `Bearer ${token}`} : {}),
         },
-        body: JSON.stringify({message: encodedMessage}),
+        body: JSON.stringify(payload),
       },
     );
 
@@ -152,5 +160,3 @@ export async function sendMessageStream(
     );
   }
 }
-
-

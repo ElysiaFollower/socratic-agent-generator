@@ -110,6 +110,8 @@ export interface CreateSessionRequest {
  */
 export interface MessageRequest {
   readonly message: string;
+  readonly provider?: string;
+  readonly model?: string;
 }
 
 /**
@@ -154,6 +156,46 @@ export interface StepCompletion {
  */
 export interface WelcomeMessageResponse {
   readonly welcome: string;
+}
+
+/**
+ * LLM provider status for settings UI.
+ */
+export interface LLMProviderStatus {
+  readonly provider: string;
+  readonly has_api_key: boolean;
+  readonly model?: string | null;
+}
+
+/**
+ * LLM settings response.
+ */
+export interface LLMSettingsResponse {
+  readonly providers: readonly LLMProviderStatus[];
+  readonly default_provider: string;
+  readonly default_model?: string | null;
+}
+
+export interface SaveLLMProviderRequest {
+  readonly provider: string;
+  readonly api_key: string;
+  readonly model?: string;
+}
+
+export interface SetDefaultLLMProviderRequest {
+  readonly provider: string;
+  readonly model?: string;
+}
+
+export interface TestLLMLatencyRequest {
+  readonly provider: string;
+  readonly api_key: string;
+  readonly model?: string;
+}
+
+export interface TestLLMLatencyResponse {
+  readonly ok: boolean;
+  readonly latency_ms?: number;
 }
 
 /**

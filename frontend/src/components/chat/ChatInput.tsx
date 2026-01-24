@@ -5,7 +5,16 @@
  */
 
 import React, { useRef } from "react";
-import { Box, IconButton, TextField } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  TextField,
+  FormControl,
+  MenuItem,
+  Select,
+  InputLabel,
+} from "@mui/material";
+import { useTranslation } from "react-i18next";
 import { CircularProgress } from "../common/CircularProgress";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { color } from "../../styles/css-variables";
@@ -20,6 +29,9 @@ export interface ChatInputProps {
   readonly placeholder?: string;
   readonly onChange: (value: string) => void;
   readonly onSend: () => void;
+  readonly llmOptions?: readonly { value: string; label: string }[];
+  readonly selectedLlm?: string;
+  readonly onLlmChange?: (value: string) => void;
 }
 
 /**
@@ -29,6 +41,7 @@ export interface ChatInputProps {
  * @returns React component
  */
 export function ChatInput(props: ChatInputProps): JSX.Element {
+  const { t } = useTranslation();
   const {
     value,
     disabled,
@@ -36,6 +49,9 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
     placeholder,
     onChange,
     onSend,
+    llmOptions,
+    selectedLlm,
+    onLlmChange,
   } = props;
 
   // Local ref to prevent double submissions
@@ -59,106 +75,144 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
   return (
     <Box
       sx={{
-        position: "relative",
         mt: "var(--spacing-4)",
         width: "100%",
         maxWidth: "100%",
+        display: "flex",
+        alignItems: "flex-end",
+        gap: 2,
       }}
     >
-      <TextField
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        multiline
-        minRows={1}
-        maxRows={6}
-        fullWidth
-        placeholder={
-          placeholder || "输入你的想法或问题... (Enter发送，Shift+Enter换行)"
-        }
-        disabled={disabled}
-        variant='outlined'
+      {llmOptions && llmOptions.length > 0 && onLlmChange && (
+        <FormControl size='small' sx={{ minWidth: 160 }}>
+          <InputLabel id='chat-llm-select-label'>
+            {t("chat.llmSelectorLabel")}
+          </InputLabel>
+          <Select
+            labelId='chat-llm-select-label'
+            value={selectedLlm || ""}
+            label={t("chat.llmSelectorLabel")}
+            onChange={(e) => onLlmChange(String(e.target.value))}
+            disabled={disabled}
+            sx={{
+              backgroundColor: "var(--color-surface)",
+              boxShadow: "var(--shadow-md)",
+              borderRadius: "var(--radius-xl)",
+              "& .MuiOutlinedInput-notchedOutline": {
+                borderColor: color.background.surfaceMuted,
+              },
+            }}
+          >
+            {llmOptions.map((option) => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+      <Box
         sx={{
-          "& .MuiOutlinedInput-root": {
-            borderRadius: "var(--radius-3xl)",
-            backgroundColor: "var(--color-surface)",
-            color: "var(--text-primary)",
-            boxShadow: "var(--shadow-md)",
-            transition:
-              "all var(--transition-duration-200) var(--transition-timing-default)",
-            "& fieldset": {
-              borderColor: color.background.surfaceMuted,
-              borderWidth: "2px",
-            },
-            "&:hover fieldset": {
-              borderColor: color.background.surfaceMuted,
-            },
-            "&.Mui-focused fieldset": {
-              borderColor: color.background.surfaceMuted,
-            },
-          },
-          "& .MuiInputBase-input": {
-            paddingRight: "56px",
-            fontFamily: "var(--font-body)",
-            fontSize: "0.9375rem",
-            lineHeight: 1.5,
-          },
-          "& .MuiInputBase-input::placeholder": {
-            color: "var(--text-muted)",
-            opacity: 1,
-            fontFamily: "var(--font-body)",
-            fontSize: "0.9375rem",
-          },
-          marginBottom: "var(--spacing-6)",
-        }}
-      />
-      <IconButton
-        onClick={onSend}
-        disabled={disabled || loading || !value.trim()}
-        aria-label='发送消息'
-        sx={{
-          backgroundColor: loading
-            ? "var(--color-neutral-300)"
-            : "var(--color-primary)",
-          color: "#ffffff",
-          position: "absolute",
-          right: "var(--spacing-4)",
-          bottom: "var(--spacing-8)",
-          boxShadow: "var(--shadow-lg)",
-          borderRadius: "var(--radius-full)",
-          width: "36px",
-          height: "36px",
-          transition:
-            "all var(--transition-duration-200) var(--transition-timing-default)",
-          "&:hover": {
-            backgroundColor: loading
-              ? "var(--color-neutral-300)"
-              : "var(--color-primary-700)",
-            transform: loading ? "none" : "translateY(-1px)",
-            boxShadow: loading ? "none" : "var(--shadow-xl)",
-          },
-          "&:active": {
-            transform: "translateY(0)",
-          },
-          "&:disabled": {
-            backgroundColor: "var(--color-neutral-300)",
-            color: "var(--color-neutral-500)",
-            boxShadow: "none",
-            transform: "none",
-          },
+          position: "relative",
+          width: "100%",
+          maxWidth: "100%",
         }}
       >
-        {loading ? (
-          <CircularProgress
-            size={20}
-            sx={{
+        <TextField
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          multiline
+          minRows={1}
+          maxRows={6}
+          fullWidth
+          placeholder={
+            placeholder || "输入你的想法或问题... (Enter发送，Shift+Enter换行)"
+          }
+          disabled={disabled}
+          variant='outlined'
+          sx={{
+            "& .MuiOutlinedInput-root": {
+              borderRadius: "var(--radius-3xl)",
+              backgroundColor: "var(--color-surface)",
+              color: "var(--text-primary)",
+              boxShadow: "var(--shadow-md)",
+              transition:
+                "all var(--transition-duration-200) var(--transition-timing-default)",
+              "& fieldset": {
+                borderColor: color.background.surfaceMuted,
+                borderWidth: "2px",
+              },
+              "&:hover fieldset": {
+                borderColor: color.background.surfaceMuted,
+              },
+              "&.Mui-focused fieldset": {
+                borderColor: color.background.surfaceMuted,
+              },
+            },
+            "& .MuiInputBase-input": {
+              paddingRight: "56px",
+              fontFamily: "var(--font-body)",
+              fontSize: "0.9375rem",
+              lineHeight: 1.5,
+            },
+            "& .MuiInputBase-input::placeholder": {
+              color: "var(--text-muted)",
+              opacity: 1,
+              fontFamily: "var(--font-body)",
+              fontSize: "0.9375rem",
+            },
+            marginBottom: "var(--spacing-6)",
+          }}
+        />
+        <IconButton
+          onClick={onSend}
+          disabled={disabled || loading || !value.trim()}
+          aria-label='发送消息'
+          sx={{
+            backgroundColor: loading
+              ? "var(--color-neutral-300)"
+              : "var(--color-primary)",
+            color: "#ffffff",
+            position: "absolute",
+            right: "var(--spacing-4)",
+            bottom: "var(--spacing-8)",
+            boxShadow: "var(--shadow-lg)",
+            borderRadius: "var(--radius-full)",
+            width: "36px",
+            height: "36px",
+            transition:
+              "all var(--transition-duration-200) var(--transition-timing-default)",
+            "&:hover": {
+              backgroundColor: loading
+                ? "var(--color-neutral-300)"
+                : "var(--color-primary-700)",
+              transform: loading ? "none" : "translateY(-1px)",
+              boxShadow: loading ? "none" : "var(--shadow-xl)",
+            },
+            "&:active": {
+              transform: "translateY(0)",
+            },
+            "&:disabled": {
+              backgroundColor: "var(--color-neutral-300)",
               color: "var(--color-neutral-500)",
-            }}
-          />
-        ) : (
-          <ArrowUpwardIcon />
-        )}
-      </IconButton>
+              boxShadow: "none",
+              transform: "none",
+            },
+          }}
+        >
+          {loading ? (
+            <CircularProgress
+              size={20}
+              sx={{
+                color: "var(--color-neutral-500)",
+              }}
+            />
+          ) : (
+            <ArrowUpwardIcon />
+          )}
+        </IconButton>
+      </Box>
     </Box>
   );
 }

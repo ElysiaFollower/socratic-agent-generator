@@ -79,6 +79,43 @@ TEMPERATURE: float = float(os.getenv("TEMPERATURE", "0.7"))
 MAX_INPUT_TOKENS: int = int(os.getenv("MAX_INPUT_TOKENS", "128000"))
 MAX_HISTORY_TOKENS: int = int(os.getenv("MAX_HISTORY_TOKENS", "60000"))
 
+# Default provider if user has no preference set
+DEFAULT_LLM_PROVIDER: str = os.getenv("DEFAULT_LLM_PROVIDER", "deepseek")
+
+# Provider registry for OpenAI-compatible endpoints
+LLM_PROVIDERS: Dict[str, Dict[str, Optional[str]]] = {
+    "deepseek": {
+        "display_name": "DeepSeek",
+        "base_url": "https://api.deepseek.com",
+        "default_model": "deepseek-chat",
+        "env_key": "DEEPSEEK_API_KEY",
+    },
+    "gemini": {
+        "display_name": "Google Gemini",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+        "default_model": "gemini-2.5-flash",
+        "env_key": "GOOGLE_API_KEY",
+    },
+    "openai": {
+        "display_name": "OpenAI",
+        "base_url": None,
+        "default_model": "gpt-4o",
+        "env_key": "OPENAI_API_KEY",
+    },
+    "glm": {
+        "display_name": "GLM",
+        "base_url": "https://open.bigmodel.cn/api/paas/v4/",
+        "default_model": "glm-4.7",
+        "env_key": "GLM_API_KEY",
+    },
+    "minimax": {
+        "display_name": "MiniMax",
+        "base_url": "https://api.minimax.io/v1",
+        "default_model": "abab6.5s-chat",
+        "env_key": "MINIMAX_API_KEY",
+    },
+}
+
 # --- LangChain Agent Configuration ---
 
 # Verbose mode for LangChain agents (set to "true" to enable verbose logging)
