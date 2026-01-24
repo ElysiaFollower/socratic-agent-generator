@@ -817,6 +817,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               sx={{
                 height: "100%",
                 overflow: "auto",
+                px: 1,
                 scrollbarWidth: "none",
                 "&::-webkit-scrollbar": {
                   display: "none",
