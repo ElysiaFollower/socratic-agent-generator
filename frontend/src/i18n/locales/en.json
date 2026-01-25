@@ -136,6 +136,9 @@
   "chat": {
     "inputPlaceholder": "Enter your thoughts or questions... (Enter to send, Shift+Enter for new line)",
     "selectSessionHint": "Please select a session to start learning",
+    "startVoiceInput": "Start voice input",
+    "stopVoiceInput": "Stop voice input",
+    "voiceInputNotSupported": "Voice input is not supported in your browser",
     "quickCreateHint": "Quick create session from Profile",
     "llmSelectorLabel": "Model",
     "llmDefault": "Default",

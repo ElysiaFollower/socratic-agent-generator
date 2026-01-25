@@ -4,7 +4,7 @@
  * This component provides a textarea for user input with send functionality.
  */
 
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   Box,
   IconButton,
@@ -14,11 +14,16 @@ import {
   Paper,
   Grow,
   ClickAwayListener,
+  Tooltip,
 } from "@mui/material";
 import { useTranslation } from "react-i18next";
 import { CircularProgress } from "../common/CircularProgress";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import AddIcon from "@mui/icons-material/Add";
+import MicIcon from "@mui/icons-material/Mic";
+import MicOffIcon from "@mui/icons-material/MicOff";
+import { useSpeechRecognition } from "react-speech-recognition";
+import SpeechRecognition from "react-speech-recognition";
 import { color } from "../../styles/css-variables";
 
 /**
@@ -61,8 +66,103 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
   // State for menu popper
   const [menuOpen, setMenuOpen] = useState(false);
   const menuAnchorRef = useRef<HTMLButtonElement>(null);
+  const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
+  const manualEditPauseMs = 1000;
+  // Refs for live dictation syncing
+  const dictationBaseRef = useRef("");
+  const isDictatingRef = useRef(false);
+  const isSpeechUpdateRef = useRef(false);
+  const manualEditUntilRef = useRef(0);
+  // State to cache speech support status (ensures button stays visible)
+  const [hasVoiceSupport, setHasVoiceSupport] = useState(false);
+
+  // Speech recognition (auto-detects language, supports mixed Chinese/English)
+  const {
+    interimTranscript,
+    finalTranscript,
+    listening,
+    resetTranscript,
+    browserSupportsSpeechRecognition,
+  } = useSpeechRecognition();
+
+  // Initialize voice support status
+  useEffect(() => {
+    if (browserSupportsSpeechRecognition && !hasVoiceSupport) {
+      setHasVoiceSupport(true);
+    }
+  }, [browserSupportsSpeechRecognition, hasVoiceSupport]);
+
+  // Sync transcript with input value in real time while dictating
+  useEffect(() => {
+    if (!isDictatingRef.current) {
+      return;
+    }
+
+    if (!listening) {
+      isDictatingRef.current = false;
+      isSpeechUpdateRef.current = false;
+      return;
+    }
+
+    if (manualEditUntilRef.current > Date.now()) {
+      return;
+    }
+
+    const liveTranscript = [finalTranscript, interimTranscript]
+      .filter(Boolean)
+      .join(" ");
+    const base = dictationBaseRef.current;
+    const separator = base && liveTranscript && !/\s$/.test(base) ? " " : "";
+    const nextValue = `${base}${separator}${liveTranscript}`;
+
+    if (nextValue !== value) {
+      isSpeechUpdateRef.current = true;
+      onChange(nextValue);
+      isSpeechUpdateRef.current = false;
+    }
+  }, [finalTranscript, interimTranscript, listening, onChange, value]);
+
+  // Reset transcript after sending
+  useEffect(() => {
+    if (!loading && value === "" && !listening) {
+      resetTranscript();
+      dictationBaseRef.current = "";
+      isDictatingRef.current = false;
+    }
+  }, [loading, value, listening, resetTranscript]);
+
+  // Toggle voice input
+  const handleToggleVoiceInput = async () => {
+    try {
+      if (listening) {
+        await SpeechRecognition.stopListening();
+      } else {
+        dictationBaseRef.current = value;
+        isDictatingRef.current = true;
+        manualEditUntilRef.current = 0;
+        resetTranscript();
+        await SpeechRecognition.startListening({ continuous: true });
+        requestAnimationFrame(() => {
+          const el = inputRef.current;
+          if (el) {
+            el.focus();
+            if (typeof el.selectionStart === "number") {
+              const end = el.value.length;
+              el.setSelectionRange(end, end);
+            }
+          }
+        });
+      }
+    } catch (error) {
+      // Handle error silently
+    }
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (listening && isDictatingRef.current && e.key !== "Enter") {
+      manualEditUntilRef.current = Date.now() + manualEditPauseMs;
+    }
+
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       // Prevent double submission by checking if we're already sending
@@ -74,6 +174,34 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
           isSendingRef.current = false;
         }, 500);
       }
+    }
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+  ) => {
+    const nextValue = e.target.value;
+
+    if (isDictatingRef.current && !isSpeechUpdateRef.current) {
+      dictationBaseRef.current = nextValue;
+      manualEditUntilRef.current = Date.now() + manualEditPauseMs;
+      if (listening) {
+        resetTranscript();
+      }
+    }
+
+    onChange(nextValue);
+  };
+
+  const handleInputFocus = () => {
+    if (isDictatingRef.current) {
+      manualEditUntilRef.current = Date.now() + manualEditPauseMs;
+    }
+  };
+
+  const handleInputClick = () => {
+    if (isDictatingRef.current) {
+      manualEditUntilRef.current = Date.now() + manualEditPauseMs;
     }
   };
 
@@ -97,8 +225,11 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
         >
           <TextField
             value={value}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
+            onFocus={handleInputFocus}
+            onClick={handleInputClick}
+            inputRef={inputRef}
             multiline
             minRows={1}
             maxRows={10}
@@ -126,7 +257,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
                       alignSelf: "flex-end",
                       "&:hover": {
                         color: "var(--text-primary)",
-                        backgroundColor: "var(--color-neutral-100)",
+                        backgroundColor: color.background.surfaceMuted,
                       },
                       "&:disabled": {
                         color: "var(--text-muted)",
@@ -137,45 +268,117 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
                   </IconButton>
                 ) : undefined,
               endAdornment: (
-                <IconButton
-                  onClick={onSend}
-                  disabled={disabled || loading || !value.trim()}
-                  aria-label='发送消息'
-                  sx={{
-                    backgroundColor: loading
-                      ? "var(--color-neutral-300)"
-                      : "var(--color-primary)",
-                    color: "#ffffff",
-                    boxShadow: "var(--shadow-lg)",
-                    borderRadius: "var(--radius-full)",
-                    width: "32px",
-                    height: "32px",
-                    alignSelf: "flex-end",
-                    transition:
-                      "all var(--transition-duration-200) var(--transition-timing-default)",
-                    "&:hover": {
+                <>
+                  {/* Voice input button */}
+                  {hasVoiceSupport ? (
+                    <Tooltip
+                      title={
+                        listening
+                          ? t("chat.stopVoiceInput")
+                          : t("chat.startVoiceInput")
+                      }
+                    >
+                      <IconButton
+                        onClick={handleToggleVoiceInput}
+                        disabled={disabled}
+                        aria-label={
+                          listening
+                            ? t("chat.stopVoiceInput")
+                            : t("chat.startVoiceInput")
+                        }
+                        sx={{
+                          backgroundColor: listening
+                            ? "var(--color-error-600)"
+                            : color.background.surface,
+                          color: listening ? "#ffffff" : "var(--text-primary)",
+                          borderRadius: "var(--radius-full)",
+                          width: "32px",
+                          height: "32px",
+                          alignSelf: "flex-end",
+                          mr: 1,
+                          transition:
+                            "all var(--transition-duration-200) var(--transition-timing-default)",
+                          "&:hover": {
+                            backgroundColor: listening
+                              ? "var(--color-error-700)"
+                              : color.background.surfaceMuted,
+                          },
+                          "&:disabled": {
+                            backgroundColor: color.background.surfaceMuted,
+                            color: "var(--text-muted)",
+                            boxShadow: "none",
+                          },
+                          ...(listening && {
+                            animation: "pulse 1.5s ease-in-out infinite",
+                          }),
+                        }}
+                      >
+                        {listening ? <MicOffIcon /> : <MicIcon />}
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title={t("chat.voiceInputNotSupported")}>
+                      <IconButton
+                        disabled
+                        aria-label={t("chat.voiceInputNotSupported")}
+                        sx={{
+                          backgroundColor: color.background.surfaceMuted,
+                          color: "var(--text-muted)",
+                          boxShadow: "var(--shadow-lg)",
+                          borderRadius: "var(--radius-full)",
+                          width: "32px",
+                          height: "32px",
+                          alignSelf: "flex-end",
+                          mr: 1,
+                          transition:
+                            "all var(--transition-duration-200) var(--transition-timing-default)",
+                        }}
+                      >
+                        <MicOffIcon />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                  {/* Send button */}
+                  <IconButton
+                    onClick={onSend}
+                    disabled={disabled || loading || !value.trim()}
+                    aria-label='发送消息'
+                    sx={{
                       backgroundColor: loading
                         ? "var(--color-neutral-300)"
-                        : "var(--color-primary-700)",
-                    },
-                    "&:disabled": {
-                      backgroundColor: "var(--color-neutral-300)",
-                      color: "var(--color-neutral-500)",
-                      boxShadow: "none",
-                    },
-                  }}
-                >
-                  {loading ? (
-                    <CircularProgress
-                      size={20}
-                      sx={{
+                        : "var(--color-primary)",
+                      color: "#ffffff",
+                      boxShadow: "var(--shadow-lg)",
+                      borderRadius: "var(--radius-full)",
+                      width: "32px",
+                      height: "32px",
+                      alignSelf: "flex-end",
+                      transition:
+                        "all var(--transition-duration-200) var(--transition-timing-default)",
+                      "&:hover": {
+                        backgroundColor: loading
+                          ? "var(--color-neutral-300)"
+                          : "var(--color-primary-700)",
+                      },
+                      "&:disabled": {
+                        backgroundColor: "var(--color-neutral-300)",
                         color: "var(--color-neutral-500)",
-                      }}
-                    />
-                  ) : (
-                    <ArrowUpwardIcon />
-                  )}
-                </IconButton>
+                        boxShadow: "none",
+                      },
+                    }}
+                  >
+                    {loading ? (
+                      <CircularProgress
+                        size={20}
+                        sx={{
+                          color: "var(--color-neutral-500)",
+                        }}
+                      />
+                    ) : (
+                      <ArrowUpwardIcon />
+                    )}
+                  </IconButton>
+                </>
               ),
             }}
             sx={{

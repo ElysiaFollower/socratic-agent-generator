@@ -137,6 +137,9 @@
   "chat": {
     "inputPlaceholder": "输入你的想法或问题... (Enter发送，Shift+Enter换行)",
     "selectSessionHint": "请先选择一个会话开始学习",
+    "startVoiceInput": "开始语音输入",
+    "stopVoiceInput": "停止语音输入",
+    "voiceInputNotSupported": "您的浏览器不支持语音输入",
     "quickCreateHint": "快速从Profile新建会话",
     "llmSelectorLabel": "模型",
     "llmDefault": "默认",
