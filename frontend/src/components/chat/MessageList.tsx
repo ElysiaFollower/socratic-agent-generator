@@ -16,11 +16,15 @@ import {
   Typography,
   Tooltip,
 } from "@mui/material";
-import { ContentCopy, Replay } from "@mui/icons-material";
+import { ContentCopy, Replay, VolumeUp } from "@mui/icons-material";
 import { CircularProgress } from "../common/CircularProgress";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChatMessage } from "../../types";
+import {
+  filterAllowedVoices,
+  loadTtsPreferences,
+} from "../../utils/ttsPreferences";
 
 /**
  * Props for MessageList component.
@@ -52,6 +56,28 @@ export function MessageList(props: MessageListProps): JSX.Element {
     actionsDisabled = false,
   } = props;
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const [ttsPrefsVersion, setTtsPrefsVersion] = React.useState(0);
+  const hasSpeechSupport =
+    typeof window !== "undefined" && "speechSynthesis" in window;
+  const ttsPreferences = React.useMemo(
+    () => loadTtsPreferences(),
+    [ttsPrefsVersion],
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handlePrefsChange = () => {
+      setTtsPrefsVersion((prev) => prev + 1);
+    };
+    window.addEventListener("tts-preferences-changed", handlePrefsChange);
+    window.addEventListener("storage", handlePrefsChange);
+    return () => {
+      window.removeEventListener("tts-preferences-changed", handlePrefsChange);
+      window.removeEventListener("storage", handlePrefsChange);
+    };
+  }, []);
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,12 +107,150 @@ export function MessageList(props: MessageListProps): JSX.Element {
     );
   }
 
+  const normalizeSpeechText = (content: string) =>
+    content
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+      .replace(/[#>*_`~]/g, "")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
+
+  const splitSpeechSegments = (content: string) => {
+    const segments: Array<{ lang: "zh" | "en"; text: string }> = [];
+    let currentLang: "zh" | "en" | null = null;
+    let buffer = "";
+    let pendingNeutral = "";
+
+    const classify = (char: string): "zh" | "en" | null => {
+      if (/[A-Za-z0-9]/.test(char)) {
+        return "en";
+      }
+      if (/[\u4E00-\u9FFF]/.test(char)) {
+        return "zh";
+      }
+      return null;
+    };
+
+    for (const char of content) {
+      const lang = classify(char);
+      if (!lang) {
+        if (currentLang) {
+          buffer += char;
+        } else {
+          pendingNeutral += char;
+        }
+        continue;
+      }
+
+      if (!currentLang) {
+        currentLang = lang;
+        buffer = pendingNeutral + char;
+        pendingNeutral = "";
+        continue;
+      }
+
+      if (lang === currentLang) {
+        buffer += char;
+        continue;
+      }
+
+      segments.push({ lang: currentLang, text: buffer });
+      currentLang = lang;
+      buffer = char;
+    }
+
+    if (currentLang) {
+      segments.push({
+        lang: currentLang,
+        text: buffer + pendingNeutral,
+      });
+    } else if (pendingNeutral.trim()) {
+      segments.push({ lang: "en", text: pendingNeutral });
+    }
+
+    return segments;
+  };
+
+  const handleSpeakMessage = (message: ChatMessage) => {
+    if (!hasSpeechSupport) {
+      return;
+    }
+
+    const prefs = loadTtsPreferences();
+    if (!prefs.enabled) {
+      return;
+    }
+
+    const text = normalizeSpeechText(message.content);
+    if (!text) {
+      return;
+    }
+
+    const synth = window.speechSynthesis;
+    const voices = filterAllowedVoices(synth.getVoices());
+    if (!voices.length) {
+      return;
+    }
+
+    const segments = splitSpeechSegments(text);
+    if (!segments.length) {
+      return;
+    }
+
+    const chooseVoice = (langPrefix: "zh" | "en") => {
+      const preferredUri =
+        langPrefix === "zh" ? prefs.voiceURIZh : prefs.voiceURIEn;
+      const preferred =
+        preferredUri &&
+        voices.find(
+          (voice) =>
+            voice.voiceURI === preferredUri &&
+            voice.lang.toLowerCase().startsWith(langPrefix),
+        );
+      if (preferred) {
+        return preferred;
+      }
+      return (
+        voices.find((voice) =>
+          voice.lang.toLowerCase().startsWith(langPrefix),
+        ) || voices[0]
+      );
+    };
+
+    synth.cancel();
+
+    const speakNext = (index: number) => {
+      if (index >= segments.length) {
+        return;
+      }
+      const segment = segments[index];
+      const utterance = new SpeechSynthesisUtterance(segment.text);
+      const targetLanguage = segment.lang === "zh" ? "zh-CN" : "en-US";
+      utterance.lang = targetLanguage;
+      utterance.rate = prefs.rate;
+      utterance.pitch = prefs.pitch;
+      utterance.volume = prefs.volume;
+      const voice = chooseVoice(segment.lang);
+      if (voice) {
+        utterance.voice = voice;
+      }
+      utterance.onend = () => speakNext(index + 1);
+      utterance.onerror = () => speakNext(index + 1);
+      synth.speak(utterance);
+    };
+
+    speakNext(0);
+  };
+
   return (
     <Stack spacing={2} sx={{ width: "100%", px: 0, flex: 1 }}>
       {messages.map((message, index) => {
         const isUser = message.role === "user";
+        const canPlayVoice = message.role === "assistant";
         const showActions =
-          !message.isThinking && (onCopyMessage || onRegenerateMessage);
+          !message.isThinking &&
+          (onCopyMessage || onRegenerateMessage || canPlayVoice);
         const markdownStyles = {
           "& p": {
             m: 0,
@@ -268,6 +432,45 @@ export function MessageList(props: MessageListProps): JSX.Element {
                           }}
                         >
                           <Replay fontSize='inherit' />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                  {canPlayVoice && (
+                    <Tooltip
+                      title={
+                        !hasSpeechSupport
+                          ? t("chat.voicePlaybackNotSupported")
+                          : !ttsPreferences.enabled
+                            ? t("chat.voicePlaybackDisabled")
+                            : t("chat.playVoice")
+                      }
+                      arrow
+                    >
+                      <span>
+                        <IconButton
+                          size='small'
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSpeakMessage(message);
+                          }}
+                          disabled={
+                            actionsDisabled ||
+                            !hasSpeechSupport ||
+                            !ttsPreferences.enabled
+                          }
+                          aria-label={t("chat.playVoice")}
+                          sx={{
+                            color: "text.secondary",
+                            transition:
+                              "transform 150ms ease, color 150ms ease",
+                            "&:hover": {
+                              transform: "scale(1.04)",
+                              color: "primary.main",
+                            },
+                          }}
+                        >
+                          <VolumeUp fontSize='inherit' />
                         </IconButton>
                       </span>
                     </Tooltip>

@@ -105,6 +105,23 @@
       "apiKeyRequired": "Please enter API key",
       "apiKeyRequiredForTest": "Please enter API key first"
     },
+    "preferences": {
+      "tts": {
+        "title": "Speech playback",
+        "enable": "Enable speech playback",
+        "voiceZh": "Chinese voice",
+        "voiceEn": "English voice",
+        "voiceDefault": "System default",
+        "voiceTip": "Voice options vary by browser. If you can't find a suitable voice, try a different browser. Chrome is recommended.",
+        "rate": "Rate",
+        "pitch": "Pitch",
+        "volume": "Volume",
+        "testText": "Test text",
+        "testButton": "Test voice",
+        "notSupported": "Speech playback is not supported in this browser.",
+        "voiceEmpty": "No voices detected. Check browser/system speech settings."
+      }
+    },
     "resizeWidth": "Drag to resize settings width"
   },
   "sidebar": {
@@ -179,6 +196,9 @@
     ],
     "copyMessage": "Copy",
     "regenerateMessage": "Regenerate",
+    "playVoice": "Play voice",
+    "voicePlaybackNotSupported": "Speech playback is not supported",
+    "voicePlaybackDisabled": "Speech playback is disabled in Preferences",
     "progress": {
       "title": "Learning Progress",
       "noCurriculum": "No curriculum yet",
