@@ -105,6 +105,23 @@
       "apiKeyRequired": "请输入 API Key",
       "apiKeyRequiredForTest": "请先输入 API Key"
     },
+    "preferences": {
+      "tts": {
+        "title": "语音播放",
+        "enable": "启用语音播放",
+        "voiceZh": "中文音色",
+        "voiceEn": "英文音色",
+        "voiceDefault": "系统默认",
+        "voiceTip": "音色组合因浏览器而异，若没有合适音色可尝试切换浏览器，推荐使用 Chrome。",
+        "rate": "语速",
+        "pitch": "音高",
+        "volume": "音量",
+        "testText": "试音文本",
+        "testButton": "试音",
+        "notSupported": "当前浏览器不支持语音播放。",
+        "voiceEmpty": "未检测到可用音色，请检查浏览器或系统语音设置。"
+      }
+    },
     "resizeWidth": "拖动调整设置窗口宽度"
   },
   "sidebar": {
@@ -137,6 +154,9 @@
   "chat": {
     "inputPlaceholder": "输入你的想法或问题... (Enter发送，Shift+Enter换行)",
     "selectSessionHint": "请先选择一个会话开始学习",
+    "startVoiceInput": "开始语音输入",
+    "stopVoiceInput": "停止语音输入",
+    "voiceInputNotSupported": "您的浏览器不支持语音输入",
     "quickCreateHint": "快速从Profile新建会话",
     "llmSelectorLabel": "模型",
     "llmDefault": "默认",
@@ -177,6 +197,9 @@
     ],
     "copyMessage": "复制",
     "regenerateMessage": "重新生成",
+    "playVoice": "语音播放",
+    "voicePlaybackNotSupported": "当前浏览器不支持语音播放",
+    "voicePlaybackDisabled": "语音播放已关闭，请在偏好设置中开启",
     "progress": {
       "title": "学习进度",
       "noCurriculum": "暂无课程",

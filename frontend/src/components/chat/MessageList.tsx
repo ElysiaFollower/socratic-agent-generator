@@ -16,11 +16,15 @@ import {
   Typography,
   Tooltip,
 } from "@mui/material";
-import { ContentCopy, Replay } from "@mui/icons-material";
+import { ContentCopy, Replay, VolumeUp } from "@mui/icons-material";
 import { CircularProgress } from "../common/CircularProgress";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ChatMessage } from "../../types";
+import {
+  loadTtsPreferences,
+  speakText,
+} from "../../utils/ttsPreferences";
 
 /**
  * Props for MessageList component.
@@ -52,6 +56,28 @@ export function MessageList(props: MessageListProps): JSX.Element {
     actionsDisabled = false,
   } = props;
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
+  const [ttsPrefsVersion, setTtsPrefsVersion] = React.useState(0);
+  const hasSpeechSupport =
+    typeof window !== "undefined" && "speechSynthesis" in window;
+  const ttsPreferences = React.useMemo(
+    () => loadTtsPreferences(),
+    [ttsPrefsVersion],
+  );
+
+  React.useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const handlePrefsChange = () => {
+      setTtsPrefsVersion((prev) => prev + 1);
+    };
+    window.addEventListener("tts-preferences-changed", handlePrefsChange);
+    window.addEventListener("storage", handlePrefsChange);
+    return () => {
+      window.removeEventListener("tts-preferences-changed", handlePrefsChange);
+      window.removeEventListener("storage", handlePrefsChange);
+    };
+  }, []);
 
   React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -81,12 +107,41 @@ export function MessageList(props: MessageListProps): JSX.Element {
     );
   }
 
+  const normalizeSpeechText = (content: string) =>
+    content
+      .replace(/```[\s\S]*?```/g, "")
+      .replace(/`([^`]+)`/g, "$1")
+      .replace(/\[(.*?)\]\((.*?)\)/g, "$1")
+      .replace(/[#>*_`~]/g, "")
+      .replace(/\n{2,}/g, "\n")
+      .trim();
+
+  const handleSpeakMessage = (message: ChatMessage) => {
+    if (!hasSpeechSupport) {
+      return;
+    }
+
+    const prefs = loadTtsPreferences();
+    if (!prefs.enabled) {
+      return;
+    }
+
+    const text = normalizeSpeechText(message.content);
+    if (!text) {
+      return;
+    }
+
+    speakText(text, prefs);
+  };
+
   return (
     <Stack spacing={2} sx={{ width: "100%", px: 0, flex: 1 }}>
       {messages.map((message, index) => {
         const isUser = message.role === "user";
+        const canPlayVoice = message.role === "assistant";
         const showActions =
-          !message.isThinking && (onCopyMessage || onRegenerateMessage);
+          !message.isThinking &&
+          (onCopyMessage || onRegenerateMessage || canPlayVoice);
         const markdownStyles = {
           "& p": {
             m: 0,
@@ -268,6 +323,45 @@ export function MessageList(props: MessageListProps): JSX.Element {
                           }}
                         >
                           <Replay fontSize='inherit' />
+                        </IconButton>
+                      </span>
+                    </Tooltip>
+                  )}
+                  {canPlayVoice && (
+                    <Tooltip
+                      title={
+                        !hasSpeechSupport
+                          ? t("chat.voicePlaybackNotSupported")
+                          : !ttsPreferences.enabled
+                            ? t("chat.voicePlaybackDisabled")
+                            : t("chat.playVoice")
+                      }
+                      arrow
+                    >
+                      <span>
+                        <IconButton
+                          size='small'
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleSpeakMessage(message);
+                          }}
+                          disabled={
+                            actionsDisabled ||
+                            !hasSpeechSupport ||
+                            !ttsPreferences.enabled
+                          }
+                          aria-label={t("chat.playVoice")}
+                          sx={{
+                            color: "text.secondary",
+                            transition:
+                              "transform 150ms ease, color 150ms ease",
+                            "&:hover": {
+                              transform: "scale(1.04)",
+                              color: "primary.main",
+                            },
+                          }}
+                        >
+                          <VolumeUp fontSize='inherit' />
                         </IconButton>
                       </span>
                     </Tooltip>

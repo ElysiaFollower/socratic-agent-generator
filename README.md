@@ -34,6 +34,8 @@ The key contribution of this system is **automated transformation of static, pas
 
 ## System Architecture
 
+![](docs/images/system-architecture.png)
+
 ### Backend (`src/`)
 
 Built on **Python 3.8+**, **FastAPI**, and **LangChain**:

@@ -13,7 +13,6 @@ import {
   DialogContent,
   DialogTitle,
   Paper,
-  Stack,
   Typography,
   Tabs,
   Tab,
@@ -31,6 +30,7 @@ import { LLMProviderStatus } from "../../types";
 import { useNotification } from "../../hooks";
 import { LLM_PROVIDERS } from "../../utils/llmProviders";
 import { LlmSettingsTab } from "./LlmSettingsTab";
+import { PreferencesTab } from "./PreferencesTab";
 
 /**
  * Props for SettingsModal component.
@@ -332,16 +332,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
           />
         )}
 
-        {tabValue === 1 && (
-          <Paper variant='outlined' sx={{ p: 2, mt: 2, borderStyle: "dashed" }}>
-            <Typography variant='subtitle2' sx={{ mb: 1 }}>
-              {t("settings.tabs.preferences")}
-            </Typography>
-            <Typography variant='caption' color='text.secondary'>
-              {t("settings.placeholders.preferences")}
-            </Typography>
-          </Paper>
-        )}
+        {tabValue === 1 && <PreferencesTab />}
 
         {tabValue === 2 && (
           <Paper variant='outlined' sx={{ p: 2, mt: 2, borderStyle: "dashed" }}>

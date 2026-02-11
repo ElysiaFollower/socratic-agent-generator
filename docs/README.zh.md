@@ -34,6 +34,8 @@
 
 ## 系统架构
 
+![](docs/images/system-architecture.png)
+
 ### 后端（`src/`）
 
 基于 **Python 3.8+ / FastAPI / LangChain**：
