@@ -34,7 +34,7 @@
 
 ## 系统架构
 
-![](https://typst-notes-1358266118.cos.ap-guangzhou.myqcloud.com/20260211103944444.png)
+![](docs/images/system-architecture.png)
 
 ### 后端（`src/`）
 

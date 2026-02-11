@@ -154,7 +154,7 @@ export function ChatInput(props: ChatInputProps): JSX.Element {
         });
       }
     } catch (error) {
-      // Handle error silently
+      console.error("Speech recognition failed:", error);
     }
   };
 

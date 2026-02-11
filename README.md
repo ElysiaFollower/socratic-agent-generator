@@ -34,7 +34,7 @@ The key contribution of this system is **automated transformation of static, pas
 
 ## System Architecture
 
-![](https://typst-notes-1358266118.cos.ap-guangzhou.myqcloud.com/20260211103944444.png)
+![](docs/images/system-architecture.png)
 
 ### Backend (`src/`)
 

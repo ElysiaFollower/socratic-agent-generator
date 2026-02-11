@@ -26,6 +26,7 @@ import {
   filterAllowedVoices,
   loadTtsPreferences,
   saveTtsPreferences,
+  speakText,
   TtsPreferences,
 } from "../../utils/ttsPreferences";
 
@@ -80,62 +81,6 @@ export function PreferencesTab(): JSX.Element {
     [allowedVoices],
   );
 
-  const splitSpeechSegments = (content: string) => {
-    const segments: Array<{ lang: "zh" | "en"; text: string }> = [];
-    let currentLang: "zh" | "en" | null = null;
-    let buffer = "";
-    let pendingNeutral = "";
-
-    const classify = (char: string): "zh" | "en" | null => {
-      if (/[A-Za-z0-9]/.test(char)) {
-        return "en";
-      }
-      if (/[\u4E00-\u9FFF]/.test(char)) {
-        return "zh";
-      }
-      return null;
-    };
-
-    for (const char of content) {
-      const lang = classify(char);
-      if (!lang) {
-        if (currentLang) {
-          buffer += char;
-        } else {
-          pendingNeutral += char;
-        }
-        continue;
-      }
-
-      if (!currentLang) {
-        currentLang = lang;
-        buffer = pendingNeutral + char;
-        pendingNeutral = "";
-        continue;
-      }
-
-      if (lang === currentLang) {
-        buffer += char;
-        continue;
-      }
-
-      segments.push({ lang: currentLang, text: buffer });
-      currentLang = lang;
-      buffer = char;
-    }
-
-    if (currentLang) {
-      segments.push({
-        lang: currentLang,
-        text: buffer + pendingNeutral,
-      });
-    } else if (pendingNeutral.trim()) {
-      segments.push({ lang: "en", text: pendingNeutral });
-    }
-
-    return segments;
-  };
-
   const handleTestSpeech = () => {
     if (!hasSpeechSupport || !prefs.enabled) {
       return;
@@ -144,60 +89,7 @@ export function PreferencesTab(): JSX.Element {
     if (!text) {
       return;
     }
-    const synth = window.speechSynthesis;
-    const available = filterAllowedVoices(synth.getVoices());
-    if (!available.length) {
-      return;
-    }
-
-    const segments = splitSpeechSegments(text);
-    if (!segments.length) {
-      return;
-    }
-
-    const chooseVoice = (langPrefix: "zh" | "en") => {
-      const preferredUri =
-        langPrefix === "zh" ? prefs.voiceURIZh : prefs.voiceURIEn;
-      const preferred =
-        preferredUri &&
-        available.find(
-          (voice) =>
-            voice.voiceURI === preferredUri &&
-            voice.lang.toLowerCase().startsWith(langPrefix),
-        );
-      if (preferred) {
-        return preferred;
-      }
-      return (
-        available.find((voice) =>
-          voice.lang.toLowerCase().startsWith(langPrefix),
-        ) || available[0]
-      );
-    };
-
-    synth.cancel();
-
-    const speakNext = (index: number) => {
-      if (index >= segments.length) {
-        return;
-      }
-      const segment = segments[index];
-      const utterance = new SpeechSynthesisUtterance(segment.text);
-      const langPrefix = segment.lang;
-      utterance.lang = langPrefix === "zh" ? "zh-CN" : "en-US";
-      utterance.rate = prefs.rate;
-      utterance.pitch = prefs.pitch;
-      utterance.volume = prefs.volume;
-      const voice = chooseVoice(langPrefix);
-      if (voice) {
-        utterance.voice = voice;
-      }
-      utterance.onend = () => speakNext(index + 1);
-      utterance.onerror = () => speakNext(index + 1);
-      synth.speak(utterance);
-    };
-
-    speakNext(0);
+    speakText(text, prefs);
   };
 
   return (
