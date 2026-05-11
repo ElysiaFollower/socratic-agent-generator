@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "wip_limit": 1,
+  "status_values": ["not_started", "active", "blocked", "passing"],
+  "features": [
+    {
+      "id": "harness-cold-start",
+      "priority": "P0",
+      "area": "harness",
+      "title": "Repo-native cold start harness",
+      "behavior": "A new agent can recover project goal, run commands, verification ladder, current status, and next work from repository files within three minutes.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && ./init.sh && python3 -m compileall src && cd frontend && npm test -- --run && npm run build",
+      "evidence": "2026-05-11: ./scripts/harness-check.sh passed with 0 warnings; ./init.sh passed; python3 -m compileall src passed; cd frontend && npm test -- --run passed with 1 test; cd frontend && npm run build passed. npm ci succeeded before frontend validation and reported 20 existing dependency vulnerabilities.",
+      "notes": "Initialized AGENTS.md, docs/overview.md, harness state, plans directories, init.sh, and harness-check.sh."
+    },
+    {
+      "id": "seed-report-corpus-roadmap",
+      "priority": "P1",
+      "area": "vnext-planning",
+      "title": "SEED experiment report corpus roadmap",
+      "behavior": "The project has a durable plan for using formal SEED step-by-step reports as future tutor generation and feedback assets.",
+      "status": "not_started",
+      "verification": "Review docs/architecture/vnext-integrations.md and create a dedicated implementation plan before importing any reports.",
+      "evidence": "",
+      "notes": "Source candidates: /Users/ely/workspace/lesson/NetworkSecurity/Labs and /Users/ely/workspace/research/agent/SEEDRunner/runs."
+    },
+    {
+      "id": "remote-runner-integration",
+      "priority": "P1",
+      "area": "vnext-planning",
+      "title": "Remote Runner environment observation integration",
+      "behavior": "The tutor can eventually observe a student's real lab environment through a permissioned Remote Runner interface instead of relying only on user narration.",
+      "status": "not_started",
+      "verification": "Create a dedicated branch and plan covering submodule boundary, permission model, audit trail, read/write policy, timeout, and sanitization.",
+      "evidence": "",
+      "notes": "Candidate external project: /Users/ely/workspace/research/agent/SEEDRunner."
+    },
+    {
+      "id": "dreamingrag-memory-integration",
+      "priority": "P1",
+      "area": "vnext-planning",
+      "title": "DreamingRAG long-term tutor memory integration",
+      "behavior": "The tutor can eventually use an evolving memory system for long-range learning context, emotional signals, recurring misconceptions, and insight events.",
+      "status": "not_started",
+      "verification": "Create a dedicated branch and plan covering memory events, privacy controls, retrieval API, forgetting policy, and benchmark evaluation.",
+      "evidence": "",
+      "notes": "Candidate external project: /Users/ely/workspace/research/agent/DreamingRAG."
+    }
+  ]
+}
