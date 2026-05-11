@@ -24,7 +24,7 @@
 
 - 创建实现分支 `rag-memory-adapter`；因本地已有 `dev` 分支，未使用 `dev/rag-*` 命名空间。
 - 新增 `src/utils/memory_provider.py`，定义窄 `MemoryProvider` 协议、null provider、DreamingRAG provider、prompt context 格式化和安全路径分段。
-- 更新 `src/config.py` 和 `.env.example`，加入 DreamingRAG memory adapter 开关、repo path、mock mode、recall 数量和 context 长度配置；默认关闭。
+- 更新 `src/config.py` 和 `.env.example`，加入 DreamingRAG memory adapter 开关、repo path、mock mode、recall 数量和 context 长度配置；默认开启，显式设置 `DREAMINGRAG_MEMORY_ENABLED=false` 可关闭。
 - 更新 `src/utils/tutor_core.py`：Tutor 初始化 provider，生成前 recall 并追加系统记忆 note，生成后容错写入 user/assistant turn。
 - 新增 `tests/test_memory_provider.py` 和 `tests/__init__.py`，覆盖 adapter 关键行为。
 - 更新 `data/.gitignore`，忽略 `data/dreamingrag_memory/` 运行时记忆数据。

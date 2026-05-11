@@ -7,7 +7,7 @@
 
 ## 目标
 
-在短时间内产出一个可用原型：Socratic Tutor 在生成回复前能通过一个窄 `MemoryProvider` adapter 从 DreamingRAG 检索长期记忆片段并注入 prompt，生成回复后能容错写入本轮用户/导师对话。功能必须默认关闭，可通过环境变量打开，并能在 mock DreamingRAG 模式下完成基本行为验证。
+在短时间内产出一个可用原型：Socratic Tutor 在生成回复前能通过一个窄 `MemoryProvider` adapter 从 DreamingRAG 检索长期记忆片段并注入 prompt，生成回复后能容错写入本轮用户/导师对话。功能默认开启，可通过环境变量关闭，并能在 mock DreamingRAG 模式下完成基本行为验证。
 
 ## 非目标
 
@@ -29,7 +29,7 @@
 
 - 新增一个窄后端 memory provider adapter，包含 null provider 和 DreamingRAG provider。
 - 在 `Tutor` 中接入 provider：回复前 recall，回复后 record turn；失败必须降级为无记忆模式。
-- 新增环境变量配置，默认关闭 DreamingRAG。
+- 新增环境变量配置，默认开启 DreamingRAG，并保留显式关闭开关。
 - 新增 focused 后端测试，验证 prompt 注入、写入调用、禁用/导入失败降级。
 - 更新 harness 状态和必要文档。
 
@@ -43,7 +43,7 @@
 
 ## 验收标准
 
-- 默认配置下系统行为保持现状，DreamingRAG 未安装或未配置时不会阻塞 Tutor 初始化、回复生成或保存。
+- 默认配置下 Tutor 会尝试启用 DreamingRAG；DreamingRAG 未安装或未配置时不会阻塞 Tutor 初始化、回复生成或保存，而是降级为空记忆。
 - 开启配置并提供 DreamingRAG 路径后，adapter 能创建 per-session storage，调用 DreamingRAG 记忆系统 recall，并把返回片段注入 LLM prompt 的系统上下文。
 - 生成回复后，adapter 能把 user/assistant turn 写入 DreamingRAG；写入失败只记录 warning，不影响用户收到回复。
 - focused tests 覆盖 null provider、DreamingRAG import/path 降级、recall context 格式化、Tutor prompt 注入和 record turn 调用。
@@ -87,6 +87,6 @@ cd frontend && npm test -- --run
 ## 完成结果
 
 - 状态：`passing`
-- 实现：新增窄 `MemoryProvider` adapter、默认关闭配置、Tutor recall 注入、turn 写入和运行时数据忽略规则。
+- 实现：新增窄 `MemoryProvider` adapter、默认开启配置、显式关闭开关、Tutor recall 注入、turn 写入和运行时数据忽略规则。
 - 验证：`./scripts/harness-check.sh`、`python3 -m unittest tests.test_memory_provider`、`python3 -m compileall src`、`cd frontend && npm test -- --run` 均通过；DreamingRAG mock-mode adapter smoke 通过；DreamingRAG real-mode adapter smoke 通过；CLI seed profile 后可创建会话并用 DeepSeek 返回非空导师回复；同一 session 续轮能 recall 已写入记忆。
 - 后续：真实模式的依赖安装、性能、错误观测、异步写入和 API 稳定性应在下一轮 hardening 中处理。

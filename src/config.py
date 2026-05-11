@@ -199,8 +199,10 @@ def _env_bool(name: str, default: str = "false") -> bool:
 
 _default_dreamingrag_repo = ROOT_DIR.parent / "DreamingRAG"
 
-# Disabled by default so the app keeps current behavior unless explicitly enabled.
-DREAMINGRAG_MEMORY_ENABLED: bool = _env_bool("DREAMINGRAG_MEMORY_ENABLED")
+# Enabled by default because Tutor needs persistent long-term memory for
+# realistic long conversations. The adapter still falls back to NullMemoryProvider
+# when DreamingRAG is unavailable or not installed.
+DREAMINGRAG_MEMORY_ENABLED: bool = _env_bool("DREAMINGRAG_MEMORY_ENABLED", "true")
 DREAMINGRAG_REPO_PATH: Optional[str] = os.getenv(
     "DREAMINGRAG_REPO_PATH",
     str(_default_dreamingrag_repo) if _default_dreamingrag_repo.exists() else "",

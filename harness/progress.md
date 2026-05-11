@@ -60,6 +60,12 @@
 ### 2026-05-11 - 准备归档 RAG adapter 分支
 
 - 判断：当前分支已经完成“能接上 DreamingRAG 并在真实对话路径可用”的原型目标，继续扩展收益低。
-- 保留价值：窄 adapter 边界、默认关闭策略、真实 CLI smoke evidence 和回归测试，可作为未来 DreamingRAG 稳定后的集成基线。
+- 保留价值：窄 adapter 边界、默认开启策略、显式关闭开关、真实 CLI smoke evidence 和回归测试，可作为未来 DreamingRAG 稳定后的集成基线。
 - 暂缓事项：不在本分支继续做 UI、异步写入、生产级依赖管理、记忆管理页面、删除/导出或 DreamingRAG 深层 API 适配。
 - 下一步：提交当前分支作为归档点；未来从新分支推进 hardening。
+
+### 2026-05-11 - 将 DreamingRAG 记忆改为默认开启
+
+- 决策：长会话导师默认应具备持久记忆能力，原先只靠裁剪 history 的记忆策略不足以支撑真实学习场景。
+- 改动：`DREAMINGRAG_MEMORY_ENABLED` 默认值改为 `true`，`.env.example` 同步为默认开启；仍可通过显式设置 `DREAMINGRAG_MEMORY_ENABLED=false` 关闭。
+- 安全边界：DreamingRAG 依赖缺失、路径不可用或初始化失败时，adapter 仍降级为空记忆，不阻断 Tutor 初始化和对话。
