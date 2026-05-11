@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；最近完成 `dreamingrag-memory-integration`，状态为 `passing`。
-- 当前任务计划：无 active；已归档 `plans/archive/20260511-dreamingrag-memory-adapter-prototype.md`。
-- 上次验证：2026-05-11，DreamingRAG memory adapter focused tests、后端语法、前端 smoke test、harness check、mock-mode adapter smoke 和 real-mode CLI smoke 通过。
-- 下一步最佳动作：归档 `rag-memory-adapter` 原型分支；等 DreamingRAG API 和能力成熟后，再开新分支处理真实模式依赖安装、性能、异步写入、错误可观测性和更深集成。
+- 当前功能项：`remote-runner-integration`，状态为 `blocked`。
+- 当前任务计划：`plans/active/20260512-remote-runner-tool-adapter-prototype.md`。
+- 上次验证：2026-05-12，Socratic `./init.sh` 通过；SEEDRunner Remote Runner readiness check 通过；Socratic 本地 adapter、LangChain tool wrapper、Tutor 注入、compileall、harness check、前端 smoke 和 no-SSH CLI smoke 通过。
+- 下一步最佳动作：等待用户提供可连通的远程机器配置，再单独执行 opt-in 真实 SSH smoke；在此之前不连接真实 SSH。
 
 ## 状态约定
 
@@ -69,3 +69,22 @@
 - 决策：长会话导师默认应具备持久记忆能力，原先只靠裁剪 history 的记忆策略不足以支撑真实学习场景。
 - 改动：`DREAMINGRAG_MEMORY_ENABLED` 默认值改为 `true`，`.env.example` 同步为默认开启；仍可通过显式设置 `DREAMINGRAG_MEMORY_ENABLED=false` 关闭。
 - 安全边界：DreamingRAG 依赖缺失、路径不可用或初始化失败时，adapter 仍降级为空记忆，不阻断 Tutor 初始化和对话。
+
+### 2026-05-12 - 开启 Remote Runner 工具接入任务
+
+- 创建分支 `remote-tool`，并确认正确基线为 `rag-memory-adapter`：它包含远端 `origin/dev` 当前代码、repo-native harness 和默认开启的 DreamingRAG adapter。
+- 创建 active plan：`plans/active/20260512-remote-runner-tool-adapter-prototype.md`。
+- 将 `remote-runner-integration` 切换为当前唯一 active feature。
+- 接口检查结论：`/Users/ely/workspace/research/agent/SEEDRunner` 的 Remote Runner 接口已经足够开始 Socratic adapter 原型，不需要先阻塞等待外部项目继续开发基础接口。
+- 已验证外部接口：SEEDRunner `./init.sh` 通过；`python3 -m remote_runner.cli --help` 可运行；`python3 -m pytest tests/test_remote_runner_mvp.py tests/test_remote_runner_launch_suite.py -q` 通过 `28 passed, 1 skipped`；核心 manager import smoke 通过；隔离 `REMOTE_RUNNER_STATE_DIR` 下 `machine/session/run list --json` 返回合法空 JSON。
+- 已知接口差异：Remote Runner API 文档把 `--state-dir` 作为目标全局选项，但当前实现通过 `REMOTE_RUNNER_STATE_DIR` 环境变量选择状态目录；Socratic 原型应使用环境变量集成。
+
+### 2026-05-12 - 完成 Remote Runner 本地 adapter 原型
+
+- 新增 `src/utils/remote_runner_provider.py`，通过可替换 command runner 调用 `python -m remote_runner.cli`，支持 `list_machines`、`list_sessions`、`machine_doctor` 和受限 `session_exec`。
+- 新增 `src/utils/remote_tool_skill.py`，提供 `observe_remote_environment` LangChain tool；配置关闭时不注入 Tutor。
+- 更新 `src/utils/tutor_core.py`，将远程环境 skill 纳入 runtime skills 和 prompt skill summary，同时保留 DreamingRAG 默认记忆能力。
+- 新增配置项：`REMOTE_TOOL_ENABLED`、`REMOTE_RUNNER_REPO_PATH`、`REMOTE_RUNNER_STATE_DIR`、命令超时、输出长度、允许机器、允许命令和 cwd 前缀。
+- 本地安全边界：默认关闭；不执行真实 SSH；`session_exec` 只允许精确匹配的诊断命令；输出会脱敏 host/user/key/password/token/local log path 并截断。
+- 验证：`python3 -m unittest tests.test_remote_runner_provider` 通过 `8 tests, skipped=3`（base python 缺 `langchain_core`，跳过 wrapper/Tutor 用例）；`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider` 通过全部 8 个测试；`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider` 通过 `13 tests, skipped=3`；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；隔离 `REMOTE_RUNNER_STATE_DIR` 的 no-SSH local smoke 返回 provider ready 和空机器列表；`cd frontend && npm test -- --run` 通过 1 个测试。
+- 状态：本地代码和测试已准备好，`remote-runner-integration` 暂标记为 `blocked`，只等待用户提供可连通机器后再做真实 SSH smoke。

@@ -53,6 +53,7 @@ from utils.memory_provider import (
     append_memory_note,
     get_memory_provider,
 )
+from utils.remote_tool_skill import get_remote_environment_skill
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +115,14 @@ class Tutor:
         )
         self.pedagogy_skill = PedagogicalStrategySkill()
         self.assessment_skill = AssessmentSkill(self.session)
+        self.remote_environment_skill = get_remote_environment_skill()
+        self.base_skills = [
+            self.lab_manual_skill,
+            self.pedagogy_skill,
+            self.assessment_skill,
+        ]
+        if self.remote_environment_skill is not None:
+            self.base_skills.append(self.remote_environment_skill)
 
         self.custom_skills = []
         with SessionLocal() as db:
@@ -132,12 +141,8 @@ class Tutor:
         self.evaluation_pending: bool = False
         self._evaluation_lock: Optional[asyncio.Lock] = None
 
-        tools = [
-            self.lab_manual_skill.get_tool(),
-            self.pedagogy_skill.get_tool(),
-            self.assessment_skill.get_tool(),
-        ]
-        tools.extend([skill.get_tool() for skill in self.custom_skills])
+        skills = self._skills_for_prompt(include_custom=True)
+        tools = [skill.get_tool() for skill in skills]
         self.tools = tools
 
         # Main prompt template
@@ -211,6 +216,13 @@ class Tutor:
         # Recompute token counts for the selected LLM tokenizer.
         self.current_history_tokens = self._get_current_history_tokens(self.history)
         return chain
+
+    def _skills_for_prompt(self, include_custom: bool = True) -> List[Any]:
+        """Return runtime skills available to the Tutor prompt and agent."""
+        skills: List[Any] = list(self.base_skills)
+        if include_custom:
+            skills.extend(self.custom_skills)
+        return skills
 
     @classmethod
     def from_id(
@@ -583,11 +595,7 @@ class Tutor:
             self.session.profile.curriculum,
             current_step_idx,  # New step index
             self.session.output_language,
-            skills=[
-                self.lab_manual_skill,
-                self.pedagogy_skill,
-                self.assessment_skill,
-            ],
+            skills=self._skills_for_prompt(include_custom=False),
         )
 
         # Generate transition message (using main LLM, based on full context)
@@ -718,12 +726,7 @@ class Tutor:
             self.session.profile.curriculum,
             self.session.state.stepIndex,
             self.session.output_language,
-            skills=[
-                self.lab_manual_skill,
-                self.pedagogy_skill,
-                self.assessment_skill,
-                *self.custom_skills,
-            ],
+            skills=self._skills_for_prompt(include_custom=True),
         )
 
         result = chain.invoke(
@@ -817,12 +820,7 @@ class Tutor:
             self.session.profile.curriculum,
             self.session.state.stepIndex,
             self.session.output_language,
-            skills=[
-                self.lab_manual_skill,
-                self.pedagogy_skill,
-                self.assessment_skill,
-                *self.custom_skills,
-            ],
+            skills=self._skills_for_prompt(include_custom=True),
         )
         # Ensure evaluation lock is created (lazy initialization)
         self._ensure_evaluation_lock()
@@ -860,11 +858,7 @@ class Tutor:
                 self.session.profile.curriculum,
                 self.session.state.stepIndex,
                 self.session.output_language,
-                skills=[
-                    self.lab_manual_skill,
-                    self.pedagogy_skill,
-                    self.assessment_skill,
-                ],
+                skills=self._skills_for_prompt(include_custom=True),
             )
 
             # Add user message to history with incremental token counting
