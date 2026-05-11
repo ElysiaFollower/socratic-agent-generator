@@ -38,14 +38,14 @@
     },
     {
       "id": "dreamingrag-memory-integration",
-      "priority": "P1",
-      "area": "vnext-planning",
-      "title": "DreamingRAG long-term tutor memory integration",
-      "behavior": "The tutor can eventually use an evolving memory system for long-range learning context, emotional signals, recurring misconceptions, and insight events.",
-      "status": "not_started",
-      "verification": "Create a dedicated branch and plan covering memory events, privacy controls, retrieval API, forgetting policy, and benchmark evaluation.",
-      "evidence": "",
-      "notes": "Candidate external project: /Users/ely/workspace/research/agent/DreamingRAG."
+      "priority": "P0",
+      "area": "memory-adapter",
+      "title": "DreamingRAG memory adapter prototype",
+      "behavior": "When enabled, Tutor retrieves long-term memory snippets from a narrow DreamingRAG adapter before generation and records the user/assistant turn after generation, while default disabled mode preserves existing behavior.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_memory_provider && python3 -m compileall src && cd frontend && npm test -- --run",
+      "evidence": "2026-05-11: ./scripts/harness-check.sh passed with 0 warnings; python3 -m unittest tests.test_memory_provider passed 5 tests; python3 -m compileall src passed; cd frontend && npm test -- --run passed with 1 test. Additional smoke: PYTHONPATH=src conda run -n DreamingRAG python DreamingRAGMemoryProvider mock-mode script succeeded, confirming provider enabled, per-session storage initialized, turn write returned, and recall context contained memory. Real-mode smoke also passed using DreamingRAG .env values without printing secrets: local _local/socratic-smoke-venv installed Socratic and DreamingRAG deps; DreamingRAGMemoryProvider mock_mode=False wrote and recalled memory via DeepSeek + configured embedding provider; CLI --list worked after seeding rag-smoke-buffer-overflow; CLI one-turn conversation created session 31dfa50a-3e77-4643-9993-560ee1218ab9 and got a non-empty DeepSeek tutor reply; Tutor.from_id resumed that session, pre_recall_nonempty=True, pre_recall_mentions_return_address=True, pre_recall_chars=583, second reply_nonempty=True, history_len=4.",
+      "notes": "Prototype scope only: adapter, prompt injection, turn write, graceful fallback. Candidate external project: /Users/ely/workspace/research/agent/DreamingRAG. Archived plan: plans/archive/20260511-dreamingrag-memory-adapter-prototype.md."
     }
   ]
 }

@@ -1,4 +1,5 @@
 vector_stores/
+dreamingrag_memory/
 documents/
 *.db
 tiktoken_cache

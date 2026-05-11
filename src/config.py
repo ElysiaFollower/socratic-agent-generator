@@ -187,6 +187,36 @@ ADMIN_TOKEN: Optional[str] = os.getenv("ADMIN_TOKEN")
 VECTOR_STORE_DIR_NAME = "vector_stores"
 VECTOR_STORE_DIR = DATA_DIR / VECTOR_STORE_DIR_NAME
 
+# --- DreamingRAG Memory Adapter Configuration ---
+
+_BOOL_TRUE_VALUES = {"1", "true", "yes", "on"}
+
+
+def _env_bool(name: str, default: str = "false") -> bool:
+    """Read a boolean flag from environment variables."""
+    return os.getenv(name, default).strip().lower() in _BOOL_TRUE_VALUES
+
+
+_default_dreamingrag_repo = ROOT_DIR.parent / "DreamingRAG"
+
+# Disabled by default so the app keeps current behavior unless explicitly enabled.
+DREAMINGRAG_MEMORY_ENABLED: bool = _env_bool("DREAMINGRAG_MEMORY_ENABLED")
+DREAMINGRAG_REPO_PATH: Optional[str] = os.getenv(
+    "DREAMINGRAG_REPO_PATH",
+    str(_default_dreamingrag_repo) if _default_dreamingrag_repo.exists() else "",
+)
+DREAMINGRAG_MEMORY_STORAGE_DIR_NAME = "dreamingrag_memory"
+DREAMINGRAG_MEMORY_STORAGE_DIR = DATA_DIR / DREAMINGRAG_MEMORY_STORAGE_DIR_NAME
+DREAMINGRAG_MEMORY_MOCK_MODE: bool = _env_bool("DREAMINGRAG_MEMORY_MOCK_MODE")
+DREAMINGRAG_MEMORY_ENABLE_CUE_RECALL: bool = _env_bool(
+    "DREAMINGRAG_MEMORY_ENABLE_CUE_RECALL",
+    "true",
+)
+DREAMINGRAG_MEMORY_TOP_N: int = int(os.getenv("DREAMINGRAG_MEMORY_TOP_N", "3"))
+DREAMINGRAG_MEMORY_CONTEXT_CHARS: int = int(
+    os.getenv("DREAMINGRAG_MEMORY_CONTEXT_CHARS", "2000")
+)
+
 
 def get_user_doc_dir(user_id: str) -> Path:
     """获取指定用户的文档目录"""

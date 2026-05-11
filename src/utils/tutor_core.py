@@ -48,6 +48,11 @@ from utils.step_evaluator import EvaluationResult, StepEvaluator
 from utils.step_completion_manager import StepCompletionManager
 from utils.template_assembler import PromptAssembler
 from utils.llm_manager import get_llm_manager
+from utils.memory_provider import (
+    MemoryProviderContext,
+    append_memory_note,
+    get_memory_provider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +92,15 @@ class Tutor:
         # Initialize token count from restored history
         self.current_history_tokens = self._get_current_history_tokens(self.history)
         self.truncated_history = deepcopy(self.history)
+        self.memory_provider = get_memory_provider(
+            MemoryProviderContext(
+                user_id=self.user_id,
+                session_id=self.session.session_id,
+                profile_id=self.session.profile.profile_id,
+                topic_name=self.session.profile.topic_name,
+                lab_name=self.session.profile.lab_name,
+            )
+        )
 
         self.prompt_assembler = PromptAssembler(
             self.session.profile.prompt_template
@@ -360,6 +374,19 @@ class Tutor:
             history_tokens -= self.llm.get_num_tokens(popped_message.content)
         
         return history
+
+    def _truncate_note_with_memory(self, user_input: str) -> str:
+        """Build the history note plus optional long-term memory context."""
+        if not self.memory_provider.enabled:
+            return self.truncate_history_note
+        memory_context = self.memory_provider.recall_context(user_input)
+        return append_memory_note(self.truncate_history_note, memory_context)
+
+    def _record_memory_turn(self, user_input: str, assistant_output: str) -> None:
+        """Record a completed turn in long-term memory if enabled."""
+        if not self.memory_provider.enabled:
+            return
+        self.memory_provider.record_turn(user_input, assistant_output)
     
     def _add_message_to_history(self, message: str, role: str) -> int:
         """Add a message to history and update token count incrementally.
@@ -686,6 +713,7 @@ class Tutor:
                 is_finished=True,
             )
 
+        truncate_history_note = self._truncate_note_with_memory(user_input)
         formatted_system_prompt = self.prompt_assembler.assemble(
             self.session.profile.curriculum,
             self.session.state.stepIndex,
@@ -701,7 +729,7 @@ class Tutor:
         result = chain.invoke(
             {
                 "system_prompt_with_state": formatted_system_prompt,
-                "truncate_history_note": self.truncate_history_note,
+                "truncate_history_note": truncate_history_note,
                 "input": user_input,
                 "agent_scratchpad": [],
             },
@@ -712,6 +740,7 @@ class Tutor:
         # Add messages to history with incremental token counting
         self._add_message_to_history(user_input, "human")
         assistant_message_id = self._add_message_to_history(response, "ai")
+        self._record_memory_turn(user_input, response)
 
         self.save()
 
@@ -783,6 +812,7 @@ class Tutor:
             )
             return
 
+        truncate_history_note = self._truncate_note_with_memory(user_input)
         formatted_system_prompt = self.prompt_assembler.assemble(
             self.session.profile.curriculum,
             self.session.state.stepIndex,
@@ -853,7 +883,7 @@ class Tutor:
                 async for event in chain.astream_events(
                     {
                         "system_prompt_with_state": formatted_system_prompt,
-                        "truncate_history_note": self.truncate_history_note,
+                        "truncate_history_note": truncate_history_note,
                         "input": user_input,
                         "agent_scratchpad": [],
                     },
@@ -1126,6 +1156,9 @@ class Tutor:
             # Update reply to include transition message if evaluation passed
             if transition_message:
                 reply += transition_message
+
+            if reply:
+                self._record_memory_turn(user_input, reply)
 
             # Ensure save task completes and save final state
             try:
