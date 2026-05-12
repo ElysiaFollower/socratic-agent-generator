@@ -89,6 +89,12 @@ cd frontend && npm test -- --run
 
 ## 下一步最佳动作
 
-1. 等用户提供可连通机器后，准备隔离的 Remote Runner state dir 和非敏感 machine id。
-2. 用允许命令列表中的只读诊断命令执行 opt-in 真实 SSH smoke。
-3. 根据真实 smoke 结果补充审计、用户确认或 session 绑定策略。
+1. 该原型已完成并验证通过，可归档。
+2. 如后续要扩展写操作、权限确认、审计或 Web UI，再另开新分支。
+
+## 完成结果
+
+- 状态：`passing`
+- 实现：新增 CLI-backed `RemoteRunnerProvider`、`observe_remote_environment` LangChain tool、Tutor tool 注入、配置开关、允许命令/机器/cwd 边界、脱敏和输出截断。
+- 验证：`python3 -m unittest tests.test_remote_runner_provider`、`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider`、`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider`、`python3 -m compileall src tests`、`./scripts/harness-check.sh`、`cd frontend && npm test -- --run` 通过；`REMOTE_TOOL_ENABLED=true` 的 no-SSH local smoke 通过；`linux-01` 的 `machine doctor` 通过，随后创建 session 并执行 `pwd` 成功，最后销毁 session 成功。
+- 后续：若要继续扩展 Remote Runner 能力，优先考虑 session 创建/销毁封装、写操作白名单、审计日志、用户确认和更细的状态展示。

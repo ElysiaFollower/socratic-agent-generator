@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`remote-runner-integration`，状态为 `blocked`。
-- 当前任务计划：`plans/active/20260512-remote-runner-tool-adapter-prototype.md`。
-- 上次验证：2026-05-12，Socratic `./init.sh` 通过；SEEDRunner Remote Runner readiness check 通过；Socratic 本地 adapter、LangChain tool wrapper、Tutor 注入、compileall、harness check、前端 smoke 和 no-SSH CLI smoke 通过。
-- 下一步最佳动作：等待用户提供可连通的远程机器配置，再单独执行 opt-in 真实 SSH smoke；在此之前不连接真实 SSH。
+- 当前功能项：`remote-runner-integration`，状态为 `passing`。
+- 当前任务计划：无 active；`plans/archive/20260512-remote-runner-tool-adapter-prototype.md` 已归档。
+- 上次验证：2026-05-12，Socratic `./init.sh` 通过；SEEDRunner Remote Runner readiness check 通过；Socratic 本地 adapter、LangChain tool wrapper、Tutor 注入、compileall、harness check、前端 smoke、no-SSH CLI smoke 和 linux-01 真实 SSH smoke 通过。
+- 下一步最佳动作：如需继续扩展 Remote Runner 的写操作、审计、session 管理或 Web UI，再开新分支；当前原型已可用。
 
 ## 状态约定
 
@@ -87,4 +87,12 @@
 - 新增配置项：`REMOTE_TOOL_ENABLED`、`REMOTE_RUNNER_REPO_PATH`、`REMOTE_RUNNER_STATE_DIR`、命令超时、输出长度、允许机器、允许命令和 cwd 前缀。
 - 本地安全边界：默认关闭；不执行真实 SSH；`session_exec` 只允许精确匹配的诊断命令；输出会脱敏 host/user/key/password/token/local log path 并截断。
 - 验证：`python3 -m unittest tests.test_remote_runner_provider` 通过 `8 tests, skipped=3`（base python 缺 `langchain_core`，跳过 wrapper/Tutor 用例）；`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider` 通过全部 8 个测试；`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider` 通过 `13 tests, skipped=3`；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；隔离 `REMOTE_RUNNER_STATE_DIR` 的 no-SSH local smoke 返回 provider ready 和空机器列表；`cd frontend && npm test -- --run` 通过 1 个测试。
-- 状态：本地代码和测试已准备好，`remote-runner-integration` 暂标记为 `blocked`，只等待用户提供可连通机器后再做真实 SSH smoke。
+- 状态：本地代码和测试已准备好，等待真实 SSH smoke。
+
+### 2026-05-12 - 完成 Remote Runner 本地 adapter 原型并通过 linux-01 真实连通验证
+
+- 在 Socratic 侧实现 CLI-backed `RemoteRunnerProvider`，并通过 `observe_remote_environment` LangChain tool 将其注入 Tutor。
+- 增加配置项、allowlist、cwd 限制、输出截断和脱敏，保持默认关闭，避免未授权机器或命令被调用。
+- 本地验证通过：`python3 -m unittest tests.test_remote_runner_provider`、`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider`、`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider`、`python3 -m compileall src tests`、`./scripts/harness-check.sh`、`cd frontend && npm test -- --run`。
+- 真实连通验证通过：`linux-01` 的 `machine doctor` 返回 reachable/auth/default_cwd 均为 true；创建 session 后用 `pwd` 成功返回 `/home/ely`；随后会话已销毁。
+- 当前结论：Remote Runner 基础接口可直接用于 Socratic 的环境观察原型，后续可在新分支上继续做写操作、审计和 UI。
