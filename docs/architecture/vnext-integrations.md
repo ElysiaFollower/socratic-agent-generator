@@ -34,6 +34,8 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 后续实现需要定义导师调用远程工具的权限模型、只读/可写边界、会话审计、错误脱敏、超时控制和用户确认机制。
 
+当前实现任务：`docs/architecture/remote-runner-session-tools.md` 定义将 Remote Runner 原型产品化为 per-user 机器配置、per-session 机器绑定、Tutor 内置工具和真实实验会话验收的边界。
+
 ## 3. DreamingRAG 记忆系统集成
 
 当前项目的对话记忆主要依赖简单历史裁剪。对于复杂、长程、多会话学习任务，这不足以支持稳定的个性化导师行为。

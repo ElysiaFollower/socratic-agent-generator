@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`linux01-live-deployment` 已标记为 `passing`。
-- 当前任务计划：无 active；`plans/archive/20260513-linux01-live-deployment.md` 已归档。
-- 上次验证：2026-05-13，linux-01 live deployment 通过；远端 focused tests 22 passed；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`；外部 curl health/docs/frontend 通过；admin 真实对话 smoke 通过，session 历史成功保留，且 demo 登录、profile list、session creation 和 `yes` 流式回复不再触发工具迭代过早截断。
-- 下一步最佳动作：把 `http://10.203.15.128:5173` 发给导师；需要时再配置域名、HTTPS 或 systemd。
+- 当前功能项：`remote-runner-session-tools` 为唯一 active。
+- 当前任务计划：`plans/active/20260513-remote-runner-session-tools.md`。
+- 上次验证：2026-05-13，任务初始化前 `./init.sh` 通过，harness 检查 0 warning；PR #16 已合并到 `dev`，新分支 `remote-runner-session-tools` 从最新 `dev` 创建。
+- 下一步最佳动作：检查 Remote Runner 当前 CLI 的 machine/session 配置与 credential 写入接口，然后实现 user remote machine、session remote binding、session-bound Tutor tool 和 focused tests。
 
 ## 状态约定
 
@@ -15,6 +15,16 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-13 - 开启 session-bound Remote Runner 导师工具任务
+
+- 用户已审核通过 PR #16；已将 `feat: integrate vNext Socratic demo stack` 合并到 `dev`。
+- 本地 `dev/...` 层级分支因已有 `dev` 分支无法创建，改为从最新 `dev` 创建分支 `remote-runner-session-tools`。
+- 创建 active plan：`plans/active/20260513-remote-runner-session-tools.md`。
+- 新增架构任务说明：`docs/architecture/remote-runner-session-tools.md`，明确 per-user 机器配置、per-session 机器绑定、Tutor session-bound Remote Runner skill、命令审计、credential 脱敏和 demo 学生完整实验验收。
+- 将 `remote-runner-session-tools` 设置为当前唯一 active feature。
+- 范围判断：之前的 Remote Runner 原型只是全局 env 开关和全局 allowlist，本任务要把它产品化为学生可配置、会话可绑定、Tutor 可真实执行实验命令并收集报告证据的能力。
+- 下一步：先读 Remote Runner CLI 当前 machine/session/credential 接口，再设计并实现 Socratic 侧 DB model、API、UI、Tutor provider 注入和真实 `seed-lab` 验收路径。
 
 ### 2026-05-11 - 记录 vNext 集成路线
 
