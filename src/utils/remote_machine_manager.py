@@ -267,28 +267,33 @@ class RemoteMachineManager:
         *,
         owner_id: str,
         session_id: str,
-        command: str,
+        command: str = "",
+        action: str = "session_exec",
+        command_id: str = "",
         cwd: str = "",
         reason: str = "",
+        wait_timeout_seconds: int = 0,
     ) -> Dict[str, Any]:
-        """Execute one policy-checked command on the session-bound machine."""
+        """Run one policy-checked action on the session-bound machine."""
         binding = self.get_binding_model(session_id, owner_id)
         provider = self._session_provider_from_binding(binding)
         try:
             payload = provider.run_action(
-                action="session_exec",
+                action=action,
                 machine_id=binding.runner_machine_name,
                 session_id=binding.runner_session_id,
                 command=command,
+                command_id=command_id,
                 cwd=cwd,
                 reason=reason,
+                wait_timeout_seconds=wait_timeout_seconds,
             )
             self.record_audit(
                 owner_id=owner_id,
                 session_id=session_id,
                 binding_id=binding.binding_id,
-                action="session_exec",
-                command=command,
+                action=action,
+                command=command or (f"command_id={command_id}" if command_id else ""),
                 cwd=cwd,
                 result=payload.get("result"),
                 error="",
@@ -299,8 +304,8 @@ class RemoteMachineManager:
                 owner_id=owner_id,
                 session_id=session_id,
                 binding_id=binding.binding_id,
-                action="session_exec",
-                command=command,
+                action=action,
+                command=command or (f"command_id={command_id}" if command_id else ""),
                 cwd=cwd,
                 result=None,
                 error=str(exc),
@@ -445,6 +450,7 @@ class RemoteMachineManager:
                 state_dir=self.provider.config.state_dir,
                 python_executable=self.provider.config.python_executable,
                 timeout_seconds=self.provider.config.timeout_seconds,
+                wait_timeout_seconds=self.provider.config.wait_timeout_seconds,
                 max_output_chars=self.provider.config.max_output_chars,
                 allowed_machine_ids=(model.runner_machine_name,),
                 allowed_commands=self.provider.config.allowed_commands,
@@ -464,6 +470,7 @@ class RemoteMachineManager:
                 state_dir=self.provider.config.state_dir,
                 python_executable=self.provider.config.python_executable,
                 timeout_seconds=self.provider.config.timeout_seconds,
+                wait_timeout_seconds=self.provider.config.wait_timeout_seconds,
                 max_output_chars=self.provider.config.max_output_chars,
                 allowed_machine_ids=(binding.runner_machine_name,),
                 allowed_commands=self.provider.config.allowed_commands,

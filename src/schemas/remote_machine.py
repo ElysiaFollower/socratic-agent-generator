@@ -100,9 +100,12 @@ class RemoteCommandAudit(BaseModel):
 
 
 class SessionRemoteCommandRequest(BaseModel):
-    command: str = Field(min_length=1, max_length=4000)
+    action: str = Field(default="session_exec", max_length=80)
+    command: Optional[str] = Field(default=None, max_length=4000)
+    command_id: Optional[str] = Field(default=None, max_length=160)
     cwd: Optional[str] = Field(default=None, max_length=512)
     reason: Optional[str] = Field(default=None, max_length=300)
+    wait_timeout_seconds: Optional[int] = Field(default=None, ge=1, le=120)
 
 
 class SessionRemoteCommandResponse(BaseModel):

@@ -77,6 +77,22 @@ def _agent_executor_kwargs() -> Dict[str, Any]:
     }
 
 
+def _collect_tools_from_skills(skills: List[Any]) -> List[Any]:
+    """Flatten tool collections from skills while preserving legacy support."""
+    tools: List[Any] = []
+    for skill in skills:
+        if hasattr(skill, "get_tools"):
+            skill_tools = skill.get_tools()
+            if skill_tools:
+                tools.extend(skill_tools)
+                continue
+        if hasattr(skill, "get_tool"):
+            tool = skill.get_tool()
+            if tool is not None:
+                tools.append(tool)
+    return tools
+
+
 class Tutor:
     """Socratic AI Tutor agent.
 
@@ -159,8 +175,7 @@ class Tutor:
         self._evaluation_lock: Optional[asyncio.Lock] = None
 
         skills = self._skills_for_prompt(include_custom=True)
-        tools = [skill.get_tool() for skill in skills]
-        self.tools = tools
+        self.tools = _collect_tools_from_skills(skills)
 
         # Main prompt template
         main_prompt = ChatPromptTemplate.from_messages(

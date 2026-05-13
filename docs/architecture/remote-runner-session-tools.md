@@ -135,19 +135,27 @@ The tutor-facing contract must keep short observations distinct from long-runnin
 lab work:
 
 - `run_and_wait`: execute a bounded command and return stdout/stderr/exit code.
-  This is the only mode the MVP exposes to Tutor, and it should stay short
-  enough for an interactive student turn.
 - `run_background`: start a persistent command, return a command/run id
   immediately, and do not block the student turn.
 - `get_command_result`: fetch the current status and accumulated output for a
   previous background command.
+- `wait_command`: wait for a previous command for an explicit short timeout,
+  returning a timeout status without killing the command when it is still
+  running.
+- `stop_command`: stop a previous background command when the student or tutor
+  no longer needs it.
 
-Remote Runner currently exposes synchronous `session exec --timeout` plus session
-log inspection. That is enough for short diagnostics such as `docker ps`, but it
-is not the right shape for packet captures, servers, long builds, or any command
-where the useful interaction is "start now, inspect later." Socratic therefore
-keeps the default command timeout short and records this split as the required
-next interface before Tutor should rely on long-running remote lab commands.
+Remote Runner now exposes this split directly:
+
+- `session exec --mode wait --timeout <seconds>`
+- `session exec --mode background --timeout <seconds>`
+- `session command list/show/result/wait/stop`
+
+Socratic should keep the synchronous timeout short for interactive diagnostics
+such as `pwd`, `docker ps`, and `ip addr`. Packet captures, foreground servers,
+long builds, or commands where the useful interaction is "start now, inspect
+later" should use the background command lifecycle instead of a long blocking
+tool call.
 
 ## Command Policy
 
@@ -227,7 +235,7 @@ The official deployment path should remain conda-based. Remote Runner setup must
 
 ## Open Risks
 
-- The current Remote Runner CLI surface may not yet expose every operation needed for machine upsert or credential management from Socratic.
+- Remote Runner's background command lifecycle is available, but Socratic must keep tool prompts and tests aligned with that CLI as it evolves.
 - Running real packet labs may require root privileges, Docker access, privileged containers, or network capabilities that differ between machines.
 - Tutor command use can drift from Socratic guidance into direct solution automation. The prompt and command policy must keep the tutor focused on observation, explanation, debugging, and evidence collection.
-- Long-running packet capture or interactive tools may need a separate job model instead of synchronous `session_exec`.
+- Fully interactive terminal programs may still need a richer job/terminal model; the current background command lifecycle is best for start-inspect-stop workflows.

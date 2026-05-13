@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`remote-runner-session-tools` 为唯一 active。
-- 当前任务计划：`plans/active/20260513-remote-runner-session-tools.md`。
-- 上次验证：2026-05-13，任务初始化前 `./init.sh` 通过，harness 检查 0 warning；PR #16 已合并到 `dev`，新分支 `remote-runner-session-tools` 从最新 `dev` 创建。
-- 下一步最佳动作：检查 Remote Runner 当前 CLI 的 machine/session 配置与 credential 写入接口，然后实现 user remote machine、session remote binding、session-bound Tutor tool 和 focused tests。
+- 当前功能项：无 active；`remote-runner-background-command-tools` 已 passing。
+- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-remote-runner-background-command-tools.md`。
+- 上次验证：2026-05-14，focused backend tests 21 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，前端 `npm test -- --run` 通过，`git diff --check` 通过。
+- 下一步最佳动作：提交当前分支，推送远端并开面向 `dev` 的 PR；如要证明部署侧真实可用，再把分支同步到 linux-01 后用 demo session 触发一次后台命令 start/wait/result smoke。
 
 ## 状态约定
 
@@ -25,6 +25,26 @@
 - 将 `remote-runner-session-tools` 设置为当前唯一 active feature。
 - 范围判断：之前的 Remote Runner 原型只是全局 env 开关和全局 allowlist，本任务要把它产品化为学生可配置、会话可绑定、Tutor 可真实执行实验命令并收集报告证据的能力。
 - 下一步：先读 Remote Runner CLI 当前 machine/session/credential 接口，再设计并实现 Socratic 侧 DB model、API、UI、Tutor provider 注入和真实 `seed-lab` 验收路径。
+
+### 2026-05-14 - 开启 Remote Runner 后台命令工具升级
+
+- 用户确认上游 Remote Runner 已解决后台运行和显式 wait time 支持，要求 Socratic 侧跟进 agent 工具设计。
+- 本地检查：`/Users/ely/workspace/research/agent/SEEDRunner` 在 `dev/remote-runner-background-commands` 分支，`git pull --ff-only` 已是最新。
+- 已确认上游 CLI 形态：`remote-runner session exec --mode wait|background --timeout <seconds> --json`；`remote-runner session command list/show/result/wait/stop --json`。
+- 创建 active plan：`plans/active/20260514-remote-runner-background-command-tools.md`。
+- 将 `remote-runner-background-command-tools` 设置为当前唯一 active feature。
+- 范围判断：这次只升级 Socratic 后端 agent 工具表面、provider 适配、tests 和 docs；不改前端布局，不重新做 linux-01 完整演示会话。
+- 下一步：先扩展 provider 的 CLI action 支持，再把 session-bound skill 从单 router tool 改为多个明确工具，并保持旧调试路径兼容。
+
+### 2026-05-14 - 完成 Remote Runner 后台命令工具升级
+
+- `RemoteRunnerProvider` 新增 `session_exec_background`、`session_command_list`、`session_command_show/result`、`session_command_wait`、`session_command_stop`，并支持 `wait_timeout_seconds`。
+- `SessionBoundRemoteEnvironmentSkill` 暴露显式 LangChain tools：`check_remote_connection`、`run_remote_command`、`start_remote_command`、`list_remote_commands`、`get_remote_command_result`、`wait_remote_command`、`stop_remote_command`；旧 `observe_remote_environment` 仍保留兼容。
+- `Tutor` 工具收集支持 `get_tools()` flatten，同时兼容旧 `get_tool()`。
+- 后端调试 API `POST /api/sessions/{session_id}/remote-command` 支持 action、command_id 和 wait_timeout_seconds，方便不用前端也能验证后台命令生命周期。
+- 更新 `docs/architecture/remote-runner-session-tools.md` 和 `docs/deployment.md`，明确短命令同步执行与长命令后台生命周期的区别。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 21 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`cd frontend && npm test -- --run` 通过；`git diff --check` 通过。
+- 状态：`remote-runner-background-command-tools` 标记为 `passing`，计划归档。
 
 ### 2026-05-11 - 记录 vNext 集成路线
 

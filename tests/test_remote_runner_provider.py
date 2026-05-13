@@ -18,13 +18,19 @@ from utils.remote_runner_provider import (
 )
 
 try:
-    from utils.remote_tool_skill import get_remote_environment_skill
+    from utils.remote_tool_skill import (
+        SessionBoundRemoteEnvironmentSkill,
+        get_remote_environment_skill,
+    )
+    from utils.tutor_core import _collect_tools_from_skills
 
     LANGCHAIN_TOOLING_AVAILABLE = True
 except ModuleNotFoundError as exc:
     if exc.name != "langchain_core":
         raise
     get_remote_environment_skill = None
+    SessionBoundRemoteEnvironmentSkill = None
+    _collect_tools_from_skills = None
     LANGCHAIN_TOOLING_AVAILABLE = False
 
 
@@ -233,12 +239,317 @@ class RemoteRunnerProviderTest(unittest.TestCase):
                 "pwd",
                 "--timeout",
                 "7",
+                "--mode",
+                "wait",
                 "--json",
             ],
             runner.calls[1]["args"][3:],
         )
         self.assertEqual("password=<redacted>", payload["result"]["stdout"].split()[-1])
-        self.assertEqual("<local_path_redacted>", payload["result"]["log_file_local"])
+
+    def test_session_exec_background_returns_command_metadata(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "command_id": "cmd_1",
+                            "machine_id": "lab1",
+                            "cwd": "/home/seed",
+                            "command": "python server.py",
+                            "status": "running",
+                            "remote_state_dir": "/home/seed/.remote-runner/commands/cmd_1",
+                            "remote_pid": 12345,
+                        }
+                    ),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_machine_ids=("lab1",),
+                allowed_commands=("python server.py",),
+                allowed_command_prefixes=("python ",),
+            ),
+            command_runner=runner,
+        )
+
+        payload = provider.run_action(
+            action="session_exec_background",
+            machine_id="lab1",
+            session_id="sess1",
+            command="python server.py",
+            cwd="/home/seed",
+        )
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual("cmd_1", payload["result"]["command_id"])
+        self.assertEqual(
+            [
+                "session",
+                "exec",
+                "--session",
+                "sess1",
+                "--cmd",
+                "python server.py",
+                "--timeout",
+                "20",
+                "--mode",
+                "background",
+                "--cwd",
+                "/home/seed",
+                "--json",
+            ],
+            runner.calls[1]["args"][3:],
+        )
+        self.assertEqual(
+            "<local_path_redacted>",
+            payload["result"]["remote_state_dir"],
+        )
+
+    def test_session_command_wait_uses_explicit_timeout(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "command_id": "cmd_1",
+                            "machine_id": "lab1",
+                            "cwd": "/home/seed",
+                            "command": "python server.py",
+                            "status": "running",
+                            "wait_timed_out": True,
+                            "stdout": "",
+                            "stderr": "",
+                        }
+                    ),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_machine_ids=("lab1",),
+            ),
+            command_runner=runner,
+        )
+
+        payload = provider.run_action(
+            action="session_command_wait",
+            machine_id="lab1",
+            session_id="sess1",
+            command_id="cmd_1",
+            wait_timeout_seconds=3,
+        )
+
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["result"]["wait_timed_out"])
+        self.assertEqual(
+            [
+                "session",
+                "command",
+                "wait",
+                "--session",
+                "sess1",
+                "--command-id",
+                "cmd_1",
+                "--timeout",
+                "3",
+                "--stdout-bytes",
+                "8192",
+                "--stderr-bytes",
+                "8192",
+                "--json",
+            ],
+            runner.calls[1]["args"][3:],
+        )
+
+    def test_session_command_result_and_stop_use_command_id(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "command_id": "cmd_1",
+                            "machine_id": "lab1",
+                            "cwd": "/home/seed",
+                            "command": "python server.py",
+                            "status": "running",
+                            "stdout": "ready\n",
+                            "stderr": "",
+                        }
+                    ),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "machine_id": "lab1",
+                        }
+                    ),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "command_id": "cmd_1",
+                            "machine_id": "lab1",
+                            "cwd": "/home/seed",
+                            "command": "python server.py",
+                            "status": "stopped",
+                            "stop_requested": True,
+                        }
+                    ),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_machine_ids=("lab1",),
+            ),
+            command_runner=runner,
+        )
+
+        result_payload = provider.run_action(
+            action="session_command_result",
+            machine_id="lab1",
+            session_id="sess1",
+            command_id="cmd_1",
+        )
+        stop_payload = provider.run_action(
+            action="session_command_stop",
+            machine_id="lab1",
+            session_id="sess1",
+            command_id="cmd_1",
+        )
+
+        self.assertEqual("ready\n", result_payload["result"]["stdout"])
+        self.assertTrue(stop_payload["result"]["stop_requested"])
+        self.assertEqual(
+            ["session", "command", "result", "--session", "sess1", "--command-id", "cmd_1", "--stdout-bytes", "8192", "--stderr-bytes", "8192", "--json"],
+            runner.calls[1]["args"][3:],
+        )
+        self.assertEqual(
+            ["session", "command", "stop", "--session", "sess1", "--command-id", "cmd_1", "--json"],
+            runner.calls[3]["args"][3:],
+        )
+
+    @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
+    def test_session_bound_skill_exposes_explicit_tools_and_routes_actions(self):
+        class FakeProvider:
+            def __init__(self):
+                self.calls = []
+
+            def run_action(self, **kwargs):
+                self.calls.append(kwargs)
+                return {
+                    "ok": True,
+                    "action": kwargs["action"],
+                    "result": {
+                        "command_id": kwargs.get("command_id") or "cmd_1",
+                        "wait_timed_out": kwargs.get("wait_timeout_seconds", 0) == 1,
+                    },
+                }
+
+            def _format_observation(self, payload):
+                return json.dumps(payload)
+
+        provider = FakeProvider()
+        skill = SessionBoundRemoteEnvironmentSkill(
+            provider,
+            owner_id="user1",
+            session_id="session1",
+            binding_id="binding1",
+            runner_machine_name="seed-lab",
+            runner_session_id="rr-session-1",
+        )
+
+        tools = {tool.name: tool for tool in skill.get_tools()}
+        expected = {
+            "check_remote_connection",
+            "run_remote_command",
+            "start_remote_command",
+            "list_remote_commands",
+            "get_remote_command_result",
+            "wait_remote_command",
+            "stop_remote_command",
+        }
+        self.assertTrue(expected.issubset(tools.keys()))
+
+        tools["wait_remote_command"].invoke(
+            {"command_id": "cmd_1", "timeout_seconds": 1, "reason": "poll"}
+        )
+        self.assertEqual("session_command_wait", provider.calls[-1]["action"])
+        self.assertEqual("rr-session-1", provider.calls[-1]["session_id"])
+        self.assertEqual(1, provider.calls[-1]["wait_timeout_seconds"])
+
+        tools["start_remote_command"].invoke(
+            {"command": "python server.py", "cwd": "/home/seed", "reason": "start"}
+        )
+        self.assertEqual("session_exec_background", provider.calls[-1]["action"])
+
+        tools["get_remote_command_result"].invoke(
+            {"command_id": "cmd_1", "reason": "inspect"}
+        )
+        self.assertEqual("session_command_result", provider.calls[-1]["action"])
+
+    @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
+    def test_tutor_tool_collection_flattens_multi_tool_skills(self):
+        from langchain_core.tools import tool
+
+        @tool("first_tool")
+        def first_tool(query: str = "") -> str:
+            """First fake tool."""
+            return query
+
+        @tool("second_tool")
+        def second_tool(query: str = "") -> str:
+            """Second fake tool."""
+            return query
+
+        @tool("legacy_tool")
+        def legacy_tool(query: str = "") -> str:
+            """Legacy fake tool."""
+            return query
+
+        class MultiToolSkill:
+            def get_tools(self):
+                return [first_tool, second_tool]
+
+        class LegacySkill:
+            def get_tool(self):
+                return legacy_tool
+
+        tools = _collect_tools_from_skills([MultiToolSkill(), LegacySkill()])
+
+        self.assertEqual(
+            ["first_tool", "second_tool", "legacy_tool"],
+            [item.name for item in tools],
+        )
 
     def test_observation_truncates_long_payload(self):
         runner = FakeRunner(

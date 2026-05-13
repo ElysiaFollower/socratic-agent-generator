@@ -68,6 +68,7 @@ class RemoteRunnerProviderConfig:
     state_dir: Optional[str] = REMOTE_RUNNER_STATE_DIR
     python_executable: str = REMOTE_RUNNER_PYTHON_EXECUTABLE
     timeout_seconds: int = REMOTE_TOOL_COMMAND_TIMEOUT
+    wait_timeout_seconds: int = REMOTE_TOOL_COMMAND_TIMEOUT
     max_output_chars: int = REMOTE_TOOL_OUTPUT_CHARS
     allowed_machine_ids: Sequence[str] = field(
         default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_MACHINE_IDS)
@@ -114,8 +115,10 @@ class RemoteRunnerProvider:
         machine_id: str = "",
         session_id: str = "",
         command: str = "",
+        command_id: str = "",
         cwd: str = "",
         reason: str = "",
+        wait_timeout_seconds: int = 0,
     ) -> str:
         """Run a guarded observation action and return prompt-ready text."""
         normalized_action = _normalize_action(action)
@@ -125,8 +128,10 @@ class RemoteRunnerProvider:
                 machine_id=machine_id,
                 session_id=session_id,
                 command=command,
+                command_id=command_id,
                 cwd=cwd,
                 reason=reason,
+                wait_timeout_seconds=wait_timeout_seconds,
             )
         except RemoteRunnerError as exc:
             payload = {
@@ -151,8 +156,10 @@ class RemoteRunnerProvider:
         machine_id: str = "",
         session_id: str = "",
         command: str = "",
+        command_id: str = "",
         cwd: str = "",
         reason: str = "",
+        wait_timeout_seconds: int = 0,
     ) -> Dict[str, Any]:
         """Run a supported Remote Runner action and return sanitized data."""
         if not self.enabled:
@@ -164,9 +171,14 @@ class RemoteRunnerProvider:
             machine_id=machine_id,
             session_id=session_id,
             command=command,
+            command_id=command_id,
             cwd=cwd,
+            wait_timeout_seconds=wait_timeout_seconds,
         )
-        result = self._run_json(cli_args)
+        result = self._run_json(
+            cli_args,
+            timeout_seconds=self._cli_timeout_seconds(normalized_action, wait_timeout_seconds),
+        )
         filtered = self._filter_payload(normalized_action, result)
 
         return {
@@ -273,7 +285,9 @@ class RemoteRunnerProvider:
         machine_id: str,
         session_id: str,
         command: str,
+        command_id: str,
         cwd: str,
+        wait_timeout_seconds: int,
     ) -> Sequence[str]:
         if action == "list_machines":
             return ("machine", "list", "--json")
@@ -299,18 +313,109 @@ class RemoteRunnerProvider:
                 safe_command,
                 "--timeout",
                 str(max(1, self.config.timeout_seconds)),
+                "--mode",
+                "wait",
             ]
             if safe_cwd:
                 args.extend(["--cwd", safe_cwd])
             args.append("--json")
             return tuple(args)
 
+        if action == "session_exec_background":
+            safe_session = _require_value(session_id, "session_id")
+            safe_command = self._require_allowed_command(command)
+            safe_cwd = self._validate_cwd(cwd)
+            self._validate_session_machine(safe_session, machine_id)
+            args = [
+                "session",
+                "exec",
+                "--session",
+                safe_session,
+                "--cmd",
+                safe_command,
+                "--timeout",
+                str(max(1, self.config.timeout_seconds)),
+                "--mode",
+                "background",
+            ]
+            if safe_cwd:
+                args.extend(["--cwd", safe_cwd])
+            args.append("--json")
+            return tuple(args)
+
+        if action == "session_command_list":
+            safe_session = _require_value(session_id, "session_id")
+            self._validate_session_machine(safe_session, machine_id)
+            return ("session", "command", "list", "--session", safe_session, "--json")
+
+        if action in {"session_command_show", "session_command_result"}:
+            safe_session = _require_value(session_id, "session_id")
+            safe_command_id = _require_value(command_id, "command_id")
+            self._validate_session_machine(safe_session, machine_id)
+            command_action = "show" if action == "session_command_show" else "result"
+            return (
+                "session",
+                "command",
+                command_action,
+                "--session",
+                safe_session,
+                "--command-id",
+                safe_command_id,
+                "--stdout-bytes",
+                "8192",
+                "--stderr-bytes",
+                "8192",
+                "--json",
+            )
+
+        if action == "session_command_wait":
+            safe_session = _require_value(session_id, "session_id")
+            safe_command_id = _require_value(command_id, "command_id")
+            safe_wait = max(1, wait_timeout_seconds or self.config.wait_timeout_seconds)
+            self._validate_session_machine(safe_session, machine_id)
+            return (
+                "session",
+                "command",
+                "wait",
+                "--session",
+                safe_session,
+                "--command-id",
+                safe_command_id,
+                "--timeout",
+                str(safe_wait),
+                "--stdout-bytes",
+                "8192",
+                "--stderr-bytes",
+                "8192",
+                "--json",
+            )
+
+        if action == "session_command_stop":
+            safe_session = _require_value(session_id, "session_id")
+            safe_command_id = _require_value(command_id, "command_id")
+            self._validate_session_machine(safe_session, machine_id)
+            return (
+                "session",
+                "command",
+                "stop",
+                "--session",
+                safe_session,
+                "--command-id",
+                safe_command_id,
+                "--json",
+            )
+
         raise RemoteRunnerPermissionError(
             "Unsupported remote observation action. "
-            "Allowed actions: list_machines, list_sessions, machine_doctor, session_exec."
+            "Allowed actions: list_machines, list_sessions, machine_doctor, "
+            "session_exec, session_exec_background, session_command_list, "
+            "session_command_show, session_command_result, session_command_wait, "
+            "session_command_stop."
         )
 
-    def _run_json(self, cli_args: Sequence[str]) -> Dict[str, Any]:
+    def _run_json(
+        self, cli_args: Sequence[str], timeout_seconds: Optional[int] = None
+    ) -> Dict[str, Any]:
         if self.config.repo_path and self._repo_path() is None:
             raise RemoteRunnerUnavailable("Remote Runner repo path does not exist.")
 
@@ -323,7 +428,7 @@ class RemoteRunnerProvider:
             full_args,
             env,
             cwd,
-            max(1, self.config.timeout_seconds + 2),
+            max(1, (timeout_seconds or self.config.timeout_seconds) + 2),
         )
         output = completed.stdout.strip() or completed.stderr.strip()
         payload = self._parse_json(output)
@@ -451,7 +556,10 @@ class RemoteRunnerProvider:
         if not self.config.allowed_machine_ids:
             return
 
-        session = self._run_json(("session", "show", "--session", session_id, "--json"))
+        session = self._run_json(
+            ("session", "show", "--session", session_id, "--json"),
+            timeout_seconds=self.config.timeout_seconds,
+        )
         observed_machine = str(session.get("machine_id") or "")
         allowed = set(self.config.allowed_machine_ids)
         if observed_machine not in allowed:
@@ -462,6 +570,13 @@ class RemoteRunnerProvider:
             raise RemoteRunnerPermissionError(
                 "Provided machine_id does not match the session machine."
             )
+
+    def _cli_timeout_seconds(
+        self, action: str, wait_timeout_seconds: int = 0
+    ) -> int:
+        if action == "session_command_wait":
+            return max(1, wait_timeout_seconds or self.config.wait_timeout_seconds)
+        return max(1, self.config.timeout_seconds)
 
     def _default_command_runner(
         self,
@@ -508,6 +623,19 @@ def _normalize_action(action: str) -> str:
         "doctor": "machine_doctor",
         "exec": "session_exec",
         "execute": "session_exec",
+        "background": "session_exec_background",
+        "session_exec_background": "session_exec_background",
+        "start": "session_exec_background",
+        "session_command_list": "session_command_list",
+        "command_list": "session_command_list",
+        "session_command_show": "session_command_show",
+        "show_command": "session_command_show",
+        "session_command_result": "session_command_result",
+        "result_command": "session_command_result",
+        "session_command_wait": "session_command_wait",
+        "wait_command": "session_command_wait",
+        "session_command_stop": "session_command_stop",
+        "stop_command": "session_command_stop",
     }
     return aliases.get(normalized, normalized)
 
@@ -536,6 +664,14 @@ LOCAL_PATH_KEYS = (
     "log_file_local",
     "log_dir_local",
     "local_path",
+    "remote_state_dir",
+    "remote_stdout_file",
+    "remote_stderr_file",
+    "remote_status_file",
+    "remote_pid_file",
+    "remote_exit_code_file",
+    "remote_ended_at_file",
+    "remote_worker_file",
 )
 
 

@@ -126,6 +126,15 @@ Users configure lab machines from Settings. A learning session only gets the Rem
 
 `REMOTE_RUNNER_PYTHON_EXECUTABLE` is optional when Remote Runner is installed in the same conda environment as Socratic. Set it when Socratic and Remote Runner are maintained in separate conda environments.
 
+Tutor remote command tools intentionally separate command lifecycles:
+
+- `run_remote_command`: short bounded diagnostics, backed by `session exec --mode wait`.
+- `start_remote_command`: long-running work such as packet capture, servers, or long builds, backed by `session exec --mode background`.
+- `wait_remote_command`: wait for an existing command for an explicit short timeout.
+- `get_remote_command_result`, `list_remote_commands`, and `stop_remote_command`: inspect or control previous commands.
+
+Do not increase `REMOTE_TOOL_COMMAND_TIMEOUT` to cover long-running lab work. Use background commands so a student turn is not blocked for minutes.
+
 Session-scoped LabSetup files are stored under `data/session_files` and capped by `SESSION_FILE_MAX_BYTES` (default 20 MiB). A user can upload files to one session, transfer them to that session's bound lab machine, and then ask the Tutor or debug API to run setup commands such as Docker Compose. Do not commit this cache directory.
 
 ## Smoke Checks
@@ -206,6 +215,8 @@ For backend-only debugging, use the session APIs that mirror the frontend/Tutor 
 - `PUT /api/sessions/{session_id}/remote-binding`
 - `POST /api/sessions/{session_id}/remote-command`
 
+`remote-command` defaults to the old synchronous action when no action is supplied. For background debugging, send `action` values such as `session_exec_background`, `session_command_result`, `session_command_wait`, or `session_command_stop`; include `command_id` for command inspection actions and `wait_timeout_seconds` for bounded waits.
+
 For the SEED Sniffing/Spoofing demo, prefer uploading the known LabSetup `docker-compose.yml` and creating the empty `volumes` directory on the remote machine. That LabSetup is small enough that cloning the full SEED Labs repository on the lab host is unnecessary.
 
 ## Start Services
@@ -247,6 +258,7 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 - Need an offline memory-only demo: set `DREAMINGRAG_MEMORY_MOCK_MODE="true"` temporarily, then switch it back to `false` for real memory behavior.
 - Remote machine test fails: first run `remote-runner machine doctor <machine-id> --json`; do not debug with raw SSH unless you are changing Remote Runner itself.
 - Tutor cannot execute a lab command: add the exact command or a narrow prefix to `REMOTE_TOOL_ALLOWED_COMMANDS` or `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES`, then restart the backend.
+- A long-running Tutor tool appears to hang: use `start_remote_command` plus `wait_remote_command`/`get_remote_command_result` instead of increasing the synchronous command timeout.
 
 ## Maintenance Contract
 

@@ -369,9 +369,12 @@ def run_session_remote_command(
         payload = remote_manager.run_bound_command(
             owner_id=current_user.user_id,
             session_id=session_id,
-            command=req.command,
+            action=req.action or "session_exec",
+            command=req.command or "",
+            command_id=req.command_id or "",
             cwd=req.cwd or "",
             reason=req.reason or "API debug command",
+            wait_timeout_seconds=req.wait_timeout_seconds or 0,
         )
         return SessionRemoteCommandResponse(**payload)
     except SessionNotFoundError as e:
