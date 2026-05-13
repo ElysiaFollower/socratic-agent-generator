@@ -14,9 +14,10 @@
 - Harness：`./scripts/harness-check.sh` 通过，0 warning。
 - 语法验证：`python3 -m compileall src scripts tests` 通过。
 - 合并后 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_skill_names.py tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过，24 passed。
+- 追加验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过；随后又补跑全量 focused suite，25 passed。
 - 默认 embedding 检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY` 输出 `(True, [], [])`，确认默认 `EMBEDDING_PROVIDER=volcengine` 不再触发 HuggingFace 下载。
 - linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
-- linux-01 最终部署：远端 focused pytest 22 passed；`model_check=(True, [], [])`；`embedding_class=VolcengineArkEmbeddings`；默认 public profile count=6；外部 health/docs/frontend curl 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过。
+- linux-01 最终部署：远端 focused pytest 22 passed；`model_check=(True, [], [])`；`embedding_class=VolcengineArkEmbeddings`；默认 public profile count=6；外部 health/docs/frontend curl 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过，且工具迭代不会过早截断。
 
 ## 本会话改动
 
@@ -33,6 +34,7 @@
 - 新增 `tests/test_embedding_provider.py`，覆盖火山文本 embedding 和 vision/multimodal embedding payload。
 - 修复 student 创建内置 public profile session 的 403 问题，避免演示账号能看到 profile 但不能进入学习会话。
 - 修复 `BaseSkill.name` 在远端缺少 `SKILL.md` 时回退为 `unknown_skill` 的问题，避免 DeepSeek 拒绝重复工具名。
+- 调整 Tutor 的 AgentExecutor 配置为更高的最小迭代数并启用 `early_stopping_method="generate"`，避免工具驱动的教学回复在查资料阶段提前收尾。
 
 ## 仍损坏或未验证
 

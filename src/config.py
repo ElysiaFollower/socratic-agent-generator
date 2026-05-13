@@ -139,8 +139,13 @@ LLM_PROVIDERS: Dict[str, Dict[str, Optional[str]]] = {
 # Verbose mode for LangChain agents (set to "true" to enable verbose logging)
 LANGCHAIN_VERBOSE: bool = os.getenv("LANGCHAIN_VERBOSE", "false").lower() == "true"
 
-# Maximum iterations for LangChain agent executor
-LANGCHAIN_MAX_ITERATIONS: int = int(os.getenv("LANGCHAIN_MAX_ITERATIONS", "3"))
+# Maximum iterations for LangChain agent executor.
+# Keep a floor above the common "look up -> narrow search -> answer" pattern
+# so the tutor can finish one tool-heavy turn instead of stopping early.
+LANGCHAIN_MAX_ITERATIONS: int = max(
+    int(os.getenv("LANGCHAIN_MAX_ITERATIONS", "5")),
+    5,
+)
 
 # --- Evaluation Configuration ---
 

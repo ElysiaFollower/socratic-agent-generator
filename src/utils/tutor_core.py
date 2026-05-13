@@ -61,6 +61,21 @@ logger = logging.getLogger(__name__)
 CHEAT_CODE = "希儿天下第一可爱"
 
 
+def _agent_executor_kwargs() -> Dict[str, Any]:
+    """Return the shared AgentExecutor settings used by Tutor.
+
+    The tutor needs a bit more headroom than the default 3 iterations because a
+    single teaching turn often requires one lab-manual lookup plus one follow-up
+    refinement before the final answer is ready.
+    """
+    return {
+        "verbose": LANGCHAIN_VERBOSE,
+        "handle_parsing_errors": True,
+        "max_iterations": LANGCHAIN_MAX_ITERATIONS,
+        "early_stopping_method": "generate",
+    }
+
+
 class Tutor:
     """Socratic AI Tutor agent.
 
@@ -169,13 +184,7 @@ class Tutor:
             from langchain_classic.agents import AgentExecutor
 
         agent = create_tool_calling_agent(llm, self.tools, self.main_prompt)
-        return AgentExecutor(
-            agent=agent,
-            tools=self.tools,
-            verbose=LANGCHAIN_VERBOSE,
-            handle_parsing_errors=True,
-            max_iterations=LANGCHAIN_MAX_ITERATIONS,
-        )
+        return AgentExecutor(agent=agent, tools=self.tools, **_agent_executor_kwargs())
 
     def _get_chain(
         self,
