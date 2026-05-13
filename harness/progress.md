@@ -4,8 +4,8 @@
 
 - 当前功能项：`remote-runner-integration`，状态为 `passing`。
 - 当前任务计划：无 active；`plans/archive/20260512-remote-runner-tool-adapter-prototype.md` 已归档。
-- 上次验证：2026-05-12，Socratic `./init.sh` 通过；SEEDRunner Remote Runner readiness check 通过；Socratic 本地 adapter、LangChain tool wrapper、Tutor 注入、compileall、harness check、前端 smoke、no-SSH CLI smoke 和 linux-01 真实 SSH smoke 通过。
-- 下一步最佳动作：如需继续扩展 Remote Runner 的写操作、审计、session 管理或 Web UI，再开新分支；当前原型已可用。
+- 上次验证：2026-05-13，Socratic `./init.sh` 通过；部署包已本地生成并包含 `.env`；linux-01 部署被 SSH 认证过期阻塞，当前 Remote Runner 保存的 `linux-01` password auth 已被远端拒绝。
+- 下一步最佳动作：更新 `linux-01` 的 Remote Runner 认证配置（新密码或 key auth）后，继续执行远端备份与部署；如需继续扩展 Remote Runner 的写操作、审计、session 管理或 Web UI，再开新分支。
 
 ## 状态约定
 
@@ -96,3 +96,11 @@
 - 本地验证通过：`python3 -m unittest tests.test_remote_runner_provider`、`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider`、`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider`、`python3 -m compileall src tests`、`./scripts/harness-check.sh`、`cd frontend && npm test -- --run`。
 - 真实连通验证通过：`linux-01` 的 `machine doctor` 返回 reachable/auth/default_cwd 均为 true；创建 session 后用 `pwd` 成功返回 `/home/ely`；随后会话已销毁。
 - 当前结论：Remote Runner 基础接口可直接用于 Socratic 的环境观察原型，后续可在新分支上继续做写操作、审计和 UI。
+
+### 2026-05-13 - linux-01 部署尝试被 SSH 认证阻塞
+
+- 本地重新生成部署包：`/tmp/socratic-deploy.ccCbya/socratic-agent-generator.tar.gz`，内容来自当前 `remote-tool` HEAD，并追加 `/Users/ely/workspace/research/agent/DreamingRAG/.env` 为 Socratic 运行 `.env`；未输出密钥内容。
+- 交叉验证结果：`remote-runner machine doctor linux-01 --json` 返回 `reachable=false`、`auth_ok=false`、`Authentication failed.`；`session exec` 和 `file put` 同样失败；OpenSSH password auth 使用 Remote Runner 保存密码连续被远端拒绝。
+- 结论：当前阻塞不是已确认的 SFTP-only 问题，而是 `linux-01` 的 Remote Runner 认证配置过期或与远端不匹配。
+- 已提出 SEEDRunner 工具侧 issue：`https://github.com/ElysiaFollower/SEEDRunner/issues/2`，要求 `session create` 在认证不可用时不要返回误导性的 active session。
+- 已清理本次创建的无效 Remote Runner session，日志保留在本地 Remote Runner 状态目录。
