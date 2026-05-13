@@ -197,6 +197,12 @@ def _env_bool(name: str, default: str = "false") -> bool:
     return os.getenv(name, default).strip().lower() in _BOOL_TRUE_VALUES
 
 
+def _env_list(name: str, default: str = "") -> List[str]:
+    """Read a comma-separated list from environment variables."""
+    value = os.getenv(name, default)
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 _default_dreamingrag_repo = ROOT_DIR.parent / "DreamingRAG"
 
 # Enabled by default because Tutor needs persistent long-term memory for
@@ -217,6 +223,32 @@ DREAMINGRAG_MEMORY_ENABLE_CUE_RECALL: bool = _env_bool(
 DREAMINGRAG_MEMORY_TOP_N: int = int(os.getenv("DREAMINGRAG_MEMORY_TOP_N", "3"))
 DREAMINGRAG_MEMORY_CONTEXT_CHARS: int = int(
     os.getenv("DREAMINGRAG_MEMORY_CONTEXT_CHARS", "2000")
+)
+
+# --- Remote Runner Tool Adapter Configuration ---
+
+_default_remote_runner_repo = ROOT_DIR.parent / "SEEDRunner"
+
+REMOTE_TOOL_ENABLED: bool = _env_bool("REMOTE_TOOL_ENABLED")
+REMOTE_RUNNER_REPO_PATH: Optional[str] = os.getenv(
+    "REMOTE_RUNNER_REPO_PATH",
+    str(_default_remote_runner_repo) if _default_remote_runner_repo.exists() else "",
+)
+REMOTE_RUNNER_STATE_DIR: Optional[str] = os.getenv("REMOTE_RUNNER_STATE_DIR", "")
+REMOTE_TOOL_COMMAND_TIMEOUT: int = int(os.getenv("REMOTE_TOOL_COMMAND_TIMEOUT", "20"))
+REMOTE_TOOL_OUTPUT_CHARS: int = int(os.getenv("REMOTE_TOOL_OUTPUT_CHARS", "4000"))
+REMOTE_TOOL_ALLOWED_MACHINE_IDS: List[str] = _env_list(
+    "REMOTE_TOOL_ALLOWED_MACHINE_IDS"
+)
+REMOTE_TOOL_ALLOWED_CWD_PREFIXES: List[str] = _env_list(
+    "REMOTE_TOOL_ALLOWED_CWD_PREFIXES"
+)
+REMOTE_TOOL_ALLOWED_COMMANDS: List[str] = _env_list(
+    "REMOTE_TOOL_ALLOWED_COMMANDS",
+    (
+        "pwd,ls,ls -la,whoami,hostname,uname -a,id,ip addr,ip route,"
+        "ifconfig,cat /etc/os-release,python --version,python3 --version"
+    ),
 )
 
 

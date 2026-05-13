@@ -1,0 +1,103 @@
+[
+  {
+    "lab_id": "ARP_Attack",
+    "status": "skipped-existing"
+  },
+  {
+    "lab_id": "LocalDNSAttack",
+    "status": "generated",
+    "definition": "docs/manual-enhance/generated/LocalDNSAttack/definition.json",
+    "curriculum": "docs/manual-enhance/generated/LocalDNSAttack/curriculum.json",
+    "profile": "docs/manual-enhance/generated/LocalDNSAttack/profile.json",
+    "topic_name": "本地DNS缓存投毒攻击实验",
+    "step_count": 6,
+    "steps": [
+      "环境搭建与基线验证",
+      "Task 1: 直接伪造响应给用户",
+      "Task 2: DNS缓存投毒——伪造答案",
+      "Task 3: 伪造NS记录",
+      "Task 4: 跨域名NS记录投毒",
+      "Task 5: 测试Additional Section的缓存策略"
+    ]
+  },
+  {
+    "lab_id": "RemoteDNSAttack",
+    "status": "generated",
+    "definition": "docs/manual-enhance/generated/RemoteDNSAttack/definition.json",
+    "curriculum": "docs/manual-enhance/generated/RemoteDNSAttack/curriculum.json",
+    "profile": "docs/manual-enhance/generated/RemoteDNSAttack/profile.json",
+    "topic_name": "远程DNS缓存投毒攻击实验：Kaminsky攻击",
+    "step_count": 5,
+    "steps": [
+      "实验环境搭建",
+      "构造DNS请求",
+      "伪造DNS回复",
+      "发起Kaminsky攻击",
+      "验证攻击结果"
+    ]
+  },
+  {
+    "lab_id": "Sniffing_Spoofing",
+    "status": "generated",
+    "definition": "docs/manual-enhance/generated/Sniffing_Spoofing/definition.json",
+    "curriculum": "docs/manual-enhance/generated/Sniffing_Spoofing/curriculum.json",
+    "profile": "docs/manual-enhance/generated/Sniffing_Spoofing/profile.json",
+    "topic_name": "网络嗅探与数据包伪造实验",
+    "step_count": 14,
+    "steps": [
+      "理解数据包嗅探与伪造的基本概念",
+      "环境准备：确定Docker网络接口名称",
+      "Task 1.1A: 使用Scapy进行基本嗅探",
+      "Task 1.1B: 设置BPF过滤器",
+      "Task 1.2: 使用Scapy伪造ICMP包",
+      "Task 1.3: 使用Scapy实现Traceroute",
+      "Task 1.4: Scapy嗅探-伪造联动(Sniff-and-Spoof)",
+      "Task 2.1A: 编写基于pcap的嗅探程序",
+      "Task 2.1B: 编写pcap过滤器",
+      "Task 2.1C: 嗅探Telnet密码",
+      "Task 2.2A: 编写基于原始套接字的伪造程序",
+      "Task 2.2B: 伪造ICMP Echo Request到公网",
+      "Task 2.3: C语言实现嗅探-伪造联动(Sniff-and-Spoof)",
+      "总结与防御：如何防范嗅探与伪造攻击？"
+    ]
+  },
+  {
+    "lab_id": "TCP_Attacks",
+    "status": "generated",
+    "definition": "docs/manual-enhance/generated/TCP_Attacks/definition.json",
+    "curriculum": "docs/manual-enhance/generated/TCP_Attacks/curriculum.json",
+    "profile": "docs/manual-enhance/generated/TCP_Attacks/profile.json",
+    "topic_name": "TCP协议攻击：SYN洪水、RST攻击与会话劫持",
+    "step_count": 8,
+    "steps": [
+      "环境准备与基线确认",
+      "Task 1.1: 使用 Python 发起 SYN Flood 攻击",
+      "Task 1.1（进阶）: 优化 Python 攻击效果",
+      "Task 1.2: 使用 C 语言发起 SYN Flood 攻击",
+      "Task 1.3: 启用 SYN Cookie 防御机制",
+      "Task 2: TCP RST 攻击",
+      "Task 3: TCP 会话劫持",
+      "Task 4: 通过会话劫持创建反弹 Shell"
+    ]
+  },
+  {
+    "lab_id": "VPN_Tunnel",
+    "status": "generated",
+    "definition": "docs/manual-enhance/generated/VPN_Tunnel/definition.json",
+    "curriculum": "docs/manual-enhance/generated/VPN_Tunnel/curriculum.json",
+    "profile": "docs/manual-enhance/generated/VPN_Tunnel/profile.json",
+    "topic_name": "VPN 隧道构建实验：从零搭建简易 VPN 隧道",
+    "step_count": 9,
+    "steps": [
+      "网络环境搭建与基线验证",
+      "创建并配置TUN接口",
+      "通过UDP隧道发送IP包到VPN Server",
+      "设置VPN Server",
+      "处理双向流量",
+      "隧道中断实验",
+      "Host V上的路由实验",
+      "站点到站点VPN",
+      "TAP接口实验"
+    ]
+  }
+]

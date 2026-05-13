@@ -1,0 +1,16 @@
+{
+  "lab_id": "RemoteDNSAttack",
+  "status": "generated",
+  "definition": "docs/manual-enhance/generated/RemoteDNSAttack/definition.json",
+  "curriculum": "docs/manual-enhance/generated/RemoteDNSAttack/curriculum.json",
+  "profile": "docs/manual-enhance/generated/RemoteDNSAttack/profile.json",
+  "topic_name": "远程DNS缓存投毒攻击实验：Kaminsky攻击",
+  "step_count": 5,
+  "steps": [
+    "实验环境搭建",
+    "构造DNS请求",
+    "伪造DNS回复",
+    "发起Kaminsky攻击",
+    "验证攻击结果"
+  ]
+}

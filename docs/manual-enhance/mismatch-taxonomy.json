@@ -1,0 +1,62 @@
+[
+  {
+    "pattern": "环境摩擦被省略",
+    "labs": [
+      "LocalDNSAttack",
+      "Sniffing_Spoofing",
+      "TCP_Attacks",
+      "VPN_Tunnel"
+    ],
+    "generator_symptom": "初始节点经常从任务本体开始，弱化 bridge 接口发现、Docker compose 差异、cache flush、路由基线等准备动作。",
+    "manual_fix": "把环境身份、接口、缓存、路由和服务基线提升为显式第一节点或第二节点。"
+  },
+  {
+    "pattern": "成功标准过度确定",
+    "labs": [
+      "ARP_Attack",
+      "TCP_Attacks",
+      "RemoteDNSAttack"
+    ],
+    "generator_symptom": "初稿容易写成 100% 丢包、一次脚本成功或固定结果。",
+    "manual_fix": "成功标准允许高丢包/间歇成功、概率竞速、多次复现和负例解释。"
+  },
+  {
+    "pattern": "负例和失败实验没有被当作学习节点",
+    "labs": [
+      "LocalDNSAttack",
+      "VPN_Tunnel",
+      "TCP_Attacks"
+    ],
+    "generator_symptom": "初稿偏向正向完成任务，忽略 cross-domain NS 不被缓存、垃圾写入 TUN 无效、Python SYN flood 效果弱等关键感受。",
+    "manual_fix": "把负例结果作为解释安全策略、接口语义和系统参数的核心节点。"
+  },
+  {
+    "pattern": "证据链不足",
+    "labs": [
+      "ARP_Attack",
+      "LocalDNSAttack",
+      "Sniffing_Spoofing",
+      "VPN_Tunnel"
+    ],
+    "generator_symptom": "节点常只要求学生“完成攻击”，没有要求保存 ARP 表、cache dump、tcpdump、ping 序号或 victim 侧结果。",
+    "manual_fix": "每个节点 success_criteria 都绑定可观察证据和解释义务。"
+  },
+  {
+    "pattern": "任务粒度不贴合真实认知负担",
+    "labs": [
+      "VPN_Tunnel",
+      "Sniffing_Spoofing",
+      "LocalDNSAttack"
+    ],
+    "generator_symptom": "复杂任务被压成一个大节点，或把相近原语拆得过碎但没有比较问题。",
+    "manual_fix": "按真实报告中的卡点拆分：TUN 创建/读/写、DNS 角色/稳定性/各 section 策略、Scapy 到 C 的工程切换。"
+  },
+  {
+    "pattern": "源文档编号问题未被校正",
+    "labs": [
+      "TCP_Attacks"
+    ],
+    "generator_symptom": "TCP 官方手册中 Task 3 标题复用，初稿容易遗漏 video RST 或混淆 session hijacking 顺序。",
+    "manual_fix": "以真实报告完成路径为准，保留 RST、session hijacking、reverse shell 的连续学习线；未由报告充分支撑的 video RST 不作为核心节点。"
+  }
+]

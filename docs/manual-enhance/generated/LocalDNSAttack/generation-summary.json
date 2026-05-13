@@ -1,0 +1,17 @@
+{
+  "lab_id": "LocalDNSAttack",
+  "status": "generated",
+  "definition": "docs/manual-enhance/generated/LocalDNSAttack/definition.json",
+  "curriculum": "docs/manual-enhance/generated/LocalDNSAttack/curriculum.json",
+  "profile": "docs/manual-enhance/generated/LocalDNSAttack/profile.json",
+  "topic_name": "本地DNS缓存投毒攻击实验",
+  "step_count": 6,
+  "steps": [
+    "环境搭建与基线验证",
+    "Task 1: 直接伪造响应给用户",
+    "Task 2: DNS缓存投毒——伪造答案",
+    "Task 3: 伪造NS记录",
+    "Task 4: 跨域名NS记录投毒",
+    "Task 5: 测试Additional Section的缓存策略"
+  ]
+}

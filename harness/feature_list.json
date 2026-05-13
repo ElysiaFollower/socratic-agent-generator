@@ -1,7 +1,12 @@
 {
   "version": 1,
   "wip_limit": 1,
-  "status_values": ["not_started", "active", "blocked", "passing"],
+  "status_values": [
+    "not_started",
+    "active",
+    "blocked",
+    "passing"
+  ],
   "features": [
     {
       "id": "harness-cold-start",
@@ -28,13 +33,35 @@
     {
       "id": "remote-runner-integration",
       "priority": "P1",
-      "area": "vnext-planning",
+      "area": "remote-tool-adapter",
       "title": "Remote Runner environment observation integration",
       "behavior": "The tutor can eventually observe a student's real lab environment through a permissioned Remote Runner interface instead of relying only on user narration.",
-      "status": "not_started",
-      "verification": "Create a dedicated branch and plan covering submodule boundary, permission model, audit trail, read/write policy, timeout, and sanitization.",
-      "evidence": "",
-      "notes": "Candidate external project: /Users/ely/workspace/research/agent/SEEDRunner."
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_remote_runner_provider && _local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider && python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider && python3 -m compileall src tests && cd frontend && npm test -- --run",
+      "evidence": "2026-05-12 readiness check: created branch remote-tool from rag-memory-adapter. External SEEDRunner Remote Runner interface is ready enough for a Socratic adapter prototype: ./init.sh passed; python3 -m remote_runner.cli --help succeeded; python3 -m pytest tests/test_remote_runner_mvp.py tests/test_remote_runner_launch_suite.py -q passed with 28 passed and 1 skipped; manager import smoke for RemoteMachineManager, RemoteSessionManager, RemoteFileManager, and RemoteRunManager passed; isolated REMOTE_RUNNER_STATE_DIR list smoke for machine/session/run returned valid empty JSON. Socratic local prototype: added CLI-backed RemoteRunnerProvider, observe_remote_environment LangChain skill, config flags, Tutor tool injection, .env.example docs, and fake/local tests. Validation: python3 -m unittest tests.test_remote_runner_provider passed 8 tests with 3 skips because base python lacks langchain_core; _local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider passed all 8 tests including LangChain wrapper and Tutor injection; python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider passed 13 tests with 3 skips; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; no-SSH local smoke with REMOTE_TOOL_ENABLED=true and isolated REMOTE_RUNNER_STATE_DIR returned provider status ready and ok true empty machine list; cd frontend && npm test -- --run passed 1 test. Real SSH smoke on linux-01 also passed: machine doctor returned reachable=true, auth_ok=true, default_cwd_ok=true; a session was created; provider-mediated session_exec of pwd returned exit_code 0 and stdout /home/ely; session was then destroyed. Current implementation uses REMOTE_RUNNER_STATE_DIR env rather than the API doc's target --state-dir global option.",
+      "notes": "Completed plan: plans/archive/20260512-remote-runner-tool-adapter-prototype.md. Candidate external project: /Users/ely/workspace/research/agent/SEEDRunner. Local code and tests are ready; remote SSH connectivity verified on linux-01."
+    },
+    {
+      "id": "seed-manual-profile-calibration",
+      "priority": "P1",
+      "area": "manual-profile-enhancement",
+      "title": "Real SEED experiment profile calibration",
+      "behavior": "The repository contains calibrated Socratic profiles for the semester's SEED experiments, grounded in real lab manuals, student-written reports, verified generated reports, and a recorded mismatch taxonomy for future generator improvements.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q && python3 -m compileall src",
+      "evidence": "2026-05-13: created and switched to branch manual-enhance after dev/manual-enhance was blocked by an existing local dev branch. Built corpus manifest for six SEED labs from external source paths under /Users/ely/workspace/research/agent/SEEDRunner/runs without copying raw manuals, reports, PDFs, images, logs, archives, or secrets. Generated first-pass profiles with PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing; outputs are under docs/manual-enhance/generated. Built manual calibrated profiles for ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, and VPN_Tunnel under docs/manual-enhance/calibrated, plus docs/manual-enhance/mismatch-taxonomy.json and docs/manual-enhance/calibrated-profile-summary.json. Validation passed: ./scripts/harness-check.sh returned 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q passed 4 tests; python3 -m compileall src scripts tests passed.",
+      "notes": "Completed plan: plans/archive/20260513-manual-profile-calibration.md. Source corpus remains external: /Users/ely/workspace/research/agent/SEEDRunner/runs. RemoteDNSAttack has lower calibration confidence because only draft notes were found alongside the .tex manual."
+    },
+    {
+      "id": "default-seed-profiles",
+      "priority": "P1",
+      "area": "profile-seeding",
+      "title": "Default calibrated SEED profiles",
+      "behavior": "A fresh deployment seeds the calibrated SEED lab profiles into SQLite automatically so they are immediately available as built-in tutor profiles.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py tests/test_default_profile_seed.py -q && python3 -m compileall src scripts tests",
+      "evidence": "2026-05-13: implemented src/utils/default_profile_seed.py and wired src/core/database.py init_db() to seed docs/manual-enhance/calibrated/*/profile.json into SQLite on startup. Updated ProfileManager.list_profiles_by_visible_classes so built-in public profiles (owner_id null and empty visible_class_ids) are visible to students before class setup. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q passed 6 tests; python3 -m compileall src scripts tests passed; startup smoke via core.database reported builtin_public_count=6 with ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, VPN_Tunnel; ./scripts/harness-check.sh passed with 0 warnings after archiving the plan.",
+      "notes": "Completed plan: plans/archive/20260513-default-seed-profiles.md. The six calibrated SEED profiles are now deployment defaults; no runtime SQLite DB is committed."
     },
     {
       "id": "dreamingrag-memory-integration",

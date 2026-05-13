@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；最近完成 `default-dreamingrag-deployment-docs`，状态为 `passing`。
-- 当前任务计划：无 active；已归档 `plans/archive/20260513-default-dreamingrag-deployment.md`。
-- 上次验证：2026-05-13，官方部署文档检查、DreamingRAG editable install、DreamingRAG public API smoke、Socratic adapter smoke、后端语法、harness check 和 harness audit 通过。
-- 下一步最佳动作：提交并推送 `rag-memory-adapter` 分支。
+- 当前功能项：`default-seed-profiles`，状态为 `passing`。
+- 当前任务计划：无 active；`plans/archive/20260513-default-seed-profiles.md` 已归档。
+- 上次验证：2026-05-13，`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 6 个测试；`python3 -m compileall src scripts tests` 通过；`core.database` 启动 smoke 看到 6 个内置 public profile。
+- 下一步最佳动作：push `manual-enhance` 到远端后切回 `rag-memory-adapter`，再基于 DreamingRAG 的规范接口开新任务对接。
 
 ## 状态约定
 
@@ -70,20 +70,67 @@
 - 改动：`DREAMINGRAG_MEMORY_ENABLED` 默认值改为 `true`，`.env.example` 同步为默认开启；仍可通过显式设置 `DREAMINGRAG_MEMORY_ENABLED=false` 关闭。
 - 安全边界：DreamingRAG 依赖缺失、路径不可用或初始化失败时，adapter 仍降级为空记忆，不阻断 Tutor 初始化和对话。
 
-### 2026-05-13 - 对接 DreamingRAG public API
+### 2026-05-12 - 开启 Remote Runner 工具接入任务
 
-- 创建 active plan：`plans/active/20260513-dreamingrag-public-api-adapter.md`，并将 `dreamingrag-public-api-adapter` 作为唯一 active feature。
-- 迁移 `src/utils/memory_provider.py`：从直接调用 DreamingRAG 内部对象改为加载 `dreaming_rag.public_api.DreamingRAGMemory` 与 `MemoryAPIConfig`，recall 使用 public `MemoryRecord`，turn 写入使用 `remember(..., metadata=...)`。
-- 更新 `tests/test_memory_provider.py`，用 fake public API client 覆盖 per-session storage、score/context 格式化和 user/assistant turn metadata。
-- 更新 `.env.example` 与 `docs/architecture/vnext-integrations.md`，明确当前集成边界是 DreamingRAG public API，不让 DreamingRAG 接管 Tutor 回复生成。
-- 验证：`python3 -m unittest tests.test_memory_provider` 通过 5 个测试；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python ...` public API mock smoke 通过，输出 `enabled=True`、`has_context=True`、`mentions_syn=True`。
-- 降级证据：系统 `python3` 未安装 DreamingRAG 依赖 `openai` 时，adapter 记录 warning 并返回空 context，没有阻断调用。
-- 状态：`dreamingrag-public-api-adapter` 标记为 `passing`；任务计划归档到 `plans/archive/20260513-dreamingrag-public-api-adapter.md`。
+- 创建分支 `remote-tool`，并确认正确基线为 `rag-memory-adapter`：它包含远端 `origin/dev` 当前代码、repo-native harness 和默认开启的 DreamingRAG adapter。
+- 创建 active plan：`plans/active/20260512-remote-runner-tool-adapter-prototype.md`。
+- 将 `remote-runner-integration` 切换为当前唯一 active feature。
+- 接口检查结论：`/Users/ely/workspace/research/agent/SEEDRunner` 的 Remote Runner 接口已经足够开始 Socratic adapter 原型，不需要先阻塞等待外部项目继续开发基础接口。
+- 已验证外部接口：SEEDRunner `./init.sh` 通过；`python3 -m remote_runner.cli --help` 可运行；`python3 -m pytest tests/test_remote_runner_mvp.py tests/test_remote_runner_launch_suite.py -q` 通过 `28 passed, 1 skipped`；核心 manager import smoke 通过；隔离 `REMOTE_RUNNER_STATE_DIR` 下 `machine/session/run list --json` 返回合法空 JSON。
+- 已知接口差异：Remote Runner API 文档把 `--state-dir` 作为目标全局选项，但当前实现通过 `REMOTE_RUNNER_STATE_DIR` 环境变量选择状态目录；Socratic 原型应使用环境变量集成。
 
-### 2026-05-13 - 官方部署文档默认安装 DreamingRAG
+### 2026-05-12 - 完成 Remote Runner 本地 adapter 原型
 
-- 新增 `docs/deployment.md` 作为官方部署文档，默认部署路径包含 sibling `DreamingRAG` checkout、Python 3.10 环境、`pip install -e ../DreamingRAG`、前端 `npm ci`、`.env` 配置、public API smoke、Socratic adapter smoke、启动命令和故障排查。
-- 更新 `README.md`、`docs/README.zh.md`、`AGENTS.md`、`docs/overview.md`、`harness/bootstrap-contract.md`、`.env.example`、`init.sh` 和 `requirements.txt` 注释，使默认安装与部署文档一致。
-- 更新 `harness/quality.md`，把 `docs/deployment.md` 记录为维护入口；当 DreamingRAG public API、依赖、Socratic memory provider 或配置变化时必须同步维护部署文档。
-- 验证：`./scripts/harness-check.sh` 通过且 0 warning；harness audit 通过且 0 warning；`python3 -m compileall src tests` 通过；部署文档引用检查输出 `deployment_docs_reference_dreamingrag=True`；`_local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG` 成功安装 `dreaming-rag-0.5.0`；DreamingRAG public API smoke 输出 `dreamingrag_public_api_ready=True`；Socratic adapter smoke 输出 `socratic_dreamingrag_context_ready=True`。
-- 状态：`default-dreamingrag-deployment-docs` 标记为 `passing`；任务计划归档到 `plans/archive/20260513-default-dreamingrag-deployment.md`。
+- 新增 `src/utils/remote_runner_provider.py`，通过可替换 command runner 调用 `python -m remote_runner.cli`，支持 `list_machines`、`list_sessions`、`machine_doctor` 和受限 `session_exec`。
+- 新增 `src/utils/remote_tool_skill.py`，提供 `observe_remote_environment` LangChain tool；配置关闭时不注入 Tutor。
+- 更新 `src/utils/tutor_core.py`，将远程环境 skill 纳入 runtime skills 和 prompt skill summary，同时保留 DreamingRAG 默认记忆能力。
+- 新增配置项：`REMOTE_TOOL_ENABLED`、`REMOTE_RUNNER_REPO_PATH`、`REMOTE_RUNNER_STATE_DIR`、命令超时、输出长度、允许机器、允许命令和 cwd 前缀。
+- 本地安全边界：默认关闭；不执行真实 SSH；`session_exec` 只允许精确匹配的诊断命令；输出会脱敏 host/user/key/password/token/local log path 并截断。
+- 验证：`python3 -m unittest tests.test_remote_runner_provider` 通过 `8 tests, skipped=3`（base python 缺 `langchain_core`，跳过 wrapper/Tutor 用例）；`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider` 通过全部 8 个测试；`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider` 通过 `13 tests, skipped=3`；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；隔离 `REMOTE_RUNNER_STATE_DIR` 的 no-SSH local smoke 返回 provider ready 和空机器列表；`cd frontend && npm test -- --run` 通过 1 个测试。
+- 状态：本地代码和测试已准备好，等待真实 SSH smoke。
+
+### 2026-05-12 - 完成 Remote Runner 本地 adapter 原型并通过 linux-01 真实连通验证
+
+- 在 Socratic 侧实现 CLI-backed `RemoteRunnerProvider`，并通过 `observe_remote_environment` LangChain tool 将其注入 Tutor。
+- 增加配置项、allowlist、cwd 限制、输出截断和脱敏，保持默认关闭，避免未授权机器或命令被调用。
+- 本地验证通过：`python3 -m unittest tests.test_remote_runner_provider`、`_local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider`、`python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider`、`python3 -m compileall src tests`、`./scripts/harness-check.sh`、`cd frontend && npm test -- --run`。
+- 真实连通验证通过：`linux-01` 的 `machine doctor` 返回 reachable/auth/default_cwd 均为 true；创建 session 后用 `pwd` 成功返回 `/home/ely`；随后会话已销毁。
+- 当前结论：Remote Runner 基础接口可直接用于 Socratic 的环境观察原型，后续可在新分支上继续做写操作、审计和 UI。
+
+### 2026-05-13 - linux-01 部署尝试被 SSH 认证阻塞
+
+- 本地重新生成部署包：`/tmp/socratic-deploy.ccCbya/socratic-agent-generator.tar.gz`，内容来自当前 `remote-tool` HEAD，并追加 `/Users/ely/workspace/research/agent/DreamingRAG/.env` 为 Socratic 运行 `.env`；未输出密钥内容。
+- 交叉验证结果：`remote-runner machine doctor linux-01 --json` 返回 `reachable=false`、`auth_ok=false`、`Authentication failed.`；`session exec` 和 `file put` 同样失败；OpenSSH password auth 使用 Remote Runner 保存密码连续被远端拒绝。
+- 结论：当前阻塞不是已确认的 SFTP-only 问题，而是 `linux-01` 的 Remote Runner 认证配置过期或与远端不匹配。
+- 已提出 SEEDRunner 工具侧 issue：`https://github.com/ElysiaFollower/SEEDRunner/issues/2`，要求 `session create` 在认证不可用时不要返回误导性的 active session。
+- 已清理本次创建的无效 Remote Runner session，日志保留在本地 Remote Runner 状态目录。
+
+### 2026-05-13 - 开启真实 SEED 实验 Profile 手工校准任务
+
+- 创建并切换分支 `manual-enhance`；`dev/manual-enhance` 因本地已有 `dev` 分支无法创建。
+- 创建 active plan：`plans/active/20260513-manual-profile-calibration.md`。
+- 将 `seed-manual-profile-calibration` 设置为当前唯一 active feature。
+- 初步语料定位：`/Users/ely/workspace/research/agent/SEEDRunner/runs` 包含 VPN_Tunnel、ARP_Attack、LocalDNSAttack、RemoteDNSAttack、Sniffing_Spoofing、TCP_Attacks；`mine/` 下有手写实验材料和报告，其他目录有已核验自动报告和 `.tex` 实验文档。
+- 环境检查：`_local/socratic-smoke-venv/bin/python` 可导入 `langchain_deepseek` 和 `langchain_core`；Socratic `.env` 无 LLM key，DreamingRAG `.env` 有 DeepSeek key，可在不输出密钥的前提下用于 generator。
+
+### 2026-05-13 - 完成真实 SEED 实验 Profile 手工校准
+
+- 新增 `scripts/generate_manual_enhance_profiles.py`，从外部 SEEDRunner runs 读取 `.tex`、手写报告和已核验自动报告，用当前 generator 生成初始 profile；运行时通过 DreamingRAG `.env` 加载 DeepSeek key，但未复制或输出密钥。
+- 新增 `scripts/build_manual_enhance_calibrated_profiles.py`，根据人工比对结果生成校准版 profile，并保持 `generated/` 初稿和 `calibrated/` 校准版分离。
+- 新增 `docs/manual-enhance/`：包含 `corpus-manifest.json`、6 个实验的初稿、6 个实验的校准版 profile、`calibrated-profile-summary.json`、`mismatch-taxonomy.json` 和 README。
+- 覆盖实验：ARP_Attack、LocalDNSAttack、RemoteDNSAttack、Sniffing_Spoofing、TCP_Attacks、VPN_Tunnel。RemoteDNSAttack 只有 draft notes，可信度低于其他有手写或详细报告的实验。
+- 归纳 mismatch 模式：环境摩擦被省略、成功标准过度确定、负例没有成为学习节点、证据链不足、任务粒度不贴合真实认知负担、源文档编号问题未被校正。
+- 新增 `tests/test_manual_enhance_profiles.py`，校验校准 profile schema、外部语料引用策略、mismatch 可追溯性和初稿/校准版分离。
+- 验证：`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 4 个测试；`python3 -m compileall src scripts tests` 通过。
+- 状态：`seed-manual-profile-calibration` 标记为 `passing`；计划归档到 `plans/archive/20260513-manual-profile-calibration.md`。
+
+### 2026-05-13 - 完成默认校准 Profile 自动导入
+
+- 创建 active plan：`plans/active/20260513-default-seed-profiles.md`，完成后归档到 `plans/archive/20260513-default-seed-profiles.md`。
+- 新增 `src/utils/default_profile_seed.py`，从 `docs/manual-enhance/calibrated/*/profile.json` 读取并校验 6 个校准 profile，在 SQLite `profiles` 表中按 `profile_id` 幂等插入或更新。
+- 更新 `src/core/database.py`，在 `init_db()` 建表后自动调用默认 profile seed；因此新部署启动后自带这 6 个 profile。
+- 更新 `src/utils/profile_manager.py`，让 `owner_id is None` 且 `visible_class_ids == []` 的内置 public profile 对没有 class 的 student 也可见；admin 和 teacher 仍按已有逻辑可见。
+- 新增 `tests/test_default_profile_seed.py`，覆盖 fresh DB 导入、重复 seed 幂等更新和 student 无 class 可见。
+- 更新 `docs/manual-enhance/README.md`，记录 calibrated profile 会作为内置 public profile 在启动时导入。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 6 个测试；`python3 -m compileall src scripts tests` 通过；启动 smoke 输出 `builtin_public_count= 6`；`./scripts/harness-check.sh` 通过且 0 warning。
+- 状态：`default-seed-profiles` 标记为 `passing`。

@@ -1,0 +1,156 @@
+[
+  {
+    "step_title": "理解数据包嗅探与伪造的基本概念",
+    "guiding_question": "想象一下，你是一个邮递员，每天在网络上投递信件（数据包）。如果你想知道别人信里写了什么，或者想冒充别人寄信，你需要具备哪些能力？",
+    "success_criteria": "学生能够用自己的话解释嗅探（偷听通信）和伪造（冒充身份发送数据）的核心区别，并说出数据包在网络中的基本流转过程。",
+    "learning_objective": "理解数据包嗅探与伪造的核心概念及其在网络攻击与防御中的作用。",
+    "scaffolding_hints": [
+      "邮递员能看到信件的哪些信息？",
+      "如果你想要假装是另一个人寄信，你需要修改信件的哪些部分？",
+      "在网络上，数据包就像信件，它的‘信封’和‘信纸’分别是什么？"
+    ]
+  },
+  {
+    "step_title": "环境准备：确定Docker网络接口名称",
+    "guiding_question": "我们要在Docker容器里进行实验，但容器有很多虚拟网络接口。怎么找到那个连接着其他容器的‘真实’网络接口呢？",
+    "success_criteria": "学生能够通过运行 `ip addr` 或 `ifconfig` 命令，找到类型为 `br-...` 的网络接口名称，并确认其IP地址。",
+    "learning_objective": "掌握在Docker环境中识别网络接口的方法，为后续嗅探指定正确的网络接口。",
+    "scaffolding_hints": [
+      "运行 `ip addr` 命令后，你看到了哪些接口？",
+      "哪个接口的IP地址看起来和你的Docker网络（如10.9.0.0/24）有关？",
+      "接口名称中通常包含 'br' 或 'docker' 字样，你能找到吗？"
+    ]
+  },
+  {
+    "step_title": "Task 1.1A: 使用Scapy进行基本嗅探",
+    "guiding_question": "如果我们给Scapy一副‘顺风耳’，让它监听网络，它需要知道哪些信息才能准确捕获到我们感兴趣的数据包？",
+    "success_criteria": "学生能够编写一个使用 `sniff()` 函数的Scapy脚本，指定接口（iface）和回调函数（print_pkt），并在root权限下成功捕获到ICMP包。非root用户运行时，程序应因权限不足而报错。",
+    "learning_objective": "掌握Scapy中 `sniff()` 函数的基本用法，理解root权限对网络嗅探的必要性。",
+    "scaffolding_hints": [
+      "Scapy的 `sniff()` 函数需要你告诉它监听哪个‘耳朵’（接口）？",
+      "捕获到数据包后，你怎么让它‘说’出来（打印）？",
+      "为什么普通用户不能直接监听网络？这涉及到操作系统的什么安全机制？"
+    ]
+  },
+  {
+    "step_title": "Task 1.1B: 设置BPF过滤器",
+    "guiding_question": "现在Scapy能听到所有声音了，但太吵了。我们只想听‘ICMP’这种特定语言，或者只关心发往‘23号端口’的信息。如何给它一个‘语言过滤器’？",
+    "success_criteria": "学生能够编写Scapy脚本，并成功应用 `filter=\"icmp\"`、`filter=\"tcp dst port 23\"` 和 `filter=\"net 10.9.0.0/24\"` 等BPF过滤器，只捕获到符合条件的数据包。",
+    "learning_objective": "掌握BPF（Berkeley Packet Filter）语法，能够根据协议、端口、网络地址等条件精确过滤数据包。",
+    "scaffolding_hints": [
+      "BPF过滤器是写在哪个参数里的？它的语法是什么样的？",
+      "如果我只想捕获从某个IP发出的ICMP包，BPF表达式应该怎么写？",
+      "`tcp dst port 23` 和 `tcp src port 23` 有什么区别？"
+    ]
+  },
+  {
+    "step_title": "Task 1.2: 使用Scapy伪造ICMP包",
+    "guiding_question": "我们不止能偷听，还能‘写信’！如果我们想伪造一封来自‘圣诞老人’的ICMP问候信（Echo Request），我们需要在信封（IP头）和信纸（ICMP头）上填写哪些内容？",
+    "success_criteria": "学生能够使用Scapy的 `IP()` 和 `ICMP()` 函数构造一个数据包，并通过 `send()` 函数发送，目标主机（如8.8.8.8）能收到一个源IP为伪造地址的ICMP Echo Request。",
+    "learning_objective": "理解IP和ICMP协议头部结构，掌握使用Scapy构造和发送自定义数据包的方法。",
+    "scaffolding_hints": [
+      "一个IP数据包的‘源地址’和‘目的地址’分别对应信封上的什么？",
+      "ICMP的Echo Request和Echo Reply在类型（type）和代码（code）上有什么区别？",
+      "发送后，你怎么验证你伪造的包真的在网络上出现了？"
+    ]
+  },
+  {
+    "step_title": "Task 1.3: 使用Scapy实现Traceroute",
+    "guiding_question": "我们想知道一封信从我们这里寄到目标地址，沿途经过了哪些邮局（路由器）。邮局每转寄一次，信封上的‘生存时间（TTL）’就会减少1。当TTL变为0时，最后一个邮局会给我们寄回一封‘退信’。如何利用这个机制来绘制网络地图？",
+    "success_criteria": "学生能够编写Scapy程序，通过递增IP头的TTL字段并发送ICMP包，根据接收到的‘ICMP time exceeded’错误消息，依次打印出到达目标主机的每一跳路由器的IP地址。",
+    "learning_objective": "理解TTL（生存时间）字段的工作原理，掌握通过发送TTL递增的数据包来探测网络路径的方法。",
+    "scaffolding_hints": [
+      "当TTL=1时，第一个路由器收到后会发生什么？",
+      "你收到的‘退信’是什么类型的ICMP包？它的源IP是谁？",
+      "程序如何判断已经到达了最终目标主机？"
+    ]
+  },
+  {
+    "step_title": "Task 1.4: Scapy嗅探-伪造联动(Sniff-and-Spoof)",
+    "guiding_question": "想象你是一个‘中间人’，能听到所有ICMP请求。如果有人问‘8.8.8.8你在吗？’，你能否在真正的8.8.8.8回应之前，抢先替他回答‘我在！’？这样，提问者会相信谁？",
+    "success_criteria": "学生能够编写Scapy程序，在嗅探到ICMP Echo Request后，立即构造一个带有正确ID和序列号的Echo Reply并发送。验证：ping一个不存在的公网IP（如1.2.3.4）显示成功；ping一个不存在的内网IP（如10.9.0.99）显示目标不可达（因为ARP请求失败）；ping一个存在的公网IP（如8.8.8.8）显示重复回复（DUP!）。",
+    "learning_objective": "综合运用嗅探和伪造技术，实现一个简单的中间人攻击原型，理解其在网络欺骗中的应用。",
+    "scaffolding_hints": [
+      "你伪造的Echo Reply需要哪些字段和嗅探到的Echo Request保持一致？",
+      "为什么ping不存在的内网IP会失败？这涉及到什么协议？",
+      "为什么ping存在的公网IP会出现‘DUP!’？这说明了什么？"
+    ]
+  },
+  {
+    "step_title": "Task 2.1A: 编写基于pcap的嗅探程序",
+    "guiding_question": "Scapy虽然方便，但就像用高级语言写脚本。如果我们想用C语言、直接调用底层的pcap库来写一个更‘硬核’的嗅探器，我们需要调用哪些函数来打开设备、设置过滤器、然后循环捕获？",
+    "success_criteria": "学生能够编写C程序，成功调用 `pcap_open_live()`、`pcap_compile()`、`pcap_setfilter()` 和 `pcap_loop()`，并在回调函数中正确解析并打印出IP头中的源和目标IP地址。非root用户运行时应报错。",
+    "learning_objective": "掌握pcap库的核心API，理解C语言中网络数据包捕获的底层实现。",
+    "scaffolding_hints": [
+      "`pcap_open_live()` 的第一个参数是什么？它和Scapy中的哪个参数对应？",
+      "`pcap_loop()` 的回调函数会收到什么数据？我们如何从这个原始数据中提取出IP头？",
+      "IP头的结构是什么样的？源IP和目的IP在偏移多少字节的位置？"
+    ]
+  },
+  {
+    "step_title": "Task 2.1B: 编写pcap过滤器",
+    "guiding_question": "现在我们的C语言嗅探器也能听到所有声音了。如何给它也加上一个‘BPF语言过滤器’，让它只关心特定主机之间的ICMP对话，或者只监听特定端口范围的TCP流量？",
+    "success_criteria": "学生能够修改C程序，使用 `pcap_compile()` 编译如 `\"icmp and host 10.9.0.5\"` 或 `\"tcp dst portrange 1-1024\"` 等BPF表达式，并验证程序只捕获到符合条件的流量。",
+    "learning_objective": "巩固BPF语法，并掌握在C语言pcap程序中应用BPF过滤器的完整流程。",
+    "scaffolding_hints": [
+      "`pcap_compile()` 的第二个参数就是我们的过滤表达式，它的语法和Scapy中一样吗？",
+      "如何编写一个过滤器，只捕获从10.9.0.5发出的TCP SYN包？",
+      "`pcap_setfilter()` 的作用是什么？"
+    ]
+  },
+  {
+    "step_title": "Task 2.1C: 嗅探Telnet密码",
+    "guiding_question": "Telnet是一种古老的‘明文’通信协议。如果有人用它登录服务器，他的用户名和密码就像写在明信片上一样在网络中传输。我们如何修改我们的嗅探器，让它不仅能看信封（IP头），还能偷看明信片上的内容（TCP载荷）？",
+    "success_criteria": "学生能够修改C程序，在回调函数中解析TCP头，并正确计算和打印出TCP数据载荷部分的内容，从而捕获到明文传输的Telnet用户名和密码（如'seed'）。",
+    "learning_objective": "理解TCP协议头部结构，掌握从原始数据包中提取应用层数据（TCP payload）的方法，认识到明文协议的安全风险。",
+    "scaffolding_hints": [
+      "TCP头之后就是数据载荷。TCP头有多长？这个长度信息藏在TCP头的哪个字段里？",
+      "如何从原始数据包中跳过以太网头、IP头和TCP头，找到数据载荷的起始位置？",
+      "为什么Telnet密码是明文传输？这有什么安全危害？"
+    ]
+  },
+  {
+    "step_title": "Task 2.2A: 编写基于原始套接字的伪造程序",
+    "guiding_question": "Scapy可以轻松伪造包，但如果我们想用C语言从零开始构造一个IP数据包，我们需要一个特殊的‘万能笔’——原始套接字（Raw Socket）。如何使用这个‘笔’，并亲手画出IP头和ICMP头的每一个字节？",
+    "success_criteria": "学生能够编写C程序，使用 `socket(AF_INET, SOCK_RAW, IPPROTO_RAW)` 创建原始套接字，手动填充IP头和ICMP头结构体，并通过 `sendto()` 发送，在网络上被tcpdump捕获到。",
+    "learning_objective": "掌握原始套接字的创建和使用，理解IP和ICMP协议头部的二进制结构。",
+    "scaffolding_hints": [
+      "`IPPROTO_RAW` 和 `IPPROTO_ICMP` 有什么区别？前者需要你做什么额外工作？",
+      "IP头中的‘总长度’、‘标识’、‘校验和’等字段，哪些是必须正确填充的？",
+      "发送时，`sendto()` 的目标地址参数应该填什么？"
+    ]
+  },
+  {
+    "step_title": "Task 2.2B: 伪造ICMP Echo Request到公网",
+    "guiding_question": "现在你已经能自己‘画’包了。如果我们将源IP地址设为另一个人的地址，然后向公网服务器（如8.8.8.8）发送一个ICMP请求，会发生什么？谁会收到回复？这背后暴露了网络协议的什么设计缺陷？",
+    "success_criteria": "学生能够修改C程序，将源IP地址字段设置为另一台主机的IP，成功发送伪造的ICMP Echo Request，并通过tcpdump观察到目标主机向该伪造源IP发送了Echo Reply。",
+    "learning_objective": "实践IP源地址伪造，理解网络层缺乏身份验证机制的安全问题。",
+    "scaffolding_hints": [
+      "你如何验证你伪造的包真的被发送出去了？",
+      "tcpdump捕获到的回复包的目标IP是谁的？这说明了什么？",
+      "如果这是一个攻击，攻击者能利用这个机制做什么？"
+    ]
+  },
+  {
+    "step_title": "Task 2.3: C语言实现嗅探-伪造联动(Sniff-and-Spoof)",
+    "guiding_question": "你已经分别掌握了C语言的‘偷听’（pcap）和‘伪造’（raw socket）技术。现在，请将它们结合起来：一边偷听ICMP请求，一边立刻伪造回复。这就像同时扮演‘窃听者’和‘回信人’，如何让这两个程序协同工作？",
+    "success_criteria": "学生能够编写C程序，在一个线程或进程中使用pcap嗅探ICMP Echo Request，解析出必要信息（ID、序列号、目标IP等），然后立即使用raw socket构造并发送一个对应的Echo Reply。理想情况下，发起ping的程序能收到这个伪造的回复。",
+    "learning_objective": "综合运用pcap嗅探和原始套接字伪造技术，实现一个完整的、底层的嗅探-伪造攻击原型。",
+    "scaffolding_hints": [
+      "嗅探到请求包后，你需要从包中提取哪些信息来构造回复包？",
+      "pcap的回调函数和raw socket的发送函数之间如何传递数据？",
+      "如果程序跑得不够快，真正的回复先到了，会发生什么？"
+    ]
+  },
+  {
+    "step_title": "总结与防御：如何防范嗅探与伪造攻击？",
+    "guiding_question": "经过这一系列实验，你已经掌握了嗅探和伪造的基本原理和实现。现在，站在防御者的角度思考：如果你是企业网络的管理员，你会采取哪些措施来防止攻击者进行嗅探和IP伪造？",
+    "success_criteria": "学生能够列举出至少三种防御措施，例如：使用加密协议（SSH替代Telnet，HTTPS替代HTTP）、启用网络层安全（IPsec）、部署交换机端口安全（防止ARP欺骗）等。",
+    "learning_objective": "建立安全防御意识，理解对抗嗅探和伪造攻击的基本策略。",
+    "scaffolding_hints": [
+      "如果通信内容被加密了，嗅探者还能看到明文密码吗？",
+      "IP源地址可以伪造，那有什么技术可以验证一个IP包是否真的来自它所声称的源？",
+      "在交换网络中，如何防止攻击者通过ARP欺骗变成‘中间人’？"
+    ]
+  }
+]

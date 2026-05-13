@@ -1,0 +1,25 @@
+{
+  "lab_id": "Sniffing_Spoofing",
+  "status": "generated",
+  "definition": "docs/manual-enhance/generated/Sniffing_Spoofing/definition.json",
+  "curriculum": "docs/manual-enhance/generated/Sniffing_Spoofing/curriculum.json",
+  "profile": "docs/manual-enhance/generated/Sniffing_Spoofing/profile.json",
+  "topic_name": "网络嗅探与数据包伪造实验",
+  "step_count": 14,
+  "steps": [
+    "理解数据包嗅探与伪造的基本概念",
+    "环境准备：确定Docker网络接口名称",
+    "Task 1.1A: 使用Scapy进行基本嗅探",
+    "Task 1.1B: 设置BPF过滤器",
+    "Task 1.2: 使用Scapy伪造ICMP包",
+    "Task 1.3: 使用Scapy实现Traceroute",
+    "Task 1.4: Scapy嗅探-伪造联动(Sniff-and-Spoof)",
+    "Task 2.1A: 编写基于pcap的嗅探程序",
+    "Task 2.1B: 编写pcap过滤器",
+    "Task 2.1C: 嗅探Telnet密码",
+    "Task 2.2A: 编写基于原始套接字的伪造程序",
+    "Task 2.2B: 伪造ICMP Echo Request到公网",
+    "Task 2.3: C语言实现嗅探-伪造联动(Sniff-and-Spoof)",
+    "总结与防御：如何防范嗅探与伪造攻击？"
+  ]
+}
