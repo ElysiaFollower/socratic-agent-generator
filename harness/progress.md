@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`remote-runner-integration`，状态为 `passing`。
-- 当前任务计划：无 active；`plans/archive/20260512-remote-runner-tool-adapter-prototype.md` 已归档。
-- 上次验证：2026-05-13，Socratic `./init.sh` 通过；部署包已本地生成并包含 `.env`；linux-01 部署被 SSH 认证过期阻塞，当前 Remote Runner 保存的 `linux-01` password auth 已被远端拒绝。
-- 下一步最佳动作：更新 `linux-01` 的 Remote Runner 认证配置（新密码或 key auth）后，继续执行远端备份与部署；如需继续扩展 Remote Runner 的写操作、审计、session 管理或 Web UI，再开新分支。
+- 当前功能项：`seed-manual-profile-calibration`，状态为 `passing`。
+- 当前任务计划：无 active；`plans/archive/20260513-manual-profile-calibration.md` 已归档。
+- 上次验证：2026-05-13，`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 4 个测试；`python3 -m compileall src scripts tests` 通过。
+- 下一步最佳动作：基于 `docs/manual-enhance/mismatch-taxonomy.json` 开新分支改进 generator 提示词/critic，使后续生成默认保留环境摩擦、负例、证据链和真实认知粒度。
 
 ## 状态约定
 
@@ -104,3 +104,22 @@
 - 结论：当前阻塞不是已确认的 SFTP-only 问题，而是 `linux-01` 的 Remote Runner 认证配置过期或与远端不匹配。
 - 已提出 SEEDRunner 工具侧 issue：`https://github.com/ElysiaFollower/SEEDRunner/issues/2`，要求 `session create` 在认证不可用时不要返回误导性的 active session。
 - 已清理本次创建的无效 Remote Runner session，日志保留在本地 Remote Runner 状态目录。
+
+### 2026-05-13 - 开启真实 SEED 实验 Profile 手工校准任务
+
+- 创建并切换分支 `manual-enhance`；`dev/manual-enhance` 因本地已有 `dev` 分支无法创建。
+- 创建 active plan：`plans/active/20260513-manual-profile-calibration.md`。
+- 将 `seed-manual-profile-calibration` 设置为当前唯一 active feature。
+- 初步语料定位：`/Users/ely/workspace/research/agent/SEEDRunner/runs` 包含 VPN_Tunnel、ARP_Attack、LocalDNSAttack、RemoteDNSAttack、Sniffing_Spoofing、TCP_Attacks；`mine/` 下有手写实验材料和报告，其他目录有已核验自动报告和 `.tex` 实验文档。
+- 环境检查：`_local/socratic-smoke-venv/bin/python` 可导入 `langchain_deepseek` 和 `langchain_core`；Socratic `.env` 无 LLM key，DreamingRAG `.env` 有 DeepSeek key，可在不输出密钥的前提下用于 generator。
+
+### 2026-05-13 - 完成真实 SEED 实验 Profile 手工校准
+
+- 新增 `scripts/generate_manual_enhance_profiles.py`，从外部 SEEDRunner runs 读取 `.tex`、手写报告和已核验自动报告，用当前 generator 生成初始 profile；运行时通过 DreamingRAG `.env` 加载 DeepSeek key，但未复制或输出密钥。
+- 新增 `scripts/build_manual_enhance_calibrated_profiles.py`，根据人工比对结果生成校准版 profile，并保持 `generated/` 初稿和 `calibrated/` 校准版分离。
+- 新增 `docs/manual-enhance/`：包含 `corpus-manifest.json`、6 个实验的初稿、6 个实验的校准版 profile、`calibrated-profile-summary.json`、`mismatch-taxonomy.json` 和 README。
+- 覆盖实验：ARP_Attack、LocalDNSAttack、RemoteDNSAttack、Sniffing_Spoofing、TCP_Attacks、VPN_Tunnel。RemoteDNSAttack 只有 draft notes，可信度低于其他有手写或详细报告的实验。
+- 归纳 mismatch 模式：环境摩擦被省略、成功标准过度确定、负例没有成为学习节点、证据链不足、任务粒度不贴合真实认知负担、源文档编号问题未被校正。
+- 新增 `tests/test_manual_enhance_profiles.py`，校验校准 profile schema、外部语料引用策略、mismatch 可追溯性和初稿/校准版分离。
+- 验证：`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 4 个测试；`python3 -m compileall src scripts tests` 通过。
+- 状态：`seed-manual-profile-calibration` 标记为 `passing`；计划归档到 `plans/archive/20260513-manual-profile-calibration.md`。

@@ -1,0 +1,74 @@
+[
+  {
+    "step_title": "环境搭建与基线验证",
+    "guiding_question": "在攻击一个系统之前，我们如何确保自己站在一个清晰的、可观测的起点上，从而能够准确分辨攻击的效果与系统的正常行为？",
+    "success_criteria": "用户容器执行 dig www.example.com 返回真实公网IP（如104.18.27.120），且 SERVER 字段为 10.9.0.53。",
+    "learning_objective": "掌握实验环境（Docker网络、BIND服务器）的搭建与验证方法，理解 DNS 查询路径中客户端与本地DNS服务器的角色。",
+    "scaffolding_hints": [
+      "回想一下，一个简单的 dig 命令背后，你的计算机究竟向谁发起了请求？",
+      "你如何确认你的请求确实到达了预期的本地DNS服务器，而不是直接去了公网？",
+      "如果 dig 返回了错误或超时，你最先应该检查网络配置的哪个文件？",
+      "除了 dig，还有哪些命令可以帮我们诊断DNS解析链路是否畅通？"
+    ]
+  },
+  {
+    "step_title": "Task 1: 直接伪造响应给用户",
+    "guiding_question": "如果我们可以监听用户的DNS查询，并且抢在真正的DNS服务器之前回答他，你认为用户会相信谁？",
+    "success_criteria": "用户执行 dig www.example.com 时，直接收到伪造的A记录（如1.2.3.5），而非真实IP。",
+    "learning_objective": "理解DNS查询-响应的无状态特性，掌握使用Scapy嗅探DNS查询并构造伪造应答包的技术。",
+    "scaffolding_hints": [
+      "DNS查询和响应之间，除了事务ID，还有什么机制来防止被欺骗？",
+      "如果事务ID是随机的，你如何保证你伪造的响应能匹配用户的查询？",
+      "思考一下，攻击脚本应该监听哪个端口？它需要同时扮演嗅探器和响应者的角色吗？",
+      "如果真实响应先到达了，你的伪造包会怎样？这提示了我们应该如何设计攻击的时间窗口？"
+    ]
+  },
+  {
+    "step_title": "Task 2: DNS缓存投毒——伪造答案",
+    "guiding_question": "直接欺骗用户只能影响单个受害者，那么如何让整个网络中的所有用户，在接下来的一段时间内，都持续访问到你的恶意服务器？",
+    "success_criteria": "在本地DNS服务器上执行 rndc dumpdb -cache 并查看 dump.db，其中包含 www.example.com 的伪造A记录（如1.2.3.5）。",
+    "learning_objective": "理解DNS缓存投毒的核心原理：通过向递归DNS服务器发送伪造响应，将恶意记录注入其缓存。",
+    "scaffolding_hints": [
+      "本地DNS服务器什么时候会缓存一条记录？它缓存记录的决策逻辑是什么？",
+      "你伪造的响应包，需要满足哪些条件才能让服务器接受并缓存？",
+      "rndc 命令在这个任务中扮演了什么角色？为什么我们需要它来刷新和查看缓存？",
+      "如果投毒成功，受害者下次查询时，他的请求还会到达真正的权威服务器吗？"
+    ]
+  },
+  {
+    "step_title": "Task 3: 伪造NS记录",
+    "guiding_question": "如果只篡改一个域名的一条记录，攻击面仍然有限。有没有办法让整个 example.com 域下的所有子域名都落入你的掌控？",
+    "success_criteria": "用户查询 example.com 域下任何主机名（如 mail.example.com）时，都返回攻击者控制的IP（如1.2.3.6）。",
+    "learning_objective": "掌握在DNS响应的Authority Section中插入伪造NS记录的技术，理解委派攻击的原理。",
+    "scaffolding_hints": [
+      "当你查询 mail.example.com 时，DNS解析流程与查询 www.example.com 有什么不同？",
+      "Authority Section 中的NS记录告诉服务器什么信息？服务器会无条件信任它吗？",
+      "如果服务器缓存了 example.com 的NS记录指向你的服务器，后续对 example.com 下任何主机的查询会怎样？",
+      "思考一下，你伪造的NS记录需要包含哪些字段才能让服务器接受并缓存？"
+    ]
+  },
+  {
+    "step_title": "Task 4: 跨域名NS记录投毒",
+    "guiding_question": "既然我们能伪造NS记录，那能不能顺便在同一个伪造响应里，把 google.com 的NS记录也注入到缓存中？你觉得DNS服务器会允许这种行为吗？",
+    "success_criteria": "攻击后，查询 www.google.com 仍返回真实IP，且本地DNS缓存中不包含 google.com 的伪造NS记录。",
+    "learning_objective": "理解DNS安全机制中的bailiwick检查（区域授权边界检查），以及它如何阻止跨域名的缓存投毒。",
+    "scaffolding_hints": [
+      "什么是 'bailiwick'？它和DNS的授权边界有什么关系？",
+      "为什么服务器会拒绝接受与当前查询域无关的NS记录？这个机制解决了什么问题？",
+      "如果你试图注入 google.com 的NS记录，服务器会检查什么条件？",
+      "这个安全检查能被绕过吗？历史上是否有绕过它的攻击案例？"
+    ]
+  },
+  {
+    "step_title": "Task 5: 测试Additional Section的缓存策略",
+    "guiding_question": "除了权威答案，DNS响应还可以携带额外信息。服务器对于这些 '额外赠送' 的记录，会采取怎样的缓存策略？它是否也像对待主答案一样严格？",
+    "success_criteria": "检查本地DNS缓存，仅与当前查询域（example.com）有直接授权关系的Additional记录（如 ns.example.com）可能被缓存，无关记录（如 www.facebook.com）不会被缓存。",
+    "learning_objective": "深入理解DNS响应包中Additional Section的缓存规则，以及服务器如何区分哪些额外记录可以安全缓存。",
+    "scaffolding_hints": [
+      "Additional Section 通常包含什么类型的记录？它存在的意义是什么？",
+      "服务器缓存一条来自Additional Section的记录时，会进行哪些安全检查？",
+      "如果我在Additional Section中放了一条 www.facebook.com 的A记录，服务器会怎么处理？为什么？",
+      "通过这个实验，你能总结出DNS服务器缓存Additional Section记录的完整规则吗？"
+    ]
+  }
+]

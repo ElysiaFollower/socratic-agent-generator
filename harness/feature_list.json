@@ -37,6 +37,17 @@
       "notes": "Completed plan: plans/archive/20260512-remote-runner-tool-adapter-prototype.md. Candidate external project: /Users/ely/workspace/research/agent/SEEDRunner. Local code and tests are ready; remote SSH connectivity verified on linux-01."
     },
     {
+      "id": "seed-manual-profile-calibration",
+      "priority": "P1",
+      "area": "manual-profile-enhancement",
+      "title": "Real SEED experiment profile calibration",
+      "behavior": "The repository contains calibrated Socratic profiles for the semester's SEED experiments, grounded in real lab manuals, student-written reports, verified generated reports, and a recorded mismatch taxonomy for future generator improvements.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q && python3 -m compileall src",
+      "evidence": "2026-05-13: created and switched to branch manual-enhance after dev/manual-enhance was blocked by an existing local dev branch. Built corpus manifest for six SEED labs from external source paths under /Users/ely/workspace/research/agent/SEEDRunner/runs without copying raw manuals, reports, PDFs, images, logs, archives, or secrets. Generated first-pass profiles with PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing; outputs are under docs/manual-enhance/generated. Built manual calibrated profiles for ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, and VPN_Tunnel under docs/manual-enhance/calibrated, plus docs/manual-enhance/mismatch-taxonomy.json and docs/manual-enhance/calibrated-profile-summary.json. Validation passed: ./scripts/harness-check.sh returned 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q passed 4 tests; python3 -m compileall src scripts tests passed.",
+      "notes": "Completed plan: plans/archive/20260513-manual-profile-calibration.md. Source corpus remains external: /Users/ely/workspace/research/agent/SEEDRunner/runs. RemoteDNSAttack has lower calibration confidence because only draft notes were found alongside the .tex manual."
+    },
+    {
       "id": "dreamingrag-memory-integration",
       "priority": "P0",
       "area": "memory-adapter",
