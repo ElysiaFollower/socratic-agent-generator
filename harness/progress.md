@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`linux01-live-deployment` active。
-- 当前任务计划：`plans/active/20260513-linux01-live-deployment.md`。
-- 上次验证：2026-05-13，合并后 focused tests 通过 22 passed；后端语法通过；harness check 0 warning；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`，不会访问 HuggingFace。
-- 下一步最佳动作：通过 remote-runner 在 `linux-01` 部署当前分支，用 tmux 持久化 Socratic/DreamingRAG 相关服务并验证可访问链接。
+- 当前功能项：无 active；`linux01-live-deployment` 已标记为 `passing`。
+- 当前任务计划：无 active；`plans/archive/20260513-linux01-live-deployment.md` 已归档。
+- 上次验证：2026-05-13，linux-01 live deployment 通过；远端 focused tests 22 passed；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`；外部 curl health/docs/frontend 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过。
+- 下一步最佳动作：把 `http://10.203.15.128:5173` 发给导师；需要时再配置域名、HTTPS 或 systemd。
 
 ## 状态约定
 
@@ -144,3 +144,21 @@
 - 更新 `.env.example`、`docs/deployment.md` 和 `requirements.txt`，把 Volcengine embedding 作为 Socratic 文档 RAG 与 DreamingRAG memory 的共享默认配置。
 - 发现并修复一个演示流程 bug：student 能看到内置 public profile，但创建 session 时仍被 class visibility 检查拦截。`src/api/routes/session.py` 现在允许 `owner_id is None` 且 `visible_class_ids == []` 的内置 public profile 创建 student session。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 22 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`check_and_download_models()` 输出 `(True, [], [])`。
+
+### 2026-05-13 - 完成 linux-01 最终演示部署
+
+- 将当前 `rag-memory-adapter` 分支部署到 `linux-01` 的 `/home/ely/deploy/socratic-live/`，旧 Socratic runtime data 已按用户授权清理。
+- 服务通过 tmux 持久运行：`socratic-backend` 监听 `0.0.0.0:8000`，`socratic-frontend` 监听 `0.0.0.0:5173`。
+- 远端 `.env` 确认有 DeepSeek 与 Volcengine key，embedding provider 为 `volcengine`，模型为 `doubao-embedding-vision-251215`；未打印密钥。
+- 远端验证通过：focused pytest 22 passed；`model_check= (True, [], [])`；`embedding_class= VolcengineArkEmbeddings`；默认 public profile count 为 6。
+- 外部可访问验证通过：`http://10.203.15.128:8000/api/health` 返回 `{"status":"ok"}`；`http://10.203.15.128:8000/docs` 返回 Swagger HTML；`http://10.203.15.128:5173` 返回前端 HTML。
+- 演示流程 smoke 通过：demo 用户可登录，`/api/profiles` 返回 6 个 SEED profile，并可创建 session。
+- 状态：`linux01-live-deployment` 标记为 `passing`；计划归档到 `plans/archive/20260513-linux01-live-deployment.md`。
+
+### 2026-05-13 - 修复 linux-01 首条消息 `yes` 兜底报错
+
+- 复现结果：demo 用户登录、profile 列表和 session 创建都成功，但向新 session 发送 `yes` 会立刻返回“抱歉，我在生成回复时遇到了问题。请稍后再试。”。
+- 根因 1：远端 DeepSeek key 已失效，日志显示 `401 Authorization Required` 和 `Authentication Fails, Your api key: ****9679 is invalid`。
+- 根因 2：在远端缺少 `data/skills/*/SKILL.md` 的部署环境里，`BaseSkill.name` 统一回退成 `unknown_skill`，导致 DeepSeek 报 `Tool names must be unique.`。
+- 修复：先把本地校验通过的 DreamingRAG `.env` 同步到 linux-01，再把 `BaseSkill.name` 改为在 metadata 缺失时回退到技能目录名，并补回归测试。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_skill_names.py tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；远端 smoke 重新验证 `yes` 后返回正常导师回复，`token_events=93`，`end_seen=True`，`error_seen=None`。

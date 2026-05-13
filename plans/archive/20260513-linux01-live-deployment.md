@@ -47,3 +47,24 @@ curl -s http://10.203.15.128:<backend-port>/docs
 - 若服务成功运行，保留服务 tmux 会话。
 - 清理 remote-runner 控制会话或说明为什么保留。
 - 归档本 plan，feature evidence 与 handoff 同步。
+
+## 结果
+
+- 部署路径：`/home/ely/deploy/socratic-live/`
+- Socratic 后端：tmux session `socratic-backend`，监听 `0.0.0.0:8000`
+- Socratic 前端：tmux session `socratic-frontend`，监听 `0.0.0.0:5173`
+- 公开访问：
+  - Frontend: `http://10.203.15.128:5173`
+  - Backend docs: `http://10.203.15.128:8000/docs`
+  - Health: `http://10.203.15.128:8000/api/health`
+- 远端验证：
+  - `env_has_deepseek=True`
+  - `env_has_volcengine=True`
+  - `env_embedding_provider=volcengine`
+  - `env_embedding_model=doubao-embedding-vision-251215`
+  - focused pytest: 22 passed
+  - `model_check= (True, [], [])`
+  - `embedding_class= VolcengineArkEmbeddings`
+  - built-in public profiles: 6 labs
+  - external curl health/docs/frontend passed
+  - demo user login, profile list, session creation, and yes-message streaming passed after the fallback tool-name fix

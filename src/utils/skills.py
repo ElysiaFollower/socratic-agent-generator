@@ -151,9 +151,12 @@ class BaseSkill:
         """Get the skill name from metadata.
         
         Returns:
-            Skill name, or "unknown_skill" if not found.
+            Skill name, or the skill directory name if metadata is absent.
         """
-        return self.metadata.get("name", "unknown_skill")
+        metadata_name = self.metadata.get("name")
+        if isinstance(metadata_name, str) and metadata_name.strip():
+            return metadata_name.strip()
+        return self.skill_dir.name
 
     @property
     def description(self) -> str:
