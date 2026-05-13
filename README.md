@@ -38,7 +38,7 @@ The key contribution of this system is **automated transformation of static, pas
 
 ### Backend (`src/`)
 
-Built on **Python 3.8+**, **FastAPI**, and **LangChain**:
+Built on **Python 3.10+ for the default DreamingRAG deployment**, **FastAPI**, and **LangChain**:
 
 - **Profile Generators** (`generators/`):
   - `PersonaGenerator`: Creates teaching personas from technical documents (transforms technical features into dialogue styles)
@@ -80,9 +80,11 @@ SessionManager → SQLite (sessions table)
 
 ## Quick Start
 
+For the maintained deployment path, including default DreamingRAG memory installation and configuration, see [Official Deployment Guide](docs/deployment.md).
+
 ### Prerequisites
 
-- Python 3.8+
+- Python 3.10+ for the default deployment with DreamingRAG memory
 - Node.js 18+
 - An API key from a supported LLM provider (optional if users will configure their own keys)
 
@@ -104,12 +106,15 @@ cp .env.example .env
 #   - LLM_API_KEY_ENCRYPTION_KEY: Encryption key for storing user-configured API keys in the database
 
 # Install backend dependencies
-conda create -n SocraticAgent python=3.9 -y
+conda create -n SocraticAgent python=3.10 -y
 conda activate SocraticAgent
 pip install -r requirements.txt
+# Default deployment also installs DreamingRAG as a sibling checkout:
+#   git clone git@github.com:ElysiaFollower/DreamingRAG.git ../DreamingRAG
+#   pip install -e ../DreamingRAG
 
 # Install frontend dependencies
-cd frontend && npm install && cd ..
+cd frontend && npm ci && cd ..
 ```
 
 ### Launch Services
@@ -187,7 +192,7 @@ Teachers can create custom skills with automatic vector indexing for extending t
 
 ## Technical Stack
 
-**Backend**: Python 3.8+, FastAPI, LangChain, SQLAlchemy, SQLite, Pydantic, JWT (python-jose), Uvicorn
+**Backend**: Python 3.10+ for the default DreamingRAG deployment, FastAPI, LangChain, SQLAlchemy, SQLite, Pydantic, JWT (python-jose), Uvicorn
 
 **Frontend**: React 18, TypeScript, Vite, Material-UI, Axios, React Router, Notistack
 

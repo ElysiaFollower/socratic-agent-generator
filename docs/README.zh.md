@@ -38,7 +38,7 @@
 
 ### 后端（`src/`）
 
-基于 **Python 3.8+ / FastAPI / LangChain**：
+基于 **Python 3.10+（默认 DreamingRAG 部署）/ FastAPI / LangChain**：
 
 - **生成器**（`generators/`）
   - `PersonaGenerator`：将技术特征转化为教学风格
@@ -60,9 +60,11 @@
 
 ## 快速开始
 
+包含 DreamingRAG 默认记忆安装与配置的维护版部署流程见：[官方部署文档](deployment.md)。
+
 ### 前置条件
 
-- Python 3.8+
+- Python 3.10+（默认部署包含 DreamingRAG 记忆）
 - Node.js 18+
 - 支持的 LLM 服务商 API Key（若用户自行配置可不在全局设置）
 
@@ -84,12 +86,15 @@ cp .env.example .env
 #   - LLM_API_KEY_ENCRYPTION_KEY: 用户 Key 入库时的加密密钥
 
 # 安装后端依赖
-conda create -n SocraticAgent python=3.9 -y
+conda create -n SocraticAgent python=3.10 -y
 conda activate SocraticAgent
 pip install -r requirements.txt
+# 默认部署还会安装 sibling checkout 中的 DreamingRAG：
+#   git clone git@github.com:ElysiaFollower/DreamingRAG.git ../DreamingRAG
+#   pip install -e ../DreamingRAG
 
 # 安装前端依赖
-cd frontend && npm install && cd ..
+cd frontend && npm ci && cd ..
 ```
 
 ### 启动
@@ -164,8 +169,10 @@ python src/main.py [lab_name]
 
 ## 技术栈
 
-**后端**：Python 3.8+, FastAPI, LangChain, SQLAlchemy, SQLite, Pydantic, JWT (python-jose), Uvicorn  
-**前端**：React 18, TypeScript, Vite, Material-UI, Axios, React Router, Notistack  
+**后端**：Python 3.10+（默认 DreamingRAG 部署）, FastAPI, LangChain, SQLAlchemy, SQLite, Pydantic, JWT (python-jose), Uvicorn
+
+**前端**：React 18, TypeScript, Vite, Material-UI, Axios, React Router, Notistack
+
 **存储**：SQLite（用户数据/会话/技能），文件系统（文档/向量索引），内存缓存（活跃导师）
 
 ## API

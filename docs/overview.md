@@ -16,6 +16,7 @@ Socratic Agent Generator 将技术实验手册转换为可交互的苏格拉底�
 - Web 学习体验：认证、Profile 选择、Session 管理、流式对话、学习进度可视化。
 - 教师管理：班级、邀请码、Profile 可见性和自定义技能。
 - 本地开发与研究迭代：FastAPI 后端、React/Vite 前端、SQLite 数据存储、文件系统文档和向量索引。
+- 官方部署：`docs/deployment.md`，默认安装并配置 DreamingRAG 长期记忆。
 - vNext 规划：SEED 报告语料、Remote Runner 环境观察、DreamingRAG 长程记忆。
 
 ## 范围外

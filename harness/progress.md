@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；最近完成 `dreamingrag-public-api-adapter`，状态为 `passing`。
-- 当前任务计划：无 active；已归档 `plans/archive/20260513-dreamingrag-public-api-adapter.md`。
-- 上次验证：2026-05-13，DreamingRAG public API adapter focused tests、后端语法、harness check 和 public API mock-mode smoke 通过。
-- 下一步最佳动作：提交并推送 `rag-memory-adapter` 分支；之后从该分支继续处理与 DreamingRAG 规范接口相关的 hardening，如依赖安装说明、异步写入和错误观测。
+- 当前功能项：无 active；最近完成 `default-dreamingrag-deployment-docs`，状态为 `passing`。
+- 当前任务计划：无 active；已归档 `plans/archive/20260513-default-dreamingrag-deployment.md`。
+- 上次验证：2026-05-13，官方部署文档检查、DreamingRAG editable install、DreamingRAG public API smoke、Socratic adapter smoke、后端语法、harness check 和 harness audit 通过。
+- 下一步最佳动作：提交并推送 `rag-memory-adapter` 分支。
 
 ## 状态约定
 
@@ -79,3 +79,11 @@
 - 验证：`python3 -m unittest tests.test_memory_provider` 通过 5 个测试；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python ...` public API mock smoke 通过，输出 `enabled=True`、`has_context=True`、`mentions_syn=True`。
 - 降级证据：系统 `python3` 未安装 DreamingRAG 依赖 `openai` 时，adapter 记录 warning 并返回空 context，没有阻断调用。
 - 状态：`dreamingrag-public-api-adapter` 标记为 `passing`；任务计划归档到 `plans/archive/20260513-dreamingrag-public-api-adapter.md`。
+
+### 2026-05-13 - 官方部署文档默认安装 DreamingRAG
+
+- 新增 `docs/deployment.md` 作为官方部署文档，默认部署路径包含 sibling `DreamingRAG` checkout、Python 3.10 环境、`pip install -e ../DreamingRAG`、前端 `npm ci`、`.env` 配置、public API smoke、Socratic adapter smoke、启动命令和故障排查。
+- 更新 `README.md`、`docs/README.zh.md`、`AGENTS.md`、`docs/overview.md`、`harness/bootstrap-contract.md`、`.env.example`、`init.sh` 和 `requirements.txt` 注释，使默认安装与部署文档一致。
+- 更新 `harness/quality.md`，把 `docs/deployment.md` 记录为维护入口；当 DreamingRAG public API、依赖、Socratic memory provider 或配置变化时必须同步维护部署文档。
+- 验证：`./scripts/harness-check.sh` 通过且 0 warning；harness audit 通过且 0 warning；`python3 -m compileall src tests` 通过；部署文档引用检查输出 `deployment_docs_reference_dreamingrag=True`；`_local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG` 成功安装 `dreaming-rag-0.5.0`；DreamingRAG public API smoke 输出 `dreamingrag_public_api_ready=True`；Socratic adapter smoke 输出 `socratic_dreamingrag_context_ready=True`。
+- 状态：`default-dreamingrag-deployment-docs` 标记为 `passing`；任务计划归档到 `plans/archive/20260513-default-dreamingrag-deployment.md`。

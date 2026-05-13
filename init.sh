@@ -32,6 +32,7 @@ cat <<'EOF'
 - 手动启动后端和前端，验证登录、上传文档、生成 Profile、创建会话和流式对话。
 
 依赖安装：
-- 后端：conda create -n SocraticAgent python=3.9 -y && conda activate SocraticAgent && pip install -r requirements.txt
+- 后端默认部署：conda create -n SocraticAgent python=3.10 -y && conda activate SocraticAgent && pip install -r requirements.txt && pip install -e ../DreamingRAG
 - 前端：cd frontend && npm ci
+- 官方部署文档：docs/deployment.md
 EOF

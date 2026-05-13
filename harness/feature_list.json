@@ -57,6 +57,17 @@
       "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_memory_provider && python3 -m compileall src tests && PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python <public API mock smoke>",
       "evidence": "2026-05-13: python3 -m unittest tests.test_memory_provider passed 5 tests; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings after removing stale active .gitkeep; public API mock smoke passed with PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python, confirming enabled=True, status_prefix=['dreamingrag', 'mock'], has_context=True, and mentions_syn=True. System python3 without DreamingRAG dependencies still degraded safely: missing openai caused logged recall/write warnings and empty context without crashing.",
       "notes": "Archived plan: plans/archive/20260513-dreamingrag-public-api-adapter.md. This replaces direct internal DreamingRAG object access with the stable public_api contract."
+    },
+    {
+      "id": "default-dreamingrag-deployment-docs",
+      "priority": "P0",
+      "area": "deployment",
+      "title": "Default DreamingRAG deployment documentation",
+      "behavior": "The official deployment path installs and configures DreamingRAG by default, with README entry points and maintained verification guidance.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && /Users/ely/.agents/skills/harness-maintainer-zh/scripts/harness-audit.sh /Users/ely/workspace/research/agent/socratic-agent-generator && python3 -m compileall src tests && python3 <deployment docs reference check> && _local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG && _local/socratic-smoke-venv/bin/python <DreamingRAG public API smoke>",
+      "evidence": "2026-05-13: ./scripts/harness-check.sh passed with 0 warnings; harness-maintainer audit passed with 0 warnings; python3 -m compileall src tests passed; deployment docs reference check printed deployment_docs_reference_dreamingrag=True; _local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG succeeded and installed dreaming-rag-0.5.0; DreamingRAG public API smoke printed dreamingrag_public_api_ready=True; Socratic adapter smoke printed socratic_dreamingrag_context_ready=True.",
+      "notes": "Archived plan: plans/archive/20260513-default-dreamingrag-deployment.md. Official deployment doc: docs/deployment.md."
     }
   ]
 }
