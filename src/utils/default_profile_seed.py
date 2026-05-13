@@ -27,15 +27,6 @@ DEFAULT_PROFILE_SOURCE_DIR = ROOT_DIR / "docs" / "manual-enhance" / "calibrated"
 DEFAULT_VECTOR_STORE_DIR = ROOT_DIR / "data" / "vector_stores" / "builtin"
 BUILTIN_DOCUMENT_OWNER_ID = "builtin"
 
-ORIGINAL_SEEDRUNNER_MANUALS = {
-    "ARP_Attack": "/Users/ely/workspace/research/agent/SEEDRunner/runs/ARP_Attack/docs/ARP_Attack.tex",
-    "LocalDNSAttack": "/Users/ely/workspace/research/agent/SEEDRunner/runs/LocalDNSAttack/docs/DNS_Local.tex",
-    "RemoteDNSAttack": "/Users/ely/workspace/research/agent/SEEDRunner/runs/RemoteDNSAttack/docs/DNS_Remote.tex",
-    "Sniffing_Spoofing": "/Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
-    "TCP_Attacks": "/Users/ely/workspace/research/agent/SEEDRunner/runs/TCP_Attacks/docs/TCP_Attacks.tex",
-    "VPN_Tunnel": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/docs/VPN_Tunnel.tex",
-}
-
 
 @dataclass(frozen=True)
 class DefaultProfileSeedResult:
@@ -83,7 +74,7 @@ def _ensure_builtin_document(db: Session, lab_id: str, lab_dir: Path) -> tuple[D
         "is_builtin": True,
         "original_format": "tex",
         "artifact_path": storage_path,
-        "external_source_path": ORIGINAL_SEEDRUNNER_MANUALS.get(lab_id),
+        "source_artifact_path": storage_path,
         "profile_source": _repo_relative(lab_dir / "profile.json"),
         "curriculum_source": _repo_relative(lab_dir / "curriculum.json"),
     }

@@ -1,8 +1,9 @@
 # Manual Enhance Profile Calibration
 
 This directory records a calibrated profile set for the semester SEED labs.
-Raw lab manuals, reports, screenshots, logs, PDFs, archives, and user data stay
-outside this repository under `/Users/ely/workspace/research/agent/SEEDRunner/runs`.
+The six curated lab manuals needed for built-in RAG-backed profiles are
+versioned as `calibrated/<lab>/lab_manual.tex`. Reports, screenshots, logs,
+PDFs, archives, and user data stay outside this repository.
 
 ## Artifacts
 
@@ -46,7 +47,7 @@ handwritten reports in `runs/mine/`, verified generated reports, or both.
 Generate first-pass profiles:
 
 ```sh
-PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing
+PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /path/to/your/DreamingRAG/.env --runs-root /path/to/your/SEEDRunner/runs --fast --skip-existing
 ```
 
 Rebuild calibrated profiles from the curated curriculum source:

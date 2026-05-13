@@ -1,32 +1,32 @@
 {
-  "runs_root": "/Users/ely/workspace/research/agent/SEEDRunner/runs",
+  "runs_root": "SEEDRUNNER_RUNS_ROOT",
   "mode": "fast",
   "raw_source_policy": "Verified lab manuals are copied into calibrated lab folders for default RAG seeding; reports, screenshots, logs, PDFs, archives, and user data remain external.",
   "labs": [
     {
       "lab_id": "ARP_Attack",
       "title": "ARP Cache Poisoning and MITM",
-      "manual": "/Users/ely/workspace/research/agent/SEEDRunner/runs/ARP_Attack/docs/ARP_Attack.tex",
+      "manual": "ARP_Attack/docs/ARP_Attack.tex",
       "reports": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/ARP_Attack/report/ARP_Attack.zh.md"
+        "ARP_Attack/report/ARP_Attack.zh.md"
       ],
       "handwritten": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/ARP_Attack/docs/report_draft.md"
+        "mine/ARP_Attack/docs/report_draft.md"
       ],
       "notes": "Handwritten report emphasizes packet loss under disabled forwarding and Telnet/Netcat payload rewriting.",
       "source_stats": [
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/ARP_Attack/docs/ARP_Attack.tex",
+          "path": "ARP_Attack/docs/ARP_Attack.tex",
           "exists": true,
           "bytes": 17073
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/ARP_Attack/docs/report_draft.md",
+          "path": "mine/ARP_Attack/docs/report_draft.md",
           "exists": true,
           "bytes": 8829
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/ARP_Attack/report/ARP_Attack.zh.md",
+          "path": "ARP_Attack/report/ARP_Attack.zh.md",
           "exists": true,
           "bytes": 6090
         }
@@ -35,27 +35,27 @@
     {
       "lab_id": "LocalDNSAttack",
       "title": "Local DNS Cache Poisoning",
-      "manual": "/Users/ely/workspace/research/agent/SEEDRunner/runs/LocalDNSAttack/docs/DNS_Local.tex",
+      "manual": "LocalDNSAttack/docs/DNS_Local.tex",
       "reports": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/LocalDNSAttack/report/local-dns-attack.zh.md"
+        "LocalDNSAttack/report/local-dns-attack.zh.md"
       ],
       "handwritten": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/LocalDNSAttack/report/report_draft.md"
+        "mine/LocalDNSAttack/report/report_draft.md"
       ],
       "notes": "Handwritten report is detailed and highlights role relationships, cache flushing, bridge interface discovery, and section-specific DNS caching behavior.",
       "source_stats": [
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/LocalDNSAttack/docs/DNS_Local.tex",
+          "path": "LocalDNSAttack/docs/DNS_Local.tex",
           "exists": true,
           "bytes": 19972
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/LocalDNSAttack/report/report_draft.md",
+          "path": "mine/LocalDNSAttack/report/report_draft.md",
           "exists": true,
           "bytes": 64362
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/LocalDNSAttack/report/local-dns-attack.zh.md",
+          "path": "LocalDNSAttack/report/local-dns-attack.zh.md",
           "exists": true,
           "bytes": 5604
         }
@@ -64,20 +64,20 @@
     {
       "lab_id": "RemoteDNSAttack",
       "title": "Remote DNS Kaminsky Attack",
-      "manual": "/Users/ely/workspace/research/agent/SEEDRunner/runs/RemoteDNSAttack/docs/DNS_Remote.tex",
+      "manual": "RemoteDNSAttack/docs/DNS_Remote.tex",
       "reports": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/RemoteDNSAttack/report/report_draft.md"
+        "RemoteDNSAttack/report/report_draft.md"
       ],
       "handwritten": [],
       "notes": "Only draft notes were found; treat as lower-confidence than labs with completed reports.",
       "source_stats": [
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/RemoteDNSAttack/docs/DNS_Remote.tex",
+          "path": "RemoteDNSAttack/docs/DNS_Remote.tex",
           "exists": true,
           "bytes": 25531
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/RemoteDNSAttack/report/report_draft.md",
+          "path": "RemoteDNSAttack/report/report_draft.md",
           "exists": true,
           "bytes": 13134
         }
@@ -86,27 +86,27 @@
     {
       "lab_id": "Sniffing_Spoofing",
       "title": "Packet Sniffing and Spoofing",
-      "manual": "/Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
+      "manual": "Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
       "reports": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md"
+        "Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md"
       ],
       "handwritten": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/Sniffing_Spoofing/docs/report_draft.md"
+        "mine/Sniffing_Spoofing/docs/report_draft.md"
       ],
       "notes": "Handwritten artifacts include Scapy and C/pcap code paths; generated report records the bridge-interface discovery issue.",
       "source_stats": [
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
+          "path": "Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
           "exists": true,
           "bytes": 29305
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/Sniffing_Spoofing/docs/report_draft.md",
+          "path": "mine/Sniffing_Spoofing/docs/report_draft.md",
           "exists": true,
           "bytes": 11382
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md",
+          "path": "Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md",
           "exists": true,
           "bytes": 9861
         }
@@ -115,33 +115,33 @@
     {
       "lab_id": "TCP_Attacks",
       "title": "TCP Attacks",
-      "manual": "/Users/ely/workspace/research/agent/SEEDRunner/runs/TCP_Attacks/docs/TCP_Attacks.tex",
+      "manual": "TCP_Attacks/docs/TCP_Attacks.tex",
       "reports": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/TCP_Attacks/report/TCP_Attacks.zh.md"
+        "TCP_Attacks/report/TCP_Attacks.zh.md"
       ],
       "handwritten": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/TCP_Attacks/docs/report.md",
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/TCP_Attacks/docs/report_draft.md"
+        "mine/TCP_Attacks/docs/report.md",
+        "mine/TCP_Attacks/docs/report_draft.md"
       ],
       "notes": "Handwritten report stresses empirical instability in SYN flood/RST attacks and the need to compare Python/C implementations and mitigations.",
       "source_stats": [
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/TCP_Attacks/docs/TCP_Attacks.tex",
+          "path": "TCP_Attacks/docs/TCP_Attacks.tex",
           "exists": true,
           "bytes": 28027
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/TCP_Attacks/docs/report.md",
+          "path": "mine/TCP_Attacks/docs/report.md",
           "exists": true,
           "bytes": 15638
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/mine/TCP_Attacks/docs/report_draft.md",
+          "path": "mine/TCP_Attacks/docs/report_draft.md",
           "exists": true,
           "bytes": 5072
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/TCP_Attacks/report/TCP_Attacks.zh.md",
+          "path": "TCP_Attacks/report/TCP_Attacks.zh.md",
           "exists": true,
           "bytes": 4935
         }
@@ -150,36 +150,37 @@
     {
       "lab_id": "VPN_Tunnel",
       "title": "VPN Tunneling",
-      "manual": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/docs/VPN_Tunnel.tex",
+      "manual": "VPN_Tunnel/docs/VPN_Tunnel.tex",
       "reports": [
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/report/report.md",
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/report/Agent-report.md",
-        "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/report/report_draft.md"
+        "VPN_Tunnel/report/report.md",
+        "VPN_Tunnel/report/Agent-report.md",
+        "VPN_Tunnel/report/report_draft.md"
       ],
       "handwritten": [],
       "notes": "Most detailed generated report; emphasizes routing as the main learning bottleneck and TUN/TAP semantic contrast.",
       "source_stats": [
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/docs/VPN_Tunnel.tex",
+          "path": "VPN_Tunnel/docs/VPN_Tunnel.tex",
           "exists": true,
           "bytes": 28945
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/report/report.md",
+          "path": "VPN_Tunnel/report/report.md",
           "exists": true,
           "bytes": 28515
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/report/Agent-report.md",
+          "path": "VPN_Tunnel/report/Agent-report.md",
           "exists": true,
           "bytes": 34684
         },
         {
-          "path": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/report/report_draft.md",
+          "path": "VPN_Tunnel/report/report_draft.md",
           "exists": true,
           "bytes": 50257
         }
       ]
     }
-  ]
+  ],
+  "runs_root_hint": "Set SEEDRUNNER_RUNS_ROOT to your local SEEDRunner/runs directory when regenerating."
 }

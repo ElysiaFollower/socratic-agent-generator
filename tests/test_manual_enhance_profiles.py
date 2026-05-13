@@ -55,15 +55,14 @@ def test_calibrated_profiles_match_schema_and_summary():
 
 def test_corpus_manifest_references_external_sources_without_copying_raw_files():
     manifest = load_json(MANUAL_ENHANCE_DIR / "corpus-manifest.json")
-    assert manifest["runs_root"] == "/Users/ely/workspace/research/agent/SEEDRunner/runs"
+    assert manifest["runs_root"] == "SEEDRUNNER_RUNS_ROOT"
     assert "Verified lab manuals are copied" in manifest["raw_source_policy"]
     assert {item["lab_id"] for item in manifest["labs"]} == EXPECTED_LABS
 
     for lab in manifest["labs"]:
-        assert Path(lab["manual"]).is_absolute()
-        assert str(lab["manual"]).startswith(manifest["runs_root"])
+        assert not Path(lab["manual"]).is_absolute()
         for stats in lab["source_stats"]:
-            assert stats["path"].startswith(manifest["runs_root"])
+            assert not Path(stats["path"]).is_absolute()
             assert stats["exists"] is True
             assert stats["bytes"] > 0
 

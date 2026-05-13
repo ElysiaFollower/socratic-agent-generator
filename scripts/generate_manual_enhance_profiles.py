@@ -27,7 +27,7 @@ from generators.ProfileGenerateManager import ProfileGenerateManager  # noqa: E4
 from generators.config import FAST_CONFIG, PRODUCTION_CONFIG  # noqa: E402
 
 
-RUNS_ROOT = Path("/Users/ely/workspace/research/agent/SEEDRunner/runs")
+DEFAULT_RUNS_ROOT = ROOT.parent / "SEEDRunner" / "runs"
 OUTPUT_ROOT = ROOT / "docs" / "manual-enhance"
 
 
@@ -41,61 +41,62 @@ class LabSpec:
     notes: str = ""
 
 
-LABS: tuple[LabSpec, ...] = (
-    LabSpec(
-        lab_id="ARP_Attack",
-        title="ARP Cache Poisoning and MITM",
-        manual=RUNS_ROOT / "ARP_Attack/docs/ARP_Attack.tex",
-        reports=(RUNS_ROOT / "ARP_Attack/report/ARP_Attack.zh.md",),
-        handwritten=(RUNS_ROOT / "mine/ARP_Attack/docs/report_draft.md",),
-        notes="Handwritten report emphasizes packet loss under disabled forwarding and Telnet/Netcat payload rewriting.",
-    ),
-    LabSpec(
-        lab_id="LocalDNSAttack",
-        title="Local DNS Cache Poisoning",
-        manual=RUNS_ROOT / "LocalDNSAttack/docs/DNS_Local.tex",
-        reports=(RUNS_ROOT / "LocalDNSAttack/report/local-dns-attack.zh.md",),
-        handwritten=(RUNS_ROOT / "mine/LocalDNSAttack/report/report_draft.md",),
-        notes="Handwritten report is detailed and highlights role relationships, cache flushing, bridge interface discovery, and section-specific DNS caching behavior.",
-    ),
-    LabSpec(
-        lab_id="RemoteDNSAttack",
-        title="Remote DNS Kaminsky Attack",
-        manual=RUNS_ROOT / "RemoteDNSAttack/docs/DNS_Remote.tex",
-        reports=(RUNS_ROOT / "RemoteDNSAttack/report/report_draft.md",),
-        notes="Only draft notes were found; treat as lower-confidence than labs with completed reports.",
-    ),
-    LabSpec(
-        lab_id="Sniffing_Spoofing",
-        title="Packet Sniffing and Spoofing",
-        manual=RUNS_ROOT / "Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
-        reports=(RUNS_ROOT / "Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md",),
-        handwritten=(RUNS_ROOT / "mine/Sniffing_Spoofing/docs/report_draft.md",),
-        notes="Handwritten artifacts include Scapy and C/pcap code paths; generated report records the bridge-interface discovery issue.",
-    ),
-    LabSpec(
-        lab_id="TCP_Attacks",
-        title="TCP Attacks",
-        manual=RUNS_ROOT / "TCP_Attacks/docs/TCP_Attacks.tex",
-        reports=(RUNS_ROOT / "TCP_Attacks/report/TCP_Attacks.zh.md",),
-        handwritten=(
-            RUNS_ROOT / "mine/TCP_Attacks/docs/report.md",
-            RUNS_ROOT / "mine/TCP_Attacks/docs/report_draft.md",
+def build_lab_specs(runs_root: Path) -> tuple[LabSpec, ...]:
+    return (
+        LabSpec(
+            lab_id="ARP_Attack",
+            title="ARP Cache Poisoning and MITM",
+            manual=runs_root / "ARP_Attack/docs/ARP_Attack.tex",
+            reports=(runs_root / "ARP_Attack/report/ARP_Attack.zh.md",),
+            handwritten=(runs_root / "mine/ARP_Attack/docs/report_draft.md",),
+            notes="Handwritten report emphasizes packet loss under disabled forwarding and Telnet/Netcat payload rewriting.",
         ),
-        notes="Handwritten report stresses empirical instability in SYN flood/RST attacks and the need to compare Python/C implementations and mitigations.",
-    ),
-    LabSpec(
-        lab_id="VPN_Tunnel",
-        title="VPN Tunneling",
-        manual=RUNS_ROOT / "VPN_Tunnel/docs/VPN_Tunnel.tex",
-        reports=(
-            RUNS_ROOT / "VPN_Tunnel/report/report.md",
-            RUNS_ROOT / "VPN_Tunnel/report/Agent-report.md",
-            RUNS_ROOT / "VPN_Tunnel/report/report_draft.md",
+        LabSpec(
+            lab_id="LocalDNSAttack",
+            title="Local DNS Cache Poisoning",
+            manual=runs_root / "LocalDNSAttack/docs/DNS_Local.tex",
+            reports=(runs_root / "LocalDNSAttack/report/local-dns-attack.zh.md",),
+            handwritten=(runs_root / "mine/LocalDNSAttack/report/report_draft.md",),
+            notes="Handwritten report is detailed and highlights role relationships, cache flushing, bridge interface discovery, and section-specific DNS caching behavior.",
         ),
-        notes="Most detailed generated report; emphasizes routing as the main learning bottleneck and TUN/TAP semantic contrast.",
-    ),
-)
+        LabSpec(
+            lab_id="RemoteDNSAttack",
+            title="Remote DNS Kaminsky Attack",
+            manual=runs_root / "RemoteDNSAttack/docs/DNS_Remote.tex",
+            reports=(runs_root / "RemoteDNSAttack/report/report_draft.md",),
+            notes="Only draft notes were found; treat as lower-confidence than labs with completed reports.",
+        ),
+        LabSpec(
+            lab_id="Sniffing_Spoofing",
+            title="Packet Sniffing and Spoofing",
+            manual=runs_root / "Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
+            reports=(runs_root / "Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md",),
+            handwritten=(runs_root / "mine/Sniffing_Spoofing/docs/report_draft.md",),
+            notes="Handwritten artifacts include Scapy and C/pcap code paths; generated report records the bridge-interface discovery issue.",
+        ),
+        LabSpec(
+            lab_id="TCP_Attacks",
+            title="TCP Attacks",
+            manual=runs_root / "TCP_Attacks/docs/TCP_Attacks.tex",
+            reports=(runs_root / "TCP_Attacks/report/TCP_Attacks.zh.md",),
+            handwritten=(
+                runs_root / "mine/TCP_Attacks/docs/report.md",
+                runs_root / "mine/TCP_Attacks/docs/report_draft.md",
+            ),
+            notes="Handwritten report stresses empirical instability in SYN flood/RST attacks and the need to compare Python/C implementations and mitigations.",
+        ),
+        LabSpec(
+            lab_id="VPN_Tunnel",
+            title="VPN Tunneling",
+            manual=runs_root / "VPN_Tunnel/docs/VPN_Tunnel.tex",
+            reports=(
+                runs_root / "VPN_Tunnel/report/report.md",
+                runs_root / "VPN_Tunnel/report/Agent-report.md",
+                runs_root / "VPN_Tunnel/report/report_draft.md",
+            ),
+            notes="Most detailed generated report; emphasizes routing as the main learning bottleneck and TUN/TAP semantic contrast.",
+        ),
+    )
 
 
 def read_text(path: Path) -> str:
@@ -159,16 +160,23 @@ def build_generator_input(spec: LabSpec, report_chars: int) -> str:
     return "\n".join(parts)
 
 
-def source_record(spec: LabSpec) -> dict:
+def _relative_source(path: Path, runs_root: Path) -> str:
+    try:
+        return str(path.relative_to(runs_root))
+    except ValueError:
+        return str(path)
+
+
+def source_record(spec: LabSpec, runs_root: Path) -> dict:
     paths = [spec.manual, *spec.handwritten, *spec.reports]
     return {
         **asdict(spec),
-        "manual": str(spec.manual),
-        "reports": [str(path) for path in spec.reports],
-        "handwritten": [str(path) for path in spec.handwritten],
+        "manual": _relative_source(spec.manual, runs_root),
+        "reports": [_relative_source(path, runs_root) for path in spec.reports],
+        "handwritten": [_relative_source(path, runs_root) for path in spec.handwritten],
         "source_stats": [
             {
-                "path": str(path),
+                "path": _relative_source(path, runs_root),
                 "exists": path.exists(),
                 "bytes": path.stat().st_size if path.exists() else 0,
             }
@@ -244,12 +252,20 @@ async def run(args: argparse.Namespace) -> None:
     elif (ROOT / ".env").exists():
         load_dotenv(ROOT / ".env")
 
+    runs_root = Path(
+        args.runs_root
+        or os.getenv("SEEDRUNNER_RUNS_ROOT")
+        or DEFAULT_RUNS_ROOT
+    ).expanduser().resolve()
+    lab_specs = build_lab_specs(runs_root)
+
     OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
     manifest = {
-        "runs_root": str(RUNS_ROOT),
+        "runs_root": "SEEDRUNNER_RUNS_ROOT",
+        "runs_root_hint": "Set SEEDRUNNER_RUNS_ROOT to your local SEEDRunner/runs directory when regenerating.",
         "mode": "fast" if args.fast else "production",
-        "raw_source_policy": "Raw reports and manuals remain external; this repo stores only paths, stats, generated profiles, and derived review notes.",
-        "labs": [source_record(spec) for spec in LABS],
+        "raw_source_policy": "Verified lab manuals are copied into calibrated lab folders for default RAG seeding; reports, screenshots, logs, PDFs, archives, and user data remain external.",
+        "labs": [source_record(spec, runs_root) for spec in lab_specs],
     }
     (OUTPUT_ROOT / "corpus-manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
@@ -257,7 +273,7 @@ async def run(args: argparse.Namespace) -> None:
     )
 
     requested = set(args.lab or [])
-    specs = [spec for spec in LABS if not requested or spec.lab_id in requested]
+    specs = [spec for spec in lab_specs if not requested or spec.lab_id in requested]
     results = []
     for spec in specs:
         print(f"Generating {spec.lab_id}...", flush=True)
@@ -275,7 +291,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--fast", action="store_true", help="Use FAST_CONFIG to reduce API calls.")
     parser.add_argument("--skip-existing", action="store_true")
     parser.add_argument("--report-chars", type=int, default=18000)
-    parser.add_argument("--lab", action="append", choices=[spec.lab_id for spec in LABS])
+    parser.add_argument(
+        "--runs-root",
+        default=None,
+        help="Path to a local SEEDRunner/runs directory. Defaults to SEEDRUNNER_RUNS_ROOT or sibling ../SEEDRunner/runs.",
+    )
+    parser.add_argument(
+        "--lab",
+        action="append",
+        choices=[spec.lab_id for spec in build_lab_specs(DEFAULT_RUNS_ROOT)],
+    )
     return parser.parse_args()
 
 

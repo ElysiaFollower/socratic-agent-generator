@@ -46,7 +46,7 @@ export interface Profile {
     readonly index_path?: string | null;
     readonly is_builtin?: boolean;
     readonly source?: string | null;
-    readonly external_source_path?: string | null;
+    readonly source_artifact_path?: string | null;
   } | null;
   readonly owner_id?: string;
   readonly visible_class_ids?: readonly string[];

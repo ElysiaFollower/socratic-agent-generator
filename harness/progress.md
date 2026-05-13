@@ -207,3 +207,11 @@
 - 新增 `.tex` 上传支持；官方部署文档记录内置 SEED lab manual/profile seed、删除引用语义和部署 smoke。
 - 验证：`python3 -m compileall src tests` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py tests/test_demo_session_examples.py tests/test_session_progress.py tests/test_tutor_executor.py tests/test_skill_names.py -q` 通过 13 tests；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
 - 已同步部署到 linux-01：通过 Remote Runner 上传 `c014790` 的 git archive，解包到 `/home/ely/deploy/socratic-live/socratic-agent-generator`，重启 `socratic-backend` 和 `socratic-frontend` 两个 tmux session。远端验证：`/api/health` 返回 OK，前端 HTTP 200，数据库检查输出 `linked_builtin_profiles=6`、`builtin_documents=6`，后端日志确认 `EMBEDDING_PROVIDER=volcengine` 并跳过 HuggingFace 下载。
+
+### 2026-05-13 - 处理 PR #16 绝对路径可迁移性评论
+
+- 查看 Gemini Code Assist 在 PR #16 的评论，确认 critical 点为 `src/utils/default_profile_seed.py` 中硬编码 `/Users/ely/.../SEEDRunner/runs`，另有 `.env.example` 和 `docs/manual-enhance/README.md` 中的本机路径示例。
+- 修复运行时代码：删除 `ORIGINAL_SEEDRUNNER_MANUALS`，内置 Document metadata 只记录 repo-relative `source_artifact_path`，不再写入外部绝对路径。
+- 修复生成脚本：`scripts/generate_manual_enhance_profiles.py` 改为通过 `--runs-root`、`SEEDRUNNER_RUNS_ROOT` 或 sibling `../SEEDRunner/runs` 定位外部语料；manifest 中记录相对路径和环境变量提示。
+- 修复文档/配置：`.env.example` 使用 `/path/to/your/...` placeholder；`docs/manual-enhance/README.md` 的复现命令改为 placeholder；`corpus-manifest.json` 不再包含本机绝对路径。
+- 验证：`rg -n "/Users/ely|/home/ely|/root/miniconda3|ORIGINAL_SEEDRUNNER|external_source_path" src scripts tests .env.example docs/manual-enhance -S` 无命中；`python3 -m compileall scripts/generate_manual_enhance_profiles.py src tests` 通过；focused pytest 13 passed；前端 test/build 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。

@@ -59,7 +59,7 @@ def model_to_profile(model: ProfileModel) -> Profile:
                 "index_path": doc.index_path,
                 "is_builtin": bool(meta_info.get("is_builtin")),
                 "source": meta_info.get("source"),
-                "external_source_path": meta_info.get("external_source_path"),
+                "source_artifact_path": meta_info.get("source_artifact_path"),
             }
     elif model.lab_name:
         document_status = "unlinked"
