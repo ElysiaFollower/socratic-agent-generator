@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active；`remote-runner-background-command-tools` 已 passing。
 - 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-remote-runner-background-command-tools.md`。
-- 上次验证：2026-05-14，focused backend tests 21 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，前端 `npm test -- --run` 通过，`git diff --check` 通过。
-- 下一步最佳动作：提交当前分支，推送远端并开面向 `dev` 的 PR；如要证明部署侧真实可用，再把分支同步到 linux-01 后用 demo session 触发一次后台命令 start/wait/result smoke。
+- 上次验证：2026-05-14，focused backend tests 21 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，前端 `npm test -- --run` 通过，`git diff --check` 通过；linux-01 已部署当前 Socratic archive 和最新 SEEDRunner background-command 代码，后台命令真实 smoke 通过。
+- 下一步最佳动作：提交并推送部署 evidence 更新到 PR #17；等待 review/merge。
 
 ## 状态约定
 
@@ -44,6 +44,7 @@
 - 后端调试 API `POST /api/sessions/{session_id}/remote-command` 支持 action、command_id 和 wait_timeout_seconds，方便不用前端也能验证后台命令生命周期。
 - 更新 `docs/architecture/remote-runner-session-tools.md` 和 `docs/deployment.md`，明确短命令同步执行与长命令后台生命周期的区别。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 21 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`cd frontend && npm test -- --run` 通过；`git diff --check` 通过。
+- 部署侧收口：linux-01 上 Socratic 已更新到当前 archive，SEEDRunner 也同步到支持 `--mode background` 的版本；重启 `socratic-backend`/`socratic-frontend` 后，`/api/health` 返回 OK，前端 HTTP 200。真实 demo session `42f4f635-4ab3-41a0-911a-233cf4cebe0d` 的 session-bound 工具 smoke 通过：`start_remote_command -> wait_remote_command -> get_remote_command_result -> list_remote_commands`，命令 `cmd_20260513_172642_504854_653050c4` 退出码 0，`wait_timed_out=false`，stdout 命中 `socratic-background-ok`。
 - 状态：`remote-runner-background-command-tools` 标记为 `passing`，计划归档。
 
 ### 2026-05-11 - 记录 vNext 集成路线

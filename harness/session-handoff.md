@@ -19,6 +19,7 @@
 - 上游 Remote Runner 后台命令能力缺口已解决；Socratic 已接入新 CLI 的后台运行、显式 wait time、result/list/stop 接口。
 - Tutor 工具表面现在区分短命令 `run_remote_command` 和长命令 `start_remote_command`，并提供 `wait_remote_command`、`get_remote_command_result`、`list_remote_commands`、`stop_remote_command`。
 - 后端调试 API `/api/sessions/{session_id}/remote-command` 同步支持 `action`、`command_id` 和 `wait_timeout_seconds`。
+- linux-01 已同步当前 Socratic archive 和支持后台命令的 SEEDRunner 代码；部署侧后台命令工具链 smoke 已通过。
 
 ## 真实验收
 
@@ -45,6 +46,7 @@
 - 早期完整本地验证通过：focused pytest 18 passed、`python3 -m compileall src tests`、frontend test/build、`git diff --check`。
 - 远端最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
 - linux-01 后端 `/api/health` 返回 OK，前端 HTTP 200。
+- 2026-05-14 追加部署 smoke：demo session `42f4f635-4ab3-41a0-911a-233cf4cebe0d` 的 session-bound `start_remote_command -> wait_remote_command -> get_remote_command_result -> list_remote_commands` 通过；后台命令 `cmd_20260513_172642_504854_653050c4` 退出码 0，`wait_timed_out=false`，stdout 命中 `socratic-background-ok`，工具数 7。
 
 ## 当前 active 任务
 
@@ -52,7 +54,7 @@
 
 ## 仍损坏或未验证
 
-- 未在 linux-01 部署侧额外跑后台命令 smoke；本次完成的是本地 Socratic 适配、测试和文档更新。
+- 无阻塞当前任务的问题。
 - 浏览器插件连接本地页面三次超时的旧问题仍未复核；本任务预计不触碰前端 UI。
 
 ## 设计结论
@@ -65,13 +67,12 @@
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 - linux-01 上为了演示保留最终 demo session 和运行服务。
-- 本地当前有未提交改动；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
+- 本地当前有 harness evidence 未提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 
 ## 下一步最佳动作
 
-1. 提交当前分支。
-2. 推送到远端并打开面向 `dev` 的 PR。
-3. 如需要部署证明，将当前分支同步到 linux-01，使用 demo session 对 `start_remote_command`、`wait_remote_command`、`get_remote_command_result` 做一次真实 smoke。
+1. 提交并推送部署 evidence 更新到 PR #17。
+2. 等待 review/merge。
 
 ## 命令
 
