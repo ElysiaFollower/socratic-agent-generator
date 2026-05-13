@@ -60,6 +60,7 @@
     "name": "Name",
     "id": "ID",
     "noData": "No data",
+    "refresh": "Refresh",
     "notFound": "Not found"
   },
   "notification": {
@@ -69,6 +70,7 @@
     "title": "Settings",
     "tabs": {
       "llm": "LLM",
+      "remote": "Lab machines",
       "preferences": "Preferences",
       "account": "Account"
     },
@@ -104,6 +106,32 @@
       "latencyFailed": "Latency test failed",
       "apiKeyRequired": "Please enter API key",
       "apiKeyRequiredForTest": "Please enter API key first"
+    },
+    "remote": {
+      "formTitle": "Lab machine",
+      "displayName": "Display name",
+      "runnerMachineName": "Remote Runner machine",
+      "authType": "Auth type",
+      "authExisting": "Existing runner machine",
+      "authPassword": "Password",
+      "authKey": "SSH key",
+      "host": "Host or IP",
+      "port": "Port",
+      "username": "User name",
+      "password": "Password",
+      "keyPath": "SSH key path",
+      "defaultCwd": "Default cwd",
+      "startupCommands": "Startup commands",
+      "machineList": "Configured machines",
+      "noMachines": "No lab machines configured",
+      "test": "Test",
+      "fetchFailed": "Failed to fetch lab machines",
+      "saved": "Machine saved",
+      "saveFailed": "Failed to save machine",
+      "deleted": "Machine deleted",
+      "deleteFailed": "Failed to delete machine",
+      "testReady": "Connection ready",
+      "testFailed": "Connection test failed"
     },
     "preferences": {
       "tts": {
@@ -310,6 +338,13 @@
     "generating": "Generating...",
     "management": "Registration Invitation Code Management"
   },
+  "sessionFiles": {
+    "title": "Files for {{machine}}",
+    "upload": "Upload",
+    "put": "Send",
+    "remotePath": "Remote path",
+    "remotePathRequired": "Remote path is required"
+  },
   "labManual": {
     "selectFile": "Please select a file",
     "enterFileName": "Please enter file name",
@@ -485,6 +520,8 @@
     "selector": {
       "title": "Select Learning Course",
       "searchPlaceholder": "Search course name, topic or audience",
+      "remoteMachine": "Lab machine",
+      "noRemoteMachine": "No remote machine",
       "targetAudience": "Target Audience",
       "courseTopic": "Course Topic",
       "learningSteps": "Learning Steps",

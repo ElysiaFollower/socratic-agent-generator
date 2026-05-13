@@ -31,6 +31,7 @@ import {
   ToolPanelView,
   StepCompletion,
   LLMSettingsResponse,
+  RemoteMachineSummary,
 } from "../types";
 import {
   useProfiles,
@@ -55,6 +56,7 @@ import {
   SettingsModal,
   SidebarRail,
   ProfileDetailCard,
+  SessionLabFilesPanel,
 } from "../components";
 import {
   createSession,
@@ -65,6 +67,7 @@ import {
   deleteSession,
   getProfile,
   getLLMSettings,
+  listRemoteMachines,
 } from "../api";
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../i18n";
 import { LLM_PROVIDERS } from "../utils/llmProviders";
@@ -107,6 +110,9 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [llmOptions, setLlmOptions] = useState<
     readonly { value: string; label: string }[]
   >([{ value: defaultLlmOption, label: "默认" }]);
+  const [remoteMachines, setRemoteMachines] = useState<
+    readonly RemoteMachineSummary[]
+  >([]);
   const [selectedLlm, setSelectedLlm] = useState<string>(defaultLlmOption);
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
@@ -289,7 +295,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   );
 
   const handleStartNewSession = useCallback(
-    async (profile: Profile) => {
+    async (profile: Profile, remoteMachineId?: string) => {
       if (isCreatingSession) {
         return;
       }
@@ -300,6 +306,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           profile_id: profile.profile_id,
           session_name: sessionName,
           output_language: SUPPORTED_LANGUAGES[currentLanguage].llmLanguage,
+          remote_machine_id: remoteMachineId,
         });
 
         setMessages([], res.session_id);
@@ -604,12 +611,25 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     }
   }, [buildLlmOptions, notifyWarning, t]);
 
+  const refreshRemoteMachines = useCallback(async () => {
+    try {
+      setRemoteMachines(await listRemoteMachines());
+    } catch (error) {
+      notifyWarning(
+        error instanceof Error
+          ? error.message
+          : t("settings.remote.fetchFailed"),
+      );
+    }
+  }, [notifyWarning, t]);
+
   useEffect(() => {
     if (!user) {
       return;
     }
     void refreshLlmSettings();
-  }, [user, refreshLlmSettings]);
+    void refreshRemoteMachines();
+  }, [user, refreshLlmSettings, refreshRemoteMachines]);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -853,6 +873,13 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             <Box
               sx={{ maxWidth: contentMaxWidth, mx: isMaximized ? 0 : "auto" }}
             >
+              {sessionId && currentSession?.remote_binding && (
+                <SessionLabFilesPanel
+                  sessionId={sessionId}
+                  remoteBinding={currentSession.remote_binding}
+                  disabled={chatLoading}
+                />
+              )}
               {!sessionId && (
                 <Stack spacing={1} sx={{ mb: 2 }}>
                   <Box
@@ -983,10 +1010,14 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       {showProfileSelector && (
         <ProfileSelector
           profiles={profiles}
+          remoteMachines={remoteMachines}
           isLoading={profilesLoading || isCreatingSession}
           onSelect={handleStartNewSession}
           onClose={() => setShowProfileSelector(false)}
-          onOpen={refreshProfiles}
+          onOpen={async () => {
+            await refreshProfiles();
+            await refreshRemoteMachines();
+          }}
         />
       )}
 

@@ -53,6 +53,10 @@ class CreateSessionRequest(BaseModel):
         description="Output language for the session.",
         default=DEFAULT_OUTPUT_LANGUAGE,
     )
+    remote_machine_id: Optional[str] = Field(
+        default=None,
+        description="Optional user remote machine id to bind to this session.",
+    )
 
 
 class MessageRequest(BaseModel):

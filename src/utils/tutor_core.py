@@ -127,11 +127,11 @@ class Tutor:
         self.lab_manual_skill = LabManualSkill(
             self.session.profile.topic_name,
             lab_name=self.session.profile.lab_name,
-            document_id=self.session.profile.document_id,
+            document_id=getattr(self.session.profile, "document_id", None),
         )
         self.pedagogy_skill = PedagogicalStrategySkill()
         self.assessment_skill = AssessmentSkill(self.session)
-        self.remote_environment_skill = get_remote_environment_skill()
+        self.remote_environment_skill = get_remote_environment_skill(session=self.session)
         self.base_skills = [
             self.lab_manual_skill,
             self.pedagogy_skill,

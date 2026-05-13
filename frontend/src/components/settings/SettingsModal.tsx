@@ -21,16 +21,26 @@ import {
 import { useTranslation } from "react-i18next";
 import {
   getLLMSettings,
+  createRemoteMachine,
+  deleteRemoteMachine,
+  listRemoteMachines,
   saveLLMProviderSettings,
   setDefaultLLMProvider,
   testLLMLatency,
   deleteLLMProviderSettings,
+  testRemoteMachine,
+  updateRemoteMachine,
 } from "../../api/settings";
-import { LLMProviderStatus } from "../../types";
+import {
+  LLMProviderStatus,
+  RemoteMachineSummary,
+  SaveRemoteMachineRequest,
+} from "../../types";
 import { useNotification } from "../../hooks";
 import { LLM_PROVIDERS } from "../../utils/llmProviders";
 import { LlmSettingsTab } from "./LlmSettingsTab";
 import { PreferencesTab } from "./PreferencesTab";
+import { RemoteMachinesTab } from "./RemoteMachinesTab";
 
 /**
  * Props for SettingsModal component.
@@ -73,6 +83,10 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
   const [savingProvider, setSavingProvider] = useState<string | null>(null);
   const [testingProvider, setTestingProvider] = useState<string | null>(null);
   const [testMessages, setTestMessages] = useState<Record<string, string>>({});
+  const [remoteMachines, setRemoteMachines] = useState<
+    readonly RemoteMachineSummary[]
+  >([]);
+  const [busyMachineId, setBusyMachineId] = useState<string | null>(null);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -120,8 +134,12 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
 
   const loadSettings = useCallback(async () => {
     try {
-      const data = await getLLMSettings();
+      const [data, machines] = await Promise.all([
+        getLLMSettings(),
+        listRemoteMachines(),
+      ]);
       setProviderStatuses(data.providers);
+      setRemoteMachines(machines);
       setDefaultProvider(data.default_provider);
       setProviderInputs((prev) => {
         const next = { ...prev };
@@ -141,6 +159,16 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
         error instanceof Error
           ? error.message
           : t("settings.messages.fetchFailed"),
+      );
+    }
+  }, [notifyError, t]);
+
+  const loadRemoteMachines = useCallback(async () => {
+    try {
+      setRemoteMachines(await listRemoteMachines());
+    } catch (error) {
+      notifyError(
+        error instanceof Error ? error.message : t("settings.remote.fetchFailed"),
       );
     }
   }, [notifyError, t]);
@@ -263,6 +291,64 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
     }
   }, [defaultProvider, notifyError, notifySuccess, onSettingsUpdated, t]);
 
+  const handleSaveRemoteMachine = useCallback(
+    async (machineId: string | null, payload: SaveRemoteMachineRequest) => {
+      try {
+        if (machineId) {
+          await updateRemoteMachine(machineId, payload);
+        } else {
+          await createRemoteMachine(payload);
+        }
+        notifySuccess(t("settings.remote.saved"));
+        await loadRemoteMachines();
+      } catch (error) {
+        notifyError(
+          error instanceof Error ? error.message : t("settings.remote.saveFailed"),
+        );
+      }
+    },
+    [loadRemoteMachines, notifyError, notifySuccess, t],
+  );
+
+  const handleDeleteRemoteMachine = useCallback(
+    async (machineId: string) => {
+      try {
+        await deleteRemoteMachine(machineId);
+        notifySuccess(t("settings.remote.deleted"));
+        await loadRemoteMachines();
+      } catch (error) {
+        notifyError(
+          error instanceof Error
+            ? error.message
+            : t("settings.remote.deleteFailed"),
+        );
+      }
+    },
+    [loadRemoteMachines, notifyError, notifySuccess, t],
+  );
+
+  const handleTestRemoteMachine = useCallback(
+    async (machineId: string) => {
+      setBusyMachineId(machineId);
+      try {
+        const result = await testRemoteMachine(machineId);
+        if (result.ok) {
+          notifySuccess(result.message || t("settings.remote.testReady"));
+        } else {
+          notifyError(result.message || t("settings.remote.testFailed"));
+        }
+        await loadRemoteMachines();
+      } catch (error) {
+        notifyError(
+          error instanceof Error ? error.message : t("settings.remote.testFailed"),
+        );
+      } finally {
+        setBusyMachineId(null);
+      }
+    },
+    [loadRemoteMachines, notifyError, notifySuccess, t],
+  );
+
   return (
     <Dialog
       open={isOpen}
@@ -303,6 +389,7 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
         />
         <Tabs value={tabValue} onChange={(_, v) => setTabValue(v)}>
           <Tab label={t("settings.tabs.llm")} />
+          <Tab label={t("settings.tabs.remote")} />
           <Tab label={t("settings.tabs.preferences")} />
           <Tab label={t("settings.tabs.account")} />
         </Tabs>
@@ -332,9 +419,19 @@ export function SettingsModal(props: SettingsModalProps): JSX.Element | null {
           />
         )}
 
-        {tabValue === 1 && <PreferencesTab />}
+        {tabValue === 1 && (
+          <RemoteMachinesTab
+            machines={remoteMachines}
+            onSave={handleSaveRemoteMachine}
+            onDelete={handleDeleteRemoteMachine}
+            onTest={handleTestRemoteMachine}
+            busyMachineId={busyMachineId}
+          />
+        )}
 
-        {tabValue === 2 && (
+        {tabValue === 2 && <PreferencesTab />}
+
+        {tabValue === 3 && (
           <Paper variant='outlined' sx={{ p: 2, mt: 2, borderStyle: "dashed" }}>
             <Typography variant='subtitle2' sx={{ mb: 1 }}>
               {t("settings.tabs.account")}

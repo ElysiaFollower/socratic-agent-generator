@@ -46,6 +46,8 @@
 - 扩展创建会话请求、会话模型和前端创建入口，允许选择一台用户拥有的实验机并生成 session-bound remote binding。
 - 扩展 Remote Runner provider，让 Tutor 从当前 session binding 构造 provider，并只允许访问绑定机器和绑定 Remote Runner session。
 - 扩展 Tutor remote skill，使其能执行实验诊断命令、返回脱敏输出、把关键命令与结果写入会话历史或可审计记录。
+- 新增会话专用文件缓存和 LabSetup 上传路径，让用户可把 `docker-compose.yml`、脚本或实验附件上传到会话，再由系统转存到绑定实验机。
+- 新增后端调试 API，覆盖前端与 Tutor 会使用的同一条 remote binding、文件上传、命令执行和审计链路，便于维护者不用手点前端也能复现实验流程。
 - 更新官方部署文档、架构文档、`.env.example`、tests 和 live demo example，反映真实 Remote Runner 会话工具能力。
 - 必要时调整 linux-01 演示部署数据；仍不得提交数据库、密钥、日志或机器状态。
 
@@ -64,8 +66,10 @@
 - 创建会话时可以选择用户自己的实验机；未选择机器的会话不注入 Remote Runner skill。
 - 已绑定机器的会话中，Tutor 的 Remote Runner skill 只能访问该绑定机器；传入其他 machine id、session id 或未允许命令会被拒绝并留下可诊断错误。
 - Tutor 可以通过 Remote Runner 在绑定机器中执行实验所需的诊断/辅助命令，输出经过脱敏、截断和审计，并可用于后续教学回复。
+- 每个会话可以维护专用文件缓存；用户上传的 LabSetup 文件只归属于该会话，可通过 API 上传到该会话绑定的远程实验机。
+- 后端提供调试友好的 API：列出/上传会话文件、把会话文件转存到绑定实验机、执行会话绑定命令、查询远程命令审计；这些 API 与 Tutor 使用同一套权限和审计逻辑。
 - `demo` student 用户在真实 `seed-lab` 机器上完整完成一个 SEED 实验会话；验收会话不只是通关进度完成，还必须包含 Tutor 执行命令、收集输出、解释结果或排查问题的证据。
-- 推荐验收实验为 Sniffing and Spoofing Lab，LabSetup 来源记录为 `https://github.com/seed-labs/seed-labs/tree/master/category-network/Sniffing_Spoofing/Labsetup`；如执行时选择其他更稳定实验，必须在 evidence 中说明原因。
+- 推荐验收实验为 Sniffing and Spoofing Lab，LabSetup 来源记录为 `https://github.com/seed-labs/seed-labs/tree/master/category-network/Sniffing_Spoofing/Labsetup`；本地可复用的实际 `docker-compose.yml` 来自 SEEDRunner runs 下的 Sniffing_Spoofing/Labsetup，验收不应为了这个简单 LabSetup 专门远程 `git clone` 整仓库。如执行时选择其他更稳定实验，必须在 evidence 中说明原因。
 - 完成会话的历史和导出的 example artifact 足以支撑一份实验报告：包含关键环境信息、命令、输出摘要、错误/排查过程、原理解释和完成状态。
 - 官方部署文档说明 Remote Runner 集成的 conda 安装、配置、credential 安全、session binding、command policy 和 smoke test。
 
@@ -78,6 +82,7 @@ python3 -m compileall src tests
 cd frontend && npm test -- --run
 cd frontend && npm run build
 remote-runner machine doctor seed-lab --json
+后端 API 调试流：以 demo student 登录，配置/选择 seed-lab，创建 Sniffing/Spoofing 会话，上传 docker-compose.yml 到会话缓存，把文件转存到远程 LabSetup 目录，运行 docker compose up/ps 和若干实验命令，确认审计记录。
 手动端到端：以 demo student 登录，配置/选择 seed-lab，创建一个 SEED 实验会话，让 Tutor 通过 Remote Runner 执行实验命令与排错，并完成全部课程节点；导出完成会话 example。
 ```
 
@@ -107,5 +112,6 @@ remote-runner machine doctor seed-lab --json
 1. 检查 Remote Runner 当前 CLI 的 machine/session 配置与 credential 写入接口，确定 Socratic 侧 manager 调用边界。
 2. 设计并实现 user remote machine、session remote binding 和 audit 数据模型。
 3. 扩展 API/UI，让 `demo` 用户能配置并在创建会话时选择 `seed-lab`。
-4. 将 Tutor remote skill 改为 session-bound provider，并补 focused tests。
-5. 用 `seed-lab` 完成真实 Sniffing/Spoofing 端到端会话并导出 example。
+4. 增加 session file cache、文件转存和 remote-command 调试 API，确保 LabSetup 可以由系统包办。
+5. 将 Tutor remote skill 改为 session-bound provider，并补 focused tests。
+6. 用 `seed-lab` 完成真实 Sniffing/Spoofing 端到端会话并导出 example。

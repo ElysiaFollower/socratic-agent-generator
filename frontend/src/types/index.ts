@@ -94,6 +94,7 @@ export interface Session {
   readonly update_at: string;
   readonly output_language: string;
   readonly history: readonly SessionHistoryMessage[];
+  readonly remote_binding?: RemoteBindingSummary | null;
 }
 
 /**
@@ -105,6 +106,7 @@ export interface SessionSummary {
   readonly profile_id: string;
   readonly profile_name: string;
   readonly topic_name: string;
+  readonly remote_binding?: RemoteBindingSummary | null;
   readonly create_at: string;
   readonly update_at: string;
 }
@@ -116,6 +118,7 @@ export interface CreateSessionRequest {
   readonly profile_id: string;
   readonly session_name?: string; // Optional, defaults to "新会话"
   readonly output_language?: string; // Optional, defaults to "Simplified Chinese"
+  readonly remote_machine_id?: string;
 }
 
 /**
@@ -210,6 +213,85 @@ export interface TestLLMLatencyRequest {
 export interface TestLLMLatencyResponse {
   readonly ok: boolean;
   readonly latency_ms?: number;
+}
+
+export type RemoteMachineAuthType = "existing" | "password" | "key";
+
+export interface RemoteMachineSummary {
+  readonly machine_id: string;
+  readonly display_name: string;
+  readonly runner_machine_name: string;
+  readonly host?: string | null;
+  readonly port?: number | null;
+  readonly username?: string | null;
+  readonly auth_type: RemoteMachineAuthType;
+  readonly key_path?: string | null;
+  readonly default_cwd?: string | null;
+  readonly startup_commands: readonly string[];
+  readonly has_password: boolean;
+  readonly status: string;
+  readonly last_error?: string | null;
+  readonly last_checked_at?: string | null;
+}
+
+export interface SaveRemoteMachineRequest {
+  readonly display_name: string;
+  readonly runner_machine_name: string;
+  readonly host?: string | null;
+  readonly port?: number | null;
+  readonly username?: string | null;
+  readonly auth_type: RemoteMachineAuthType;
+  readonly password?: string;
+  readonly key_path?: string | null;
+  readonly default_cwd?: string | null;
+  readonly startup_commands?: readonly string[];
+}
+
+export interface RemoteMachineTestResponse {
+  readonly ok: boolean;
+  readonly status: string;
+  readonly message: string;
+}
+
+export interface RemoteBindingSummary {
+  readonly binding_id: string;
+  readonly machine_id?: string | null;
+  readonly display_name?: string | null;
+  readonly runner_machine_name: string;
+  readonly runner_session_id: string;
+  readonly default_cwd?: string | null;
+  readonly status: string;
+}
+
+export interface RemoteCommandAudit {
+  readonly audit_id: string;
+  readonly session_id: string;
+  readonly action: string;
+  readonly command?: string | null;
+  readonly cwd?: string | null;
+  readonly exit_code?: number | null;
+  readonly stdout_excerpt?: string | null;
+  readonly stderr_excerpt?: string | null;
+  readonly error?: string | null;
+}
+
+export interface SessionFileInfo {
+  readonly filename: string;
+  readonly size_bytes: number;
+  readonly uploaded_at?: string | null;
+}
+
+export interface SessionRemoteCommandRequest {
+  readonly command: string;
+  readonly cwd?: string | null;
+  readonly reason?: string | null;
+}
+
+export interface SessionRemoteCommandResponse {
+  readonly ok: boolean;
+  readonly action: string;
+  readonly reason: string;
+  readonly result: Record<string, unknown>;
 }
 
 /**

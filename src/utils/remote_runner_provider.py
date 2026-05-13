@@ -12,15 +12,16 @@ import logging
 import os
 import re
 import subprocess
-import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, Mapping, Optional, Sequence
 
 from config import (
+    REMOTE_RUNNER_PYTHON_EXECUTABLE,
     REMOTE_RUNNER_REPO_PATH,
     REMOTE_RUNNER_STATE_DIR,
     REMOTE_TOOL_ALLOWED_COMMANDS,
+    REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES,
     REMOTE_TOOL_ALLOWED_CWD_PREFIXES,
     REMOTE_TOOL_ALLOWED_MACHINE_IDS,
     REMOTE_TOOL_COMMAND_TIMEOUT,
@@ -65,7 +66,7 @@ class RemoteRunnerProviderConfig:
     enabled: bool = REMOTE_TOOL_ENABLED
     repo_path: Optional[str] = REMOTE_RUNNER_REPO_PATH
     state_dir: Optional[str] = REMOTE_RUNNER_STATE_DIR
-    python_executable: str = sys.executable
+    python_executable: str = REMOTE_RUNNER_PYTHON_EXECUTABLE
     timeout_seconds: int = REMOTE_TOOL_COMMAND_TIMEOUT
     max_output_chars: int = REMOTE_TOOL_OUTPUT_CHARS
     allowed_machine_ids: Sequence[str] = field(
@@ -73,6 +74,9 @@ class RemoteRunnerProviderConfig:
     )
     allowed_commands: Sequence[str] = field(
         default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_COMMANDS)
+    )
+    allowed_command_prefixes: Sequence[str] = field(
+        default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES)
     )
     allowed_cwd_prefixes: Sequence[str] = field(
         default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_CWD_PREFIXES)
@@ -171,6 +175,96 @@ class RemoteRunnerProvider:
             "reason": reason.strip()[:300] if reason else "",
             "result": filtered,
         }
+
+    def add_machine(
+        self,
+        *,
+        machine_id: str,
+        host: str,
+        port: int,
+        user: str,
+        auth_type: str,
+        password: str = "",
+        key_path: str = "",
+        default_cwd: str = "",
+        startup_commands: Sequence[str] = (),
+        replace: bool = True,
+    ) -> Dict[str, Any]:
+        """Add or update a Remote Runner machine through the CLI."""
+        args = [
+            "machine",
+            "add",
+            "--machine-id",
+            _require_value(machine_id, "machine_id"),
+            "--host",
+            _require_value(host, "host"),
+            "--port",
+            str(port),
+            "--user",
+            _require_value(user, "user"),
+            "--auth-type",
+            _require_value(auth_type, "auth_type"),
+        ]
+        if default_cwd:
+            args.extend(["--default-cwd", default_cwd])
+        for command in startup_commands:
+            if command.strip():
+                args.extend(["--startup-command", command.strip()])
+        if auth_type == "password":
+            args.extend(["--password", _require_value(password, "password")])
+        elif auth_type == "key":
+            args.extend(["--key-path", _require_value(key_path, "key_path")])
+        else:
+            raise RemoteRunnerPermissionError("auth_type must be password or key.")
+        if replace:
+            args.extend(["--replace", "--confirm-replace", machine_id])
+        args.append("--json")
+        return redact_sensitive(self._run_json(tuple(args)))
+
+    def create_session(self, *, machine_id: str, cwd: str = "") -> Dict[str, Any]:
+        """Create a Remote Runner session for a machine."""
+        safe_machine = self._require_machine(machine_id)
+        args = ["session", "create", "--machine", safe_machine]
+        if cwd:
+            args.extend(["--cwd", cwd])
+        args.append("--json")
+        return redact_sensitive(self._run_json(tuple(args)))
+
+    def destroy_session(self, *, session_id: str) -> Dict[str, Any]:
+        """Destroy a Remote Runner session."""
+        safe_session = _require_value(session_id, "session_id")
+        return redact_sensitive(
+            self._run_json(("session", "destroy", "--session", safe_session, "--json"))
+        )
+
+    def put_file(
+        self,
+        *,
+        session_id: str,
+        local_path: str | Path,
+        remote_path: str,
+    ) -> Dict[str, Any]:
+        """Upload a local file into a Remote Runner session."""
+        safe_session = _require_value(session_id, "session_id")
+        local = Path(local_path).expanduser().resolve()
+        if not local.exists() or not local.is_file():
+            raise RemoteRunnerError("Local file does not exist.")
+        safe_remote = _require_value(remote_path, "remote_path")
+        return redact_sensitive(
+            self._run_json(
+                (
+                    "file",
+                    "put",
+                    "--session",
+                    safe_session,
+                    "--local",
+                    str(local),
+                    "--remote",
+                    safe_remote,
+                    "--json",
+                )
+            )
+        )
 
     def _build_cli_args(
         self,
@@ -329,9 +423,16 @@ class RemoteRunnerProvider:
     def _require_allowed_command(self, command: str) -> str:
         safe_command = _require_value(command, "command")
         allowed = {item.strip() for item in self.config.allowed_commands if item.strip()}
-        if allowed and safe_command not in allowed:
+        prefixes = tuple(
+            item for item in self.config.allowed_command_prefixes if item.strip()
+        )
+        if allowed and safe_command in allowed:
+            return safe_command
+        if prefixes and safe_command.startswith(prefixes):
+            return safe_command
+        if allowed or prefixes:
             raise RemoteRunnerPermissionError(
-                "Command is not allowed by REMOTE_TOOL_ALLOWED_COMMANDS."
+                "Command is not allowed by Remote Runner command policy."
             )
         return safe_command
 

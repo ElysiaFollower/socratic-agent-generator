@@ -135,6 +135,49 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         self.assertIn("not allowed", result["error"])
         self.assertEqual([], runner.calls)
 
+    def test_session_exec_allows_configured_prefix_command(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "machine_id": "lab1",
+                            "command": "docker ps --format '{{.Names}}'",
+                            "exit_code": 0,
+                            "stdout": "seed-host-a\n",
+                            "stderr": "",
+                        }
+                    ),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_machine_ids=("lab1",),
+                allowed_commands=("pwd",),
+                allowed_command_prefixes=("docker ps",),
+            ),
+            command_runner=runner,
+        )
+
+        payload = provider.run_action(
+            action="session_exec",
+            machine_id="lab1",
+            session_id="sess1",
+            command="docker ps --format '{{.Names}}'",
+        )
+
+        self.assertTrue(payload["ok"])
+        self.assertIn("seed-host-a", payload["result"]["stdout"])
+
     def test_session_exec_checks_allowed_machine_and_redacts_output(self):
         runner = FakeRunner(
             [
@@ -220,6 +263,113 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         self.assertLessEqual(len(result), 615)
         self.assertIn("[truncated]", result)
 
+    def test_add_machine_and_create_session_cli_arguments(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"machine_id": "lab1", "password": "***REDACTED***"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(enabled=True, repo_path=None),
+            command_runner=runner,
+        )
+
+        added = provider.add_machine(
+            machine_id="lab1",
+            host="127.0.0.1",
+            port=2222,
+            user="seed",
+            auth_type="password",
+            password="secret",
+            default_cwd="/home/seed",
+        )
+        session = provider.create_session(machine_id="lab1", cwd="/home/seed")
+
+        self.assertEqual("lab1", added["machine_id"])
+        self.assertEqual("sess1", session["session_id"])
+        self.assertEqual(
+            [
+                "machine",
+                "add",
+                "--machine-id",
+                "lab1",
+                "--host",
+                "127.0.0.1",
+                "--port",
+                "2222",
+                "--user",
+                "seed",
+                "--auth-type",
+                "password",
+                "--default-cwd",
+                "/home/seed",
+                "--password",
+                "secret",
+                "--replace",
+                "--confirm-replace",
+                "lab1",
+                "--json",
+            ],
+            runner.calls[0]["args"][3:],
+        )
+        self.assertEqual(
+            ["session", "create", "--machine", "lab1", "--cwd", "/home/seed", "--json"],
+            runner.calls[1]["args"][3:],
+        )
+
+    def test_put_file_uses_remote_runner_file_cli(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            local_file = Path(tmp_dir) / "docker-compose.yml"
+            local_file.write_text("services: {}\n", encoding="utf-8")
+            runner = FakeRunner(
+                [
+                    RunnerResult(
+                        returncode=0,
+                        stdout=json.dumps(
+                            {
+                                "session_id": "sess1",
+                                "remote_path": "/home/seed/lab/docker-compose.yml",
+                                "local_path": str(local_file),
+                            }
+                        ),
+                    )
+                ]
+            )
+            provider = RemoteRunnerProvider(
+                RemoteRunnerProviderConfig(enabled=True, repo_path=None),
+                command_runner=runner,
+            )
+
+            result = provider.put_file(
+                session_id="sess1",
+                local_path=local_file,
+                remote_path="/home/seed/lab/docker-compose.yml",
+            )
+
+        self.assertEqual("/home/seed/lab/docker-compose.yml", result["remote_path"])
+        self.assertEqual("<local_path_redacted>", result["local_path"])
+        self.assertEqual(
+            [
+                "file",
+                "put",
+                "--session",
+                "sess1",
+                "--local",
+                str(local_file.resolve()),
+                "--remote",
+                "/home/seed/lab/docker-compose.yml",
+                "--json",
+            ],
+            runner.calls[0]["args"][3:],
+        )
+
     @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is not installed")
     def test_remote_environment_skill_returns_none_when_disabled(self):
         skill = get_remote_environment_skill(
@@ -300,7 +450,7 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         with patch.object(tutor_core, "LabManualSkill", lambda *args, **kwargs: FakeSkill("lab")), \
             patch.object(tutor_core, "PedagogicalStrategySkill", lambda: FakeSkill("pedagogy")), \
             patch.object(tutor_core, "AssessmentSkill", lambda session: FakeSkill("assessment")), \
-            patch.object(tutor_core, "get_remote_environment_skill", lambda: FakeSkill("observe_remote_environment")), \
+            patch.object(tutor_core, "get_remote_environment_skill", lambda **kwargs: FakeSkill("observe_remote_environment")), \
             patch.object(tutor_core, "SessionLocal", lambda: FakeDb()), \
             patch.object(
                 tutor_core,

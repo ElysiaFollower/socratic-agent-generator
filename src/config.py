@@ -6,6 +6,7 @@ All configuration values can be overridden via environment variables.
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -37,6 +38,11 @@ PROFILES_DIR = DATA_DIR / PROFILES_DIR_NAME
 # Session data directory name
 SESSION_DATA_DIR_NAME = "session_data"
 SESSION_DATA_DIR = DATA_DIR / SESSION_DATA_DIR_NAME
+
+# Session-scoped uploaded files and lab setup cache.
+SESSION_FILES_DIR_NAME = "session_files"
+SESSION_FILES_DIR = DATA_DIR / SESSION_FILES_DIR_NAME
+SESSION_FILE_MAX_BYTES: int = int(os.getenv("SESSION_FILE_MAX_BYTES", "20971520"))
 
 # Prompt templates directory name
 PROMPT_TEMPLATE_DIR_NAME = "templates"
@@ -257,6 +263,9 @@ REMOTE_RUNNER_REPO_PATH: Optional[str] = os.getenv(
     "REMOTE_RUNNER_REPO_PATH",
     str(_default_remote_runner_repo) if _default_remote_runner_repo.exists() else "",
 )
+REMOTE_RUNNER_PYTHON_EXECUTABLE: str = (
+    os.getenv("REMOTE_RUNNER_PYTHON_EXECUTABLE") or sys.executable
+)
 REMOTE_RUNNER_STATE_DIR: Optional[str] = os.getenv("REMOTE_RUNNER_STATE_DIR", "")
 REMOTE_TOOL_COMMAND_TIMEOUT: int = int(os.getenv("REMOTE_TOOL_COMMAND_TIMEOUT", "20"))
 REMOTE_TOOL_OUTPUT_CHARS: int = int(os.getenv("REMOTE_TOOL_OUTPUT_CHARS", "4000"))
@@ -272,6 +281,14 @@ REMOTE_TOOL_ALLOWED_COMMANDS: List[str] = _env_list(
         "pwd,ls,ls -la,whoami,hostname,uname -a,id,ip addr,ip route,"
         "ifconfig,cat /etc/os-release,python --version,python3 --version"
     ),
+)
+REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES: List[str] = _env_list(
+    "REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES",
+    "ls ,cat ,ip ,docker ps,docker exec,docker network inspect,docker compose ps,python ,python3 ,ping ",
+)
+REMOTE_MACHINE_SECRET_KEY: Optional[str] = os.getenv(
+    "REMOTE_MACHINE_SECRET_KEY",
+    os.getenv("LLM_API_KEY_ENCRYPTION_KEY"),
 )
 
 

@@ -5,7 +5,10 @@
 import { apiClient, handleApiError } from "./client";
 import {
   LLMSettingsResponse,
+  RemoteMachineSummary,
+  RemoteMachineTestResponse,
   SaveLLMProviderRequest,
+  SaveRemoteMachineRequest,
   SetDefaultLLMProviderRequest,
   TestLLMLatencyRequest,
   TestLLMLatencyResponse,
@@ -17,6 +20,72 @@ export async function getLLMSettings(): Promise<LLMSettingsResponse> {
     return response.data;
   } catch (error) {
     throw new Error(`Failed to fetch LLM settings: ${handleApiError(error)}`);
+  }
+}
+
+export async function listRemoteMachines(): Promise<readonly RemoteMachineSummary[]> {
+  try {
+    const response = await apiClient.get<readonly RemoteMachineSummary[]>(
+      "/api/settings/remote-machines",
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch remote machines: ${handleApiError(error)}`);
+  }
+}
+
+export async function createRemoteMachine(
+  payload: SaveRemoteMachineRequest,
+): Promise<RemoteMachineSummary> {
+  try {
+    const response = await apiClient.post<RemoteMachineSummary>(
+      "/api/settings/remote-machines",
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to save remote machine: ${handleApiError(error)}`);
+  }
+}
+
+export async function updateRemoteMachine(
+  machineId: string,
+  payload: SaveRemoteMachineRequest,
+): Promise<RemoteMachineSummary> {
+  try {
+    const response = await apiClient.put<RemoteMachineSummary>(
+      `/api/settings/remote-machines/${machineId}`,
+      payload,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to update remote machine: ${handleApiError(error)}`);
+  }
+}
+
+export async function deleteRemoteMachine(
+  machineId: string,
+): Promise<{ success: boolean }> {
+  try {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/settings/remote-machines/${machineId}`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to delete remote machine: ${handleApiError(error)}`);
+  }
+}
+
+export async function testRemoteMachine(
+  machineId: string,
+): Promise<RemoteMachineTestResponse> {
+  try {
+    const response = await apiClient.post<RemoteMachineTestResponse>(
+      `/api/settings/remote-machines/${machineId}/test`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to test remote machine: ${handleApiError(error)}`);
   }
 }
 

@@ -225,3 +225,15 @@
 - 修复生成脚本：`scripts/generate_manual_enhance_profiles.py` 改为通过 `--runs-root`、`SEEDRUNNER_RUNS_ROOT` 或 sibling `../SEEDRunner/runs` 定位外部语料；manifest 中记录相对路径和环境变量提示。
 - 修复文档/配置：`.env.example` 使用 `/path/to/your/...` placeholder；`docs/manual-enhance/README.md` 的复现命令改为 placeholder；`corpus-manifest.json` 不再包含本机绝对路径。
 - 验证：`rg -n "/Users/ely|/home/ely|/root/miniconda3|ORIGINAL_SEEDRUNNER|external_source_path" src scripts tests .env.example docs/manual-enhance -S` 无命中；`python3 -m compileall scripts/generate_manual_enhance_profiles.py src tests` 通过；focused pytest 13 passed；前端 test/build 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+
+### 2026-05-13 - 实现 session-bound Remote Runner 工具主链路
+
+- 新增 per-user 实验机配置、session remote binding 和 remote command audit 三类持久模型；Settings API/UI 支持新增、编辑、测试、删除实验机，创建会话时可选择用户自己的实验机。
+- Tutor remote skill 改为 session-bound：有绑定机器的会话才注入 `observe_remote_environment`，工具固定使用该绑定的 Remote Runner machine/session，并把每次命令或错误写入审计。
+- 新增会话文件缓存和 LabSetup 链路：用户可以在聊天会话中上传文件，后端可把缓存文件转存到绑定实验机；删除会话时清理会话缓存。
+- 新增后端调试 API：`GET/POST /api/sessions/{session_id}/files`、`POST /api/sessions/{session_id}/files/{filename}/remote-put`、`POST /api/sessions/{session_id}/remote-command`，与 Tutor 使用同一套 binding、policy 和 audit 逻辑。
+- 修复部署可用性：增加 `REMOTE_RUNNER_PYTHON_EXECUTABLE`，便于 Socratic 与 Remote Runner 分别由不同 conda 环境维护；官方部署文档同步 Remote Runner、session file cache 和 debug API。
+- 真实 `seed-lab` API smoke 通过：`demo` 用户创建 Sniffing/Spoofing remote-bound session `92ccedf3-c448-44e6-8537-1f62e58719c2`，绑定 Remote Runner session `sess_20260513_121525_193889_2c50ecbe`；上传本地 SEEDRunner `Sniffing_Spoofing/Labsetup/docker-compose.yml` 到会话缓存，转存到远程 LabSetup 目录，运行 `mkdir -p .../volumes`、`docker-compose up -d`、`docker-compose ps`、`docker ps ...`、`docker exec seed-attacker ip addr` 均返回 exit 0；审计记录 6 条。
+- Tutor-bound skill 也通过真实调用验证：直接从该 Socratic session 加载 `get_remote_environment_skill(session=...)`，调用 `run_command` 执行 `docker ps --format '{{.Names}}'` 成功返回 seed-lab 容器输出并追加审计；验证后已 destroy 相关 Remote Runner probe/session，日志保留在本地 Remote Runner log 目录但不提交。
+- 验证：`./init.sh` 通过；`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_session_file_manager.py tests/test_session_progress.py tests/test_skill_names.py -q` 通过 18 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`remote-runner machine doctor seed-lab --json` 返回 reachable/auth/default_cwd 全 true；`git diff --check` 通过。
+- 剩余限制：本地仓库没有真实 LLM/embedding API key，完整“学生弱理解路径 + Tutor 多轮自然语言完成全部课程节点”的真实 LLM 会话尚未在本分支本地跑完；已有 linux-01 旧基线验证过完整 Sniffing/Spoofing 对话，但它尚未包含本分支新增的 remote-bound tool。

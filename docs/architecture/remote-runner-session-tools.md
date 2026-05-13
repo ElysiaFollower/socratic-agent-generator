@@ -6,6 +6,8 @@ This document defines the product and architecture boundary for turning the exis
 
 The target behavior is session-scoped lab assistance: a student configures a lab machine, selects it when creating a learning session, and the tutor can use Remote Runner only for that selected machine during that session.
 
+A second target behavior is session-scoped lab setup assistance. A session can own uploaded files, such as `docker-compose.yml`, helper scripts, or small LabSetup artifacts. The backend can then transfer those files to the session-bound lab machine and run controlled setup commands, so the student can complete environment preparation through Socratic instead of directly operating the remote host.
+
 ## Current State
 
 The merged vNext prototype already contains:
@@ -18,12 +20,12 @@ The merged vNext prototype already contains:
 
 The missing product path is:
 
-- No per-user lab machine settings.
-- No encrypted remote credential storage.
-- No session creation option for selecting a machine.
-- No persisted binding between a Socratic session and one Remote Runner machine/session.
-- No command audit trail suitable for report evidence.
-- The current skill is controlled by global environment variables instead of a user/session capability.
+- Per-user lab machine settings are now represented by `UserRemoteMachineModel`.
+- Session creation can carry an optional remote machine id and creates `SessionRemoteBindingModel`.
+- Command evidence is recorded as sanitized `RemoteCommandAuditModel` rows.
+- Session files are cached under a server-owned per-session directory and can be transferred into the bound Remote Runner session.
+- Backend debug APIs now exercise the same binding, file-transfer, command-policy, and audit path used by the Tutor and frontend.
+- The remaining validation work is proving the full real-lab conversation path against `seed-lab`.
 
 ## Target User Flow
 
@@ -36,6 +38,7 @@ The missing product path is:
 7. During the conversation, Tutor receives a Remote Runner skill bound to that session binding.
 8. Tutor can execute permitted diagnostic or lab commands, read sanitized output, and use that evidence to guide the student.
 9. The session history or a related audit view preserves enough command/result summaries to support a later report.
+10. If the lab needs setup files, the user uploads them to the session cache; Socratic transfers them to the bound remote session and runs the controlled setup commands.
 
 ## Data Model Sketch
 
@@ -47,8 +50,9 @@ Expected persistent objects:
   - `display_name`: UI label.
   - `runner_machine_name`: name used by Remote Runner.
   - `host`, `port`, `username`: connection target.
-  - `auth_type`: `password` or `ssh_key`.
-  - `encrypted_password` or `encrypted_private_key`: nullable secret fields.
+  - `auth_type`: `existing`, `password`, or `key`.
+  - `encrypted_password`: nullable secret field for password auth.
+  - `key_path`: path to a private key already available to the backend host for key auth.
   - `key_passphrase`: optional encrypted secret if supported.
   - `default_cwd`: optional.
   - `status`, `last_checked_at`, `create_at`, `update_at`.
@@ -74,6 +78,12 @@ Expected persistent objects:
   - `redaction_applied`.
   - `created_at`.
 
+- `SessionFile`
+  - MVP storage is filesystem-backed rather than a database table.
+  - Keyed by `owner_id` and `session_id`.
+  - Stores sanitized filenames, file size, and upload timestamp.
+  - Files are deleted with the owning session and are never included in exported examples unless explicitly curated.
+
 Secrets must follow the same operational posture as LLM API keys: encrypted when an encryption key is configured, never returned by read APIs, and never included in LLM context.
 
 ## API Sketch
@@ -90,6 +100,13 @@ Sessions:
 
 - Extend `POST /api/sessions/create` with optional `remote_machine_id`.
 - Extend session detail/summary with a non-secret `remote_binding` summary.
+- `GET /api/sessions/{session_id}/remote-audits`
+- `GET /api/sessions/{session_id}/files`
+- `POST /api/sessions/{session_id}/files`
+- `POST /api/sessions/{session_id}/files/{filename}/remote-put`
+- `POST /api/sessions/{session_id}/remote-command`
+
+The last four routes are intentionally useful for both frontend implementation and backend-only debugging. They must call the same managers and policy checks used by the Tutor tool rather than a separate maintenance backdoor.
 
 Tutor runtime:
 
@@ -106,6 +123,8 @@ The tutor-facing tool should not expose raw SSH or credential concepts. It shoul
 - `read_file_excerpt`
 - `list_directory`
 - `collect_report_evidence`
+
+The MVP tool exposes `check_connection` and `run_command`; richer lab-oriented aliases can be added once the end-to-end command evidence path is stable.
 
 The implementation may map these actions to Remote Runner CLI calls internally. The LLM should see only sanitized command results and stable error messages.
 
@@ -124,6 +143,28 @@ Required controls:
 - Clear user-facing error when a command is blocked.
 
 For the SEED Sniffing/Spoofing acceptance run, the command policy will likely need read-only diagnostics plus controlled lab commands such as checking interfaces, container status, routing, permissions, and packet capture outputs. The exact allowlist should be finalized after inspecting the Remote Runner CLI and the lab environment.
+
+Setup commands still need policy. For Sniffing/Spoofing, the expected setup is small: create a LabSetup directory, upload the known `docker-compose.yml`, create the empty `volumes` directory, and run Docker Compose in that directory. The system should not require cloning the whole SEED Labs repository for this case.
+
+## Session File And LabSetup Handling
+
+Session files are a narrow cache for artifacts the student wants the Tutor/system to use inside that session. This is not a general file manager.
+
+Required constraints:
+
+- Files belong to one owner and one session.
+- Filenames are sanitized and path traversal is rejected.
+- File size is capped by `SESSION_FILE_MAX_BYTES`.
+- Uploading to a remote machine requires an active `SessionRemoteBinding`.
+- Remote transfer is audited as `file_put`.
+- Cleanup happens when the session is deleted.
+
+For the Sniffing/Spoofing demo, the LabSetup can be assembled from the locally available SEEDRunner run artifact:
+
+- `Sniffing_Spoofing/Labsetup/docker-compose.yml`
+- empty `Sniffing_Spoofing/Labsetup/volumes/`
+
+The product lesson is broader than this one lab: future profiles should be able to reference required setup artifacts as metadata, and session creation can offer to attach or stage those artifacts automatically.
 
 ## Frontend Shape
 

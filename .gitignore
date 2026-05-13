@@ -13,6 +13,8 @@ temp/
 # ignore session data
 data/session_data/*
 !data/session_data/.gitkeep
+data/session_files/*
+!data/session_files/.gitkeep
 
 # ignore user data (contains password hashes)
 data/users/users.json
