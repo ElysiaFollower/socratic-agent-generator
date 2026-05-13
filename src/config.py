@@ -42,16 +42,34 @@ SESSION_DATA_DIR = DATA_DIR / SESSION_DATA_DIR_NAME
 PROMPT_TEMPLATE_DIR_NAME = "templates"
 PROMPT_TEMPLATE_DIR = ROOT_DIR / "src" / PROMPT_TEMPLATE_DIR_NAME
 
-# HuggingFace models cache directory (can be overridden via HF_MODELS_DIR env var)
-# Models will be stored in project directory for transparency and portability
+# HuggingFace models cache directory. This is only used when
+# EMBEDDING_PROVIDER="huggingface"; the default deployment uses Volcengine Ark.
 HF_MODELS_DIR_NAME = os.getenv("HF_MODELS_DIR", "models")
 HF_MODELS_DIR = ROOT_DIR / HF_MODELS_DIR_NAME
 
 # --- Model Configuration ---
+EMBEDDING_PROVIDER: str = os.getenv("EMBEDDING_PROVIDER", "volcengine").strip().lower()
+EMBEDDING_REQUEST_TIMEOUT: int = int(
+    os.getenv("EMBEDDING_REQUEST_TIMEOUT", os.getenv("OLLAMA_REQUEST_TIMEOUT", "60"))
+)
+VOLCENGINE_API_KEY: Optional[str] = os.getenv("VOLCENGINE_API_KEY") or os.getenv("ARK_API_KEY")
+VOLCENGINE_EMBEDDING_BASE_URL: str = os.getenv(
+    "VOLCENGINE_EMBEDDING_BASE_URL",
+    os.getenv("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3"),
+).rstrip("/")
+VOLCENGINE_EMBEDDING_MODEL: str = os.getenv(
+    "VOLCENGINE_EMBEDDING_MODEL",
+    os.getenv("EMBEDDING_MODEL_NAME", "doubao-embedding-text-240515"),
+)
+HUGGINGFACE_EMBEDDING_MODEL: str = os.getenv(
+    "HUGGINGFACE_EMBEDDING_MODEL",
+    "sentence-transformers/all-MiniLM-L6-v2",
+)
+
 # List of all HuggingFace models used in this project
 # Format: {"model_name": "description"}
 REQUIRED_MODELS: Dict[str, str] = {
-    "sentence-transformers/all-MiniLM-L6-v2": "Embeddings model for RAG (Lab Manual Skill)",
+    HUGGINGFACE_EMBEDDING_MODEL: "Embeddings model for RAG (Lab Manual Skill)",
 }
 
 # --- API Server Configuration ---

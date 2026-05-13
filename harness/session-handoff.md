@@ -2,85 +2,59 @@
 
 ## 仓库状态
 
-- 分支：`manual-enhance`
-- 基线：从 `remote-tool` 切出，保留 repo-native harness、DreamingRAG adapter 和 Remote Runner adapter 原型。
-- 当前功能项：`default-seed-profiles`，状态为 `passing`
-- 当前计划：无 active；`plans/archive/20260513-default-seed-profiles.md` 已归档
-- 当前目标：本学期真实 SEED 实验的 generator 初稿、人工校准版 profile、mismatch 改进依据和部署默认 profile 自动导入已经完成。
+- 分支：`rag-memory-adapter`
+- 当前功能项：`linux01-live-deployment`，状态为 `active`
+- 当前计划：`plans/active/20260513-linux01-live-deployment.md`
+- 当前目标：把 RAG memory adapter、Remote Runner 工具、6 个预制 SEED 实验 profile 和统一火山方舟 embedding 的最终形态部署到 `linux-01`。
+- 当前代码状态：`manual-enhance` 已合并进 `rag-memory-adapter`，因此当前分支包含 remote-tool、manual-enhance/default profile、DreamingRAG public API adapter 和部署文档。
 
 ## 当前已验证状态
 
-- 初始化：`./init.sh` 通过，harness 检查 0 warning。
-- Generator 环境：base Python 缺少 `langchain_deepseek` / `langchain_core`；`_local/socratic-smoke-venv/bin/python` 可导入这些依赖。
-- LLM key：Socratic `.env` 无 key；生成初稿时通过 `--dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env` 临时加载 DeepSeek key，未复制或输出密钥。
-- 初始生成：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing` 成功，输出在 `docs/manual-enhance/generated/`。
-- 校准生成：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/build_manual_enhance_calibrated_profiles.py` 成功，输出在 `docs/manual-enhance/calibrated/`。
-- Focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 `4 passed`。
-- Default seed tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 `6 passed`。
-- Startup seed smoke：导入 `core.database` 后通过 `ProfileManager.list_profiles_by_visible_classes([])` 看到 6 个内置 public profile：ARP_Attack、LocalDNSAttack、RemoteDNSAttack、Sniffing_Spoofing、TCP_Attacks、VPN_Tunnel。
+- 初始化：`./init.sh` 通过；当前 active plan 为 linux-01 部署。
 - Harness：`./scripts/harness-check.sh` 通过，0 warning。
 - 语法验证：`python3 -m compileall src scripts tests` 通过。
+- 合并后 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过，21 passed。
+- 默认 embedding 检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY` 输出 `(True, [], [])`，确认默认 `EMBEDDING_PROVIDER=volcengine` 不再触发 HuggingFace 下载。
+- linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
 
 ## 本会话改动
 
-- 创建并切换分支 `manual-enhance`；`dev/manual-enhance` 因本地已有 `dev` 分支无法创建。
-- 新增并归档 `plans/archive/20260513-manual-profile-calibration.md`。
-- 更新 `harness/feature_list.json`，新增 `seed-manual-profile-calibration` 并标记为 `passing`，记录 evidence。
-- 更新 `harness/progress.md` 和本交接文件。
-- 更新 `docs/.gitignore`，允许提交 `docs/manual-enhance/`。
-- 新增 `scripts/generate_manual_enhance_profiles.py`，从外部 SEEDRunner runs 读取资料并生成 first-pass profile。
-- 新增 `scripts/build_manual_enhance_calibrated_profiles.py`，构建人工校准版 profile 和 mismatch taxonomy。
-- 新增 `tests/test_manual_enhance_profiles.py`，校验 schema、语料来源策略、mismatch 可追溯性和初稿/校准版分离。
-- 新增 `docs/manual-enhance/`，包含 corpus manifest、6 个实验 generator 初稿、6 个实验校准版 profile、summary、mismatch taxonomy 和 README。
-- 新增 `src/utils/default_profile_seed.py`，启动时从校准 profile JSON 幂等导入 SQLite。
-- 更新 `src/core/database.py`，建表后自动 seed 默认 profile。
-- 更新 `src/utils/profile_manager.py`，让内置 public profile 对没有 class 的 student 可见。
-- 新增 `tests/test_default_profile_seed.py`，验证 fresh DB 导入、重复 seed 幂等和 student 可见性。
-
-## 结论
-
-已覆盖 6 个 SEED 实验：
-
-- `ARP_Attack`
-- `LocalDNSAttack`
-- `RemoteDNSAttack`
-- `Sniffing_Spoofing`
-- `TCP_Attacks`
-- `VPN_Tunnel`
-
-人工校准后的主线更贴近真实实验过程：先建立环境/角色/路由/缓存基线，再推进攻击或隧道任务，并把失败、竞态、负例和证据链作为学习节点。
-
-记录的 generator 改进依据在 `docs/manual-enhance/mismatch-taxonomy.json`，核心模式包括：环境摩擦被省略、成功标准过度确定、负例没有成为学习节点、证据链不足、任务粒度不贴合真实认知负担、源文档编号问题未被校正。
-
-这些校准 profile 现在也是部署默认 profile：`init_db()` 会在启动时把 `docs/manual-enhance/calibrated/*/profile.json` 导入 SQLite，新数据库不需要手动生成或导入即可在 profile 列表中看到它们。
+- 将 `manual-enhance` 合并入 `rag-memory-adapter`，保留：
+  - `src/utils/remote_runner_provider.py`、`src/utils/remote_tool_skill.py` 和 Remote Runner tests；
+  - `docs/manual-enhance/` 的 generator 初稿、人工校准 profile、mismatch taxonomy；
+  - `src/utils/default_profile_seed.py` 和默认 profile seed tests；
+  - 6 个内置 public profile：`ARP_Attack`、`LocalDNSAttack`、`RemoteDNSAttack`、`Sniffing_Spoofing`、`TCP_Attacks`、`VPN_Tunnel`。
+- 新增 `src/utils/embedding_provider.py`，提供 LangChain-compatible `VolcengineArkEmbeddings`。
+- Socratic 文档 RAG 与 DreamingRAG memory 统一使用 `EMBEDDING_PROVIDER=volcengine`、`VOLCENGINE_API_KEY`、`VOLCENGINE_EMBEDDING_MODEL`、`VOLCENGINE_EMBEDDING_BASE_URL`。
+- `src/utils/skills.py` 改为通过统一 embedding factory 获取 embeddings。
+- `src/utils/model_manager.py` 在非 `huggingface` provider 下跳过 HuggingFace 模型下载；HuggingFace 仅作为显式 fallback。
+- 更新 `.env.example`、`docs/deployment.md` 和 `requirements.txt`，把 Volcengine embedding 写入默认部署路径，并显式说明 HuggingFace 不是默认部署依赖。
+- 新增 `tests/test_embedding_provider.py`，覆盖火山文本 embedding 和 vision/multimodal embedding payload。
 
 ## 仍损坏或未验证
 
-- `RemoteDNSAttack` 校准可信度低于其他实验，因为只找到 `.tex` 和 draft notes，没有同等详细的手写完整报告。
-- 校准版 profile 已支持启动自动导入 SQLite，并通过直接数据库 smoke；尚未通过 Web UI 真实对话体验验证。
-- 本任务没有修改 generator 提示词或 critic；mismatch taxonomy 是后续改进依据。
-- 既有 Remote Runner 远端部署阻塞仍存在：`linux-01` 的保存认证配置此前已过期，不属于本分支目标。
+- linux-01 当前正式服务还未收口到最终成功链接；上一次后端启动卡在旧 HuggingFace embedding 下载路径，本会话已修复代码，下一步需要重新打包、上传、部署并验证。
+- 远端 `.env` 必须包含 `VOLCENGINE_API_KEY`；可从服务器既有 Socratic `.env` 复用，但部署命令不能打印密钥。
+- `DREAMINGRAG_MEMORY_MOCK_MODE` 是否开启取决于演示稳定性：若只展示 Socratic 主流程，可用 mock memory；若展示真实长期记忆，需要确认 Volcengine 与 DreamingRAG real mode 真实 API 可用。
+- Remote Runner tool 仍默认关闭：`REMOTE_TOOL_ENABLED=false`。若导师演示需要远程环境观察，要在部署 env 中显式开启并设置 allowlist。
 
 ## 清洁状态
 
-- 原始 SEEDRunner 报告、`.tex`、PDF、图片、日志、zip、数据库和密钥没有复制进本仓库；仓库只保存外部路径、文件大小、生成 profile、校准 profile 和人工归纳。
-- 运行态目录 `_local/`、`frontend/node_modules/`、`data/socratic_agent.db` 是 ignored，不应提交。
-- `plans/active/` 只保留 `.gitkeep`；当前无 active plan。
-- 已运行并记录：`./scripts/harness-check.sh`、`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q`、`python3 -m compileall src scripts tests`、默认 profile startup seed smoke。
+- 不提交 `_local/`、`frontend/node_modules/`、`data/*.db`、`data/dreamingrag_memory/`、向量索引、模型缓存、日志或任何 provider key。
+- `plans/active/` 只保留当前 linux-01 部署计划；`.gitkeep` 已删除以满足 WIP=1。
+- 当前还需要提交并 push 当前分支，然后继续远端部署验证。
 
 ## 下一步最佳动作
 
-1. push `manual-enhance` 到远端。
-2. 切回 `rag-memory-adapter`，基于 DreamingRAG 已规范化接口开新任务对接。
-3. 启动前后端做一次真实 Tutor 对话 smoke，确认默认 profile 在 UI 中可选且可创建 session。
-4. 若要提高 RemoteDNSAttack 可信度，补充或重新执行该实验的完整报告，再更新校准版 profile。
+1. 提交当前 embedding 统一、部署 plan 和 harness 更新。
+2. push `rag-memory-adapter` 到远端。
+3. 重新生成 linux-01 部署包，远端清理旧 Socratic 数据，部署当前分支。
+4. 用 tmux 启动后端和前端，验证 `http://10.203.15.128:5173` 与 `http://10.203.15.128:8000/docs`。
 
 ## 命令
 
 - 初始化：`./init.sh`
 - Harness 检查：`./scripts/harness-check.sh`
-- 手工增强 profile 测试：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q`
-- 默认 profile seed 测试：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q`
+- 后端 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q`
 - 语法验证：`python3 -m compileall src scripts tests`
-- 重新生成初稿：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing`
-- 重建校准版：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/build_manual_enhance_calibrated_profiles.py`
+- 默认 embedding 下载检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY`

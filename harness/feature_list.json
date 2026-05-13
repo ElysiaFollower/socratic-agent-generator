@@ -95,6 +95,28 @@
       "verification": "./scripts/harness-check.sh && /Users/ely/.agents/skills/harness-maintainer-zh/scripts/harness-audit.sh /Users/ely/workspace/research/agent/socratic-agent-generator && python3 -m compileall src tests && python3 <deployment docs reference check> && _local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG && _local/socratic-smoke-venv/bin/python <DreamingRAG public API smoke>",
       "evidence": "2026-05-13: ./scripts/harness-check.sh passed with 0 warnings; harness-maintainer audit passed with 0 warnings; python3 -m compileall src tests passed; deployment docs reference check printed deployment_docs_reference_dreamingrag=True; _local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG succeeded and installed dreaming-rag-0.5.0; DreamingRAG public API smoke printed dreamingrag_public_api_ready=True; Socratic adapter smoke printed socratic_dreamingrag_context_ready=True.",
       "notes": "Archived plan: plans/archive/20260513-default-dreamingrag-deployment.md. Official deployment doc: docs/deployment.md."
+    },
+    {
+      "id": "shared-volcengine-embeddings",
+      "priority": "P0",
+      "area": "embedding-provider",
+      "title": "Shared Volcengine embeddings",
+      "behavior": "Socratic document RAG and DreamingRAG memory use the same Volcengine Ark embedding provider by default; HuggingFace model download is only used when explicitly configured as a fallback.",
+      "status": "passing",
+      "verification": "PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q && python3 -m compileall src scripts tests && ./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python <check_and_download_models smoke>",
+      "evidence": "2026-05-13: added src/utils/embedding_provider.py with VolcengineArkEmbeddings for text and vision/multimodal Ark embeddings; updated src/utils/skills.py to use the shared embedding factory; updated src/utils/model_manager.py so default EMBEDDING_PROVIDER=volcengine skips HuggingFace downloads; updated .env.example and docs/deployment.md. Validation passed: focused pytest suite reported 21 passed; python3 -m compileall src scripts tests passed; ./scripts/harness-check.sh passed with 0 warnings; check_and_download_models() returned (True, [], []) under default Volcengine provider.",
+      "notes": "This fixes the linux-01 startup blocker where Socratic attempted to load sentence-transformers/all-MiniLM-L6-v2 despite Volcengine embedding being the intended system-wide provider."
+    },
+    {
+      "id": "linux01-live-deployment",
+      "priority": "P0",
+      "area": "deployment",
+      "title": "linux-01 live deployment",
+      "behavior": "The current Socratic Agent Generator branch is deployed with DreamingRAG on linux-01 and exposed through stable tmux-backed services with verified URLs.",
+      "status": "active",
+      "verification": "remote-runner machine doctor linux-01; remote build/install/smoke; curl backend and frontend URLs",
+      "evidence": "",
+      "notes": "Current plan: plans/active/20260513-linux01-live-deployment.md."
     }
   ]
 }

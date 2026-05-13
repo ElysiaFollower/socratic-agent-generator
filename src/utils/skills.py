@@ -15,13 +15,13 @@ import frontmatter
 from langchain_community.vectorstores import FAISS
 from langchain_core.embeddings import Embeddings
 from langchain_core.tools import tool
-from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharacterTextSplitter
 
-from config import RAW_DATA_DIR, DATA_DIR, HF_MODELS_DIR, DOCUMENTS_DIR, ROOT_DIR
+from config import RAW_DATA_DIR, DATA_DIR, DOCUMENTS_DIR, ROOT_DIR
 from core.database import SessionLocal
 from schemas.session import Session
 from utils.document_manager import DocumentManager
+from utils.embedding_provider import create_embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +32,7 @@ _EMBEDDINGS_LOCK = threading.Lock()
 
 def _load_embeddings() -> Embeddings:
     """Load the embeddings model (shared across instances)."""
-    model_cache_dir = str(HF_MODELS_DIR)
-    HF_MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/all-MiniLM-L6-v2",
-        cache_folder=model_cache_dir,
-    )
+    return create_embeddings()
 
 
 def warmup_embeddings() -> None:

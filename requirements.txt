@@ -11,6 +11,7 @@ python-frontmatter>=1.0.0          # Metadata parsing from markdown files
 fastapi>=0.100.0                   # 现代Python Web框架
 uvicorn[standard]>=0.20.0          # ASGI服务器，用于运行FastAPI应用
 python-multipart>=0.0.6           # FastAPI文件上传支持（multipart/form-data）
+httpx>=0.25.0                     # HTTP client for hosted embedding providers
 
 # LangChain生态系统
 langchain>=0.1.0                   # LangChain核心库

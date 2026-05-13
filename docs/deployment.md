@@ -7,6 +7,7 @@ This is the maintained deployment path for Socratic Agent Generator. The default
 - Backend: Python 3.10+ with FastAPI, LangChain, SQLite, and DreamingRAG.
 - Frontend: Node.js 18+ with React, TypeScript, and Vite.
 - Memory: DreamingRAG installed in the same backend Python environment.
+- Embeddings: Socratic document RAG and DreamingRAG memory both use Volcengine Ark by default.
 - Storage: local SQLite and file-system data under `data/`.
 
 DreamingRAG is installed by default because `DREAMINGRAG_MEMORY_ENABLED=true` is the default runtime configuration. If DreamingRAG is unavailable, the backend falls back to null memory, but that fallback is for resilience rather than the intended deployment state.
@@ -81,16 +82,25 @@ DREAMINGRAG_MEMORY_TOP_N=3
 DREAMINGRAG_MEMORY_CONTEXT_CHARS=2000
 ```
 
-DreamingRAG real mode also needs an embedding provider. The preferred hosted route is Volcengine Ark:
+Socratic document RAG and DreamingRAG real mode share the same embedding provider. The default hosted route is Volcengine Ark:
 
 ```bash
 EMBEDDING_PROVIDER="volcengine"
 VOLCENGINE_API_KEY="replace_with_volcengine_key"
 VOLCENGINE_EMBEDDING_MODEL="doubao-embedding-text-240515"
 VOLCENGINE_EMBEDDING_BASE_URL="https://ark.cn-beijing.volces.com/api/v3"
+EMBEDDING_REQUEST_TIMEOUT=60
 ```
 
-For local embedding experiments, DreamingRAG also supports `EMBEDDING_PROVIDER="ollama"` with `OLLAMA_BASE_URL` and `EMBEDDING_MODEL_NAME`, but hosted Volcengine is the default documented deployment path.
+HuggingFace is now an explicit Socratic fallback only:
+
+```bash
+EMBEDDING_PROVIDER="huggingface"
+HUGGINGFACE_EMBEDDING_MODEL="sentence-transformers/all-MiniLM-L6-v2"
+HF_MODELS_DIR="models"
+```
+
+Do not use HuggingFace for the default deployment. Hosts without HuggingFace access should still start normally when Volcengine is configured.
 
 ## Smoke Checks
 
@@ -138,7 +148,7 @@ with TemporaryDirectory() as temp_dir:
 PY
 ```
 
-Mock mode is used for smoke checks so they do not consume provider API credits. Production should use `DREAMINGRAG_MEMORY_MOCK_MODE="false"`.
+Mock mode is used for smoke checks so they do not consume provider API credits. Production should use `DREAMINGRAG_MEMORY_MOCK_MODE="false"`. The Socratic document RAG path still uses the shared Volcengine embedding provider in both smoke and production modes.
 
 ## Start Services
 
@@ -171,8 +181,9 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 - `No module named 'dreaming_rag'`: run `pip install -e ../DreamingRAG` in the backend environment, or set `DREAMINGRAG_REPO_PATH` to the correct checkout.
 - `No module named 'openai'`, `pandas`, or `networkx`: DreamingRAG dependencies are missing; rerun `pip install -e ../DreamingRAG`.
 - No long-term memory context appears: confirm `DREAMINGRAG_MEMORY_ENABLED="true"` and run the Socratic adapter smoke check above.
-- Real mode fails on embeddings: confirm `EMBEDDING_PROVIDER`, `VOLCENGINE_API_KEY`, `VOLCENGINE_EMBEDDING_MODEL`, and `VOLCENGINE_EMBEDDING_BASE_URL`.
-- Need an offline demo: set `DREAMINGRAG_MEMORY_MOCK_MODE="true"` temporarily, then switch it back to `false` for real memory behavior.
+- Real mode fails on embeddings: confirm `EMBEDDING_PROVIDER="volcengine"`, `VOLCENGINE_API_KEY`, `VOLCENGINE_EMBEDDING_MODEL`, and `VOLCENGINE_EMBEDDING_BASE_URL`.
+- Backend tries to download from HuggingFace: check that `EMBEDDING_PROVIDER` was not set to `huggingface`.
+- Need an offline memory-only demo: set `DREAMINGRAG_MEMORY_MOCK_MODE="true"` temporarily, then switch it back to `false` for real memory behavior.
 
 ## Maintenance Contract
 

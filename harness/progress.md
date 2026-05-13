@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`default-seed-profiles`，状态为 `passing`。
-- 当前任务计划：无 active；`plans/archive/20260513-default-seed-profiles.md` 已归档。
-- 上次验证：2026-05-13，`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 6 个测试；`python3 -m compileall src scripts tests` 通过；`core.database` 启动 smoke 看到 6 个内置 public profile。
-- 下一步最佳动作：push `manual-enhance` 到远端后切回 `rag-memory-adapter`，再基于 DreamingRAG 的规范接口开新任务对接。
+- 当前功能项：`linux01-live-deployment` active。
+- 当前任务计划：`plans/active/20260513-linux01-live-deployment.md`。
+- 上次验证：2026-05-13，合并后 focused tests 通过 21 passed；后端语法通过；harness check 0 warning；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`，不会访问 HuggingFace。
+- 下一步最佳动作：通过 remote-runner 在 `linux-01` 部署当前分支，用 tmux 持久化 Socratic/DreamingRAG 相关服务并验证可访问链接。
 
 ## 状态约定
 
@@ -134,3 +134,12 @@
 - 更新 `docs/manual-enhance/README.md`，记录 calibrated profile 会作为内置 public profile 在启动时导入。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 6 个测试；`python3 -m compileall src scripts tests` 通过；启动 smoke 输出 `builtin_public_count= 6`；`./scripts/harness-check.sh` 通过且 0 warning。
 - 状态：`default-seed-profiles` 标记为 `passing`。
+
+### 2026-05-13 - 统一 Socratic 与 DreamingRAG embedding provider
+
+- 修复部署阻塞：Socratic 原文档 RAG 启动时仍会加载 `sentence-transformers/all-MiniLM-L6-v2` 并访问 HuggingFace，与用户已配置的豆包/火山 embedding 路线不一致。
+- 新增 `src/utils/embedding_provider.py`，实现 LangChain-compatible `VolcengineArkEmbeddings`，支持普通 `/embeddings` 文本模型和包含 `vision` 的 `/embeddings/multimodal` 模型。
+- 更新 `src/utils/skills.py`，Socratic 文档 RAG 通过统一 factory 获取 embeddings；默认 provider 为 `EMBEDDING_PROVIDER=volcengine`。
+- 更新 `src/utils/model_manager.py`，默认火山 provider 下跳过 HuggingFace 模型下载；只有显式 `EMBEDDING_PROVIDER=huggingface` 才检查和下载本地模型。
+- 更新 `.env.example`、`docs/deployment.md` 和 `requirements.txt`，把 Volcengine embedding 作为 Socratic 文档 RAG 与 DreamingRAG memory 的共享默认配置。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 21 passed；`python3 -m compileall src scripts tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`check_and_download_models()` 输出 `(True, [], [])`。

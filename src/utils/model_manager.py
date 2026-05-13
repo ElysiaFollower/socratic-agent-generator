@@ -10,7 +10,7 @@ from typing import List, Tuple
 from huggingface_hub import snapshot_download, try_to_load_from_cache
 from langchain_huggingface import HuggingFaceEmbeddings
 
-from config import HF_MODELS_DIR, REQUIRED_MODELS
+from config import EMBEDDING_PROVIDER, HF_MODELS_DIR, REQUIRED_MODELS
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +111,13 @@ def check_and_download_models() -> Tuple[bool, List[str], List[str]]:
         - downloaded_models: List of model names that were downloaded
         - failed_models: List of model names that failed to download
     """
+    if EMBEDDING_PROVIDER != "huggingface":
+        logger.info(
+            "Skipping HuggingFace model download because EMBEDDING_PROVIDER=%s",
+            EMBEDDING_PROVIDER,
+        )
+        return True, [], []
+
     # Ensure models directory exists
     HF_MODELS_DIR.mkdir(parents=True, exist_ok=True)
     
@@ -189,4 +196,3 @@ def verify_model_accessibility(model_name: str) -> bool:
     except Exception as e:
         logger.error(f"   ❌ 模型验证失败: {e}")
         return False
-
