@@ -4,7 +4,7 @@
 
 - 当前功能项：无 active；`linux01-live-deployment` 已标记为 `passing`。
 - 当前任务计划：无 active；`plans/archive/20260513-linux01-live-deployment.md` 已归档。
-- 上次验证：2026-05-13，linux-01 live deployment 通过；远端 focused tests 22 passed；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`；外部 curl health/docs/frontend 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过，且不再触发工具迭代过早截断。
+- 上次验证：2026-05-13，linux-01 live deployment 通过；远端 focused tests 22 passed；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`；外部 curl health/docs/frontend 通过；admin 真实对话 smoke 通过，session 历史成功保留，且 demo 登录、profile list、session creation 和 `yes` 流式回复不再触发工具迭代过早截断。
 - 下一步最佳动作：把 `http://10.203.15.128:5173` 发给导师；需要时再配置域名、HTTPS 或 systemd。
 
 ## 状态约定
@@ -169,3 +169,11 @@
 - 根因：`LANGCHAIN_MAX_ITERATIONS` 默认值过低，且 AgentExecutor 在触及 stop condition 时直接收尾，导致工具驱动回复没有机会生成完整结论。
 - 修复：把 LangChain agent 的最小迭代数提高到 5，并把 early stopping 改为 `generate`，让模型在到达上限时补出最终答复而不是只返回中间思考。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_skill_names.py tests/test_tutor_executor.py tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 25 passed；`python3 -m compileall src tests` 通过；远端重启后 smoke 重新验证 `yes` 返回 102 个 token，`end=True`，`error=None`，并输出完整后续提问，而不再停在“Let me try a broader search”。
+
+### 2026-05-13 - 完成 linux-01 admin 全链路真实对话 smoke
+
+- 使用远端 `admin` 账号登录 linux-01 上的 Socratic 服务，选择 `VPN_Tunnel manual calibrated` profile，创建新 session，并连续发送两轮真实消息。
+- 第一轮发送 `yes`，返回完整引导式提问而非中断文案。
+- 第二轮发送对拓扑和路由的简短回答，系统继续追问并给出分步引导。
+- 会话通过 `/api/sessions/{session_id}` 读取回验证，`history_len=5`，说明对话历史已经落库并可用于后续展示或继续对话。
+- 结果：这个部署不仅能跑，还能完成一段真实、可回看的教学会话。

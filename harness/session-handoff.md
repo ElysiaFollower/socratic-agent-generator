@@ -18,6 +18,7 @@
 - 默认 embedding 检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY` 输出 `(True, [], [])`，确认默认 `EMBEDDING_PROVIDER=volcengine` 不再触发 HuggingFace 下载。
 - linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
 - linux-01 最终部署：远端 focused pytest 22 passed；`model_check=(True, [], [])`；`embedding_class=VolcengineArkEmbeddings`；默认 public profile count=6；外部 health/docs/frontend curl 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过，且工具迭代不会过早截断。
+- 追加真实演示：使用 `admin` 账号在 linux-01 上完成了一次两轮真实对话 smoke，session 历史已保留，`history_len=5`。
 
 ## 本会话改动
 
@@ -35,6 +36,7 @@
 - 修复 student 创建内置 public profile session 的 403 问题，避免演示账号能看到 profile 但不能进入学习会话。
 - 修复 `BaseSkill.name` 在远端缺少 `SKILL.md` 时回退为 `unknown_skill` 的问题，避免 DeepSeek 拒绝重复工具名。
 - 调整 Tutor 的 AgentExecutor 配置为更高的最小迭代数并启用 `early_stopping_method="generate"`，避免工具驱动的教学回复在查资料阶段提前收尾。
+- 完成 admin 真实对话 smoke，验证会话历史可保留并在后续展示时继续读取。
 
 ## 仍损坏或未验证
 
