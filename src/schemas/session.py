@@ -65,6 +65,10 @@ class Session(BaseModel):
     
     def get_curriculum(self) -> SocraticCurriculum:
         return self.profile.curriculum
+
+    def is_finished(self) -> bool:
+        """Return whether the zero-based curriculum progress is complete."""
+        return self.state.stepIndex >= self.get_curriculum().get_len()
     
 class SessionSummary(BaseModel):
     """Provides a brief summary of a session, used for listings."""

@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "wip_limit": 1,
+  "status_values": [
+    "not_started",
+    "active",
+    "blocked",
+    "passing"
+  ],
+  "features": [
+    {
+      "id": "harness-cold-start",
+      "priority": "P0",
+      "area": "harness",
+      "title": "Repo-native cold start harness",
+      "behavior": "A new agent can recover project goal, run commands, verification ladder, current status, and next work from repository files within three minutes.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && ./init.sh && python3 -m compileall src && cd frontend && npm test -- --run && npm run build",
+      "evidence": "2026-05-11: ./scripts/harness-check.sh passed with 0 warnings; ./init.sh passed; python3 -m compileall src passed; cd frontend && npm test -- --run passed with 1 test; cd frontend && npm run build passed. npm ci succeeded before frontend validation and reported 20 existing dependency vulnerabilities.",
+      "notes": "Initialized AGENTS.md, docs/overview.md, harness state, plans directories, init.sh, and harness-check.sh."
+    },
+    {
+      "id": "seed-report-corpus-roadmap",
+      "priority": "P1",
+      "area": "vnext-planning",
+      "title": "SEED experiment report corpus roadmap",
+      "behavior": "The project has a durable plan for using formal SEED step-by-step reports as future tutor generation and feedback assets.",
+      "status": "not_started",
+      "verification": "Review docs/architecture/vnext-integrations.md and create a dedicated implementation plan before importing any reports.",
+      "evidence": "",
+      "notes": "Source candidates: /Users/ely/workspace/lesson/NetworkSecurity/Labs and /Users/ely/workspace/research/agent/SEEDRunner/runs."
+    },
+    {
+      "id": "remote-runner-integration",
+      "priority": "P1",
+      "area": "remote-tool-adapter",
+      "title": "Remote Runner environment observation integration",
+      "behavior": "The tutor can eventually observe a student's real lab environment through a permissioned Remote Runner interface instead of relying only on user narration.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_remote_runner_provider && _local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider && python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider && python3 -m compileall src tests && cd frontend && npm test -- --run",
+      "evidence": "2026-05-12 readiness check: created branch remote-tool from rag-memory-adapter. External SEEDRunner Remote Runner interface is ready enough for a Socratic adapter prototype: ./init.sh passed; python3 -m remote_runner.cli --help succeeded; python3 -m pytest tests/test_remote_runner_mvp.py tests/test_remote_runner_launch_suite.py -q passed with 28 passed and 1 skipped; manager import smoke for RemoteMachineManager, RemoteSessionManager, RemoteFileManager, and RemoteRunManager passed; isolated REMOTE_RUNNER_STATE_DIR list smoke for machine/session/run returned valid empty JSON. Socratic local prototype: added CLI-backed RemoteRunnerProvider, observe_remote_environment LangChain skill, config flags, Tutor tool injection, .env.example docs, and fake/local tests. Validation: python3 -m unittest tests.test_remote_runner_provider passed 8 tests with 3 skips because base python lacks langchain_core; _local/socratic-smoke-venv/bin/python -m unittest tests.test_remote_runner_provider passed all 8 tests including LangChain wrapper and Tutor injection; python3 -m unittest tests.test_memory_provider tests.test_remote_runner_provider passed 13 tests with 3 skips; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; no-SSH local smoke with REMOTE_TOOL_ENABLED=true and isolated REMOTE_RUNNER_STATE_DIR returned provider status ready and ok true empty machine list; cd frontend && npm test -- --run passed 1 test. Real SSH smoke on linux-01 also passed: machine doctor returned reachable=true, auth_ok=true, default_cwd_ok=true; a session was created; provider-mediated session_exec of pwd returned exit_code 0 and stdout /home/ely; session was then destroyed. Current implementation uses REMOTE_RUNNER_STATE_DIR env rather than the API doc's target --state-dir global option.",
+      "notes": "Completed plan: plans/archive/20260512-remote-runner-tool-adapter-prototype.md. Candidate external project: /Users/ely/workspace/research/agent/SEEDRunner. Local code and tests are ready; remote SSH connectivity verified on linux-01."
+    },
+    {
+      "id": "seed-manual-profile-calibration",
+      "priority": "P1",
+      "area": "manual-profile-enhancement",
+      "title": "Real SEED experiment profile calibration",
+      "behavior": "The repository contains calibrated Socratic profiles for the semester's SEED experiments, grounded in real lab manuals, student-written reports, verified generated reports, and a recorded mismatch taxonomy for future generator improvements.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q && python3 -m compileall src",
+      "evidence": "2026-05-13: created and switched to branch manual-enhance after dev/manual-enhance was blocked by an existing local dev branch. Built corpus manifest for six SEED labs from source paths under /Users/ely/workspace/research/agent/SEEDRunner/runs. Generated first-pass profiles with PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing; outputs are under docs/manual-enhance/generated. Built manual calibrated profiles for ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, and VPN_Tunnel under docs/manual-enhance/calibrated, plus docs/manual-enhance/mismatch-taxonomy.json and docs/manual-enhance/calibrated-profile-summary.json. Follow-up issue fixed the source-chain gap: the six verified .tex lab manuals are now copied into docs/manual-enhance/calibrated/*/lab_manual.tex so default RAG seeding has real document artifacts while reports, screenshots, logs, PDFs, archives, and user data remain external. Validation passed: ./scripts/harness-check.sh returned 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q passed; python3 -m compileall src scripts tests passed.",
+      "notes": "Completed plan: plans/archive/20260513-manual-profile-calibration.md. Reports and user data remain external: /Users/ely/workspace/research/agent/SEEDRunner/runs. RemoteDNSAttack has lower calibration confidence because only draft notes were found alongside the .tex manual."
+    },
+    {
+      "id": "default-seed-profiles",
+      "priority": "P1",
+      "area": "profile-seeding",
+      "title": "Default calibrated SEED profiles",
+      "behavior": "A fresh deployment seeds the calibrated SEED lab profiles and their built-in lab manual document records into SQLite automatically so they are immediately available as RAG-backed built-in tutor profiles.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py tests/test_default_profile_seed.py -q && python3 -m compileall src scripts tests",
+      "evidence": "2026-05-13: implemented src/utils/default_profile_seed.py and wired src/core/database.py init_db() to seed docs/manual-enhance/calibrated/*/profile.json into SQLite on startup. Updated ProfileManager.list_profiles_by_visible_classes so built-in public profiles (owner_id null and empty visible_class_ids) are visible to students before class setup. Follow-up issue fixed default profile source metadata: seed now creates six built-in Document rows with owner_id=builtin, storage_path pointing to docs/manual-enhance/calibrated/*/lab_manual.tex, index_path under data/vector_stores/builtin, and profile.document_id linked to the document. Profile API exposes document_status/document_source, LabManualSkill resolves exact document_id for RAG, and deleting a lab manual returns affected profiles while clearing their document_id instead of deleting the profiles. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py tests/test_demo_session_examples.py tests/test_session_progress.py tests/test_tutor_executor.py tests/test_skill_names.py -q passed 13 tests; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings. linux-01 was updated from the c014790 archive and restarted; health returned OK, frontend returned HTTP 200, and remote DB check reported linked_builtin_profiles=6 and builtin_documents=6.",
+      "notes": "Completed plan: plans/archive/20260513-default-seed-profiles.md. The six calibrated SEED profiles are deployment defaults with linked built-in lab manuals; no runtime SQLite DB, vector index, logs, or provider key is committed."
+    },
+    {
+      "id": "dreamingrag-memory-integration",
+      "priority": "P0",
+      "area": "memory-adapter",
+      "title": "DreamingRAG memory adapter prototype",
+      "behavior": "By default, Tutor attempts to retrieve long-term memory snippets from a narrow DreamingRAG adapter before generation and records the user/assistant turn after generation, while unavailable DreamingRAG dependencies gracefully fall back to null memory.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_memory_provider && python3 -m compileall src && cd frontend && npm test -- --run",
+      "evidence": "2026-05-11: ./scripts/harness-check.sh passed with 0 warnings; python3 -m unittest tests.test_memory_provider passed 5 tests; python3 -m compileall src passed; cd frontend && npm test -- --run passed with 1 test. Additional smoke: PYTHONPATH=src conda run -n DreamingRAG python DreamingRAGMemoryProvider mock-mode script succeeded, confirming provider enabled, per-session storage initialized, turn write returned, and recall context contained memory. Real-mode smoke also passed using DreamingRAG .env values without printing secrets: local _local/socratic-smoke-venv installed Socratic and DreamingRAG deps; DreamingRAGMemoryProvider mock_mode=False wrote and recalled memory via DeepSeek + configured embedding provider; CLI --list worked after seeding rag-smoke-buffer-overflow; CLI one-turn conversation created session 31dfa50a-3e77-4643-9993-560ee1218ab9 and got a non-empty DeepSeek tutor reply; Tutor.from_id resumed that session, pre_recall_nonempty=True, pre_recall_mentions_return_address=True, pre_recall_chars=583, second reply_nonempty=True, history_len=4. Default-on update verified by config smoke showing DREAMINGRAG_MEMORY_ENABLED=True without an env override, plus harness check, focused unittest, and compileall.",
+      "notes": "Prototype scope only: default-on adapter, prompt injection, turn write, graceful fallback, and explicit env opt-out. Candidate external project: /Users/ely/workspace/research/agent/DreamingRAG. Archived plan: plans/archive/20260511-dreamingrag-memory-adapter-prototype.md."
+    },
+    {
+      "id": "dreamingrag-public-api-adapter",
+      "priority": "P0",
+      "area": "memory-adapter",
+      "title": "DreamingRAG public API adapter",
+      "behavior": "Tutor integrates DreamingRAG through its stable public Python API, using DreamingRAGMemory for recall and remember while preserving graceful fallback and session-scoped storage.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_memory_provider && python3 -m compileall src tests && PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python <public API mock smoke>",
+      "evidence": "2026-05-13: python3 -m unittest tests.test_memory_provider passed 5 tests; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings after removing stale active .gitkeep; public API mock smoke passed with PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python, confirming enabled=True, status_prefix=['dreamingrag', 'mock'], has_context=True, and mentions_syn=True. System python3 without DreamingRAG dependencies still degraded safely: missing openai caused logged recall/write warnings and empty context without crashing.",
+      "notes": "Archived plan: plans/archive/20260513-dreamingrag-public-api-adapter.md. This replaces direct internal DreamingRAG object access with the stable public_api contract."
+    },
+    {
+      "id": "default-dreamingrag-deployment-docs",
+      "priority": "P0",
+      "area": "deployment",
+      "title": "Default DreamingRAG deployment documentation",
+      "behavior": "The official deployment path installs and configures DreamingRAG by default, with README entry points and maintained verification guidance.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && /Users/ely/.agents/skills/harness-maintainer-zh/scripts/harness-audit.sh /Users/ely/workspace/research/agent/socratic-agent-generator && python3 -m compileall src tests && python3 <deployment docs reference check> && _local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG && _local/socratic-smoke-venv/bin/python <DreamingRAG public API smoke>",
+      "evidence": "2026-05-13: ./scripts/harness-check.sh passed with 0 warnings; harness-maintainer audit passed with 0 warnings; python3 -m compileall src tests passed; deployment docs reference check printed deployment_docs_reference_dreamingrag=True; _local/socratic-smoke-venv/bin/pip install -e ../DreamingRAG succeeded and installed dreaming-rag-0.5.0; DreamingRAG public API smoke printed dreamingrag_public_api_ready=True; Socratic adapter smoke printed socratic_dreamingrag_context_ready=True.",
+      "notes": "Archived plan: plans/archive/20260513-default-dreamingrag-deployment.md. Official deployment doc: docs/deployment.md."
+    },
+    {
+      "id": "shared-volcengine-embeddings",
+      "priority": "P0",
+      "area": "embedding-provider",
+      "title": "Shared Volcengine embeddings",
+      "behavior": "Socratic document RAG and DreamingRAG memory use the same Volcengine Ark embedding provider by default; HuggingFace model download is only used when explicitly configured as a fallback.",
+      "status": "passing",
+      "verification": "PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q && python3 -m compileall src tests && ./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python <check_and_download_models smoke>",
+      "evidence": "2026-05-13: added src/utils/embedding_provider.py with VolcengineArkEmbeddings for text and vision/multimodal Ark embeddings; updated src/utils/skills.py to use the shared embedding factory; updated src/utils/model_manager.py so default EMBEDDING_PROVIDER=volcengine skips HuggingFace downloads; updated .env.example and docs/deployment.md. Also fixed student session creation for built-in public profiles so the demo account can enter default SEED profiles without class setup. Validation passed: focused pytest suite reported 22 passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; check_and_download_models() returned (True, [], []) under default Volcengine provider.",
+      "notes": "This fixes the linux-01 startup blocker where Socratic attempted to load sentence-transformers/all-MiniLM-L6-v2 despite Volcengine embedding being the intended system-wide provider."
+    },
+    {
+      "id": "linux01-live-deployment",
+      "priority": "P0",
+      "area": "deployment",
+      "title": "linux-01 live deployment",
+      "behavior": "The current Socratic Agent Generator branch is deployed with DreamingRAG on linux-01 and exposed through stable tmux-backed services with verified URLs.",
+      "status": "passing",
+      "verification": "remote-runner machine doctor linux-01; remote build/install/smoke; curl backend and frontend URLs; student full-session RAG/custom-skill smoke",
+      "evidence": "2026-05-13: deployed current rag-memory-adapter commit to linux-01 under /home/ely/deploy/socratic-live with Socratic and DreamingRAG archives. Remote env wrote without printing secrets and confirmed env_has_deepseek=True, env_has_volcengine=True, env_embedding_provider=volcengine, env_embedding_model=doubao-embedding-vision-251215. Remote validation passed: focused pytest suite -> 22 passed; model_check=(True, [], []); embedding_class=VolcengineArkEmbeddings; built-in public profile count=6 with ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, VPN_Tunnel. Services run in tmux sessions socratic-backend and socratic-frontend, listening on 0.0.0.0:8000 and 0.0.0.0:5173. Local curl passed for http://10.203.15.128:8000/api/health, /docs, and http://10.203.15.128:5173. Demo account login, profile list, session creation, yes-message streaming smoke, and admin two-turn real conversation smoke passed after fixing stale DeepSeek config, duplicate fallback skill tool names, and agent stop-condition truncation. Additional 2026-05-13 student full-session smoke: uploaded Sniffing_Spoofing.tex as lab manual and DB-backed custom skill material on linux-01, rebuilt custom skill index with 51 chunks, then completed student session 362d3773-bc6e-41e2-a97e-bc76f82c54a1 through all 9 Sniffing_Spoofing steps. The weak BPF answer did not advance the step and the tutor used document retrieval to explain icmp/tcp port 23/src net filters. Final state endpoint returned stepIndex=9,totalSteps=9,isFinished=true with history_len=30. SSE hardening was deployed: cancelled streams clear evaluation_pending, transitions are deterministic, and completion is stepIndex >= totalSteps. Validation passed: compileall targeted files, focused pytest 7 passed, harness-check 0 warnings, remote backend health and frontend HTTP 200. Example artifacts were then exported under docs/examples/live-demo-sessions: admin VPN_Tunnel full session (stepIndex=10,totalSteps=10,isFinished=true) and demo Sniffing_Spoofing full session (stepIndex=9,totalSteps=9,isFinished=true). The demo session was reassigned to username demo on linux-01 so UI observers can see it. tests/test_demo_session_examples.py validates both exports are complete and marked credential-free.",
+      "notes": "Archived plan: plans/archive/20260513-linux01-live-deployment.md. Runtime data was intentionally reset because the project is still self-use/demo stage."
+    }
+  ]
+}

@@ -29,10 +29,11 @@ describe('App', () => {
       </AuthProvider>,
     );
     expect(
-      await screen.findByText(/登录到苏格拉底式AI导师系统/i),
+      await screen.findByRole('heading', {
+        name: /Login to Socratic AI Tutor System/i,
+      }),
     ).toBeInTheDocument();
   });
 });
-
 
 

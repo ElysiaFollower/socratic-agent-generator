@@ -1,0 +1,186 @@
+{
+  "runs_root": "SEEDRUNNER_RUNS_ROOT",
+  "mode": "fast",
+  "raw_source_policy": "Verified lab manuals are copied into calibrated lab folders for default RAG seeding; reports, screenshots, logs, PDFs, archives, and user data remain external.",
+  "labs": [
+    {
+      "lab_id": "ARP_Attack",
+      "title": "ARP Cache Poisoning and MITM",
+      "manual": "ARP_Attack/docs/ARP_Attack.tex",
+      "reports": [
+        "ARP_Attack/report/ARP_Attack.zh.md"
+      ],
+      "handwritten": [
+        "mine/ARP_Attack/docs/report_draft.md"
+      ],
+      "notes": "Handwritten report emphasizes packet loss under disabled forwarding and Telnet/Netcat payload rewriting.",
+      "source_stats": [
+        {
+          "path": "ARP_Attack/docs/ARP_Attack.tex",
+          "exists": true,
+          "bytes": 17073
+        },
+        {
+          "path": "mine/ARP_Attack/docs/report_draft.md",
+          "exists": true,
+          "bytes": 8829
+        },
+        {
+          "path": "ARP_Attack/report/ARP_Attack.zh.md",
+          "exists": true,
+          "bytes": 6090
+        }
+      ]
+    },
+    {
+      "lab_id": "LocalDNSAttack",
+      "title": "Local DNS Cache Poisoning",
+      "manual": "LocalDNSAttack/docs/DNS_Local.tex",
+      "reports": [
+        "LocalDNSAttack/report/local-dns-attack.zh.md"
+      ],
+      "handwritten": [
+        "mine/LocalDNSAttack/report/report_draft.md"
+      ],
+      "notes": "Handwritten report is detailed and highlights role relationships, cache flushing, bridge interface discovery, and section-specific DNS caching behavior.",
+      "source_stats": [
+        {
+          "path": "LocalDNSAttack/docs/DNS_Local.tex",
+          "exists": true,
+          "bytes": 19972
+        },
+        {
+          "path": "mine/LocalDNSAttack/report/report_draft.md",
+          "exists": true,
+          "bytes": 64362
+        },
+        {
+          "path": "LocalDNSAttack/report/local-dns-attack.zh.md",
+          "exists": true,
+          "bytes": 5604
+        }
+      ]
+    },
+    {
+      "lab_id": "RemoteDNSAttack",
+      "title": "Remote DNS Kaminsky Attack",
+      "manual": "RemoteDNSAttack/docs/DNS_Remote.tex",
+      "reports": [
+        "RemoteDNSAttack/report/report_draft.md"
+      ],
+      "handwritten": [],
+      "notes": "Only draft notes were found; treat as lower-confidence than labs with completed reports.",
+      "source_stats": [
+        {
+          "path": "RemoteDNSAttack/docs/DNS_Remote.tex",
+          "exists": true,
+          "bytes": 25531
+        },
+        {
+          "path": "RemoteDNSAttack/report/report_draft.md",
+          "exists": true,
+          "bytes": 13134
+        }
+      ]
+    },
+    {
+      "lab_id": "Sniffing_Spoofing",
+      "title": "Packet Sniffing and Spoofing",
+      "manual": "Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
+      "reports": [
+        "Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md"
+      ],
+      "handwritten": [
+        "mine/Sniffing_Spoofing/docs/report_draft.md"
+      ],
+      "notes": "Handwritten artifacts include Scapy and C/pcap code paths; generated report records the bridge-interface discovery issue.",
+      "source_stats": [
+        {
+          "path": "Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
+          "exists": true,
+          "bytes": 29305
+        },
+        {
+          "path": "mine/Sniffing_Spoofing/docs/report_draft.md",
+          "exists": true,
+          "bytes": 11382
+        },
+        {
+          "path": "Sniffing_Spoofing/report/Sniffing_Spoofing.zh.md",
+          "exists": true,
+          "bytes": 9861
+        }
+      ]
+    },
+    {
+      "lab_id": "TCP_Attacks",
+      "title": "TCP Attacks",
+      "manual": "TCP_Attacks/docs/TCP_Attacks.tex",
+      "reports": [
+        "TCP_Attacks/report/TCP_Attacks.zh.md"
+      ],
+      "handwritten": [
+        "mine/TCP_Attacks/docs/report.md",
+        "mine/TCP_Attacks/docs/report_draft.md"
+      ],
+      "notes": "Handwritten report stresses empirical instability in SYN flood/RST attacks and the need to compare Python/C implementations and mitigations.",
+      "source_stats": [
+        {
+          "path": "TCP_Attacks/docs/TCP_Attacks.tex",
+          "exists": true,
+          "bytes": 28027
+        },
+        {
+          "path": "mine/TCP_Attacks/docs/report.md",
+          "exists": true,
+          "bytes": 15638
+        },
+        {
+          "path": "mine/TCP_Attacks/docs/report_draft.md",
+          "exists": true,
+          "bytes": 5072
+        },
+        {
+          "path": "TCP_Attacks/report/TCP_Attacks.zh.md",
+          "exists": true,
+          "bytes": 4935
+        }
+      ]
+    },
+    {
+      "lab_id": "VPN_Tunnel",
+      "title": "VPN Tunneling",
+      "manual": "VPN_Tunnel/docs/VPN_Tunnel.tex",
+      "reports": [
+        "VPN_Tunnel/report/report.md",
+        "VPN_Tunnel/report/Agent-report.md",
+        "VPN_Tunnel/report/report_draft.md"
+      ],
+      "handwritten": [],
+      "notes": "Most detailed generated report; emphasizes routing as the main learning bottleneck and TUN/TAP semantic contrast.",
+      "source_stats": [
+        {
+          "path": "VPN_Tunnel/docs/VPN_Tunnel.tex",
+          "exists": true,
+          "bytes": 28945
+        },
+        {
+          "path": "VPN_Tunnel/report/report.md",
+          "exists": true,
+          "bytes": 28515
+        },
+        {
+          "path": "VPN_Tunnel/report/Agent-report.md",
+          "exists": true,
+          "bytes": 34684
+        },
+        {
+          "path": "VPN_Tunnel/report/report_draft.md",
+          "exists": true,
+          "bytes": 50257
+        }
+      ]
+    }
+  ],
+  "runs_root_hint": "Set SEEDRUNNER_RUNS_ROOT to your local SEEDRunner/runs directory when regenerating."
+}

@@ -1,0 +1,19 @@
+{
+  "lab_id": "ARP_Attack",
+  "status": "generated",
+  "definition": "docs/manual-enhance/generated/ARP_Attack/definition.json",
+  "curriculum": "docs/manual-enhance/generated/ARP_Attack/curriculum.json",
+  "profile": "docs/manual-enhance/generated/ARP_Attack/profile.json",
+  "topic_name": "ARP 缓存投毒与中间人攻击实验",
+  "step_count": 8,
+  "steps": [
+    "Task 1.A：使用ARP请求进行缓存中毒",
+    "Task 1.B：使用ARP回复进行缓存中毒",
+    "Task 1.C：使用ARP免费消息进行缓存中毒",
+    "Task 2 Step 1：双向ARP缓存中毒",
+    "Task 2 Step 2：关闭IP转发后测试通信",
+    "Task 2 Step 3：开启IP转发后测试通信",
+    "Task 2 Step 4：Telnet数据篡改",
+    "Task 3：Netcat数据篡改"
+  ]
+}

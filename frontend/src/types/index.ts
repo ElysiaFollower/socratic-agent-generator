@@ -35,6 +35,19 @@ export interface Profile {
   readonly profile_name?: string; // Optional, defaults to topic_name if empty
   readonly topic_name: string;
   readonly lab_name?: string;
+  readonly document_id?: number | null;
+  readonly document_status?: "available" | "missing" | "unlinked" | null;
+  readonly document_source?: {
+    readonly document_id?: number;
+    readonly doc_name?: string;
+    readonly owner_id?: string | null;
+    readonly filename?: string | null;
+    readonly storage_path?: string | null;
+    readonly index_path?: string | null;
+    readonly is_builtin?: boolean;
+    readonly source?: string | null;
+    readonly source_artifact_path?: string | null;
+  } | null;
   readonly owner_id?: string;
   readonly visible_class_ids?: readonly string[];
   readonly persona_hints: readonly string[];

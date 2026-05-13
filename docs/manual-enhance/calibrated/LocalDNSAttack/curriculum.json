@@ -1,0 +1,79 @@
+[
+  {
+    "step_title": "DNS 角色图与基线：先弄清谁问谁",
+    "guiding_question": "用户、local DNS、attacker nameserver、外部权威服务器分别扮演什么角色？如果这个角色图错了，后面 spoof 的源 IP 会错在哪里？",
+    "success_criteria": "学生能画出查询链路并用 `resolv.conf`、`dig @10.9.0.53`、`rndc dumpdb -cache` 说明初始 DNS 行为。",
+    "learning_objective": "建立 DNS 攻击中的角色、缓存和证据基线。",
+    "scaffolding_hints": [
+      "先确认用户容器真正使用的 DNS 服务器。",
+      "区分直接问 local DNS 和直接问 attacker nameserver。",
+      "每轮攻击前都要知道缓存是否干净。"
+    ]
+  },
+  {
+    "step_title": "实操前稳定性：接口、延迟和缓存清理",
+    "guiding_question": "为什么同一个脚本在不同机器上要先找 bridge 接口，并且有时还要给外部链路加延迟？",
+    "success_criteria": "学生能说明攻击监听接口、`rndc flush`、router 上 netem delay 的目的，并能指出这些步骤缺失时会造成的竞态失败。",
+    "learning_objective": "把实验中的“准备动作”纳入学习流程，而不是把它们当作脚本细节。",
+    "scaffolding_hints": [
+      "bridge 名称通常不是固定的。",
+      "DNS 竞速中，合法响应可能先到。",
+      "缓存未清空会让攻击看起来“无效”或无法复现。"
+    ]
+  },
+  {
+    "step_title": "Task 1：直接伪造给用户的 DNS answer",
+    "guiding_question": "如果攻击者只抢答用户的一次查询，为什么成功影响通常只限于这一次？",
+    "success_criteria": "学生能构造针对 `www.example.com` 的伪造响应，复制 transaction ID 和 question，并让用户看到假 IP。",
+    "learning_objective": "理解直接响应伪造与 DNS transaction ID、端口和 question 复制的关系。",
+    "scaffolding_hints": [
+      "先监听 user -> local DNS 的查询。",
+      "伪造响应源应像 local DNS，而不是像 attacker。",
+      "复制 `qd` 和 transaction ID 是让响应被接受的关键。"
+    ]
+  },
+  {
+    "step_title": "Task 2：投毒 local DNS 的 answer 缓存",
+    "guiding_question": "把用户骗一次和把 local DNS 的缓存骗住，攻击影响范围有什么根本区别？",
+    "success_criteria": "学生能让 local DNS 缓存 `www.example.com` 的假 A 记录，并在停止攻击脚本后仍能查询到污染结果。",
+    "learning_objective": "理解缓存投毒的持久性和攻击对象从用户到 resolver 的变化。",
+    "scaffolding_hints": [
+      "监听对象变成 local DNS 对外查询。",
+      "伪造响应源要像权威服务器。",
+      "验证时要停止攻击程序，再查询缓存效果。"
+    ]
+  },
+  {
+    "step_title": "Task 3：用 NS 记录接管整个 example.com 域",
+    "guiding_question": "为什么伪造一个 A 记录只能改一个名字，而伪造 NS 记录会改变后续整个域的解析路径？",
+    "success_criteria": "学生能在 cache dump 中找到 `example.com` 的伪造 NS 记录，并用其他子域名查询证明流量被导向攻击者 nameserver。",
+    "learning_objective": "理解 Authority Section 中 NS 记录的影响范围。",
+    "scaffolding_hints": [
+      "区分 Answer Section 的 A 记录和 Authority Section 的 NS 记录。",
+      "后续查询如 `mail.example.com` 更能证明域级接管。",
+      "攻击者 nameserver 需要能回答该域的后续查询。"
+    ]
+  },
+  {
+    "step_title": "Task 4：跨域 NS 投毒失败是 bailiwick 策略的证据",
+    "guiding_question": "如果一个 example.com 的响应声称 google.com 的 NS 也该改，本地 DNS 为什么不应该轻易相信？",
+    "success_criteria": "学生能解释并验证 cache 中保留了 in-bailiwick 的记录，而 out-of-bailiwick 记录没有按攻击者预期生效。",
+    "learning_objective": "把失败结果转化为 DNS 缓存安全策略的理解。",
+    "scaffolding_hints": [
+      "不要把 Task 4 写成“再投毒一个域”。",
+      "重点检查 cache dump 中留下了什么、拒绝了什么。",
+      "把 google.com 查询结果作为负例证据。"
+    ]
+  },
+  {
+    "step_title": "Task 5：Additional Section 不是全盘缓存",
+    "guiding_question": "同一个伪造响应里塞入多条 Additional 记录时，resolver 为什么只缓存一部分？",
+    "success_criteria": "学生能说明 Additional Section 中哪些记录被缓存、哪些被拒绝，并用 bailiwick 规则解释差异。",
+    "learning_objective": "理解 DNS resolver 对附加记录的选择性缓存。",
+    "scaffolding_hints": [
+      "分清 NS 所指向主机的 glue A 记录和无关域名 A 记录。",
+      "至少做一次立即 dump 和停止攻击后的查询。",
+      "把“没有缓存”作为核心学习结果之一。"
+    ]
+  }
+]

@@ -1,0 +1,79 @@
+[
+  {
+    "step_title": "环境基线：Telnet、SYN backlog、SYN cookies 和 metrics",
+    "guiding_question": "如果合法 Telnet 一开始就不稳定，后面怎样判断 SYN flood 是否真的生效？",
+    "success_criteria": "学生能验证 victim Telnet 服务、记录 `tcp_syncookies` 和 `tcp_max_syn_backlog`，并说明 `ip tcp_metrics` 可能影响复现实验。",
+    "learning_objective": "建立 TCP 攻击前的状态基线。",
+    "scaffolding_hints": [
+      "先确认 user 能正常 telnet victim。",
+      "记录内核防御开关和 backlog 值。",
+      "必要时清理 tcp metrics，避免历史缓存干扰。"
+    ]
+  },
+  {
+    "step_title": "Task 1.1：Python SYN flood 的真实观察可能偏弱",
+    "guiding_question": "如果 Python 版本没有立刻压垮服务，这说明攻击无效，还是说明发包效率和系统参数还没形成足够压力？",
+    "success_criteria": "学生能运行 Python SYN flood，记录 SYN_RECV 数量、Telnet 是否仍可连接，并解释单进程/多进程和 backlog 调整对结果的影响。",
+    "learning_objective": "把攻击效果与发包效率、队列容量和防御配置关联起来。",
+    "scaffolding_hints": [
+      "不要只看脚本是否运行。",
+      "同时观察 SYN_RECV 和合法连接结果。",
+      "弱效果本身是重要实验结论。"
+    ]
+  },
+  {
+    "step_title": "Task 1.2：C SYN flood 与 Python 版本做对照",
+    "guiding_question": "同样是伪造 SYN，为什么 C 程序更容易造成持续压制？",
+    "success_criteria": "学生能编译运行 C SYN flood，对比 Python 版本的连接失败率或队列占用，并解释性能差异。",
+    "learning_objective": "理解实现效率对 DoS 实验结果的影响。",
+    "scaffolding_hints": [
+      "先恢复和记录 victim 状态。",
+      "对照实验要保持 syncookies/backlog 条件一致。",
+      "把 C/Python 差异写成实验发现，而不是只给截图。"
+    ]
+  },
+  {
+    "step_title": "Task 1.3：SYN cookies 是防御验证，不只是打开开关",
+    "guiding_question": "开启 SYN cookies 后，攻击流量仍在，为什么合法连接反而能恢复？",
+    "success_criteria": "学生能在同样攻击压力下开启 SYN cookies，并证明合法 Telnet 可以建立，同时解释半开连接状态保存方式的变化。",
+    "learning_objective": "理解 SYN cookies 缓解 SYN flood 的机制。",
+    "scaffolding_hints": [
+      "保持攻击脚本运行，再切换防御状态。",
+      "观察合法连接是否恢复。",
+      "解释 server 为什么不再依赖完整 backlog 状态。"
+    ]
+  },
+  {
+    "step_title": "Task 2：TCP RST 攻击要围绕序列号窗口调试",
+    "guiding_question": "为什么只发一个 RST 包可能时灵时不灵？接收方到底用什么规则决定接受它？",
+    "success_criteria": "学生能嗅探 Telnet 流量，构造双向或窗口附近的 RST，解释 sequence number 与接收窗口，并复现实验中的连接断开。",
+    "learning_objective": "理解 TCP RST 注入的窗口条件和不稳定性。",
+    "scaffolding_hints": [
+      "先抓到当前会话的 seq/ack。",
+      "尝试 payload 长度修正和小范围序列号探测。",
+      "连续成功复现比单次断开更有说服力。"
+    ]
+  },
+  {
+    "step_title": "Task 3：TCP 会话劫持先证明可注入，再谈命令效果",
+    "guiding_question": "劫持 Telnet 会话时，什么证据能说明命令是攻击者注入的，而不是用户自己输入的？",
+    "success_criteria": "学生能构造带正确 seq/ack 的 payload 注入包，并用 victim 端结果证明命令执行。",
+    "learning_objective": "掌握 TCP 会话劫持中的方向、序列号和 payload 构造。",
+    "scaffolding_hints": [
+      "明确攻击的是 user -> victim 方向还是反向。",
+      "payload 要符合 Telnet shell 交互语义。",
+      "结果证据应来自 victim，而不仅是发包脚本日志。"
+    ]
+  },
+  {
+    "step_title": "Task 4：Reverse shell 是会话劫持的组合验证",
+    "guiding_question": "如果注入的是反弹 shell 命令，哪些网络连接和文件/命令结果能证明攻击链完成？",
+    "success_criteria": "学生能让 victim 向 attacker 建立 shell 连接，并说明监听端、注入命令、victim 结果三者的对应关系。",
+    "learning_objective": "把会话劫持扩展为可交互控制链路，同时保持安全边界。",
+    "scaffolding_hints": [
+      "先让 attacker 监听端口。",
+      "注入命令要考虑 shell 重定向语法。",
+      "用 victim 文件创建或命令输出证明 shell 权限。"
+    ]
+  }
+]

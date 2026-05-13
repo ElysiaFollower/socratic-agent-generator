@@ -65,76 +65,21 @@ class ProfileManager:
     def list_profiles_by_visible_classes(self, class_ids: List[str]) -> List[Profile]:
         """List profiles visible to any of the provided class IDs.
         
-        Optimized to filter at the database level using JSON functions.
+        Built-in default profiles have no owner and no class visibility list;
+        they are public so a fresh deployment is usable before class setup.
         """
-        if not class_ids:
-            return []
-        
-        # Use SQLite's JSON functions to filter profiles directly in the database
-        # This avoids loading all profiles into memory and filtering in Python
-        from sqlalchemy import text
-        
-        # Build conditions to check if any class_id exists in the visible_class_ids JSON array
-        conditions = []
-        for class_id in class_ids:
-            # Use JSON_EXTRACT to check if the class_id exists in the array
-            conditions.append(f"json_type(visible_class_ids, '$') = 'array' AND json_extract(visible_class_ids, '$') LIKE '%\"{class_id}\"%'")
-        
-        # Execute the query with the conditions
-        query_sql = f"""
-            SELECT * FROM profiles 
-            WHERE visible_class_ids IS NOT NULL 
-            AND (
-                {' OR '.join(conditions)}
-            )
-            ORDER BY create_at DESC
-        """
-        
-        result = self.db.execute(text(query_sql))
-        
-        # Convert to Profile objects directly
-        import json
-        profiles = []
-        for row in result:
-            # Parse JSON fields that are stored as strings
-            visible_class_ids = []
-            if row.visible_class_ids:
-                try:
-                    visible_class_ids = json.loads(row.visible_class_ids)
-                except (json.JSONDecodeError, TypeError):
-                    visible_class_ids = []
-            
-            persona_hints = []
-            if row.persona_hints:
-                try:
-                    persona_hints = json.loads(row.persona_hints)
-                except (json.JSONDecodeError, TypeError):
-                    persona_hints = []
-            
-            curriculum = []
-            if row.curriculum:
-                try:
-                    curriculum = json.loads(row.curriculum)
-                except (json.JSONDecodeError, TypeError):
-                    curriculum = []
-            
-            profile = Profile(
-                profile_id=row.profile_id,
-                profile_name=row.profile_name,
-                topic_name=row.topic_name,
-                lab_name=row.lab_name,
-                owner_id=row.owner_id,
-                visible_class_ids=visible_class_ids,
-                document_id=row.document_id,
-                persona_hints=persona_hints,
-                target_audience=row.target_audience,
-                curriculum=curriculum,
-                prompt_template=row.prompt_template,
-                create_at=row.create_at
-            )
-            profiles.append(profile)
-        
-        return profiles
+        class_id_set = set(class_ids)
+        models = self.db.query(ProfileModel).order_by(ProfileModel.create_at.desc()).all()
+        visible_profiles = []
+
+        for model in models:
+            visible_class_ids = model.visible_class_ids or []
+            is_builtin_public = model.owner_id is None and not visible_class_ids
+            is_class_visible = bool(class_id_set.intersection(visible_class_ids))
+            if is_builtin_public or is_class_visible:
+                visible_profiles.append(model_to_profile(model))
+
+        return visible_profiles
 
     def _get_model(self, profile_id: str) -> ProfileModel:
         """Helper to get ORM model."""
@@ -170,10 +115,18 @@ class ProfileManager:
         # Check if exists to update or insert
         existing = self.db.query(ProfileModel).filter(ProfileModel.profile_id == profile.profile_id).first()
 
-        # Resolve document_id from lab_name if possible
-        document_id = None
-        if profile.lab_name:
-            doc = self.db.query(Document).filter(Document.doc_name == profile.lab_name).first()
+        # Resolve document_id from lab_name if possible. Built-in/default
+        # profiles pass an explicit document_id so RAG does not depend on a
+        # non-unique lab_name lookup.
+        document_id = profile.document_id
+        if document_id is None and profile.lab_name:
+            query = self.db.query(Document).filter(Document.doc_name == profile.lab_name)
+            if profile.owner_id is not None:
+                doc = query.filter(Document.owner_id == profile.owner_id).first()
+            else:
+                doc = query.filter(Document.owner_id == "builtin").first()
+            if doc is None:
+                doc = query.first()
             if doc:
                 document_id = doc.id
 

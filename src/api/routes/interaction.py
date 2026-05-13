@@ -75,7 +75,7 @@ def get_state(
     return {
         "stepIndex": current_step,
         "totalSteps": total_steps,
-        "isFinished": current_step > total_steps,
+        "isFinished": tutor.session.is_finished(),
     }
 
 

@@ -37,6 +37,21 @@ class Profile(BaseModel):
         description="The lab manual directory name for RAG indexing.",
     )
 
+    document_id: Optional[int] = Field(
+        default=None,
+        description="The linked lab manual document ID used for exact RAG lookup.",
+    )
+
+    document_status: Optional[str] = Field(
+        default=None,
+        description="Current linked document state: available, missing, or unlinked.",
+    )
+
+    document_source: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Display-only metadata about the linked lab manual document.",
+    )
+
     owner_id: Optional[str] = Field(
         default=None,
         description="The user_id of the teacher who created the profile.",

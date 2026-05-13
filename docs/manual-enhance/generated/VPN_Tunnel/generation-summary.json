@@ -1,0 +1,20 @@
+{
+  "lab_id": "VPN_Tunnel",
+  "status": "generated",
+  "definition": "docs/manual-enhance/generated/VPN_Tunnel/definition.json",
+  "curriculum": "docs/manual-enhance/generated/VPN_Tunnel/curriculum.json",
+  "profile": "docs/manual-enhance/generated/VPN_Tunnel/profile.json",
+  "topic_name": "VPN 隧道构建实验：从零搭建简易 VPN 隧道",
+  "step_count": 9,
+  "steps": [
+    "网络环境搭建与基线验证",
+    "创建并配置TUN接口",
+    "通过UDP隧道发送IP包到VPN Server",
+    "设置VPN Server",
+    "处理双向流量",
+    "隧道中断实验",
+    "Host V上的路由实验",
+    "站点到站点VPN",
+    "TAP接口实验"
+  ]
+}

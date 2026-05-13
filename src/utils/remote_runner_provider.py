@@ -1,0 +1,475 @@
+"""Remote Runner adapter for permissioned lab environment observation.
+
+Socratic depends on this narrow boundary instead of importing Remote Runner
+internals throughout TutorCore. The first prototype uses the external CLI so
+local tests can replace the process runner without touching SSH.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Callable, Dict, Mapping, Optional, Sequence
+
+from config import (
+    REMOTE_RUNNER_REPO_PATH,
+    REMOTE_RUNNER_STATE_DIR,
+    REMOTE_TOOL_ALLOWED_COMMANDS,
+    REMOTE_TOOL_ALLOWED_CWD_PREFIXES,
+    REMOTE_TOOL_ALLOWED_MACHINE_IDS,
+    REMOTE_TOOL_COMMAND_TIMEOUT,
+    REMOTE_TOOL_ENABLED,
+    REMOTE_TOOL_OUTPUT_CHARS,
+)
+
+logger = logging.getLogger(__name__)
+
+
+class RemoteRunnerError(RuntimeError):
+    """Base error for Remote Runner adapter failures."""
+
+
+class RemoteRunnerPermissionError(RemoteRunnerError):
+    """Raised when a requested remote action violates local policy."""
+
+
+class RemoteRunnerUnavailable(RemoteRunnerError):
+    """Raised when Remote Runner cannot be invoked."""
+
+
+@dataclass(frozen=True)
+class RunnerResult:
+    """Small subprocess result shape used by tests and the default runner."""
+
+    returncode: int
+    stdout: str = ""
+    stderr: str = ""
+
+
+CommandRunner = Callable[
+    [Sequence[str], Mapping[str, str], Optional[Path], int],
+    RunnerResult,
+]
+
+
+@dataclass(frozen=True)
+class RemoteRunnerProviderConfig:
+    """Runtime policy for the Socratic Remote Runner adapter."""
+
+    enabled: bool = REMOTE_TOOL_ENABLED
+    repo_path: Optional[str] = REMOTE_RUNNER_REPO_PATH
+    state_dir: Optional[str] = REMOTE_RUNNER_STATE_DIR
+    python_executable: str = sys.executable
+    timeout_seconds: int = REMOTE_TOOL_COMMAND_TIMEOUT
+    max_output_chars: int = REMOTE_TOOL_OUTPUT_CHARS
+    allowed_machine_ids: Sequence[str] = field(
+        default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_MACHINE_IDS)
+    )
+    allowed_commands: Sequence[str] = field(
+        default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_COMMANDS)
+    )
+    allowed_cwd_prefixes: Sequence[str] = field(
+        default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_CWD_PREFIXES)
+    )
+
+
+class RemoteRunnerProvider:
+    """CLI-backed Remote Runner provider with Socratic-side guardrails."""
+
+    def __init__(
+        self,
+        config: Optional[RemoteRunnerProviderConfig] = None,
+        command_runner: Optional[CommandRunner] = None,
+    ) -> None:
+        self.config = config or RemoteRunnerProviderConfig()
+        self._command_runner = command_runner or self._default_command_runner
+
+    @property
+    def enabled(self) -> bool:
+        return self.config.enabled
+
+    @property
+    def status(self) -> str:
+        if not self.enabled:
+            return "disabled"
+        repo_path = self._repo_path()
+        if self.config.repo_path and repo_path is None:
+            return "unavailable:repo_path_missing"
+        return "ready"
+
+    def observe(
+        self,
+        *,
+        action: str,
+        machine_id: str = "",
+        session_id: str = "",
+        command: str = "",
+        cwd: str = "",
+        reason: str = "",
+    ) -> str:
+        """Run a guarded observation action and return prompt-ready text."""
+        normalized_action = _normalize_action(action)
+        try:
+            payload = self.run_action(
+                action=normalized_action,
+                machine_id=machine_id,
+                session_id=session_id,
+                command=command,
+                cwd=cwd,
+                reason=reason,
+            )
+        except RemoteRunnerError as exc:
+            payload = {
+                "ok": False,
+                "action": normalized_action,
+                "error": str(exc),
+            }
+        except Exception as exc:
+            logger.warning("Remote Runner observation failed: %s", exc, exc_info=True)
+            payload = {
+                "ok": False,
+                "action": normalized_action,
+                "error": "Remote Runner observation failed.",
+            }
+
+        return self._format_observation(payload)
+
+    def run_action(
+        self,
+        *,
+        action: str,
+        machine_id: str = "",
+        session_id: str = "",
+        command: str = "",
+        cwd: str = "",
+        reason: str = "",
+    ) -> Dict[str, Any]:
+        """Run a supported Remote Runner action and return sanitized data."""
+        if not self.enabled:
+            raise RemoteRunnerUnavailable("Remote tool is disabled by configuration.")
+
+        normalized_action = _normalize_action(action)
+        cli_args = self._build_cli_args(
+            normalized_action,
+            machine_id=machine_id,
+            session_id=session_id,
+            command=command,
+            cwd=cwd,
+        )
+        result = self._run_json(cli_args)
+        filtered = self._filter_payload(normalized_action, result)
+
+        return {
+            "ok": True,
+            "action": normalized_action,
+            "reason": reason.strip()[:300] if reason else "",
+            "result": filtered,
+        }
+
+    def _build_cli_args(
+        self,
+        action: str,
+        *,
+        machine_id: str,
+        session_id: str,
+        command: str,
+        cwd: str,
+    ) -> Sequence[str]:
+        if action == "list_machines":
+            return ("machine", "list", "--json")
+
+        if action == "list_sessions":
+            return ("session", "list", "--json")
+
+        if action == "machine_doctor":
+            safe_machine = self._require_machine(machine_id)
+            return ("machine", "doctor", safe_machine, "--json")
+
+        if action == "session_exec":
+            safe_session = _require_value(session_id, "session_id")
+            safe_command = self._require_allowed_command(command)
+            safe_cwd = self._validate_cwd(cwd)
+            self._validate_session_machine(safe_session, machine_id)
+            args = [
+                "session",
+                "exec",
+                "--session",
+                safe_session,
+                "--cmd",
+                safe_command,
+                "--timeout",
+                str(max(1, self.config.timeout_seconds)),
+            ]
+            if safe_cwd:
+                args.extend(["--cwd", safe_cwd])
+            args.append("--json")
+            return tuple(args)
+
+        raise RemoteRunnerPermissionError(
+            "Unsupported remote observation action. "
+            "Allowed actions: list_machines, list_sessions, machine_doctor, session_exec."
+        )
+
+    def _run_json(self, cli_args: Sequence[str]) -> Dict[str, Any]:
+        if self.config.repo_path and self._repo_path() is None:
+            raise RemoteRunnerUnavailable("Remote Runner repo path does not exist.")
+
+        base_args = [self.config.python_executable, "-m", "remote_runner.cli"]
+        full_args = [*base_args, *cli_args]
+        env = self._build_env()
+        cwd = self._repo_path()
+
+        completed = self._command_runner(
+            full_args,
+            env,
+            cwd,
+            max(1, self.config.timeout_seconds + 2),
+        )
+        output = completed.stdout.strip() or completed.stderr.strip()
+        payload = self._parse_json(output)
+        payload = redact_sensitive(payload)
+
+        if completed.returncode != 0:
+            error = payload.get("error") if isinstance(payload, dict) else None
+            raise RemoteRunnerError(str(error or "Remote Runner command failed."))
+
+        return payload
+
+    def _build_env(self) -> Dict[str, str]:
+        env = dict(os.environ)
+        repo_path = self._repo_path()
+        if repo_path is not None:
+            existing = env.get("PYTHONPATH", "")
+            path_parts = [str(repo_path)]
+            if existing:
+                path_parts.append(existing)
+            env["PYTHONPATH"] = os.pathsep.join(path_parts)
+        if self.config.state_dir:
+            env["REMOTE_RUNNER_STATE_DIR"] = str(
+                Path(self.config.state_dir).expanduser()
+            )
+        return env
+
+    def _repo_path(self) -> Optional[Path]:
+        if not self.config.repo_path:
+            return None
+        path = Path(self.config.repo_path).expanduser()
+        if not path.exists():
+            return None
+        return path.resolve()
+
+    def _parse_json(self, output: str) -> Dict[str, Any]:
+        if not output:
+            raise RemoteRunnerError("Remote Runner returned no JSON output.")
+        try:
+            payload = json.loads(output)
+        except json.JSONDecodeError as exc:
+            redacted = redact_text(output[:500])
+            raise RemoteRunnerError(
+                f"Remote Runner returned invalid JSON: {redacted}"
+            ) from exc
+        if not isinstance(payload, dict):
+            raise RemoteRunnerError("Remote Runner JSON output must be an object.")
+        return payload
+
+    def _filter_payload(self, action: str, payload: Dict[str, Any]) -> Dict[str, Any]:
+        if action == "list_machines" and self.config.allowed_machine_ids:
+            allowed = set(self.config.allowed_machine_ids)
+            machines = payload.get("machines")
+            if isinstance(machines, list):
+                payload = dict(payload)
+                payload["machines"] = [
+                    item
+                    for item in machines
+                    if isinstance(item, dict) and item.get("machine_id") in allowed
+                ]
+                payload["summary"] = {"machine_count": len(payload["machines"])}
+
+        if action == "list_sessions" and self.config.allowed_machine_ids:
+            allowed = set(self.config.allowed_machine_ids)
+            sessions = payload.get("sessions")
+            if isinstance(sessions, list):
+                payload = dict(payload)
+                payload["sessions"] = [
+                    item
+                    for item in sessions
+                    if isinstance(item, dict) and item.get("machine_id") in allowed
+                ]
+                payload["summary"] = {"session_count": len(payload["sessions"])}
+
+        return redact_sensitive(payload)
+
+    def _format_observation(self, payload: Dict[str, Any]) -> str:
+        text = json.dumps(
+            redact_sensitive(payload),
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        limit = max(500, self.config.max_output_chars)
+        if len(text) <= limit:
+            return text
+        return text[:limit].rstrip() + "\n...[truncated]"
+
+    def _require_machine(self, machine_id: str) -> str:
+        safe_machine = _require_value(machine_id, "machine_id")
+        allowed = set(self.config.allowed_machine_ids)
+        if allowed and safe_machine not in allowed:
+            raise RemoteRunnerPermissionError(
+                f"Machine '{safe_machine}' is not allowed for this Tutor."
+            )
+        return safe_machine
+
+    def _require_allowed_command(self, command: str) -> str:
+        safe_command = _require_value(command, "command")
+        allowed = {item.strip() for item in self.config.allowed_commands if item.strip()}
+        if allowed and safe_command not in allowed:
+            raise RemoteRunnerPermissionError(
+                "Command is not allowed by REMOTE_TOOL_ALLOWED_COMMANDS."
+            )
+        return safe_command
+
+    def _validate_cwd(self, cwd: str) -> str:
+        safe_cwd = cwd.strip()
+        if not safe_cwd:
+            return ""
+        prefixes = tuple(self.config.allowed_cwd_prefixes)
+        if prefixes and not safe_cwd.startswith(prefixes):
+            raise RemoteRunnerPermissionError(
+                "cwd is outside REMOTE_TOOL_ALLOWED_CWD_PREFIXES."
+            )
+        return safe_cwd
+
+    def _validate_session_machine(self, session_id: str, machine_id: str) -> None:
+        if not self.config.allowed_machine_ids:
+            return
+
+        session = self._run_json(("session", "show", "--session", session_id, "--json"))
+        observed_machine = str(session.get("machine_id") or "")
+        allowed = set(self.config.allowed_machine_ids)
+        if observed_machine not in allowed:
+            raise RemoteRunnerPermissionError(
+                "Session belongs to a machine that is not allowed for this Tutor."
+            )
+        if machine_id.strip() and observed_machine != machine_id.strip():
+            raise RemoteRunnerPermissionError(
+                "Provided machine_id does not match the session machine."
+            )
+
+    def _default_command_runner(
+        self,
+        args: Sequence[str],
+        env: Mapping[str, str],
+        cwd: Optional[Path],
+        timeout: int,
+    ) -> RunnerResult:
+        try:
+            completed = subprocess.run(
+                list(args),
+                cwd=str(cwd) if cwd else None,
+                env=dict(env),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RemoteRunnerError("Remote Runner command timed out.") from exc
+        except OSError as exc:
+            raise RemoteRunnerUnavailable(
+                f"Remote Runner could not be started: {exc}"
+            ) from exc
+        return RunnerResult(
+            returncode=completed.returncode,
+            stdout=completed.stdout,
+            stderr=completed.stderr,
+        )
+
+
+def get_remote_runner_provider() -> RemoteRunnerProvider:
+    """Factory used by Tutor to create the configured provider."""
+    return RemoteRunnerProvider()
+
+
+def _normalize_action(action: str) -> str:
+    normalized = action.strip().lower().replace("-", "_")
+    aliases = {
+        "machines": "list_machines",
+        "machine_list": "list_machines",
+        "sessions": "list_sessions",
+        "session_list": "list_sessions",
+        "doctor": "machine_doctor",
+        "exec": "session_exec",
+        "execute": "session_exec",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def _require_value(value: str, field_name: str) -> str:
+    cleaned = value.strip()
+    if not cleaned:
+        raise RemoteRunnerPermissionError(f"{field_name} is required.")
+    if "\x00" in cleaned:
+        raise RemoteRunnerPermissionError(f"{field_name} contains an invalid byte.")
+    return cleaned
+
+
+SENSITIVE_KEY_PARTS = (
+    "password",
+    "token",
+    "secret",
+    "credential",
+    "private_key",
+    "key_path",
+    "api_key",
+    "host",
+    "user",
+)
+LOCAL_PATH_KEYS = (
+    "log_file_local",
+    "log_dir_local",
+    "local_path",
+)
+
+
+def redact_sensitive(value: Any) -> Any:
+    """Redact credentials and local machine details before LLM exposure."""
+    if isinstance(value, dict):
+        redacted = {}
+        for key, item in value.items():
+            key_text = str(key)
+            lowered = key_text.lower()
+            if any(part in lowered for part in SENSITIVE_KEY_PARTS):
+                redacted[key_text] = "<redacted>"
+            elif lowered in LOCAL_PATH_KEYS or lowered.endswith("_local"):
+                redacted[key_text] = "<local_path_redacted>"
+            else:
+                redacted[key_text] = redact_sensitive(item)
+        return redacted
+    if isinstance(value, list):
+        return [redact_sensitive(item) for item in value]
+    if isinstance(value, str):
+        return redact_text(value)
+    return value
+
+
+def redact_text(text: str) -> str:
+    """Redact secret-looking inline text from stdout/stderr payloads."""
+    redacted = re.sub(
+        r"-----BEGIN [A-Z ]*PRIVATE KEY-----.*?-----END [A-Z ]*PRIVATE KEY-----",
+        "<private_key_redacted>",
+        text,
+        flags=re.DOTALL,
+    )
+    redacted = re.sub(
+        r"(?i)\b(password|token|secret|api[_-]?key|key_path)\s*[:=]\s*([^\s,;]+)",
+        r"\1=<redacted>",
+        redacted,
+    )
+    return redacted

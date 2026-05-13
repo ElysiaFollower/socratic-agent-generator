@@ -12,4 +12,12 @@
 !AgentDesign/**
 
 !README.zh.md
+!deployment.md
 !images
+!overview.md
+!architecture/
+!architecture/**
+!manual-enhance/
+!manual-enhance/**
+!examples/
+!examples/**

@@ -1,0 +1,463 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%  Copyright by Wenliang Du.                                       %%
+%%  This work is licensed under the Creative Commons                %%
+%%  Attribution-NonCommercial-ShareAlike 4.0 International License. %%
+%%  To view a copy of this license, visit                           %%
+%%  http://creativecommons.org/licenses/by-nc-sa/4.0/.              %%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\newcommand{\commonfolder}{../../common-files}
+
+\input{\commonfolder/header}
+\input{\commonfolder/copyright}
+
+
+\lhead{\bfseries SEED Labs -- ARP Cache Poisoning Attack Lab}
+\newcommand{\arpFigs}{./Figs}
+
+
+\begin{document}
+
+
+
+\begin{center}
+{\LARGE ARP Cache Poisoning Attack Lab}
+\end{center}
+
+\seedlabcopyright{2019}
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Overview}
+
+
+The Address Resolution Protocol (ARP) is a communication protocol used for discovering the link
+layer address, such as the MAC address, given an IP address. The ARP protocol is a very simple
+protocol, and it does not implement any security measure. 
+The ARP cache poisoning attack is a common attack against the ARP protocol. 
+Using such an attack, attackers can fool the victim into accepting
+forged IP-to-MAC mappings. This can cause the victim's packets to be 
+redirected to the computer with the forged MAC address, leading to
+potential man-in-the-middle attacks.
+
+
+The objective of this lab is for students to gain the first-hand experience on the ARP cache
+poisoning attack, and learn what damages can be caused by such an attack.
+In particular, students will use the ARP attack to launch a man-in-the-middle attack,  
+where the attacker can intercept and modify the packets between the two victims A and B. 
+Another objective of this lab is for students to practice 
+packet sniffing and spoofing skills, as these are 
+essential skills in network security, and they are the building blocks
+for many network attack and defense tools. 
+Students will use Scapy to conduct lab tasks. 
+This lab covers the following topics:
+
+
+\begin{itemize}[noitemsep]
+\item The ARP protocol
+\item The ARP cache poisoning attack
+\item Man-in-the-middle attack
+\item Scapy programming
+\end{itemize}
+ 
+
+
+\paragraph{Videos.}
+Detailed coverage of the ARP protocol and attacks can be found in the following:
+
+\begin{itemize}
+\item Section 3 of the SEED Lecture at Udemy, \seedisvideo
+\end{itemize}
+
+
+\paragraph{Lab environment.} \seedenvironmentC
+
+
+
+
+% *******************************************
+% SECTION
+% *******************************************
+\section{Environment Setup using Container}
+
+In this lab, we need three machines. We use 
+containers to set up the lab environment, which is depicted 
+in Figure~\ref{arp:fig:labsetup}.
+In this setup, we have an attacker machine (Host M),
+which is used to launch attacks against the other two machines, Host A and
+Host B.  These three machines must be on the same LAN,
+because the ARP cache poisoning attack is limited to LAN. We use 
+containers to set up the lab environment.
+
+\begin{figure}[htb]
+\begin{center}
+\includegraphics[width=0.8\textwidth]{\commonfolder/Figs/ARP_onelan.pdf}
+\end{center}
+\caption{Lab environment setup}
+\label{arp:fig:labsetup}
+\end{figure}
+ 
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Container Setup and Commands}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/container/setup}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{About the Attacker Container}
+
+In this lab, we can either use the VM or the attacker container
+as the attacker machine. If you look at the Docker Compose file, you will
+see that the attacker container is configured differently from the other
+containers. Here are the differences:
+
+\begin{itemize}
+\item \textit{Shared folder.} When we use the attacker container
+to launch attacks, we need to put the attacking code inside
+the container.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/container/volumes}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\item \textit{Privileged mode.}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/container/privileged_mode}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{itemize}
+
+
+% -------------------------------------------
+% SUBSECTION
+% -------------------------------------------
+\subsection{Packet Sniffing} 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/container/sniffing}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Task 1: ARP Cache Poisoning}
+
+
+The objective of this task is to use packet spoofing to launch an ARP cache poisoning attack on
+a target, such that when two victim machines A and B try to communicate with each other, their
+packets will be intercepted by the attacker, who can make changes to the packets, and can thus
+become the man in the middle between A and B. This is called Man-In-The-Middle (MITM) attack.
+In this task, we focus on the ARP cache poisoning part.
+The following code skeleton shows how to construct an ARP packet using Scapy. 
+
+\begin{lstlisting}
+#!/usr/bin/env python3
+from scapy.all import *
+
+E = Ether()
+A = ARP()
+A.op = 1     # 1 for ARP request; 2 for ARP reply
+
+pkt = E/A
+sendp(pkt)
+\end{lstlisting}
+
+The above program constructs and sends an ARP packet. Please set necessary attribute
+names/values to define your own ARP packet. We can use \texttt{ls(ARP)}
+and \texttt{ls(Ether)} to see the attribute names of the \texttt{ARP} and \texttt{Ether} classes. 
+If a field is not set, a default value will be used (see the third
+column of the output):
+
+\begin{lstlisting}
+$ python3
+>>> from scapy.all import *
+
+>>> ls(Ether)
+dst        : DestMACField                        = (None)
+src        : SourceMACField                      = (None)
+type       : XShortEnumField                     = (36864)
+
+>>> ls(ARP)
+hwtype     : XShortField                         = (1)
+ptype      : XShortEnumField                     = (2048)
+hwlen      : ByteField                           = (6)
+plen       : ByteField                           = (4)
+op         : ShortEnumField                      = (1)
+hwsrc      : ARPSourceMACField                   = (None)
+psrc       : SourceIPField                       = (None)
+hwdst      : MACField                            = ('00:00:00:00:00:00')
+pdst       : IPField                             = ('0.0.0.0')
+\end{lstlisting}
+
+In this task, we have three machines (containers), A, B, and M. 
+We use M as the attacker machine. We would like to cause 
+A to add a fake entry to its ARP cache, such that 
+B's IP address is mapped to M's MAC address.
+We can check a computer's ARP cache using the following command. If you 
+want to look at the ARP cache associated with a specific
+interface, you can use the \texttt{-i} option. 
+
+\begin{lstlisting}
+$ arp -n
+Address     HWtype  HWaddress           Flags Mask  Iface
+10.0.2.1    ether   52:54:00:12:35:00   C           enp0s3
+10.0.2.3    ether   08:00:27:48:f4:0b   C           enp0s3
+\end{lstlisting}
+
+There are many ways to conduct ARP cache poisoning attack. Students need to try the following
+three methods, and report whether each method works or not. 
+
+\begin{itemize}
+\item \textbf{Task 1.A (using ARP request).} On host M, construct an ARP request packet 
+  to map B's IP address to M's MAC address. Send the packet to A and 
+  check whether the attack is successful or not.
+    
+\item \textbf{Task 1.B (using ARP reply).} On host M, construct an ARP reply packet 
+  to map B's IP address to M's MAC address. Send the packet to A and 
+  check whether the attack is successful or not.
+  Try the attack under the following two scenarios, and report the results of your attack: 
+  
+    \begin{itemize}
+      \item Scenario 1: B's IP is already in A's cache.
+      \item Scenario 2: B's IP is not in A's cache. You can use the 
+	    command \texttt{"arp -d a.b.c.d"} to remove the ARP cache 
+	    entry for the IP address \texttt{a.b.c.d}.  
+    \end{itemize}
+     
+    
+\item \textbf{Task 1.C (using ARP gratuitous message).} On host M, construct an ARP gratuitous
+packet, and use it to map B's IP address to M's MAC address. Please launch the attack
+under the same two scenarios as those described in Task 1.B. 
+
+ARP gratuitous packet is a special ARP request packet. It is used when a host machine
+needs to update outdated information on all the other machine's ARP cache. The gratuitous ARP
+packet has the following characteristics:
+
+\begin{itemize}
+\item The source and destination IP addresses are the same, and they are the IP address of the
+host issuing the gratuitous ARP.
+
+\item The destination MAC addresses in both ARP header and Ethernet header are the broadcast
+MAC address ({\tt ff:ff:ff:ff:ff:ff}).
+
+\item No reply is expected.
+\end{itemize}
+\end{itemize}
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Task 2: MITM Attack on Telnet using ARP Cache Poisoning}
+
+Hosts A and B are communicating using Telnet, and Host M wants to intercept their
+communication, so it can make changes to the data sent between A and B. The setup is depicted
+in Figure~\ref{arp:fig:telnet_mitm}. We have already created an account called
+\texttt{"seed"} inside the container, the password is \texttt{"dees"}. You can 
+telnet into this account. 
+
+\begin{figure}
+    \centering
+    \includegraphics[width=0.8\textwidth]{\arpFigs/telnet_mitm.pdf}
+    \caption{Man-In-The-Middle Attack against telnet}
+    \label{arp:fig:telnet_mitm}
+\end{figure}
+
+
+\paragraph{Step 1 (Launch the ARP cache poisoning attack).} First, Host M conducts an ARP cache
+poisoning attack on both A and B, such that in A's ARP cache, B's IP address maps to M's MAC
+address, and in B's ARP cache, A's IP address also maps to M's MAC address. After this step,
+packets sent between A and B will all be sent to M. We will use the ARP cache poisoning attack
+from Task 1 to achieve this goal. It is better that you send out the spoofed packets
+constantly (e.g. every 5 seconds); otherwise, the fake entries may be replaced by 
+the real ones. 
+
+
+
+\paragraph{Step 2 (Testing).} After the attack is successful, please try to ping each other
+between Hosts A and B, and report your observation. Please show Wireshark results in your
+report. Before doing this step, please make sure that the IP forwarding on Host M is turned
+off. You can do that with the following command:
+
+\begin{lstlisting}
+# sysctl net.ipv4.ip_forward=0
+\end{lstlisting}
+
+\paragraph{Step 3 (Turn on IP forwarding).} Now we turn on the IP forwarding on Host M, so it
+will forward the packets between A and B. Please run the following command and repeat Step 2.
+Please describe your observation. 
+
+\begin{lstlisting}
+# sysctl net.ipv4.ip_forward=1
+\end{lstlisting}
+
+\paragraph{Step 4 (Launch the MITM attack).} We are ready to make changes to the Telnet data
+between A and B. Assume that A is the Telnet client and B is the Telnet server. After A has
+connected to the Telnet server on B, for every key stroke typed in A's Telnet window, a TCP
+packet is generated and sent to B. We would like to intercept the TCP packet, and replace each
+typed character with a fixed character (say Z). This way, it does not matter what the user
+types on A, Telnet will always display Z.
+
+From the previous steps, we are able to redirect the TCP packets to Host M, but instead of
+forwarding them, we would like to replace them with a spoofed packet. We will write a
+sniff-and-spoof program to accomplish this goal. In particular, we would like to do the
+following: 
+
+\begin{itemize}
+
+\item We first keep the IP forwarding on, so we can successfully create a Telnet connection
+between A to B. Once the connection is established, we turn off the IP forwarding using the
+following command. Please type something on A's Telnet window, and report your observation: 
+
+\begin{lstlisting}
+# sysctl net.ipv4.ip_forward=0
+\end{lstlisting}
+
+\item We run our sniff-and-spoof program on Host M, such that for the captured packets sent
+from A to B,  we spoof a packet but with TCP different data. For packets from B to A (Telnet
+response), we do not make any change, so the spoofed packet is exactly the same as the original
+one. 
+\end{itemize} 
+
+To help students get started, we provide a skeleton sniff-and-spoof
+program below. The program captures all the TCP packets, and
+then for packets from A to B, it makes some changes (the modification
+part is not included, because that is part of the task). For packets from
+B to A, the program does not make any change.  
+
+\begin{lstlisting}
+#!/usr/bin/env python3
+from scapy.all import *
+
+IP_A = "10.9.0.5"
+MAC_A = "02:42:0a:09:00:05"
+IP_B = "10.9.0.6"
+MAC_B = "02:42:0a:09:00:06"
+
+
+def spoof_pkt(pkt):
+    if pkt[IP].src == IP_A and pkt[IP].dst == IP_B:
+         # Create a new packet based on the captured one.
+         # 1) We need to delete the checksum in the IP & TCP headers, 
+         #    because our modification will make them invalid.
+         #    Scapy will recalculate them if these fields are missing. 
+         # 2) We also delete the original TCP payload.
+
+         newpkt = IP(bytes(pkt[IP]))
+         del(newpkt.chksum)
+         del(newpkt[TCP].payload)
+         del(newpkt[TCP].chksum)
+
+         #################################################################
+         # Construct the new payload based on the old payload.
+         # Students need to implement this part.
+
+         if pkt[TCP].payload:
+             data = pkt[TCP].payload.load  # The original payload data
+             newdata = data   # No change is made in this sample code
+
+             send(newpkt/newdata)
+         else:
+             send(newpkt)
+         ################################################################
+
+    elif pkt[IP].src == IP_B and pkt[IP].dst == IP_A:
+         # Create new packet based on the captured one 
+         # Do not make any change 
+
+         newpkt = IP(bytes(pkt[IP]))
+         del(newpkt.chksum)
+         del(newpkt[TCP].chksum)
+         send(newpkt)
+
+
+f = 'tcp'
+pkt = sniff(iface='eth0', filter=f, prn=spoof_pkt)
+\end{lstlisting}
+
+
+It should be noted that the code above captures all the TCP 
+packets, including the one generated by the program itself. That is 
+undesirable, as it will affect
+the performance. Students need to change the filter, so it does not capture
+its own packets. 
+
+
+\paragraph{Behavior of Telnet.}
+In Telnet, typically, every character we type in the Telnet window triggers
+an individual TCP packet, but if you type very fast, some characters may be 
+sent together in the same packet. 
+That is why in a typical Telnet packet from client to server, 
+the payload only contains one character.  The
+character sent to the server will be echoed back by the server, 
+and the client will then display the
+character in its window. Therefore, what we see in the client window is not the direct result
+of the typing; whatever we type in the client window takes a round trip before it is displayed.
+If the network is disconnected, whatever we typed on the client window will not displayed,
+until the network is recovered. Similarly, if attackers change the character to Z during the
+round trip, Z will be displayed at the Telnet client window, even though
+that is not what you have typed.
+
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Task 3: MITM Attack on Netcat using ARP Cache Poisoning}
+
+This task is similar to Task 2, except that
+Hosts A and B are communicating using \texttt{netcat}, instead of \texttt{telnet}.
+Host M wants to intercept their
+communication, so it can make changes to the data sent between A and B.
+You can use the following commands to establish a \texttt{netcat} TCP
+connection between A and B:
+
+
+\begin{lstlisting}
+On Host B (server, IP address is 10.9.0.6), run the following:
+# nc -lp 9090
+
+On Host A (client), run the following:
+# nc 10.9.0.6 9090
+\end{lstlisting}
+ 
+
+Once the connection is made, you can type messages on A.
+Each line of messages will be put into a TCP packet sent 
+to B, which simply displays the message.  
+Your task is to replace every occurrence of your first name in the 
+message with a sequence of A's. The length of the sequence should be the 
+same as that of your first name, or you will mess up the TCP sequence
+number, and hence the entire TCP connection. You need to use your real
+first name, so we know the work is done by you.  
+
+
+
+% *******************************************
+% SECTION
+% ******************************************* 
+\section{Submission}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{\commonfolder/submission}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+\end{document}
+
+
+

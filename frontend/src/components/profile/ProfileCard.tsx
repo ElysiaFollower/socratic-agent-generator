@@ -77,6 +77,7 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
   const { t } = useTranslation();
   const displayName = profile.profile_name || profile.topic_name || "-";
   const stepCount = extractCurriculumSteps(profile.curriculum).length;
+  const documentStatus = profile.document_status || "unlinked";
   const isHighlighted = Boolean(highlight || selected);
   const isClickable = Boolean(onClick || onSelectToggle);
 
@@ -121,6 +122,17 @@ export function ProfileCard(props: ProfileCardProps): JSX.Element {
           <Typography variant='caption' color='text.secondary'>
             {t("profile.card.learningSteps")}: {stepCount}
             {t("profile.card.stepsCount")}
+          </Typography>
+        </Stack>
+        <Stack direction='row' spacing={1} alignItems='flex-start'>
+          <DescriptionOutlined
+            fontSize='small'
+            color={documentStatus === "available" ? "success" : "warning"}
+            sx={{ mt: "2px" }}
+          />
+          <Typography variant='caption' color='text.secondary'>
+            {t("profile.card.documentReference")}:{" "}
+            {t(`profile.card.documentStatus.${documentStatus}`)}
           </Typography>
         </Stack>
       </Stack>
@@ -198,6 +210,7 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
   const { getUserDisplayName } = useUsers();
   const { t } = useTranslation();
   const displayName = profile.profile_name || profile.topic_name || "-";
+  const documentStatus = profile.document_status || "unlinked";
 
   // Owner display name state
   const [ownerDisplayName, setOwnerDisplayName] = useState<string>("");
@@ -429,6 +442,20 @@ export function ProfileDetailCard(props: ProfileDetailCardProps): JSX.Element {
               />
               <Typography variant='body2' color='text.secondary'>
                 {t("profile.card.audience")}: {profile.target_audience || "-"}
+              </Typography>
+            </Stack>
+            <Stack direction='row' spacing={1} alignItems='flex-start'>
+              <DescriptionOutlined
+                fontSize='small'
+                color={documentStatus === "available" ? "success" : "warning"}
+                sx={{ mt: "2px" }}
+              />
+              <Typography variant='body2' color='text.secondary'>
+                {t("profile.card.documentReference")}:{" "}
+                {t(`profile.card.documentStatus.${documentStatus}`)}
+                {profile.document_source?.storage_path
+                  ? ` (${profile.document_source.storage_path})`
+                  : ""}
               </Typography>
             </Stack>
           </Stack>

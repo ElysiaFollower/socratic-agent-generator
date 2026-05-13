@@ -8,7 +8,8 @@ class Document(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
-    # ✅ 新增：文档所有者
+    # Built-in documents use the reserved "builtin" owner ID. User-uploaded
+    # documents carry the creating user's ID.
     owner_id = Column(String, ForeignKey("users.user_id"), nullable=False, index=True)
     
     # ✅ 修改：doc_name 不再全局唯一，改为在 owner_id 范围内唯一
