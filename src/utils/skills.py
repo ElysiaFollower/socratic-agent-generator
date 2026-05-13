@@ -19,6 +19,7 @@ from langchain_text_splitters import MarkdownHeaderTextSplitter, RecursiveCharac
 
 from config import RAW_DATA_DIR, DATA_DIR, DOCUMENTS_DIR, ROOT_DIR
 from core.database import SessionLocal
+from models.document import Document
 from schemas.session import Session
 from utils.document_manager import DocumentManager
 from utils.embedding_provider import create_embeddings
@@ -201,7 +202,12 @@ class LabManualSkill(BaseSkill):
     to retrieve ground-truth information about the lab.
     """
 
-    def __init__(self, topic_name: str, lab_name: Optional[str] = None):
+    def __init__(
+        self,
+        topic_name: str,
+        lab_name: Optional[str] = None,
+        document_id: Optional[int] = None,
+    ):
         """Initialize the LabManualSkill.
 
         Args:
@@ -211,6 +217,7 @@ class LabManualSkill(BaseSkill):
         super().__init__("lab_manual")
         self.topic_name = topic_name
         self.lab_name = lab_name or topic_name
+        self.document_id = document_id
         self.embeddings = self._get_embeddings()
 
         # Resolve vector store path from DB
@@ -226,21 +233,23 @@ class LabManualSkill(BaseSkill):
                     _EMBEDDINGS_CACHE = _load_embeddings()
         return _EMBEDDINGS_CACHE
 
+    def _resolve_document(self, db) -> Optional[Document]:
+        if self.document_id is not None:
+            return DocumentManager(db).get_document_by_id(self.document_id)
+        if not self.lab_name:
+            return None
+        return DocumentManager(db).get_document_by_name(self.lab_name)
+
     def _resolve_vector_store_path(self) -> Optional[Path]:
-        """Resolve vector store path using DocumentManager."""
+        """Resolve vector store path using the linked Document when available."""
         if not self.lab_name:
             return None
 
         with SessionLocal() as db:
-            dm = DocumentManager(db)
-            # ✅ 注意：lab_name现在可能不是全局唯一的
-            # 如果有多个同名文档，get_document_by_name会返回第一个
-            # 理想情况下应该通过Profile的document_id来查找，但这里保持向后兼容
-            doc = dm.get_document_by_name(self.lab_name)
+            doc = self._resolve_document(db)
             if doc and doc.index_path:
                 index_path = Path(doc.index_path)
                 if not index_path.is_absolute():
-                    # 如果是相对路径，尝试相对于项目根目录
                     index_path = ROOT_DIR / index_path
                 return index_path
 
@@ -283,12 +292,10 @@ class LabManualSkill(BaseSkill):
         original_format = None
         
         with SessionLocal() as db:
-            dm = DocumentManager(db)
-            doc = dm.get_document_by_name(self.lab_name)
+            doc = self._resolve_document(db)
             if doc and doc.storage_path:
                 lab_manual_path = Path(doc.storage_path)
                 if not lab_manual_path.is_absolute():
-                    # ✅ 如果是相对路径，尝试相对于项目根目录
                     lab_manual_path = ROOT_DIR / lab_manual_path
                 original_format = doc.meta_info.get("original_format") if doc.meta_info else None
 
@@ -306,8 +313,8 @@ class LabManualSkill(BaseSkill):
                 text = f.read()
 
             # 根据原始格式选择分割策略
-            if original_format == "pdf":
-                # PDF使用通用文本分割器
+            if original_format in {"pdf", "tex", "txt"}:
+                # Non-Markdown sources use a generic splitter.
                 splitter = RecursiveCharacterTextSplitter(
                     chunk_size=1500,
                     chunk_overlap=200,
@@ -316,7 +323,8 @@ class LabManualSkill(BaseSkill):
                 )
                 docs = splitter.create_documents([text])
                 logger.info(
-                    "Using RecursiveCharacterTextSplitter for PDF: %d chunks created",
+                    "Using RecursiveCharacterTextSplitter for %s: %d chunks created",
+                    original_format,
                     len(docs)
                 )
             else:
@@ -350,16 +358,18 @@ class LabManualSkill(BaseSkill):
             with SessionLocal() as db:
                 dm = DocumentManager(db)
                 # Ensure doc exists
-                doc = dm.get_document_by_name(self.lab_name)
+                doc = self._resolve_document(db)
                 if not doc:
                      # Create if missing (auto-registration)
                      doc = dm.create_document(
+                         owner_id="builtin",
                          doc_name=self.lab_name,
                          filename=lab_manual_path.name,
                          storage_path=str(lab_manual_path)
                      )
 
-                dm.update_index_path(self.lab_name, str(save_path))
+                doc.index_path = str(save_path)
+                db.commit()
 
             return vector_store
 

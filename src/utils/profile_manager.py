@@ -115,10 +115,18 @@ class ProfileManager:
         # Check if exists to update or insert
         existing = self.db.query(ProfileModel).filter(ProfileModel.profile_id == profile.profile_id).first()
 
-        # Resolve document_id from lab_name if possible
-        document_id = None
-        if profile.lab_name:
-            doc = self.db.query(Document).filter(Document.doc_name == profile.lab_name).first()
+        # Resolve document_id from lab_name if possible. Built-in/default
+        # profiles pass an explicit document_id so RAG does not depend on a
+        # non-unique lab_name lookup.
+        document_id = profile.document_id
+        if document_id is None and profile.lab_name:
+            query = self.db.query(Document).filter(Document.doc_name == profile.lab_name)
+            if profile.owner_id is not None:
+                doc = query.filter(Document.owner_id == profile.owner_id).first()
+            else:
+                doc = query.filter(Document.owner_id == "builtin").first()
+            if doc is None:
+                doc = query.first()
             if doc:
                 document_id = doc.id
 

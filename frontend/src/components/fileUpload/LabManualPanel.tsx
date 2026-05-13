@@ -150,7 +150,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
    * Applies a selected file.
    */
   const applySelectedFile = (file: File) => {
-    const allowedExtensions = [".md", ".txt", ".markdown", ".pdf"];
+    const allowedExtensions = [".md", ".txt", ".markdown", ".tex", ".pdf"];
     const fileExtension = file.name.toLowerCase().split(".").pop();
     if (fileExtension && !allowedExtensions.includes(`.${fileExtension}`)) {
       notifyError(
@@ -192,7 +192,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       multiple: false,
       accept: {
         "text/markdown": [".md", ".markdown"],
-        "text/plain": [".txt"],
+        "text/plain": [".txt", ".tex"],
         "application/pdf": [".pdf"], // 新增PDF支持
       },
       maxSize: 10 * 1024 * 1024, // 10MB限制（可选，后端也会验证）
@@ -283,9 +283,19 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
    * Handles deleting a lab manual.
    */
   const handleDelete = async (labName: string) => {
+    const lab = labManuals.find((item) => item.lab_name === labName);
+    const referencedProfiles = lab?.referenced_profiles ?? [];
+    const referenceSummary =
+      referencedProfiles.length > 0
+        ? `\n\n${t("labManual.deleteReferencedProfiles")}\n${referencedProfiles
+            .map((profile) => `- ${profile.profile_name || profile.profile_id}`)
+            .join("\n")}\n\n${t("labManual.deleteUnlinkNotice")}`
+        : "";
     const shouldDelete = await confirm({
       title: t("labManual.deleteConfirmTitle"),
-      description: t("labManual.deleteConfirmDescription", { labName }),
+      description:
+        t("labManual.deleteConfirmDescription", { labName }) +
+        referenceSummary,
       confirmLabel: t("labManual.deleteConfirmButton"),
       confirmColor: "error",
     });
@@ -295,9 +305,14 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
 
     setDeletingLab(labName);
     try {
-      await deleteLabManual(labName);
+      const response = await deleteLabManual(labName);
       await loadLabManuals();
-      notifySuccess(t("labManual.deletedSuccess", { labName }));
+      notifySuccess(
+        t("labManual.deletedSuccess", {
+          labName,
+          count: response.affected_profile_count,
+        }),
+      );
       if (viewingLabName === labName) {
         setViewingLabName(null);
         setViewingContent(null);
@@ -558,6 +573,13 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                       <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
                         {lab.lab_name}
                       </Typography>
+                      {(lab.referenced_profile_count ?? 0) > 0 && (
+                        <Typography variant='caption' color='text.secondary'>
+                          {t("labManual.referencedProfileCount", {
+                            count: lab.referenced_profile_count,
+                          })}
+                        </Typography>
+                      )}
                       <Stack direction='row' spacing={1} sx={{ mt: 1 }}>
                         {renderStatusIcon(
                           t("labManual.documentStatus"),

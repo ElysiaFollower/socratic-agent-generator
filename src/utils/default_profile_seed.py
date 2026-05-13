@@ -16,6 +16,7 @@ from typing import Callable, Iterable
 from sqlalchemy.orm import Session
 
 from config import ROOT_DIR
+from models.document import Document
 from models.profile import ProfileModel
 from schemas.profile import Profile
 from utils.converters import profile_to_model
@@ -23,6 +24,17 @@ from utils.converters import profile_to_model
 logger = logging.getLogger(__name__)
 
 DEFAULT_PROFILE_SOURCE_DIR = ROOT_DIR / "docs" / "manual-enhance" / "calibrated"
+DEFAULT_VECTOR_STORE_DIR = ROOT_DIR / "data" / "vector_stores" / "builtin"
+BUILTIN_DOCUMENT_OWNER_ID = "builtin"
+
+ORIGINAL_SEEDRUNNER_MANUALS = {
+    "ARP_Attack": "/Users/ely/workspace/research/agent/SEEDRunner/runs/ARP_Attack/docs/ARP_Attack.tex",
+    "LocalDNSAttack": "/Users/ely/workspace/research/agent/SEEDRunner/runs/LocalDNSAttack/docs/DNS_Local.tex",
+    "RemoteDNSAttack": "/Users/ely/workspace/research/agent/SEEDRunner/runs/RemoteDNSAttack/docs/DNS_Remote.tex",
+    "Sniffing_Spoofing": "/Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/docs/Sniffing_Spoofing.tex",
+    "TCP_Attacks": "/Users/ely/workspace/research/agent/SEEDRunner/runs/TCP_Attacks/docs/TCP_Attacks.tex",
+    "VPN_Tunnel": "/Users/ely/workspace/research/agent/SEEDRunner/runs/VPN_Tunnel/docs/VPN_Tunnel.tex",
+}
 
 
 @dataclass(frozen=True)
@@ -33,6 +45,8 @@ class DefaultProfileSeedResult:
     discovered: int
     inserted: int
     updated: int
+    documents_inserted: int
+    documents_updated: int
 
 
 def iter_default_profile_files(
@@ -53,6 +67,56 @@ def load_default_profile(path: Path) -> Profile:
     return profile
 
 
+def _repo_relative(path: Path) -> str:
+    return str(path.relative_to(ROOT_DIR))
+
+
+def _ensure_builtin_document(db: Session, lab_id: str, lab_dir: Path) -> tuple[Document, bool]:
+    manual_path = lab_dir / "lab_manual.tex"
+    if not manual_path.exists():
+        raise FileNotFoundError(f"Built-in lab manual not found: {manual_path}")
+
+    storage_path = _repo_relative(manual_path)
+    index_path = _repo_relative(DEFAULT_VECTOR_STORE_DIR / lab_id)
+    meta_info = {
+        "source": "manual_enhance_calibrated",
+        "is_builtin": True,
+        "original_format": "tex",
+        "artifact_path": storage_path,
+        "external_source_path": ORIGINAL_SEEDRUNNER_MANUALS.get(lab_id),
+        "profile_source": _repo_relative(lab_dir / "profile.json"),
+        "curriculum_source": _repo_relative(lab_dir / "curriculum.json"),
+    }
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.owner_id == BUILTIN_DOCUMENT_OWNER_ID,
+            Document.doc_name == lab_id,
+        )
+        .first()
+    )
+    inserted = document is None
+    if document is None:
+        document = Document(
+            owner_id=BUILTIN_DOCUMENT_OWNER_ID,
+            doc_name=lab_id,
+            filename="lab_manual.tex",
+            storage_path=storage_path,
+            index_path=index_path,
+            meta_info=meta_info,
+        )
+        db.add(document)
+        db.flush()
+    else:
+        document.filename = "lab_manual.tex"
+        document.storage_path = storage_path
+        document.index_path = index_path
+        document.meta_info = meta_info
+
+    return document, inserted
+
+
 def seed_default_profiles(
     session_factory: Callable[[], Session],
     source_dir: Path = DEFAULT_PROFILE_SOURCE_DIR,
@@ -66,11 +130,20 @@ def seed_default_profiles(
     profile_paths = list(iter_default_profile_files(source_dir))
     inserted = 0
     updated = 0
+    documents_inserted = 0
+    documents_updated = 0
 
     with session_factory() as db:
         for path in profile_paths:
             profile = load_default_profile(path)
-            model = profile_to_model(profile, document_id=None)
+            document, document_inserted = _ensure_builtin_document(
+                db, profile.lab_name or path.parent.name, path.parent
+            )
+            if document_inserted:
+                documents_inserted += 1
+            else:
+                documents_updated += 1
+            model = profile_to_model(profile, document_id=document.id)
             existing = (
                 db.query(ProfileModel)
                 .filter(ProfileModel.profile_id == profile.profile_id)
@@ -83,7 +156,7 @@ def seed_default_profiles(
                 existing.lab_name = model.lab_name
                 existing.owner_id = None
                 existing.visible_class_ids = []
-                existing.document_id = None
+                existing.document_id = document.id
                 existing.persona_hints = model.persona_hints
                 existing.target_audience = model.target_audience
                 existing.curriculum = model.curriculum
@@ -101,12 +174,16 @@ def seed_default_profiles(
         discovered=len(profile_paths),
         inserted=inserted,
         updated=updated,
+        documents_inserted=documents_inserted,
+        documents_updated=documents_updated,
     )
     logger.info(
-        "Seeded default profiles from %s (discovered=%d, inserted=%d, updated=%d)",
+        "Seeded default profiles from %s (discovered=%d, inserted=%d, updated=%d, documents_inserted=%d, documents_updated=%d)",
         result.source_dir,
         result.discovered,
         result.inserted,
         result.updated,
+        result.documents_inserted,
+        result.documents_updated,
     )
     return result

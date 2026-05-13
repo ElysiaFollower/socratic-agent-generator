@@ -9,7 +9,10 @@ outside this repository under `/Users/ely/workspace/research/agent/SEEDRunner/ru
 - `corpus-manifest.json`: external source paths, file sizes, and source notes.
 - `generated/<lab>/`: first-pass generator output from the current system.
 - `calibrated/<lab>/`: manually adjusted profile and curriculum JSON. These
-  profiles are seeded into SQLite on startup as built-in public profiles.
+  profiles are seeded into SQLite on startup as built-in public profiles. Each
+  lab also carries `lab_manual.tex`, copied from the verified SEEDRunner run, so
+  the default database can create a matching built-in `Document` and link the
+  profile to a real lab manual for RAG.
 - `generation-run-summary.json`: first-pass generation summary.
 - `calibrated-profile-summary.json`: calibrated profile summary.
 - `mismatch-taxonomy.json`: recurring ways the generated node flow diverged from real lab experience.
@@ -58,7 +61,7 @@ Validate artifacts:
 PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q
 ```
 
-Validate startup database seeding:
+Validate startup database seeding and built-in document/profile links:
 
 ```sh
 PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py -q

@@ -5,9 +5,12 @@ from schemas.user import User
 from models.profile import ProfileModel
 from models.session import SessionModel
 from models.user import UserModel
+from config import ROOT_DIR
+from pathlib import Path
 
 def profile_to_model(profile: Profile, document_id: int = None) -> ProfileModel:
     """Convert Pydantic Profile to SQLAlchemy ProfileModel."""
+    resolved_document_id = document_id if document_id is not None else profile.document_id
     return ProfileModel(
         profile_id=profile.profile_id,
         profile_name=profile.profile_name,
@@ -15,7 +18,7 @@ def profile_to_model(profile: Profile, document_id: int = None) -> ProfileModel:
         lab_name=profile.lab_name,
         owner_id=profile.owner_id,
         visible_class_ids=profile.visible_class_ids or [],
-        document_id=document_id,
+        document_id=resolved_document_id,
         persona_hints=profile.persona_hints,
         target_audience=profile.target_audience,
         curriculum=profile.curriculum.model_dump(), # Convert to dict/list
@@ -28,12 +31,47 @@ def model_to_profile(model: ProfileModel) -> Profile:
     # Handle curriculum conversion
     # model.curriculum should be a list (from JSON column)
     curriculum = SocraticCurriculum.model_validate(model.curriculum)
+    document_status = None
+    document_source = None
+    if model.document_id is not None:
+        doc = model.document
+        if doc is None:
+            document_status = "missing"
+        else:
+            storage_path = doc.storage_path
+            resolved_path = None
+            if storage_path:
+                resolved_path = Path(storage_path)
+                if not resolved_path.is_absolute():
+                    resolved_path = ROOT_DIR / resolved_path
+            document_status = (
+                "available"
+                if resolved_path and resolved_path.exists()
+                else "missing"
+            )
+            meta_info = doc.meta_info or {}
+            document_source = {
+                "document_id": doc.id,
+                "doc_name": doc.doc_name,
+                "owner_id": doc.owner_id,
+                "filename": doc.filename,
+                "storage_path": doc.storage_path,
+                "index_path": doc.index_path,
+                "is_builtin": bool(meta_info.get("is_builtin")),
+                "source": meta_info.get("source"),
+                "external_source_path": meta_info.get("external_source_path"),
+            }
+    elif model.lab_name:
+        document_status = "unlinked"
 
     return Profile(
         profile_id=model.profile_id,
         profile_name=model.profile_name,
         topic_name=model.topic_name,
         lab_name=model.lab_name,
+        document_id=model.document_id,
+        document_status=document_status,
+        document_source=document_source,
         owner_id=model.owner_id,
         visible_class_ids=model.visible_class_ids or [],
         persona_hints=model.persona_hints or [],

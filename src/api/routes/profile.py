@@ -19,6 +19,7 @@ from core.dependencies import ProfileManagerDep, DocumentManagerDep, ClassManage
 from core.exceptions import ProfileNotFoundError
 from generators.ProfileGenerateManager import ProfileGenerateManager
 from models.document import Document
+from models.profile import ProfileModel
 from pydantic import BaseModel, Field
 from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
@@ -33,6 +34,24 @@ MAX_PDF_SIZE = 10 * 1024 * 1024  # 10MB limit for PDF files
 MIN_EXTRACTED_TEXT_LENGTH = 100  # Minimum length for extracted PDF text
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile"])
+
+
+def _document_references(document_manager: DocumentManagerDep, doc_id: int) -> List[dict]:
+    models = (
+        document_manager.db.query(ProfileModel)
+        .filter(ProfileModel.document_id == doc_id)
+        .order_by(ProfileModel.profile_name.asc())
+        .all()
+    )
+    return [
+        {
+            "profile_id": model.profile_id,
+            "profile_name": model.profile_name,
+            "lab_name": model.lab_name,
+            "owner_id": model.owner_id,
+        }
+        for model in models
+    ]
 
 
 def check_document_access(
@@ -71,6 +90,8 @@ def check_document_access(
             current_user.user_id, 
             lab_name
         )
+        if not doc:
+            doc = document_manager.get_document_by_owner_and_name("builtin", lab_name)
         if not doc:
             raise HTTPException(
                 status_code=404,
@@ -168,18 +189,25 @@ def list_lab_manuals(
     if current_user.role == "admin":
         docs = document_manager.list_documents()
     else:
-        docs = document_manager.list_documents_by_owner(current_user.user_id)
+        docs = document_manager.db.query(Document).filter(
+            (Document.owner_id == current_user.user_id) | (Document.owner_id == "builtin")
+        ).order_by(Document.upload_time.desc()).all()
     
     lab_manuals = []
     for doc in docs:
         lab_dir = Path(doc.storage_path).parent
         if not lab_dir.is_absolute():
             lab_dir = ROOT_DIR / lab_dir
+        lab_manual_path = Path(doc.storage_path)
+        if not lab_manual_path.is_absolute():
+            lab_manual_path = ROOT_DIR / lab_manual_path
+        meta_info = doc.meta_info or {}
+        references = _document_references(document_manager, doc.id)
         
         # ✅ 检查文件是否存在（使用绝对路径）
         has_persona = (lab_dir / "definition.json").exists()
         has_curriculum = (lab_dir / "curriculum.json").exists()
-        has_lab_manual = (lab_dir / "lab_manual.md").exists()
+        has_lab_manual = lab_manual_path.exists()
         
         lab_manuals.append({
             "lab_name": doc.doc_name,
@@ -189,6 +217,9 @@ def list_lab_manuals(
             "has_lab_manual": has_lab_manual,  # ✅ 明确返回是否有lab_manual
             "has_persona": has_persona,
             "has_curriculum": has_curriculum,
+            "is_builtin": bool(meta_info.get("is_builtin")),
+            "referenced_profiles": references,
+            "referenced_profile_count": len(references),
         })
     
     return sorted(lab_manuals, key=lambda x: x["lab_name"])
@@ -253,12 +284,26 @@ def delete_lab_manual(
     lab_dir = Path(doc.storage_path).parent
     if not lab_dir.is_absolute():
         lab_dir = ROOT_DIR / lab_dir
+    index_dir = Path(doc.index_path) if doc.index_path else None
+    if index_dir and not index_dir.is_absolute():
+        index_dir = ROOT_DIR / index_dir
+    meta_info = doc.meta_info or {}
+    is_builtin = bool(meta_info.get("is_builtin"))
+    references = _document_references(document_manager, doc.id)
 
-    # Delete from DB
-    document_manager.delete_document(lab_name, current_user.user_id)
+    for profile_model in (
+        document_manager.db.query(ProfileModel)
+        .filter(ProfileModel.document_id == doc.id)
+        .all()
+    ):
+        profile_model.document_id = None
+    document_manager.db.commit()
 
-    # Delete files
-    if lab_dir.exists():
+    document_manager.delete_document_by_id(doc.id)
+
+    # Delete user-uploaded files. Built-in source artifacts are versioned repo
+    # fixtures, so deletion only removes their DB/index binding at runtime.
+    if not is_builtin and lab_dir.exists():
         try:
             shutil.rmtree(lab_dir)
             logger.info(
@@ -269,11 +314,19 @@ def delete_lab_manual(
         except Exception as e:
             logger.error("Failed to delete lab manual files: %s", e)
             # We continue even if file deletion fails, as DB record is gone
+    if index_dir and index_dir.exists():
+        try:
+            shutil.rmtree(index_dir)
+        except Exception as e:
+            logger.error("Failed to delete lab manual index: %s", e)
 
     return {
         "success": True,
         "message": f"Lab manual '{lab_name}' deleted successfully.",
         "lab_name": lab_name,
+        "affected_profiles": references,
+        "affected_profile_count": len(references),
+        "document_unlinked": True,
     }
 
 
@@ -525,7 +578,7 @@ async def upload_lab_manual(
             detail=f"Document '{lab_name}' already exists in file system. Please delete it first or use a different name."
         )
 
-    allowed_extensions = [".md", ".txt", ".markdown", ".pdf"]
+    allowed_extensions = [".md", ".txt", ".markdown", ".tex", ".pdf"]
     
     file_extension = ""
     if file.filename:
@@ -763,6 +816,7 @@ async def generate_profile(
             update={
                 "owner_id": current_user.user_id,
                 "visible_class_ids": [],
+                "document_id": doc.id,
             }
         )
 

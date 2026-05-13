@@ -1,7 +1,7 @@
 {
   "runs_root": "/Users/ely/workspace/research/agent/SEEDRunner/runs",
   "mode": "fast",
-  "raw_source_policy": "Raw reports and manuals remain external; this repo stores only paths, stats, generated profiles, and derived review notes.",
+  "raw_source_policy": "Verified lab manuals are copied into calibrated lab folders for default RAG seeding; reports, screenshots, logs, PDFs, archives, and user data remain external.",
   "labs": [
     {
       "lab_id": "ARP_Attack",

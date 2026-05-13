@@ -187,3 +187,22 @@
 - 补充正确答案后继续完成所有步骤，最终 `/api/tutor/362d3773-bc6e-41e2-a97e-bc76f82c54a1/state` 返回 `{"stepIndex":9,"totalSteps":9,"isFinished":true}`，会话历史 `history_len=30`，最后消息为完成提示。
 - 修复测试中暴露的流式稳定性问题：SSE 客户端断开时清理 `evaluation_pending` 锁；通过步骤后的过渡消息改为本地确定性生成，避免额外 LLM 调用拖住 `END`；完成态统一为 `stepIndex >= totalSteps`。
 - 验证：`python3 -m compileall src/api/routes/interaction.py src/schemas/session.py src/utils/tutor_core.py tests/test_session_progress.py` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_skill_names.py tests/test_default_profile_seed.py tests/test_session_progress.py -q` 通过 7 passed；`./scripts/harness-check.sh` 通过 0 warning；远端 health/frontend/session state 均通过。
+
+### 2026-05-13 - 归档 live demo example sessions
+
+- 用户确认通过 UI 观测验证系统有效；随后发现完整学生会话最初属于 `student_rag_demo_20260513`，不是导师演示使用的 `demo` 账号。
+- 已在 linux-01 将学生完整会话 `362d3773-bc6e-41e2-a97e-bc76f82c54a1` 迁移到 `demo` 用户名下，并复制对应 DreamingRAG memory 目录；用 `demo` 登录 API 验证 `/api/sessions` 可见该会话，`history_len=30`。
+- 补完 admin VPN 会话最后 TAP/TUN 节点，`65120875-88a4-48f8-b20c-0fade4b2e8c6` 最终返回 `stepIndex=10,totalSteps=10,isFinished=true`。
+- 新增 `docs/examples/live-demo-sessions/`，提交两个预制 example JSON：admin VPN 完整会话和 demo 学生 Sniffing/Spoofing 困难路径完整会话；只提交导出的会话内容和 profile 元数据，不提交 SQLite、向量索引、日志、token 或密码。
+- 新增 `tests/test_demo_session_examples.py`，校验 example 会话均为完成态、历史长度合理并标记不含凭据/API token。
+
+### 2026-05-13 - 修复内置 Profile 的 lab manual 来源链路
+
+- 用户指出 6 个默认 profile 虽然内容可用，但不是系统内生 `lab_manual -> profile -> 人工审核定稿` 路径里的数据，导致 Profile Management 和实验文档检索工具缺少真实 lab manual 元信息。
+- 将 SEEDRunner `runs/` 下 6 个实验的 `.tex` 手册复制为版本化内置 artifact：`docs/manual-enhance/calibrated/*/lab_manual.tex`。仍不提交报告、截图、日志、PDF、数据库、向量索引或用户数据。
+- 更新默认 seed：启动时为 6 个实验创建 owner_id=`builtin` 的内置 `Document` 记录，`storage_path` 指向版本化 `.tex`，`index_path` 指向 `data/vector_stores/builtin/<lab>`，并把内置 profile 的 `document_id` 关联到该文档。
+- 更新 RAG 查找：`LabManualSkill` 支持按 `document_id` 精确定位文档和索引，`.tex` 走通用文本 splitter；避免同名 lab 文档时误用第一个 `lab_name`。
+- 更新 Profile/API/UI：Profile schema/API 返回 `document_status` 和 `document_source`；Profile Management 卡片展示文档引用状态；Lab Manual Management 显示引用 profile 数。
+- 更新删除语义：删除 lab manual 时返回并提示引用它的 profile，删除后清空这些 profile 的 `document_id`，profile 保留但文档引用变为 `unlinked`，而不是级联删除或禁止删除。
+- 新增 `.tex` 上传支持；官方部署文档记录内置 SEED lab manual/profile seed、删除引用语义和部署 smoke。
+- 验证：`python3 -m compileall src tests` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py tests/test_demo_session_examples.py tests/test_session_progress.py tests/test_tutor_executor.py tests/test_skill_names.py -q` 通过 13 tests；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。

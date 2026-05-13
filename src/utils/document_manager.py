@@ -14,7 +14,7 @@ class DocumentManager:
 
     def create_document(
         self,
-        owner_id: str,  # ✅ 新增：必须指定所有者
+        owner_id: str,
         doc_name: str,
         filename: str,
         storage_path: str,
@@ -99,7 +99,7 @@ class DocumentManager:
     def delete_document(
         self, 
         doc_name: str,
-        owner_id: str  # ✅ 新增：必须指定所有者
+        owner_id: str
     ) -> None:
         """Delete a document by name and owner."""
         doc = self.get_document_by_owner_and_name(owner_id, doc_name)
@@ -112,6 +112,17 @@ class DocumentManager:
                 "Document not found for deletion: %s (owner=%s)", 
                 doc_name, owner_id
             )
+
+    def delete_document_by_id(self, doc_id: int) -> Optional[Document]:
+        """Delete a document by database ID and return the removed record."""
+        doc = self.get_document_by_id(doc_id)
+        if not doc:
+            logger.warning("Document not found for deletion by id: %s", doc_id)
+            return None
+        self.db.delete(doc)
+        self.db.commit()
+        logger.info("Deleted document id=%s name=%s", doc.id, doc.doc_name)
+        return doc
 
     def update_index_path(
         self, 

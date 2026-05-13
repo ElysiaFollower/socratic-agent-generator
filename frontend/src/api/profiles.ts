@@ -167,9 +167,19 @@ export async function generateProfile(
  */
 export interface LabManualInfo {
   readonly lab_name: string;
+  readonly owner_id?: string | null;
+  readonly filename?: string | null;
+  readonly is_builtin?: boolean;
   readonly has_lab_manual: boolean;
   readonly has_persona: boolean;
   readonly has_curriculum: boolean;
+  readonly referenced_profiles?: readonly {
+    readonly profile_id: string;
+    readonly profile_name?: string | null;
+    readonly lab_name?: string | null;
+    readonly owner_id?: string | null;
+  }[];
+  readonly referenced_profile_count?: number;
 }
 
 /**
@@ -227,9 +237,28 @@ export async function getLabManualContent(
  * @returns Promise resolving to success response
  * @throws Error if the request fails
  */
-export async function deleteLabManual(labName: string): Promise<void> {
+export interface DeleteLabManualResponse {
+  readonly success: boolean;
+  readonly message: string;
+  readonly lab_name: string;
+  readonly affected_profiles: readonly {
+    readonly profile_id: string;
+    readonly profile_name?: string | null;
+    readonly lab_name?: string | null;
+    readonly owner_id?: string | null;
+  }[];
+  readonly affected_profile_count: number;
+  readonly document_unlinked: boolean;
+}
+
+export async function deleteLabManual(
+  labName: string,
+): Promise<DeleteLabManualResponse> {
   try {
-    await apiClient.delete(`/api/profiles/lab-manuals/${labName}`);
+    const response = await apiClient.delete<DeleteLabManualResponse>(
+      `/api/profiles/lab-manuals/${labName}`,
+    );
+    return response.data;
   } catch (error) {
     throw new Error(`Failed to delete lab manual: ${handleApiError(error)}`);
   }

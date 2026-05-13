@@ -9,6 +9,7 @@ This is the maintained deployment path for Socratic Agent Generator. The default
 - Memory: DreamingRAG installed in the same backend Python environment.
 - Embeddings: Socratic document RAG and DreamingRAG memory both use Volcengine Ark by default.
 - Storage: local SQLite and file-system data under `data/`.
+- Built-in labs: the six calibrated SEED profiles ship with versioned `.tex` lab manuals and are seeded into SQLite as public profiles linked to built-in document records.
 
 DreamingRAG is installed by default because `DREAMINGRAG_MEMORY_ENABLED=true` is the default runtime configuration. If DreamingRAG is unavailable, the backend falls back to null memory, but that fallback is for resilience rather than the intended deployment state.
 
@@ -150,6 +151,20 @@ PY
 
 Mock mode is used for smoke checks so they do not consume provider API credits. Production should use `DREAMINGRAG_MEMORY_MOCK_MODE="false"`. The Socratic document RAG path still uses the shared Volcengine embedding provider in both smoke and production modes.
 
+Check that the default SEED lab profiles and their lab manual document links seed correctly:
+
+```bash
+PYTHONPATH=src python - <<'PY'
+from core.database import SessionLocal
+from models.profile import ProfileModel
+
+with SessionLocal() as db:
+    profiles = db.query(ProfileModel).filter(ProfileModel.owner_id.is_(None)).all()
+    print("builtin_profiles=", len(profiles))
+    print("document_links_ready=", all(profile.document_id for profile in profiles))
+PY
+```
+
 ## Start Services
 
 Terminal 1:
@@ -171,6 +186,8 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 ## Operational Notes
 
 - SQLite and runtime files are created under `data/`.
+- The six built-in SEED lab manuals are versioned under `docs/manual-enhance/calibrated/*/lab_manual.tex`. Runtime vector indexes for them are created under `data/vector_stores/builtin/`.
+- Deleting a lab manual from the UI removes the document record and vector index, and unlinks profiles that referenced it. The profiles remain visible but show an invalid/unlinked document reference until a document is restored or the profile is regenerated.
 - DreamingRAG memory storage is under `data/dreamingrag_memory/`.
 - Do not commit `.env`, SQLite databases, memory stores, vector indexes, logs, or provider keys.
 - Admin registration requires `ADMIN_TOKEN` to be configured before the backend starts.

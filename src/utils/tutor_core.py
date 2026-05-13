@@ -127,6 +127,7 @@ class Tutor:
         self.lab_manual_skill = LabManualSkill(
             self.session.profile.topic_name,
             lab_name=self.session.profile.lab_name,
+            document_id=self.session.profile.document_id,
         )
         self.pedagogy_skill = PedagogicalStrategySkill()
         self.assessment_skill = AssessmentSkill(self.session)

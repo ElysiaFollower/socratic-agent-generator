@@ -30,8 +30,11 @@ def test_calibrated_profiles_match_schema_and_summary():
     for item in summary:
         profile_path = ROOT / item["profile"]
         curriculum_path = ROOT / item["curriculum"]
+        manual_path = profile_path.parent / "lab_manual.tex"
         assert profile_path.exists(), profile_path
         assert curriculum_path.exists(), curriculum_path
+        assert manual_path.exists(), manual_path
+        assert manual_path.read_text(encoding="utf-8").strip()
 
         profile = Profile.model_validate(load_json(profile_path))
         curriculum = SocraticCurriculum.model_validate(load_json(curriculum_path))
@@ -53,7 +56,7 @@ def test_calibrated_profiles_match_schema_and_summary():
 def test_corpus_manifest_references_external_sources_without_copying_raw_files():
     manifest = load_json(MANUAL_ENHANCE_DIR / "corpus-manifest.json")
     assert manifest["runs_root"] == "/Users/ely/workspace/research/agent/SEEDRunner/runs"
-    assert "Raw reports and manuals remain external" in manifest["raw_source_policy"]
+    assert "Verified lab manuals are copied" in manifest["raw_source_policy"]
     assert {item["lab_id"] for item in manifest["labs"]} == EXPECTED_LABS
 
     for lab in manifest["labs"]:
