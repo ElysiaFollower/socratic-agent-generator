@@ -1,8 +1,8 @@
 """Long-term memory provider adapters for Tutor.
 
-The app's runtime should depend on this small interface, not directly on a
-research prototype. DreamingRAG can evolve behind this adapter without leaking
-its internal API across TutorCore.
+The app's runtime should depend on this small interface, not directly on an
+external memory system. DreamingRAG can evolve behind its public API without
+leaking implementation details across TutorCore.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional, Protocol, Sequence, Tuple
+from typing import Any, Optional, Protocol, Sequence
 
 from config import (
     DREAMINGRAG_MEMORY_CONTEXT_CHARS,
@@ -78,11 +78,11 @@ class NullMemoryProvider:
 
 
 class DreamingRAGMemoryProvider:
-    """Adapter around DreamingRAG's current memory facade.
+    """Adapter around DreamingRAG's public memory API.
 
-    This prototype intentionally uses only recall/write behavior. It does not
-    call DreamingBrain.interact(), so the Socratic Tutor remains responsible for
-    response generation, skills, streaming, and step evaluation.
+    Socratic Tutor keeps responsibility for response generation, skills,
+    streaming, and step evaluation. DreamingRAG is used only for long-term
+    memory recall and turn persistence through its stable local Python API.
     """
 
     def __init__(
@@ -95,7 +95,8 @@ class DreamingRAGMemoryProvider:
         enable_cue_recall: bool = DREAMINGRAG_MEMORY_ENABLE_CUE_RECALL,
         top_n: int = DREAMINGRAG_MEMORY_TOP_N,
         max_context_chars: int = DREAMINGRAG_MEMORY_CONTEXT_CHARS,
-        brain_cls: Optional[type] = None,
+        memory_client_cls: Optional[type] = None,
+        config_cls: Optional[type] = None,
     ) -> None:
         self.context = context
         self.repo_path = repo_path or DREAMINGRAG_REPO_PATH
@@ -104,8 +105,9 @@ class DreamingRAGMemoryProvider:
         self.enable_cue_recall = enable_cue_recall
         self.top_n = max(1, top_n)
         self.max_context_chars = max(200, max_context_chars)
-        self._brain_cls = brain_cls
-        self._brain: Optional[Any] = None
+        self._memory_client_cls = memory_client_cls
+        self._config_cls = config_cls
+        self._client: Optional[Any] = None
 
     @property
     def enabled(self) -> bool:
@@ -121,45 +123,56 @@ class DreamingRAGMemoryProvider:
             return ""
 
         try:
-            results = self._recall_with_scores(query)
+            response = self._get_client().recall(
+                query,
+                top_n=self.top_n,
+                include_scores=True,
+            )
         except Exception as exc:
             logger.warning("DreamingRAG recall failed: %s", exc, exc_info=True)
             return ""
 
+        results = getattr(response, "memories", [])
         return format_memory_context(results, self.max_context_chars)
 
     def record_turn(self, user_input: str, assistant_output: str) -> None:
         try:
-            brain = self._get_brain()
+            client = self._get_client()
             if user_input.strip():
-                brain.hippocampus.add_memory(
+                client.remember(
                     self._format_turn_memory("student", user_input),
                     source="user",
+                    metadata=self._memory_metadata("student"),
                 )
             if assistant_output.strip():
-                brain.hippocampus.add_memory(
+                client.remember(
                     self._format_turn_memory("tutor", assistant_output),
                     source="ai",
+                    metadata=self._memory_metadata("tutor"),
                 )
         except Exception as exc:
             logger.warning("DreamingRAG turn write failed: %s", exc, exc_info=True)
 
-    def _recall_with_scores(self, query: str) -> Sequence[Tuple[Any, dict]]:
-        brain = self._get_brain()
-        if hasattr(brain, "_recall_memories_with_scores"):
-            return brain._recall_memories_with_scores(query, top_n=self.top_n)
-        return brain.hippocampus.recall_with_scores(query, top_n=self.top_n)
+    def close(self) -> None:
+        if self._client is not None and hasattr(self._client, "close"):
+            self._client.close()
 
-    def _get_brain(self) -> Any:
-        if self._brain is None:
-            brain_cls = self._brain_cls or load_dreamingbrain(self.repo_path)
+    def _get_client(self) -> Any:
+        if self._client is None:
+            memory_client_cls = self._memory_client_cls
+            config_cls = self._config_cls
+            if memory_client_cls is None or config_cls is None:
+                memory_client_cls, config_cls = load_dreamingrag_public_api(
+                    self.repo_path
+                )
             self._storage_path().mkdir(parents=True, exist_ok=True)
-            self._brain = brain_cls(
+            config = config_cls(
                 storage_path=str(self._storage_path()),
                 mock_mode=self.mock_mode,
                 enable_cue_recall=self.enable_cue_recall,
             )
-        return self._brain
+            self._client = memory_client_cls(config)
+        return self._client
 
     def _storage_path(self) -> Path:
         user = _safe_segment(self.context.user_id or "anonymous")
@@ -174,6 +187,17 @@ class DreamingRAGMemoryProvider:
             f"topic={topic}; profile={profile}; content={content}"
         )
 
+    def _memory_metadata(self, role: str) -> dict:
+        return {
+            "app": "socratic-agent-generator",
+            "role": role,
+            "user_id": self.context.user_id,
+            "session_id": self.context.session_id,
+            "profile_id": self.context.profile_id,
+            "topic_name": self.context.topic_name,
+            "lab_name": self.context.lab_name,
+        }
+
 
 def get_memory_provider(context: MemoryProviderContext) -> MemoryProvider:
     """Factory for Tutor memory providers with graceful fallback."""
@@ -183,45 +207,47 @@ def get_memory_provider(context: MemoryProviderContext) -> MemoryProvider:
     try:
         provider = DreamingRAGMemoryProvider(context)
         # Load lazily but fail early enough that Tutor can downgrade on startup.
-        provider._get_brain()
+        provider._get_client()
         return provider
     except Exception as exc:
         logger.warning("DreamingRAG memory provider unavailable: %s", exc, exc_info=True)
         return NullMemoryProvider(reason="dreamingrag_unavailable")
 
 
-def load_dreamingbrain(repo_path: Optional[str]) -> type:
-    """Load DreamingBrain from an installed package or configured repo path."""
+def load_dreamingrag_public_api(repo_path: Optional[str]) -> tuple[type, type]:
+    """Load DreamingRAG's stable public API from package or configured repo."""
     if repo_path:
         path = Path(repo_path).expanduser().resolve()
         if path.exists() and str(path) not in sys.path:
             sys.path.insert(0, str(path))
 
-    from dreaming_rag.core.brain import DreamingBrain
+    try:
+        from dreaming_rag.public_api import DreamingRAGMemory, MemoryAPIConfig
+    except ImportError:
+        from dreaming_rag import DreamingRAGMemory, MemoryAPIConfig
 
-    return DreamingBrain
+    return DreamingRAGMemory, MemoryAPIConfig
 
 
 def format_memory_context(
-    results: Sequence[Tuple[Any, dict]],
+    results: Sequence[Any],
     max_chars: int = DREAMINGRAG_MEMORY_CONTEXT_CHARS,
 ) -> str:
     """Convert DreamingRAG recall results into prompt-ready snippets."""
     lines = []
     remaining = max_chars
-    for index, (memory, scores) in enumerate(results, start=1):
+    for index, memory in enumerate(results, start=1):
         content = str(getattr(memory, "content", "")).strip()
         if not content:
             continue
+        scores = getattr(memory, "scores", None) or {}
         final_score = scores.get("final_score", scores.get("base_score"))
         score_part = (
             f" score={float(final_score):.3f};"
             if isinstance(final_score, (float, int))
             else ""
         )
-        source = getattr(getattr(memory, "source", None), "value", None) or getattr(
-            memory, "source", "unknown"
-        )
+        source = str(getattr(memory, "source", "unknown") or "unknown")
         prefix = f"[Memory {index};{score_part} source={source}] "
         allowed = remaining - len(prefix) - 1
         if allowed <= 0:

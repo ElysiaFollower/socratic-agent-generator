@@ -40,6 +40,12 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 用户正在开发 `/Users/ely/workspace/research/agent/DreamingRAG/`。该项目定位为生物启发式 agent memory 研究系统，关注遗忘、整理、清洗、整合、选择性回忆，并在记忆演化公式中纳入用户情感和 insight 机制。
 
+当前集成边界：
+
+- Socratic 后端只依赖 DreamingRAG 的稳定本地 Python 接口 `dreaming_rag.public_api`。
+- `DreamingRAGMemoryProvider` 使用 `DreamingRAGMemory` 进行 `recall` 和 `remember`，不直接触碰 DreamingRAG 内部脑模型、记忆容器或私有检索方法。
+- DreamingRAG 不接管导师回复生成；它只提供长期学习记忆片段，Tutor 主流程仍负责苏格拉底式追问、skills、streaming 和 step evaluation。
+
 设计意图：
 
 - 将 DreamingRAG 作为未来 submodule 候选集成到本项目。

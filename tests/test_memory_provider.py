@@ -18,36 +18,46 @@ from utils.memory_provider import (
 )
 
 
-class FakeHippocampus:
-    def __init__(self):
-        self.added = []
-
-    def add_memory(self, content, source="user"):
-        self.added.append((source, content))
-        return SimpleNamespace(content=content, source=source)
-
-
-class FakeBrain:
-    instances = []
-
-    def __init__(self, storage_path, mock_mode=False, enable_cue_recall=False):
+class FakeMemoryAPIConfig:
+    def __init__(self, storage_path=None, mock_mode=False, enable_cue_recall=False):
         self.storage_path = storage_path
         self.mock_mode = mock_mode
         self.enable_cue_recall = enable_cue_recall
-        self.hippocampus = FakeHippocampus()
-        FakeBrain.instances.append(self)
 
-    def _recall_memories_with_scores(self, query, top_n=3):
+
+class FakeMemoryClient:
+    instances = []
+
+    def __init__(self, config):
+        self.config = config
+        self.remembered = []
+        FakeMemoryClient.instances.append(self)
+
+    def recall(self, query, top_n=3, include_scores=True):
         memory = SimpleNamespace(
             content=f"Student previously said they prefer hints. query={query}",
-            source=SimpleNamespace(value="user_input"),
+            source="user",
+            scores={"final_score": 0.91},
         )
-        return [(memory, {"final_score": 0.91})]
+        return SimpleNamespace(query=query, memories=[memory], memory_count=1)
+
+    def remember(self, content, source="user", metadata=None):
+        self.remembered.append(
+            {
+                "content": content,
+                "source": source,
+                "metadata": metadata or {},
+            }
+        )
+        return SimpleNamespace(
+            memory=SimpleNamespace(content=content, source=source, metadata=metadata or {}),
+            memory_count=len(self.remembered),
+        )
 
 
 class MemoryProviderTest(unittest.TestCase):
     def setUp(self):
-        FakeBrain.instances.clear()
+        FakeMemoryClient.instances.clear()
 
     def test_null_provider_is_noop(self):
         provider = NullMemoryProvider()
@@ -59,15 +69,16 @@ class MemoryProviderTest(unittest.TestCase):
     def test_format_memory_context_limits_and_scores_snippets(self):
         memory = SimpleNamespace(
             content="A" * 500,
-            source=SimpleNamespace(value="user_input"),
+            source="user",
+            scores={"final_score": 0.875},
         )
 
         context = format_memory_context(
-            [(memory, {"final_score": 0.875})],
+            [memory],
             max_chars=120,
         )
 
-        self.assertIn("[Memory 1; score=0.875; source=user_input]", context)
+        self.assertIn("[Memory 1; score=0.875; source=user]", context)
         self.assertLessEqual(len(context), 120)
 
     def test_append_memory_note_wraps_context(self):
@@ -88,18 +99,21 @@ class MemoryProviderTest(unittest.TestCase):
                 ),
                 storage_root=Path(temp_dir),
                 mock_mode=True,
-                brain_cls=FakeBrain,
+                memory_client_cls=FakeMemoryClient,
+                config_cls=FakeMemoryAPIConfig,
             )
 
             context = provider.recall_context("I am confused")
 
             self.assertIn("Student previously said", context)
-            self.assertTrue(FakeBrain.instances)
-            brain = FakeBrain.instances[0]
-            self.assertTrue(Path(brain.storage_path).exists())
-            self.assertIn("user_1", brain.storage_path)
-            self.assertIn("session_2", brain.storage_path)
-            self.assertTrue(brain.mock_mode)
+            self.assertTrue(FakeMemoryClient.instances)
+            client = FakeMemoryClient.instances[0]
+            storage_path = client.config.storage_path
+            self.assertTrue(Path(storage_path).exists())
+            self.assertIn("user_1", storage_path)
+            self.assertIn("session_2", storage_path)
+            self.assertTrue(client.config.mock_mode)
+            self.assertTrue(client.config.enable_cue_recall)
 
     def test_dreamingrag_provider_records_user_and_assistant_turns(self):
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -111,17 +125,22 @@ class MemoryProviderTest(unittest.TestCase):
                     topic_name="TCP Attack",
                 ),
                 storage_root=Path(temp_dir),
-                brain_cls=FakeBrain,
+                memory_client_cls=FakeMemoryClient,
+                config_cls=FakeMemoryAPIConfig,
             )
 
             provider.record_turn("I need hints.", "Try checking the SYN queue.")
 
-            added = FakeBrain.instances[0].hippocampus.added
-            self.assertEqual("user", added[0][0])
-            self.assertEqual("ai", added[1][0])
-            self.assertIn("role=student", added[0][1])
-            self.assertIn("role=tutor", added[1][1])
-            self.assertIn("TCP Attack", added[0][1])
+            remembered = FakeMemoryClient.instances[0].remembered
+            self.assertEqual("user", remembered[0]["source"])
+            self.assertEqual("ai", remembered[1]["source"])
+            self.assertIn("role=student", remembered[0]["content"])
+            self.assertIn("role=tutor", remembered[1]["content"])
+            self.assertIn("TCP Attack", remembered[0]["content"])
+            self.assertEqual("student", remembered[0]["metadata"]["role"])
+            self.assertEqual("tutor", remembered[1]["metadata"]["role"])
+            self.assertEqual("s", remembered[0]["metadata"]["session_id"])
+            self.assertEqual("p", remembered[0]["metadata"]["profile_id"])
 
 
 if __name__ == "__main__":

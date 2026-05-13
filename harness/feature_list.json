@@ -46,6 +46,17 @@
       "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_memory_provider && python3 -m compileall src && cd frontend && npm test -- --run",
       "evidence": "2026-05-11: ./scripts/harness-check.sh passed with 0 warnings; python3 -m unittest tests.test_memory_provider passed 5 tests; python3 -m compileall src passed; cd frontend && npm test -- --run passed with 1 test. Additional smoke: PYTHONPATH=src conda run -n DreamingRAG python DreamingRAGMemoryProvider mock-mode script succeeded, confirming provider enabled, per-session storage initialized, turn write returned, and recall context contained memory. Real-mode smoke also passed using DreamingRAG .env values without printing secrets: local _local/socratic-smoke-venv installed Socratic and DreamingRAG deps; DreamingRAGMemoryProvider mock_mode=False wrote and recalled memory via DeepSeek + configured embedding provider; CLI --list worked after seeding rag-smoke-buffer-overflow; CLI one-turn conversation created session 31dfa50a-3e77-4643-9993-560ee1218ab9 and got a non-empty DeepSeek tutor reply; Tutor.from_id resumed that session, pre_recall_nonempty=True, pre_recall_mentions_return_address=True, pre_recall_chars=583, second reply_nonempty=True, history_len=4. Default-on update verified by config smoke showing DREAMINGRAG_MEMORY_ENABLED=True without an env override, plus harness check, focused unittest, and compileall.",
       "notes": "Prototype scope only: default-on adapter, prompt injection, turn write, graceful fallback, and explicit env opt-out. Candidate external project: /Users/ely/workspace/research/agent/DreamingRAG. Archived plan: plans/archive/20260511-dreamingrag-memory-adapter-prototype.md."
+    },
+    {
+      "id": "dreamingrag-public-api-adapter",
+      "priority": "P0",
+      "area": "memory-adapter",
+      "title": "DreamingRAG public API adapter",
+      "behavior": "Tutor integrates DreamingRAG through its stable public Python API, using DreamingRAGMemory for recall and remember while preserving graceful fallback and session-scoped storage.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && python3 -m unittest tests.test_memory_provider && python3 -m compileall src tests && PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python <public API mock smoke>",
+      "evidence": "2026-05-13: python3 -m unittest tests.test_memory_provider passed 5 tests; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings after removing stale active .gitkeep; public API mock smoke passed with PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python, confirming enabled=True, status_prefix=['dreamingrag', 'mock'], has_context=True, and mentions_syn=True. System python3 without DreamingRAG dependencies still degraded safely: missing openai caused logged recall/write warnings and empty context without crashing.",
+      "notes": "Archived plan: plans/archive/20260513-dreamingrag-public-api-adapter.md. This replaces direct internal DreamingRAG object access with the stable public_api contract."
     }
   ]
 }

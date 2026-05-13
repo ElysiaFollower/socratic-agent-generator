@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；最近完成 `dreamingrag-memory-integration`，状态为 `passing`。
-- 当前任务计划：无 active；已归档 `plans/archive/20260511-dreamingrag-memory-adapter-prototype.md`。
-- 上次验证：2026-05-11，DreamingRAG memory adapter focused tests、后端语法、前端 smoke test、harness check、mock-mode adapter smoke 和 real-mode CLI smoke 通过。
-- 下一步最佳动作：归档 `rag-memory-adapter` 原型分支；等 DreamingRAG API 和能力成熟后，再开新分支处理真实模式依赖安装、性能、异步写入、错误可观测性和更深集成。
+- 当前功能项：无 active；最近完成 `dreamingrag-public-api-adapter`，状态为 `passing`。
+- 当前任务计划：无 active；已归档 `plans/archive/20260513-dreamingrag-public-api-adapter.md`。
+- 上次验证：2026-05-13，DreamingRAG public API adapter focused tests、后端语法、harness check 和 public API mock-mode smoke 通过。
+- 下一步最佳动作：提交并推送 `rag-memory-adapter` 分支；之后从该分支继续处理与 DreamingRAG 规范接口相关的 hardening，如依赖安装说明、异步写入和错误观测。
 
 ## 状态约定
 
@@ -69,3 +69,13 @@
 - 决策：长会话导师默认应具备持久记忆能力，原先只靠裁剪 history 的记忆策略不足以支撑真实学习场景。
 - 改动：`DREAMINGRAG_MEMORY_ENABLED` 默认值改为 `true`，`.env.example` 同步为默认开启；仍可通过显式设置 `DREAMINGRAG_MEMORY_ENABLED=false` 关闭。
 - 安全边界：DreamingRAG 依赖缺失、路径不可用或初始化失败时，adapter 仍降级为空记忆，不阻断 Tutor 初始化和对话。
+
+### 2026-05-13 - 对接 DreamingRAG public API
+
+- 创建 active plan：`plans/active/20260513-dreamingrag-public-api-adapter.md`，并将 `dreamingrag-public-api-adapter` 作为唯一 active feature。
+- 迁移 `src/utils/memory_provider.py`：从直接调用 DreamingRAG 内部对象改为加载 `dreaming_rag.public_api.DreamingRAGMemory` 与 `MemoryAPIConfig`，recall 使用 public `MemoryRecord`，turn 写入使用 `remember(..., metadata=...)`。
+- 更新 `tests/test_memory_provider.py`，用 fake public API client 覆盖 per-session storage、score/context 格式化和 user/assistant turn metadata。
+- 更新 `.env.example` 与 `docs/architecture/vnext-integrations.md`，明确当前集成边界是 DreamingRAG public API，不让 DreamingRAG 接管 Tutor 回复生成。
+- 验证：`python3 -m unittest tests.test_memory_provider` 通过 5 个测试；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src:/Users/ely/workspace/research/agent/DreamingRAG _local/socratic-smoke-venv/bin/python ...` public API mock smoke 通过，输出 `enabled=True`、`has_context=True`、`mentions_syn=True`。
+- 降级证据：系统 `python3` 未安装 DreamingRAG 依赖 `openai` 时，adapter 记录 warning 并返回空 context，没有阻断调用。
+- 状态：`dreamingrag-public-api-adapter` 标记为 `passing`；任务计划归档到 `plans/archive/20260513-dreamingrag-public-api-adapter.md`。
