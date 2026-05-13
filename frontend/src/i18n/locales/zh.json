@@ -344,7 +344,15 @@
     "upload": "上传",
     "put": "发送",
     "remotePath": "远程路径",
-    "remotePathRequired": "请输入远程路径"
+    "remotePathRequired": "请输入远程路径",
+    "noMachine": "未连接实验机",
+    "changeMachine": "选择实验机",
+    "openFiles": "会话文件",
+    "selectMachineFirst": "请先选择实验机",
+    "noMachinesConfigured": "还没有配置实验机",
+    "machineUpdated": "已更新会话实验机",
+    "machineDetached": "已断开会话实验机",
+    "machineUpdateFailed": "更新会话实验机失败"
   },
   "labManual": {
     "selectFile": "请选择一个文件",

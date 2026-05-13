@@ -249,3 +249,12 @@
 - 修复验收暴露的问题：linux-01 当前 LangChain classic 不支持 `early_stopping_method=generate`，改为 `force`；`REMOTE_TOOL_AGENT_IDLE_TIMEOUT` 默认降到 15 秒，避免学生因工具调用等待过久；`LANGCHAIN_MAX_ITERATIONS` 默认设为 4，避免一次 Tutor 轮次无限工具循环。
 - 记录上游接口缺口：Remote Runner 当前只有同步 `session exec --timeout`，不适合 packet capture、server、长 build 等持久命令；已在 SEEDRunner 提 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/3`，建议提供 `run_and_wait`、`run_background`、`get_command_result` 三段式接口。
 - 验证：`python3 -m compileall src` 通过；`./scripts/harness-check.sh` 通过 0 warning；远端后端 `/api/health` 返回 OK；最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
+
+### 2026-05-13 - 调整会话页顶栏实验机与文件入口
+
+- 用户反馈会话页底部的常驻文件面板太碍眼，期望把实验机选择放进会话信息顶栏，并把文件上传收纳为旁边的小入口。
+- 实现：会话头部新增实验机切换按钮与会话文件按钮，文件面板改为顶栏弹出式，输入栏上方不再常驻显示。
+- 后端补充 `PUT /api/sessions/{session_id}/remote-binding`，支持会话创建后切换或解绑实验机；切换时重建 Remote Runner session，并保持 tutor 侧绑定一致。
+- 文档同步：`docs/deployment.md` 与 `docs/architecture/remote-runner-session-tools.md` 补充会话后切换/解绑实验机和顶栏文件入口的约定。
+- 验证：`./scripts/harness-check.sh` 通过 0 warning；`python3 -m compileall src` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`git diff --check` 通过。
+- 补充：`SessionManager` 的 session summary 现在也携带 `default_cwd`，让顶栏弹出式文件面板能继承实验机默认工作目录；上述验证已在最新改动后重跑并通过。

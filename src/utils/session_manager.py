@@ -268,6 +268,7 @@ class SessionManager:
                 display_name=machine.display_name if machine else None,
                 runner_machine_name=binding.runner_machine_name,
                 runner_session_id=binding.runner_session_id,
+                default_cwd=binding.default_cwd,
                 status=binding.status,
             )
         return result

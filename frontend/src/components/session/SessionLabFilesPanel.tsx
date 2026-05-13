@@ -25,12 +25,14 @@ interface SessionLabFilesPanelProps {
   readonly sessionId: string | null;
   readonly remoteBinding?: RemoteBindingSummary | null;
   readonly disabled?: boolean;
+  readonly variant?: "inline" | "popover";
 }
 
 export function SessionLabFilesPanel({
   sessionId,
   remoteBinding,
   disabled = false,
+  variant = "inline",
 }: SessionLabFilesPanelProps) {
   const {t} = useTranslation();
   const [files, setFiles] = useState<readonly SessionFileInfo[]>([]);
@@ -126,10 +128,11 @@ export function SessionLabFilesPanel({
   return (
     <Box
       sx={{
-        borderTop: "1px solid",
+        borderTop: variant === "inline" ? "1px solid" : "none",
         borderColor: "divider",
-        pt: 1.25,
-        mb: 1.25,
+        p: variant === "popover" ? 2 : 0,
+        pt: variant === "inline" ? 1.25 : 2,
+        mb: variant === "inline" ? 1.25 : 0,
       }}
     >
       <Stack spacing={1}>

@@ -10,6 +10,7 @@ import {
   SessionSummary,
   CreateSessionRequest,
   RenameSessionRequest,
+  RemoteBindingSummary,
   RemoteCommandAudit,
   SessionFileInfo,
   SessionRemoteCommandRequest,
@@ -116,6 +117,23 @@ export async function deleteSession(
   }
 }
 
+export async function updateSessionRemoteBinding(
+  sessionId: string,
+  remoteMachineId: string | null,
+): Promise<RemoteBindingSummary | null> {
+  try {
+    const response = await apiClient.put<RemoteBindingSummary | null>(
+      `/api/sessions/${sessionId}/remote-binding`,
+      {remote_machine_id: remoteMachineId},
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to update session remote binding: ${handleApiError(error)}`,
+    );
+  }
+}
+
 /**
  * Fetches step completion records for a session.
  *
@@ -218,4 +236,3 @@ export async function runSessionRemoteCommand(
     throw new Error(`Failed to run remote command: ${handleApiError(error)}`);
   }
 }
-

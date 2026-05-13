@@ -122,7 +122,7 @@ REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES="ls ,cat ,ip ,docker ps,docker exec,docker 
 REMOTE_TOOL_ALLOWED_CWD_PREFIXES=""
 ```
 
-Users configure lab machines from Settings. A learning session only gets the Remote Runner tool when the user selects one of their machines during session creation. The Tutor receives a fixed machine/session binding and cannot switch to a different machine by prompt.
+Users configure lab machines from Settings. A learning session only gets the Remote Runner tool when it has a selected machine. Users can select a machine during session creation or switch/detach the current session's machine from the session header. The Tutor receives the current fixed machine/session binding and cannot switch to a different machine by prompt.
 
 `REMOTE_RUNNER_PYTHON_EXECUTABLE` is optional when Remote Runner is installed in the same conda environment as Socratic. Set it when Socratic and Remote Runner are maintained in separate conda environments.
 
@@ -203,6 +203,7 @@ For backend-only debugging, use the session APIs that mirror the frontend/Tutor 
 - `GET /api/sessions/{session_id}/files`
 - `POST /api/sessions/{session_id}/files`
 - `POST /api/sessions/{session_id}/files/{filename}/remote-put`
+- `PUT /api/sessions/{session_id}/remote-binding`
 - `POST /api/sessions/{session_id}/remote-command`
 
 For the SEED Sniffing/Spoofing demo, prefer uploading the known LabSetup `docker-compose.yml` and creating the empty `volumes` directory on the remote machine. That LabSetup is small enough that cloning the full SEED Labs repository on the lab host is unnecessary.

@@ -80,6 +80,13 @@ class RemoteBindingSummary(BaseModel):
     status: str
 
 
+class SessionRemoteBindingUpdateRequest(BaseModel):
+    remote_machine_id: Optional[str] = Field(
+        default=None,
+        description="User remote machine to bind, or null to detach the session.",
+    )
+
+
 class RemoteCommandAudit(BaseModel):
     audit_id: str
     session_id: str

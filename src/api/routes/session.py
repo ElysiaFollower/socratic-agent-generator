@@ -3,7 +3,7 @@
 This module handles HTTP endpoints for learning session operations.
 """
 
-from typing import List
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
@@ -24,9 +24,11 @@ from schemas.step_completion import StepCompletion
 from schemas.user import User
 from schemas.remote_machine import (
     RemoteCommandAudit,
+    RemoteBindingSummary,
     SessionFileInfo,
     SessionFileRemotePutRequest,
     SessionFileRemotePutResponse,
+    SessionRemoteBindingUpdateRequest,
     SessionRemoteCommandRequest,
     SessionRemoteCommandResponse,
 )
@@ -162,6 +164,51 @@ def get_session(
         )
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.put(
+    "/{session_id}/remote-binding",
+    response_model=Optional[RemoteBindingSummary],
+    summary="更新会话绑定的远程实验机",
+)
+def update_session_remote_binding(
+    session_id: str,
+    req: SessionRemoteBindingUpdateRequest,
+    session_manager: SessionManagerDep,
+    tutor_manager: TutorManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Optional[RemoteBindingSummary]:
+    """Bind, switch, or detach the Remote Runner session for a learning session."""
+    try:
+        session_manager.read_session(session_id, owner_id=current_user.user_id)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+    existing = remote_manager.get_binding_summary(session_id, current_user.user_id)
+    if (
+        req.remote_machine_id
+        and existing
+        and existing.machine_id == req.remote_machine_id
+    ):
+        return existing
+
+    try:
+        if not req.remote_machine_id:
+            remote_manager.destroy_binding(session_id, current_user.user_id)
+            tutor_manager.remove_from_cache(session_id, owner_id=current_user.user_id)
+            return None
+        binding = remote_manager.create_binding(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+            machine_id=req.remote_machine_id,
+        )
+        tutor_manager.remove_from_cache(session_id, owner_id=current_user.user_id)
+        return binding
+    except RemoteMachineNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RemoteRunnerError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get(

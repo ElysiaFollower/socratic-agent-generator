@@ -178,6 +178,11 @@ class RemoteMachineManager:
             raise RemoteRunnerError("Remote Runner did not return a session_id.")
 
         existing = self.get_binding_model(session_id, owner_id, required=False)
+        old_provider = None
+        old_runner_session_id = None
+        if existing and existing.runner_session_id:
+            old_provider = self._session_provider_from_binding(existing)
+            old_runner_session_id = existing.runner_session_id
         if existing:
             existing.user_machine_id = model.machine_id
             existing.runner_machine_name = model.runner_machine_name
@@ -203,6 +208,11 @@ class RemoteMachineManager:
         model.last_checked_at = datetime.now(pytz.utc).isoformat()
         self.db.commit()
         self.db.refresh(binding)
+        if old_provider and old_runner_session_id:
+            try:
+                old_provider.destroy_session(session_id=old_runner_session_id)
+            except Exception as exc:
+                logger.warning("Failed to destroy replaced Remote Runner session: %s", exc)
         return self._binding_summary(binding, model)
 
     def get_binding_model(

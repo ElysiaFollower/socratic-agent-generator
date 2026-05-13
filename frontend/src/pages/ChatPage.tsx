@@ -56,7 +56,6 @@ import {
   SettingsModal,
   SidebarRail,
   ProfileDetailCard,
-  SessionLabFilesPanel,
 } from "../components";
 import {
   createSession,
@@ -68,6 +67,7 @@ import {
   getProfile,
   getLLMSettings,
   listRemoteMachines,
+  updateSessionRemoteBinding,
 } from "../api";
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../i18n";
 import { LLM_PROVIDERS } from "../utils/llmProviders";
@@ -113,6 +113,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [remoteMachines, setRemoteMachines] = useState<
     readonly RemoteMachineSummary[]
   >([]);
+  const [isRemoteBindingUpdating, setIsRemoteBindingUpdating] =
+    useState<boolean>(false);
   const [selectedLlm, setSelectedLlm] = useState<string>(defaultLlmOption);
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
@@ -623,6 +625,34 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     }
   }, [notifyWarning, t]);
 
+  const handleRemoteMachineChange = useCallback(
+    async (machineId: string | null) => {
+      if (!sessionId) {
+        return;
+      }
+      setIsRemoteBindingUpdating(true);
+      try {
+        await updateSessionRemoteBinding(sessionId, machineId);
+        await refreshSessions();
+        notifySuccess(
+          machineId
+            ? t("sessionFiles.machineUpdated")
+            : t("sessionFiles.machineDetached"),
+        );
+      } catch (error) {
+        console.error("Failed to update remote machine binding:", error);
+        notifyError(
+          error instanceof Error
+            ? error.message
+            : t("sessionFiles.machineUpdateFailed"),
+        );
+      } finally {
+        setIsRemoteBindingUpdating(false);
+      }
+    },
+    [notifyError, notifySuccess, refreshSessions, sessionId, t],
+  );
+
   useEffect(() => {
     if (!user) {
       return;
@@ -793,6 +823,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           onProfileClick={currentSession ? handleProfileClick : undefined}
           currentLanguage={currentLanguage}
           onLanguageChange={handleLanguageChange}
+          remoteMachines={remoteMachines}
+          isRemoteBindingUpdating={isRemoteBindingUpdating}
+          onRemoteMachineChange={handleRemoteMachineChange}
+          onRefreshRemoteMachines={refreshRemoteMachines}
+          sessionToolsDisabled={chatLoading}
         />
 
         <Box
@@ -873,13 +908,6 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             <Box
               sx={{ maxWidth: contentMaxWidth, mx: isMaximized ? 0 : "auto" }}
             >
-              {sessionId && currentSession?.remote_binding && (
-                <SessionLabFilesPanel
-                  sessionId={sessionId}
-                  remoteBinding={currentSession.remote_binding}
-                  disabled={chatLoading}
-                />
-              )}
               {!sessionId && (
                 <Stack spacing={1} sx={{ mb: 2 }}>
                   <Box

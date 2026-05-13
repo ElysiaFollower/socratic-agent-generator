@@ -343,7 +343,15 @@
     "upload": "Upload",
     "put": "Send",
     "remotePath": "Remote path",
-    "remotePathRequired": "Remote path is required"
+    "remotePathRequired": "Remote path is required",
+    "noMachine": "No lab machine",
+    "changeMachine": "Select lab machine",
+    "openFiles": "Session files",
+    "selectMachineFirst": "Select a lab machine first",
+    "noMachinesConfigured": "No lab machines configured",
+    "machineUpdated": "Session lab machine updated",
+    "machineDetached": "Session lab machine detached",
+    "machineUpdateFailed": "Failed to update session lab machine"
   },
   "labManual": {
     "selectFile": "Please select a file",

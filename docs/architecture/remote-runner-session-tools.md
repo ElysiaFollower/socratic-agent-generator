@@ -100,13 +100,14 @@ Sessions:
 
 - Extend `POST /api/sessions/create` with optional `remote_machine_id`.
 - Extend session detail/summary with a non-secret `remote_binding` summary.
+- `PUT /api/sessions/{session_id}/remote-binding` to bind, switch, or detach the session's lab machine after creation.
 - `GET /api/sessions/{session_id}/remote-audits`
 - `GET /api/sessions/{session_id}/files`
 - `POST /api/sessions/{session_id}/files`
 - `POST /api/sessions/{session_id}/files/{filename}/remote-put`
 - `POST /api/sessions/{session_id}/remote-command`
 
-The last four routes are intentionally useful for both frontend implementation and backend-only debugging. They must call the same managers and policy checks used by the Tutor tool rather than a separate maintenance backdoor.
+The file, binding, audit, and command routes are intentionally useful for both frontend implementation and backend-only debugging. They must call the same managers and policy checks used by the Tutor tool rather than a separate maintenance backdoor.
 
 Tutor runtime:
 

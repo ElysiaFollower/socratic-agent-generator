@@ -9,6 +9,7 @@ import {
   AppBar,
   Avatar,
   Box,
+  Button,
   Collapse,
   Divider,
   IconButton,
@@ -16,18 +17,23 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Popover,
   Stack,
   Toolbar,
   Tooltip,
   Typography,
 } from "@mui/material";
 import {
+  AttachFile,
   Brightness4,
   Brightness7,
+  Check,
   CloseFullscreen,
+  DnsOutlined,
   ExpandLess,
   ExpandMore,
   HelpOutline,
+  LinkOff,
   Logout,
   MenuBookOutlined,
   OpenInFull,
@@ -35,9 +41,17 @@ import {
   Settings,
   Translate,
 } from "@mui/icons-material";
-import { SessionSummary, SocraticStep, ToolPanelView, User } from "../../types";
+import {
+  RemoteMachineSummary,
+  SessionSummary,
+  SocraticStep,
+  ToolPanelView,
+  User,
+} from "../../types";
 import { ProgressBar } from "../chat/ProgressBar";
 import { HelpDialog } from "../common/HelpDialog";
+import { CircularProgress } from "../common/CircularProgress";
+import { SessionLabFilesPanel } from "../session/SessionLabFilesPanel";
 import {
   LabManualHelpContent,
   ProfileManagerHelpContent,
@@ -68,6 +82,11 @@ export interface HeaderProps {
   readonly onProfileClick?: () => void;
   readonly currentLanguage?: SupportedLanguage;
   readonly onLanguageChange?: (language: SupportedLanguage) => void;
+  readonly remoteMachines?: readonly RemoteMachineSummary[];
+  readonly isRemoteBindingUpdating?: boolean;
+  readonly onRemoteMachineChange?: (machineId: string | null) => void;
+  readonly onRefreshRemoteMachines?: () => void;
+  readonly sessionToolsDisabled?: boolean;
 }
 
 /**
@@ -96,6 +115,11 @@ export function Header(props: HeaderProps): JSX.Element {
     onProfileClick,
     currentLanguage,
     onLanguageChange,
+    remoteMachines = [],
+    isRemoteBindingUpdating = false,
+    onRemoteMachineChange,
+    onRefreshRemoteMachines,
+    sessionToolsDisabled = false,
   } = props;
 
   const { t, i18n } = useTranslation();
@@ -106,6 +130,13 @@ export function Header(props: HeaderProps): JSX.Element {
   const [languageMenuAnchor, setLanguageMenuAnchor] =
     React.useState<HTMLElement | null>(null);
   const isLanguageMenuOpen = Boolean(languageMenuAnchor);
+  const [machineMenuAnchor, setMachineMenuAnchor] =
+    React.useState<HTMLElement | null>(null);
+  const [filesAnchor, setFilesAnchor] = React.useState<HTMLElement | null>(
+    null,
+  );
+  const isMachineMenuOpen = Boolean(machineMenuAnchor);
+  const isFilesOpen = Boolean(filesAnchor);
 
   const displayName = user?.display_name || user?.username || t("header.user");
   const avatarLetter = displayName.trim().charAt(0).toUpperCase() || "U";
@@ -135,6 +166,12 @@ export function Header(props: HeaderProps): JSX.Element {
       : panelTitles[activePanel];
 
   const showSessionDetails = activePanel === "chat" && Boolean(currentSession);
+  const remoteBinding = currentSession?.remote_binding ?? null;
+  const boundMachineId = remoteBinding?.machine_id ?? null;
+  const remoteMachineLabel =
+    remoteBinding?.display_name ||
+    remoteBinding?.runner_machine_name ||
+    t("sessionFiles.noMachine");
 
   const showHelpButton =
     activePanel === "lab-manual" ||
@@ -183,6 +220,23 @@ export function Header(props: HeaderProps): JSX.Element {
 
   const handleMenuClose = () => {
     setMenuAnchor(null);
+  };
+
+  const handleMachineMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    onRefreshRemoteMachines?.();
+    setMachineMenuAnchor(event.currentTarget);
+  };
+
+  const handleMachineMenuClose = () => {
+    setMachineMenuAnchor(null);
+  };
+
+  const handleRemoteMachineChange = (machineId: string | null) => {
+    handleMachineMenuClose();
+    if (machineId === boundMachineId) {
+      return;
+    }
+    onRemoteMachineChange?.(machineId);
   };
 
   return (
@@ -279,104 +333,176 @@ export function Header(props: HeaderProps): JSX.Element {
         <Collapse in={!isCollapsed} timeout={200}>
           <Box sx={{ px: 3, py: 2 }}>
             <Stack
-              direction='row'
+              direction={{ xs: "column", md: "row" }}
               spacing={2}
-              alignItems='center'
-              flexWrap='wrap'
+              alignItems={{ xs: "stretch", md: "center" }}
+              justifyContent='space-between'
               sx={{ mb: 2 }}
             >
               <Stack
                 direction='row'
                 spacing={1}
                 alignItems='center'
+                flexWrap='wrap'
                 sx={{ minWidth: 0 }}
               >
-                <Tooltip title={t("header.tooltips.curriculum")} arrow>
-                  <Box
-                    component='span'
-                    sx={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      bgcolor: "var(--color-surface-muted)",
-                      color: "primary.main",
-                    }}
-                  >
-                    <MenuBookOutlined fontSize='small' />
-                  </Box>
-                </Tooltip>
-                <Typography
-                  variant='body2'
-                  sx={{
-                    fontWeight: 600,
-                    color: "text.primary",
-                    maxWidth: "46vw",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
+                <Stack
+                  direction='row'
+                  spacing={1}
+                  alignItems='center'
+                  sx={{ minWidth: 0 }}
                 >
-                  {currentSession?.topic_name || "-"}
-                </Typography>
-              </Stack>
-              <Divider orientation='vertical' flexItem />
-              <Stack
-                direction='row'
-                spacing={1}
-                alignItems='center'
-                sx={{ minWidth: 0 }}
-              >
-                <Tooltip title={t("header.tooltips.profile")} arrow>
-                  <Box
-                    component='span'
-                    sx={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 28,
-                      height: 28,
-                      borderRadius: "50%",
-                      bgcolor: "var(--color-surface-muted)",
-                      color: "secondary.main",
-                    }}
-                  >
-                    <BadgeOutlined fontSize='small' />
-                  </Box>
-                </Tooltip>
-                <Box
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    cursor: onProfileClick ? "pointer" : "default",
-                    borderRadius: 1,
-                    px: 1,
-                    py: 0.5,
-                    transition: "background-color 150ms ease, color 150ms ease",
-                    "&:hover": onProfileClick
-                      ? {
-                          backgroundColor: "var(--color-surface-muted)",
-                          "& .MuiTypography-root": {
-                            color: "primary.main",
-                          },
-                        }
-                      : {},
-                  }}
-                  onClick={onProfileClick}
-                >
+                  <Tooltip title={t("header.tooltips.curriculum")} arrow>
+                    <Box
+                      component='span'
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        bgcolor: "var(--color-surface-muted)",
+                        color: "primary.main",
+                      }}
+                    >
+                      <MenuBookOutlined fontSize='small' />
+                    </Box>
+                  </Tooltip>
                   <Typography
                     variant='body2'
                     sx={{
                       fontWeight: 600,
-                      fontFamily: "var(--font-mono)",
                       color: "text.primary",
+                      maxWidth: { xs: "70vw", md: "32vw" },
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {currentSession?.profile_name || "-"}
+                    {currentSession?.topic_name || "-"}
                   </Typography>
-                </Box>
+                </Stack>
+                <Divider orientation='vertical' flexItem />
+                <Stack
+                  direction='row'
+                  spacing={1}
+                  alignItems='center'
+                  sx={{ minWidth: 0 }}
+                >
+                  <Tooltip title={t("header.tooltips.profile")} arrow>
+                    <Box
+                      component='span'
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        bgcolor: "var(--color-surface-muted)",
+                        color: "secondary.main",
+                      }}
+                    >
+                      <BadgeOutlined fontSize='small' />
+                    </Box>
+                  </Tooltip>
+                  <Box
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      cursor: onProfileClick ? "pointer" : "default",
+                      borderRadius: 1,
+                      px: 1,
+                      py: 0.5,
+                      transition:
+                        "background-color 150ms ease, color 150ms ease",
+                      "&:hover": onProfileClick
+                        ? {
+                            backgroundColor: "var(--color-surface-muted)",
+                            "& .MuiTypography-root": {
+                              color: "primary.main",
+                            },
+                          }
+                        : {},
+                    }}
+                    onClick={onProfileClick}
+                  >
+                    <Typography
+                      variant='body2'
+                      sx={{
+                        fontWeight: 600,
+                        fontFamily: "var(--font-mono)",
+                        color: "text.primary",
+                        maxWidth: { xs: "70vw", md: "28vw" },
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {currentSession?.profile_name || "-"}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Stack>
+              <Stack direction='row' spacing={1} alignItems='center'>
+                <Tooltip title={t("sessionFiles.changeMachine")} arrow>
+                  <span>
+                    <Button
+                      size='small'
+                      variant='outlined'
+                      color={remoteBinding ? "primary" : "inherit"}
+                      startIcon={
+                        isRemoteBindingUpdating ? (
+                          <CircularProgress size={14} />
+                        ) : (
+                          <DnsOutlined fontSize='small' />
+                        )
+                      }
+                      onClick={handleMachineMenuOpen}
+                      disabled={
+                        sessionToolsDisabled ||
+                        isRemoteBindingUpdating ||
+                        !onRemoteMachineChange
+                      }
+                      sx={{
+                        maxWidth: { xs: 220, sm: 300 },
+                        justifyContent: "flex-start",
+                        textTransform: "none",
+                      }}
+                    >
+                      <Box
+                        component='span'
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {remoteMachineLabel}
+                      </Box>
+                    </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip
+                  title={
+                    remoteBinding
+                      ? t("sessionFiles.openFiles")
+                      : t("sessionFiles.selectMachineFirst")
+                  }
+                  arrow
+                >
+                  <span>
+                    <IconButton
+                      size='small'
+                      disabled={!remoteBinding || sessionToolsDisabled}
+                      onClick={(event) => setFilesAnchor(event.currentTarget)}
+                      aria-label={t("sessionFiles.openFiles")}
+                    >
+                      <AttachFile fontSize='small' />
+                    </IconButton>
+                  </span>
+                </Tooltip>
               </Stack>
             </Stack>
             <ProgressBar
@@ -442,6 +568,75 @@ export function Header(props: HeaderProps): JSX.Element {
           ),
         )}
       </Menu>
+
+      <Menu
+        anchorEl={machineMenuAnchor}
+        open={isMachineMenuOpen}
+        onClose={handleMachineMenuClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem
+          selected={!boundMachineId}
+          onClick={() => handleRemoteMachineChange(null)}
+        >
+          <ListItemIcon>
+            {!boundMachineId ? (
+              <Check fontSize='small' />
+            ) : (
+              <LinkOff fontSize='small' />
+            )}
+          </ListItemIcon>
+          <ListItemText>{t("sessionFiles.noMachine")}</ListItemText>
+        </MenuItem>
+        <Divider />
+        {remoteMachines.length === 0 ? (
+          <MenuItem disabled>
+            <ListItemText>{t("sessionFiles.noMachinesConfigured")}</ListItemText>
+          </MenuItem>
+        ) : (
+          remoteMachines.map((machine) => (
+            <MenuItem
+              key={machine.machine_id}
+              selected={machine.machine_id === boundMachineId}
+              onClick={() => handleRemoteMachineChange(machine.machine_id)}
+            >
+              <ListItemIcon>
+                {machine.machine_id === boundMachineId ? (
+                  <Check fontSize='small' />
+                ) : (
+                  <DnsOutlined fontSize='small' />
+                )}
+              </ListItemIcon>
+              <ListItemText
+                primary={machine.display_name}
+                secondary={machine.runner_machine_name}
+              />
+            </MenuItem>
+          ))
+        )}
+      </Menu>
+
+      <Popover
+        open={isFilesOpen}
+        anchorEl={filesAnchor}
+        onClose={() => setFilesAnchor(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        PaperProps={{
+          sx: {
+            width: { xs: "calc(100vw - 32px)", sm: 560 },
+            maxWidth: "calc(100vw - 32px)",
+          },
+        }}
+      >
+        <SessionLabFilesPanel
+          sessionId={currentSession?.session_id ?? null}
+          remoteBinding={remoteBinding}
+          disabled={sessionToolsDisabled}
+          variant='popover'
+        />
+      </Popover>
 
       {showHelpButton && (
         <HelpDialog
