@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 import models  # noqa: F401
+from api.routes.session import _is_builtin_public_profile
 from models.base import Base
 from models.profile import ProfileModel
 from utils.default_profile_seed import seed_default_profiles
@@ -60,3 +61,13 @@ def test_seeded_default_profiles_are_visible_to_students_without_classes():
         "TCP_Attacks",
         "VPN_Tunnel",
     }
+
+
+def test_seeded_default_profiles_can_start_student_sessions_without_classes():
+    SessionLocal = make_session_factory()
+    seed_default_profiles(SessionLocal, source_dir=CALIBRATED_DIR)
+
+    with SessionLocal() as db:
+        profile = ProfileManager(db).list_profiles_by_visible_classes([])[0]
+
+    assert _is_builtin_public_profile(profile)

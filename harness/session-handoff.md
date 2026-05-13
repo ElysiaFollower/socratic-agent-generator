@@ -13,7 +13,7 @@
 - 初始化：`./init.sh` 通过；当前 active plan 为 linux-01 部署。
 - Harness：`./scripts/harness-check.sh` 通过，0 warning。
 - 语法验证：`python3 -m compileall src scripts tests` 通过。
-- 合并后 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过，21 passed。
+- 合并后 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过，22 passed。
 - 默认 embedding 检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY` 输出 `(True, [], [])`，确认默认 `EMBEDDING_PROVIDER=volcengine` 不再触发 HuggingFace 下载。
 - linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
 
@@ -30,6 +30,7 @@
 - `src/utils/model_manager.py` 在非 `huggingface` provider 下跳过 HuggingFace 模型下载；HuggingFace 仅作为显式 fallback。
 - 更新 `.env.example`、`docs/deployment.md` 和 `requirements.txt`，把 Volcengine embedding 写入默认部署路径，并显式说明 HuggingFace 不是默认部署依赖。
 - 新增 `tests/test_embedding_provider.py`，覆盖火山文本 embedding 和 vision/multimodal embedding payload。
+- 修复 student 创建内置 public profile session 的 403 问题，避免演示账号能看到 profile 但不能进入学习会话。
 
 ## 仍损坏或未验证
 

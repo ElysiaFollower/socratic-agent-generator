@@ -24,6 +24,11 @@ from schemas.user import User
 router = APIRouter(prefix="/api/sessions", tags=["Session"])
 
 
+def _is_builtin_public_profile(profile) -> bool:
+    """Return whether a profile is globally visible without class membership."""
+    return profile.owner_id is None and not (profile.visible_class_ids or [])
+
+
 @router.get("", response_model=List[SessionSummary], summary="获取所有会话元信息列表")
 def list_sessions(
     session_manager: SessionManagerDep,
@@ -70,7 +75,9 @@ def create_session(
     if current_user.role == "student":
         class_ids = class_manager.list_class_ids_for_user(current_user.user_id)
         visible_ids = set(profile.visible_class_ids or [])
-        if not visible_ids.intersection(set(class_ids)):
+        if not _is_builtin_public_profile(profile) and not visible_ids.intersection(
+            set(class_ids)
+        ):
             raise HTTPException(
                 status_code=403,
                 detail="Profile is not visible to your classes.",

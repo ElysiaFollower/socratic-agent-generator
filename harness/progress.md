@@ -4,7 +4,7 @@
 
 - 当前功能项：`linux01-live-deployment` active。
 - 当前任务计划：`plans/active/20260513-linux01-live-deployment.md`。
-- 上次验证：2026-05-13，合并后 focused tests 通过 21 passed；后端语法通过；harness check 0 warning；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`，不会访问 HuggingFace。
+- 上次验证：2026-05-13，合并后 focused tests 通过 22 passed；后端语法通过；harness check 0 warning；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`，不会访问 HuggingFace。
 - 下一步最佳动作：通过 remote-runner 在 `linux-01` 部署当前分支，用 tmux 持久化 Socratic/DreamingRAG 相关服务并验证可访问链接。
 
 ## 状态约定
@@ -142,4 +142,5 @@
 - 更新 `src/utils/skills.py`，Socratic 文档 RAG 通过统一 factory 获取 embeddings；默认 provider 为 `EMBEDDING_PROVIDER=volcengine`。
 - 更新 `src/utils/model_manager.py`，默认火山 provider 下跳过 HuggingFace 模型下载；只有显式 `EMBEDDING_PROVIDER=huggingface` 才检查和下载本地模型。
 - 更新 `.env.example`、`docs/deployment.md` 和 `requirements.txt`，把 Volcengine embedding 作为 Socratic 文档 RAG 与 DreamingRAG memory 的共享默认配置。
-- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 21 passed；`python3 -m compileall src scripts tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`check_and_download_models()` 输出 `(True, [], [])`。
+- 发现并修复一个演示流程 bug：student 能看到内置 public profile，但创建 session 时仍被 class visibility 检查拦截。`src/api/routes/session.py` 现在允许 `owner_id is None` 且 `visible_class_ids == []` 的内置 public profile 创建 student session。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 22 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`check_and_download_models()` 输出 `(True, [], [])`。
