@@ -18,6 +18,7 @@
 - 默认 embedding 检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY` 输出 `(True, [], [])`，确认默认 `EMBEDDING_PROVIDER=volcengine` 不再触发 HuggingFace 下载。
 - linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
 - linux-01 最终部署：远端 focused pytest 22 passed；`model_check=(True, [], [])`；`embedding_class=VolcengineArkEmbeddings`；默认 public profile count=6；外部 health/docs/frontend curl 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过，且工具迭代不会过早截断。
+- linux-01 最新同步：2026-05-13 已通过 Remote Runner 部署 `c014790` archive 并重启 tmux 服务；远端 health OK、前端 HTTP 200、`linked_builtin_profiles=6`、`builtin_documents=6`，默认 profile 已具备内置 lab manual Document 链路。
 - 追加真实演示：使用 `admin` 账号在 linux-01 上完成了一次两轮真实对话 smoke，session 历史已保留，`history_len=5`。
 - 学生困难路径完整验证：使用学生账号完成 `Sniffing_Spoofing manual calibrated` 全实验会话 `362d3773-bc6e-41e2-a97e-bc76f82c54a1`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，历史 30 条；期间验证了 lab manual RAG、DB-backed custom skill 检索、学生弱回答不推进、导师拆解提示和最终完成态。
 - live demo examples：`docs/examples/live-demo-sessions/` 已归档 admin VPN 完整会话和 demo 学生 Sniffing/Spoofing 完整会话；远端 `demo` 账号现在能直接看到学生完整会话。
@@ -59,7 +60,7 @@
 
 - 不提交 `_local/`、`frontend/node_modules/`、`data/*.db`、`data/dreamingrag_memory/`、向量索引、模型缓存、日志或任何 provider key。
 - `plans/active/` 只保留 `.gitkeep`；当前无 active plan。
-- 当前还需要提交并 push 本次内置 lab manual 文档链路修复、live demo example、回归测试和 handoff/progress/feature evidence。
+- 当前已提交并 push 本次内置 lab manual 文档链路修复、live demo example、回归测试和 handoff/progress/feature evidence；PR #16 已创建。
 
 ## 下一步最佳动作
 
