@@ -29,6 +29,7 @@ from config import (
     LANGCHAIN_MAX_ITERATIONS,
     LANGCHAIN_VERBOSE,
     MAX_HISTORY_TOKENS,
+    REMOTE_TOOL_AGENT_IDLE_TIMEOUT,
     get_default_llm,
 )
 from core.database import SessionLocal
@@ -72,7 +73,7 @@ def _agent_executor_kwargs() -> Dict[str, Any]:
         "verbose": LANGCHAIN_VERBOSE,
         "handle_parsing_errors": True,
         "max_iterations": LANGCHAIN_MAX_ITERATIONS,
-        "early_stopping_method": "generate",
+        "early_stopping_method": "force",
     }
 
 
@@ -409,6 +410,28 @@ class Tutor:
         if not self.memory_provider.enabled:
             return
         self.memory_provider.record_turn(user_input, assistant_output)
+
+    def _remote_tool_idle_reply(
+        self,
+        user_input: str,
+        tool_observations: List[str],
+    ) -> str:
+        """Build a usable reply when the model stalls after remote tool output."""
+        observation_text = "\n".join(obs for obs in tool_observations if obs).strip()
+        if len(observation_text) > 1800:
+            observation_text = observation_text[:1800] + "\n..."
+        if not observation_text:
+            observation_text = "远端工具已完成调用，但没有返回可展示的额外输出。"
+        return (
+            "我已经完成了实验机检查，但模型在工具调用后没有继续生成自然语言回复。"
+            "为避免会话卡住，我先把可用观察结果整理给你：\n\n"
+            f"{observation_text}\n\n"
+            "从这些结果继续推理时，先确认容器是否都处于 Up 状态，再确认 attacker "
+            "容器内的接口和地址是否位于实验网络。若容器和接口正常，下一步就可以用 "
+            "ping 或 tcpdump/scapy 产生并观察 ICMP 流量；若没有包，再回头检查 root "
+            "权限、监听接口和 BPF 过滤器。你刚才的思路是对的：先排除实验环境与权限，"
+            "再判断抓包代码。"
+        )
     
     def _add_message_to_history(self, message: str, role: str) -> int:
         """Add a message to history and update token count incrementally.
@@ -828,8 +851,10 @@ class Tutor:
             tool_call_count = 0
             tool_call_in_progress = False
             tool_call_completed = False
+            tool_observations: List[str] = []
+            stream_timed_out_after_tool = False
             try:
-                async for event in chain.astream_events(
+                event_stream = chain.astream_events(
                     {
                         "system_prompt_with_state": formatted_system_prompt,
                         "truncate_history_note": truncate_history_note,
@@ -838,7 +863,33 @@ class Tutor:
                     },
                     config={"configurable": {"session_id": self.session.session_id}},
                     version="v2",
-                ):
+                )
+                while True:
+                    try:
+                        next_event = event_stream.__anext__()
+                        if tool_called:
+                            event = await asyncio.wait_for(
+                                next_event,
+                                timeout=REMOTE_TOOL_AGENT_IDLE_TIMEOUT,
+                            )
+                        else:
+                            event = await next_event
+                    except StopAsyncIteration:
+                        break
+                    except asyncio.TimeoutError:
+                        if tool_called:
+                            stream_timed_out_after_tool = True
+                            logger.warning(
+                                "Agent stream idle timeout after remote/tool call: "
+                                "session=%s timeout=%ds reply_len=%d tool_calls=%d",
+                                self.session.session_id,
+                                REMOTE_TOOL_AGENT_IDLE_TIMEOUT,
+                                len(reply),
+                                tool_call_count,
+                            )
+                            break
+                        raise
+
                     event_name = event.get("event", "")
                     event_data = event.get("data", {})
                     
@@ -860,6 +911,8 @@ class Tutor:
                         tool_call_in_progress = False
                         tool_call_completed = True
                         tool_output = event_data.get("output", "")
+                        if tool_output:
+                            tool_observations.append(str(tool_output))
                         logger.debug(
                             "Tool execution completed, output length: %d, "
                             "waiting for model response",
@@ -1026,7 +1079,8 @@ class Tutor:
                             tool_call_count,
                             tool_call_completed,
                         )
-                            
+                if hasattr(event_stream, "aclose"):
+                    await event_stream.aclose()
             except Exception as e:
                 logger.error("Streaming failed: %s", e, exc_info=True)
                 # If streaming failed and no reply was collected, set a fallback message
@@ -1041,15 +1095,13 @@ class Tutor:
             # model to continue output after tool completion. Only if no output
             # is generated at all, we provide fallback.
             if tool_called and not reply:
-                logger.warning(
-                    "Tool was called (%d times) but no reply was generated. "
-                    "This may indicate a bug.",
-                    tool_call_count,
-                )
-                reply = (
-                    "我已经处理了你的请求，但似乎没有生成回复。"
-                    "请告诉我你还需要什么帮助。"
-                )
+                if not stream_timed_out_after_tool:
+                    logger.warning(
+                        "Tool was called (%d times) but no reply was generated. "
+                        "This may indicate a bug.",
+                        tool_call_count,
+                    )
+                reply = self._remote_tool_idle_reply(user_input, tool_observations)
                 yield reply
 
             # Add AI response to history with incremental token counting

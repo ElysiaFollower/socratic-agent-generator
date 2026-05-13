@@ -128,6 +128,26 @@ The MVP tool exposes `check_connection` and `run_command`; richer lab-oriented a
 
 The implementation may map these actions to Remote Runner CLI calls internally. The LLM should see only sanitized command results and stable error messages.
 
+### Command Interaction Modes
+
+The tutor-facing contract must keep short observations distinct from long-running
+lab work:
+
+- `run_and_wait`: execute a bounded command and return stdout/stderr/exit code.
+  This is the only mode the MVP exposes to Tutor, and it should stay short
+  enough for an interactive student turn.
+- `run_background`: start a persistent command, return a command/run id
+  immediately, and do not block the student turn.
+- `get_command_result`: fetch the current status and accumulated output for a
+  previous background command.
+
+Remote Runner currently exposes synchronous `session exec --timeout` plus session
+log inspection. That is enough for short diagnostics such as `docker ps`, but it
+is not the right shape for packet captures, servers, long builds, or any command
+where the useful interaction is "start now, inspect later." Socratic therefore
+keeps the default command timeout short and records this split as the required
+next interface before Tutor should rely on long-running remote lab commands.
+
 ## Command Policy
 
 The first implementation should support a profile/session-scoped command policy rather than arbitrary shell execution.

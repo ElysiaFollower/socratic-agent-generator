@@ -237,3 +237,15 @@
 - Tutor-bound skill 也通过真实调用验证：直接从该 Socratic session 加载 `get_remote_environment_skill(session=...)`，调用 `run_command` 执行 `docker ps --format '{{.Names}}'` 成功返回 seed-lab 容器输出并追加审计；验证后已 destroy 相关 Remote Runner probe/session，日志保留在本地 Remote Runner log 目录但不提交。
 - 验证：`./init.sh` 通过；`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_session_file_manager.py tests/test_session_progress.py tests/test_skill_names.py -q` 通过 18 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`remote-runner machine doctor seed-lab --json` 返回 reachable/auth/default_cwd 全 true；`git diff --check` 通过。
 - 剩余限制：本地仓库没有真实 LLM/embedding API key，完整“学生弱理解路径 + Tutor 多轮自然语言完成全部课程节点”的真实 LLM 会话尚未在本分支本地跑完；已有 linux-01 旧基线验证过完整 Sniffing/Spoofing 对话，但它尚未包含本分支新增的 remote-bound tool。
+
+### 2026-05-13 - 完成 linux-01 session-bound Remote Runner 全实验验收
+
+- 将本分支部署到 linux-01 的 `/home/ely/deploy/socratic-live/socratic-agent-generator`，Remote Runner 以 `/home/ely/deploy/socratic-live/SEEDRunner` 安装到 `SocraticAgent` conda 环境；后端和前端分别运行在 tmux `socratic-backend`、`socratic-frontend`。
+- 通过后端 API 为 `demo` 学生配置 `seed-lab` 机器，绑定 linux-01 可访问的 `ssh -p 2222 seed@localhost` 实验机；连接测试返回 ready。
+- 完成最终真实会话：Socratic session `42f4f635-4ab3-41a0-911a-233cf4cebe0d`，Remote Runner session `sess_20260513_144634_689262_63b90a86`，profile 为 Sniffing/Spoofing。
+- LabSetup 由系统包办：通过 session file API 上传 `docker-compose.yml`，remote-put 到 `/home/seed/socratic-labs/<session>/Sniffing_Spoofing/Labsetup/docker-compose.yml`，创建 `volumes/`，运行 `docker-compose up -d`、`docker-compose ps` 和 `docker ps` 成功。
+- Tutor 在完整自然语言会话中使用 session-bound `observe_remote_environment`，完成 9/9 个课程节点，最终 state 为 `stepIndex=9,totalSteps=9,isFinished=true`，history_len=27，remote audit 16 条。
+- 导出脱敏 example：`docs/examples/live-demo-sessions/remote-runner-sniffing-spoofing-final.json`；不包含 token、私钥、密码或数据库。
+- 修复验收暴露的问题：linux-01 当前 LangChain classic 不支持 `early_stopping_method=generate`，改为 `force`；`REMOTE_TOOL_AGENT_IDLE_TIMEOUT` 默认降到 15 秒，避免学生因工具调用等待过久；`LANGCHAIN_MAX_ITERATIONS` 默认设为 4，避免一次 Tutor 轮次无限工具循环。
+- 记录上游接口缺口：Remote Runner 当前只有同步 `session exec --timeout`，不适合 packet capture、server、长 build 等持久命令；已在 SEEDRunner 提 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/3`，建议提供 `run_and_wait`、`run_background`、`get_command_result` 三段式接口。
+- 验证：`python3 -m compileall src` 通过；`./scripts/harness-check.sh` 通过 0 warning；远端后端 `/api/health` 返回 OK；最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。

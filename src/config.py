@@ -149,8 +149,8 @@ LANGCHAIN_VERBOSE: bool = os.getenv("LANGCHAIN_VERBOSE", "false").lower() == "tr
 # Keep a floor above the common "look up -> narrow search -> answer" pattern
 # so the tutor can finish one tool-heavy turn instead of stopping early.
 LANGCHAIN_MAX_ITERATIONS: int = max(
-    int(os.getenv("LANGCHAIN_MAX_ITERATIONS", "5")),
-    5,
+    int(os.getenv("LANGCHAIN_MAX_ITERATIONS", "4")),
+    1,
 )
 
 # --- Evaluation Configuration ---
@@ -268,6 +268,9 @@ REMOTE_RUNNER_PYTHON_EXECUTABLE: str = (
 )
 REMOTE_RUNNER_STATE_DIR: Optional[str] = os.getenv("REMOTE_RUNNER_STATE_DIR", "")
 REMOTE_TOOL_COMMAND_TIMEOUT: int = int(os.getenv("REMOTE_TOOL_COMMAND_TIMEOUT", "20"))
+REMOTE_TOOL_AGENT_IDLE_TIMEOUT: int = int(
+    os.getenv("REMOTE_TOOL_AGENT_IDLE_TIMEOUT", "15")
+)
 REMOTE_TOOL_OUTPUT_CHARS: int = int(os.getenv("REMOTE_TOOL_OUTPUT_CHARS", "4000"))
 REMOTE_TOOL_ALLOWED_MACHINE_IDS: List[str] = _env_list(
     "REMOTE_TOOL_ALLOWED_MACHINE_IDS"

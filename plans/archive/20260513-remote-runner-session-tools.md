@@ -109,9 +109,5 @@ remote-runner machine doctor seed-lab --json
 
 ## 下一步最佳动作
 
-1. 检查 Remote Runner 当前 CLI 的 machine/session 配置与 credential 写入接口，确定 Socratic 侧 manager 调用边界。
-2. 设计并实现 user remote machine、session remote binding 和 audit 数据模型。
-3. 扩展 API/UI，让 `demo` 用户能配置并在创建会话时选择 `seed-lab`。
-4. 增加 session file cache、文件转存和 remote-command 调试 API，确保 LabSetup 可以由系统包办。
-5. 将 Tutor remote skill 改为 session-bound provider，并补 focused tests。
-6. 用 `seed-lab` 完成真实 Sniffing/Spoofing 端到端会话并导出 example。
+已完成并归档。后续独立任务是跟进 Remote Runner 后台命令接口：
+`https://github.com/ElysiaFollower/SEEDRunner/issues/3`。

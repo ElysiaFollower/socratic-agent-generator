@@ -114,6 +114,7 @@ REMOTE_RUNNER_PYTHON_EXECUTABLE="/absolute/path/to/conda/env/bin/python"
 REMOTE_RUNNER_STATE_DIR=""
 REMOTE_MACHINE_SECRET_KEY="replace_with_a_fernet_key_or_reuse_LLM_API_KEY_ENCRYPTION_KEY"
 REMOTE_TOOL_COMMAND_TIMEOUT=20
+REMOTE_TOOL_AGENT_IDLE_TIMEOUT=15
 REMOTE_TOOL_OUTPUT_CHARS=4000
 REMOTE_TOOL_ALLOWED_MACHINE_IDS=""
 REMOTE_TOOL_ALLOWED_COMMANDS="pwd,ls,ls -la,whoami,hostname,uname -a,id,ip addr,ip route,ifconfig,cat /etc/os-release,python --version,python3 --version"
