@@ -1,7 +1,12 @@
 {
   "version": 1,
   "wip_limit": 1,
-  "status_values": ["not_started", "active", "blocked", "passing"],
+  "status_values": [
+    "not_started",
+    "active",
+    "blocked",
+    "passing"
+  ],
   "features": [
     {
       "id": "harness-cold-start",
@@ -46,6 +51,17 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q && python3 -m compileall src",
       "evidence": "2026-05-13: created and switched to branch manual-enhance after dev/manual-enhance was blocked by an existing local dev branch. Built corpus manifest for six SEED labs from external source paths under /Users/ely/workspace/research/agent/SEEDRunner/runs without copying raw manuals, reports, PDFs, images, logs, archives, or secrets. Generated first-pass profiles with PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing; outputs are under docs/manual-enhance/generated. Built manual calibrated profiles for ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, and VPN_Tunnel under docs/manual-enhance/calibrated, plus docs/manual-enhance/mismatch-taxonomy.json and docs/manual-enhance/calibrated-profile-summary.json. Validation passed: ./scripts/harness-check.sh returned 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q passed 4 tests; python3 -m compileall src scripts tests passed.",
       "notes": "Completed plan: plans/archive/20260513-manual-profile-calibration.md. Source corpus remains external: /Users/ely/workspace/research/agent/SEEDRunner/runs. RemoteDNSAttack has lower calibration confidence because only draft notes were found alongside the .tex manual."
+    },
+    {
+      "id": "default-seed-profiles",
+      "priority": "P1",
+      "area": "profile-seeding",
+      "title": "Default calibrated SEED profiles",
+      "behavior": "A fresh deployment seeds the calibrated SEED lab profiles into SQLite automatically so they are immediately available as built-in tutor profiles.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py tests/test_default_profile_seed.py -q && python3 -m compileall src scripts tests",
+      "evidence": "2026-05-13: implemented src/utils/default_profile_seed.py and wired src/core/database.py init_db() to seed docs/manual-enhance/calibrated/*/profile.json into SQLite on startup. Updated ProfileManager.list_profiles_by_visible_classes so built-in public profiles (owner_id null and empty visible_class_ids) are visible to students before class setup. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q passed 6 tests; python3 -m compileall src scripts tests passed; startup smoke via core.database reported builtin_public_count=6 with ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, VPN_Tunnel; ./scripts/harness-check.sh passed with 0 warnings after archiving the plan.",
+      "notes": "Completed plan: plans/archive/20260513-default-seed-profiles.md. The six calibrated SEED profiles are now deployment defaults; no runtime SQLite DB is committed."
     },
     {
       "id": "dreamingrag-memory-integration",

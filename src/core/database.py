@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from config import DATA_DIR
 from models.base import Base
+from utils.default_profile_seed import seed_default_profiles
 # Import models to ensure they are registered with Base.metadata
 import models  # noqa: F401
 
@@ -23,6 +24,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    seed_default_profiles(SessionLocal)
 
 # Initialize DB (create tables if not exist)
 init_db()

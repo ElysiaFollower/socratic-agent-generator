@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`seed-manual-profile-calibration`，状态为 `passing`。
-- 当前任务计划：无 active；`plans/archive/20260513-manual-profile-calibration.md` 已归档。
-- 上次验证：2026-05-13，`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 4 个测试；`python3 -m compileall src scripts tests` 通过。
-- 下一步最佳动作：基于 `docs/manual-enhance/mismatch-taxonomy.json` 开新分支改进 generator 提示词/critic，使后续生成默认保留环境摩擦、负例、证据链和真实认知粒度。
+- 当前功能项：`default-seed-profiles`，状态为 `passing`。
+- 当前任务计划：无 active；`plans/archive/20260513-default-seed-profiles.md` 已归档。
+- 上次验证：2026-05-13，`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 6 个测试；`python3 -m compileall src scripts tests` 通过；`core.database` 启动 smoke 看到 6 个内置 public profile。
+- 下一步最佳动作：push `manual-enhance` 到远端后切回 `rag-memory-adapter`，再基于 DreamingRAG 的规范接口开新任务对接。
 
 ## 状态约定
 
@@ -123,3 +123,14 @@
 - 新增 `tests/test_manual_enhance_profiles.py`，校验校准 profile schema、外部语料引用策略、mismatch 可追溯性和初稿/校准版分离。
 - 验证：`./scripts/harness-check.sh` 通过且 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 4 个测试；`python3 -m compileall src scripts tests` 通过。
 - 状态：`seed-manual-profile-calibration` 标记为 `passing`；计划归档到 `plans/archive/20260513-manual-profile-calibration.md`。
+
+### 2026-05-13 - 完成默认校准 Profile 自动导入
+
+- 创建 active plan：`plans/active/20260513-default-seed-profiles.md`，完成后归档到 `plans/archive/20260513-default-seed-profiles.md`。
+- 新增 `src/utils/default_profile_seed.py`，从 `docs/manual-enhance/calibrated/*/profile.json` 读取并校验 6 个校准 profile，在 SQLite `profiles` 表中按 `profile_id` 幂等插入或更新。
+- 更新 `src/core/database.py`，在 `init_db()` 建表后自动调用默认 profile seed；因此新部署启动后自带这 6 个 profile。
+- 更新 `src/utils/profile_manager.py`，让 `owner_id is None` 且 `visible_class_ids == []` 的内置 public profile 对没有 class 的 student 也可见；admin 和 teacher 仍按已有逻辑可见。
+- 新增 `tests/test_default_profile_seed.py`，覆盖 fresh DB 导入、重复 seed 幂等更新和 student 无 class 可见。
+- 更新 `docs/manual-enhance/README.md`，记录 calibrated profile 会作为内置 public profile 在启动时导入。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 6 个测试；`python3 -m compileall src scripts tests` 通过；启动 smoke 输出 `builtin_public_count= 6`；`./scripts/harness-check.sh` 通过且 0 warning。
+- 状态：`default-seed-profiles` 标记为 `passing`。

@@ -4,9 +4,9 @@
 
 - 分支：`manual-enhance`
 - 基线：从 `remote-tool` 切出，保留 repo-native harness、DreamingRAG adapter 和 Remote Runner adapter 原型。
-- 当前功能项：`seed-manual-profile-calibration`，状态为 `passing`
-- 当前计划：无 active；`plans/archive/20260513-manual-profile-calibration.md` 已归档
-- 当前目标：本学期真实 SEED 实验的 generator 初稿、人工校准版 profile 和 mismatch 改进依据已经沉淀到仓库。
+- 当前功能项：`default-seed-profiles`，状态为 `passing`
+- 当前计划：无 active；`plans/archive/20260513-default-seed-profiles.md` 已归档
+- 当前目标：本学期真实 SEED 实验的 generator 初稿、人工校准版 profile、mismatch 改进依据和部署默认 profile 自动导入已经完成。
 
 ## 当前已验证状态
 
@@ -16,6 +16,8 @@
 - 初始生成：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing` 成功，输出在 `docs/manual-enhance/generated/`。
 - 校准生成：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/build_manual_enhance_calibrated_profiles.py` 成功，输出在 `docs/manual-enhance/calibrated/`。
 - Focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q` 通过 `4 passed`。
+- Default seed tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过 `6 passed`。
+- Startup seed smoke：导入 `core.database` 后通过 `ProfileManager.list_profiles_by_visible_classes([])` 看到 6 个内置 public profile：ARP_Attack、LocalDNSAttack、RemoteDNSAttack、Sniffing_Spoofing、TCP_Attacks、VPN_Tunnel。
 - Harness：`./scripts/harness-check.sh` 通过，0 warning。
 - 语法验证：`python3 -m compileall src scripts tests` 通过。
 
@@ -30,6 +32,10 @@
 - 新增 `scripts/build_manual_enhance_calibrated_profiles.py`，构建人工校准版 profile 和 mismatch taxonomy。
 - 新增 `tests/test_manual_enhance_profiles.py`，校验 schema、语料来源策略、mismatch 可追溯性和初稿/校准版分离。
 - 新增 `docs/manual-enhance/`，包含 corpus manifest、6 个实验 generator 初稿、6 个实验校准版 profile、summary、mismatch taxonomy 和 README。
+- 新增 `src/utils/default_profile_seed.py`，启动时从校准 profile JSON 幂等导入 SQLite。
+- 更新 `src/core/database.py`，建表后自动 seed 默认 profile。
+- 更新 `src/utils/profile_manager.py`，让内置 public profile 对没有 class 的 student 可见。
+- 新增 `tests/test_default_profile_seed.py`，验证 fresh DB 导入、重复 seed 幂等和 student 可见性。
 
 ## 结论
 
@@ -46,10 +52,12 @@
 
 记录的 generator 改进依据在 `docs/manual-enhance/mismatch-taxonomy.json`，核心模式包括：环境摩擦被省略、成功标准过度确定、负例没有成为学习节点、证据链不足、任务粒度不贴合真实认知负担、源文档编号问题未被校正。
 
+这些校准 profile 现在也是部署默认 profile：`init_db()` 会在启动时把 `docs/manual-enhance/calibrated/*/profile.json` 导入 SQLite，新数据库不需要手动生成或导入即可在 profile 列表中看到它们。
+
 ## 仍损坏或未验证
 
 - `RemoteDNSAttack` 校准可信度低于其他实验，因为只找到 `.tex` 和 draft notes，没有同等详细的手写完整报告。
-- 校准版 profile 已通过 schema 校验，但尚未导入 SQLite，也未通过 Web UI 真实对话体验验证。
+- 校准版 profile 已支持启动自动导入 SQLite，并通过直接数据库 smoke；尚未通过 Web UI 真实对话体验验证。
 - 本任务没有修改 generator 提示词或 critic；mismatch taxonomy 是后续改进依据。
 - 既有 Remote Runner 远端部署阻塞仍存在：`linux-01` 的保存认证配置此前已过期，不属于本分支目标。
 
@@ -58,19 +66,21 @@
 - 原始 SEEDRunner 报告、`.tex`、PDF、图片、日志、zip、数据库和密钥没有复制进本仓库；仓库只保存外部路径、文件大小、生成 profile、校准 profile 和人工归纳。
 - 运行态目录 `_local/`、`frontend/node_modules/`、`data/socratic_agent.db` 是 ignored，不应提交。
 - `plans/active/` 只保留 `.gitkeep`；当前无 active plan。
-- 已运行并记录：`./scripts/harness-check.sh`、`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q`、`python3 -m compileall src scripts tests`。
+- 已运行并记录：`./scripts/harness-check.sh`、`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q`、`python3 -m compileall src scripts tests`、默认 profile startup seed smoke。
 
 ## 下一步最佳动作
 
-1. 基于 `docs/manual-enhance/mismatch-taxonomy.json` 新开任务改 generator prompt / critic，让生成器默认保留环境摩擦、负例、证据链和真实认知粒度。
-2. 将 `docs/manual-enhance/calibrated/*/profile.json` 中的 profile 导入本地开发数据库，启动前后端做一次真实 Tutor 对话 smoke。
-3. 若要提高 RemoteDNSAttack 可信度，补充或重新执行该实验的完整报告，再更新校准版 profile。
+1. push `manual-enhance` 到远端。
+2. 切回 `rag-memory-adapter`，基于 DreamingRAG 已规范化接口开新任务对接。
+3. 启动前后端做一次真实 Tutor 对话 smoke，确认默认 profile 在 UI 中可选且可创建 session。
+4. 若要提高 RemoteDNSAttack 可信度，补充或重新执行该实验的完整报告，再更新校准版 profile。
 
 ## 命令
 
 - 初始化：`./init.sh`
 - Harness 检查：`./scripts/harness-check.sh`
 - 手工增强 profile 测试：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_manual_enhance_profiles.py -q`
+- 默认 profile seed 测试：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q`
 - 语法验证：`python3 -m compileall src scripts tests`
 - 重新生成初稿：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/generate_manual_enhance_profiles.py --dotenv /Users/ely/workspace/research/agent/DreamingRAG/.env --fast --skip-existing`
 - 重建校准版：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/build_manual_enhance_calibrated_profiles.py`
