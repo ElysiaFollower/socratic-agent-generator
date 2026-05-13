@@ -580,9 +580,9 @@ class Tutor:
     ) -> AsyncGenerator[str, None]:
         """Generate step transition guidance message.
 
-        Uses main LLM with full context to naturally summarize and transition.
-        The LLM can naturally summarize previous conversation (e.g., "I think
-        you've mastered this round, let's move to the next stage").
+        Keep transition generation local and deterministic. This runs after the
+        evaluator has already accepted the student's answer, so another LLM call
+        is unnecessary and can leave SSE clients waiting if the provider stalls.
 
         Yields:
             Tokens of the transition message.
@@ -590,83 +590,24 @@ class Tutor:
         curriculum = self.session.get_curriculum()
         current_step_idx = self.session.state.stepIndex
 
-        if current_step_idx > curriculum.get_len():
+        if current_step_idx >= curriculum.get_len():
             # Curriculum completed
             message = (
                 "太棒了！你已经完成了本次的所有学习任务。"
                 "期待与你进行下一次的探讨！"
             )
+            self._add_message_to_history(message, "ai")
             yield message
             return
 
-        # Assemble system prompt (contains new stepIndex information)
-        formatted_system_prompt = self.prompt_assembler.assemble(
-            self.session.profile.curriculum,
-            current_step_idx,  # New step index
-            self.session.output_language,
-            skills=self._skills_for_prompt(include_custom=False),
+        step = curriculum.get_step(current_step_idx)
+        message = (
+            "很好，这一步的关键证据链已经成立。"
+            f"下一步我们进入「{step.step_title}」。"
+            f"{step.guiding_question}"
         )
-
-        # Generate transition message (using main LLM, based on full context)
-        # Main LLM will see:
-        # 1. New stepIndex (system prompt contains new step information)
-        # 2. Full conversation history (including just now's reply and user answer)
-        # 3. Can naturally summarize and transition previous conversation
-        
-        # Add a system note to inform the model that this is an evaluator-triggered
-        # transition. The model should generate a bridging message that:
-        # 1) Acknowledges the student's achievement and summarizes what they've learned
-        # 2) Naturally introduces the next step using the new step's guiding question
-        # Make it feel like a natural continuation of the conversation.
-        transition_system_note = (
-            "[系统说明：后台的评估器已判断学生成功完成了当前步骤的学习目标，"
-            "系统已自动推进到下一步。请生成一个承上启下的过渡消息，要求："
-            "1) 肯定学生的成就，简要总结他们刚才掌握的内容；"
-            "2) 自然地引入下一步的学习内容，使用新步骤的引导问题。"
-            "让过渡感觉自然流畅，就像对话的自然延续。]"
-        )
-        
-        # Use a system instruction as input to trigger the transition message generation.
-        # This input will NOT be added to history to avoid fabricating user messages.
-        # The model will understand from the system note that this is a system-triggered
-        # transition, not a real user request.
-        # The input is only used to satisfy the prompt template requirement.
-        transition_input = "[系统触发：请生成过渡消息]"
-
-        chain = self._get_chain(self._current_provider, self._current_model)
-        reply = ""
-        async for event in chain.astream_events(
-            {
-                "system_prompt_with_state": formatted_system_prompt,
-                "truncate_history_note": (
-                    f"{self.truncate_history_note}\n\n{transition_system_note}"
-                ),
-                "input": transition_input,
-                "agent_scratchpad": [],
-            },
-            config={"configurable": {"session_id": self.session.session_id}},
-            version="v2",
-        ):
-            event_name = event.get("event", "")
-            if event_name in ("on_llm_stream", "on_chat_model_stream"):
-                chunk = event.get("data", {}).get("chunk")
-                if chunk:
-                    token = None
-                    if hasattr(chunk, "content"):
-                        token = chunk.content
-                    elif isinstance(chunk, str):
-                        token = chunk
-                    elif isinstance(chunk, dict):
-                        token = chunk.get("content")
-
-                    if token:
-                        reply += token
-                        yield token
-
-        # Add only the transition message (AI reply) to history.
-        # Do NOT add the empty transition_input to avoid fabricating user messages.
-        if reply:
-            self._add_message_to_history(reply, "ai")
+        self._add_message_to_history(message, "ai")
+        yield message
 
     def get_welcome_message(self) -> str:
         """Generate welcome message for the session."""
@@ -705,7 +646,7 @@ class Tutor:
                 # Already beyond curriculum, set to completion state
                 self.session.state.stepIndex = curriculum_len + 1
             self.save()
-            if self.session.state.stepIndex <= curriculum_len:
+            if self.session.state.stepIndex < curriculum_len:
                 guiding_question = (
                     self.session.get_curriculum().get_guiding_question(
                         self.session.state.stepIndex
@@ -720,7 +661,7 @@ class Tutor:
                     is_finished=False,
                 )
 
-        if self.session.state.stepIndex > self.session.get_curriculum().get_len():
+        if self.session.is_finished():
             return ResponseMessage(
                 reply=(
                     "太棒了！你已经完成了本次的所有学习任务。"
@@ -803,7 +744,7 @@ class Tutor:
                 # Already beyond curriculum, set to completion state
                 self.session.state.stepIndex = curriculum_len + 1
             await self.async_save()
-            if self.session.state.stepIndex <= curriculum_len:
+            if self.session.state.stepIndex < curriculum_len:
                 guiding_question = (
                     self.session.get_curriculum().get_guiding_question(
                         self.session.state.stepIndex
@@ -816,7 +757,7 @@ class Tutor:
                 )
                 return
 
-        if self.session.state.stepIndex > self.session.get_curriculum().get_len():
+        if self.session.is_finished():
             token = "太棒了！你已经完成了本次的所有学习任务。"
             yield token
             yield ResponseMessage(
@@ -835,6 +776,9 @@ class Tutor:
         self._ensure_evaluation_lock()
 
         # Check evaluation lock (if evaluation pending, wait or reject)
+        lock_acquired_for_turn = False
+        evaluation_task = None
+        save_task = None
         async with self._evaluation_lock:
             if self.evaluation_pending:
                 waiting_msg = (
@@ -850,6 +794,7 @@ class Tutor:
 
             # Set evaluation lock (at evaluation start)
             self.evaluation_pending = True
+            lock_acquired_for_turn = True
 
         try:
             # Extract context and current step info
@@ -1171,18 +1116,28 @@ class Tutor:
 
             await self.async_save()
 
+        except asyncio.CancelledError:
+            logger.warning(
+                "Stream cancelled for session %s; clearing evaluation lock",
+                self.session.session_id,
+            )
+            raise
         except Exception as e:
-            # Ensure lock is cleared on exception
-            if self._evaluation_lock is not None:
-                async with self._evaluation_lock:
-                    self.evaluation_pending = False
             logger.error("Error in stream_message: %s", e, exc_info=True)
             raise
+        finally:
+            if lock_acquired_for_turn and self._evaluation_lock is not None:
+                async with self._evaluation_lock:
+                    if self.evaluation_pending:
+                        self.evaluation_pending = False
+            for task in (evaluation_task, save_task):
+                if task is not None and not task.done():
+                    task.cancel()
 
         yield ResponseMessage(
             reply=reply,
             state=self.session.state,
-            is_finished=False,
+            is_finished=self.session.is_finished(),
             message_id=assistant_message_id,
             step_completion=step_completion_info,
         )

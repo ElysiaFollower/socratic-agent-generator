@@ -19,6 +19,7 @@
 - linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
 - linux-01 最终部署：远端 focused pytest 22 passed；`model_check=(True, [], [])`；`embedding_class=VolcengineArkEmbeddings`；默认 public profile count=6；外部 health/docs/frontend curl 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过，且工具迭代不会过早截断。
 - 追加真实演示：使用 `admin` 账号在 linux-01 上完成了一次两轮真实对话 smoke，session 历史已保留，`history_len=5`。
+- 学生困难路径完整验证：使用学生账号完成 `Sniffing_Spoofing manual calibrated` 全实验会话 `362d3773-bc6e-41e2-a97e-bc76f82c54a1`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，历史 30 条；期间验证了 lab manual RAG、DB-backed custom skill 检索、学生弱回答不推进、导师拆解提示和最终完成态。
 
 ## 本会话改动
 
@@ -37,18 +38,21 @@
 - 修复 `BaseSkill.name` 在远端缺少 `SKILL.md` 时回退为 `unknown_skill` 的问题，避免 DeepSeek 拒绝重复工具名。
 - 调整 Tutor 的 AgentExecutor 配置为更高的最小迭代数并启用 `early_stopping_method="generate"`，避免工具驱动的教学回复在查资料阶段提前收尾。
 - 完成 admin 真实对话 smoke，验证会话历史可保留并在后续展示时继续读取。
+- 修复 SSE 客户端中断后的 `evaluation_pending` 锁残留；通过步骤后的过渡语改成本地确定性生成，避免额外 LLM 调用拖住 `END`；完成态统一为 `stepIndex >= totalSteps`。
+- 新增 `tests/test_session_progress.py`，覆盖零基 stepIndex 完成判断。
 
 ## 仍损坏或未验证
 
 - 尚未配置正式域名、HTTPS、反向代理或 systemd；当前按用户要求使用 tmux 持久化演示服务。
 - `DREAMINGRAG_MEMORY_MOCK_MODE` 是否开启取决于演示稳定性：若只展示 Socratic 主流程，可用 mock memory；若展示真实长期记忆，需要确认 Volcengine 与 DreamingRAG real mode 真实 API 可用。
 - Remote Runner tool 仍默认关闭：`REMOTE_TOOL_ENABLED=false`。若导师演示需要远程环境观察，要在部署 env 中显式开启并设置 allowlist。
+- `Sniffing_Spoofing` 的 `.tex` 实验文档和 custom skill 已在 linux-01 演示数据库中创建，用于这次学生 RAG smoke；这些是远端演示数据，不应提交 SQLite DB 或向量索引。
 
 ## 清洁状态
 
 - 不提交 `_local/`、`frontend/node_modules/`、`data/*.db`、`data/dreamingrag_memory/`、向量索引、模型缓存、日志或任何 provider key。
 - `plans/active/` 只保留 `.gitkeep`；当前无 active plan。
-- 当前还需要提交并 push 本 handoff/progress/feature evidence 收口记录。
+- 当前还需要提交并 push 本次 SSE 稳定性修复、完成态修复、回归测试和 handoff/progress/feature evidence。
 
 ## 下一步最佳动作
 

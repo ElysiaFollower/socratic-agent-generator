@@ -177,3 +177,13 @@
 - 第二轮发送对拓扑和路由的简短回答，系统继续追问并给出分步引导。
 - 会话通过 `/api/sessions/{session_id}` 读取回验证，`history_len=5`，说明对话历史已经落库并可用于后续展示或继续对话。
 - 结果：这个部署不仅能跑，还能完成一段真实、可回看的教学会话。
+
+### 2026-05-13 - 完成 linux-01 学生困难路径完整实验会话
+
+- 使用远端学生账号创建并完成 `Sniffing_Spoofing manual calibrated` 会话：`362d3773-bc6e-41e2-a97e-bc76f82c54a1`。
+- 为该 profile 上传本地 SEEDRunner `Sniffing_Spoofing.tex` 实验文档，并创建 DB-backed custom skill `custom_sniffing_spoofing_lab_search`；索引重建成功，生成 51 个 chunk。
+- 真实测试了“不完全懂行学生”路径：学生先问权限/接口困惑，导师调用实验文档 RAG，定位 `br-xxxxx` 接口和 root 权限线索，并把问题拆成接口与权限两个子问题。
+- 在 BPF 过滤器节点故意提交不完整答案，导师再次调用文档检索，指出 `ping` 不是 BPF 关键字，解释应使用 `icmp`、`tcp port 23`、`src net ...` 等协议/端口/地址表达式；该轮没有推进 step。
+- 补充正确答案后继续完成所有步骤，最终 `/api/tutor/362d3773-bc6e-41e2-a97e-bc76f82c54a1/state` 返回 `{"stepIndex":9,"totalSteps":9,"isFinished":true}`，会话历史 `history_len=30`，最后消息为完成提示。
+- 修复测试中暴露的流式稳定性问题：SSE 客户端断开时清理 `evaluation_pending` 锁；通过步骤后的过渡消息改为本地确定性生成，避免额外 LLM 调用拖住 `END`；完成态统一为 `stepIndex >= totalSteps`。
+- 验证：`python3 -m compileall src/api/routes/interaction.py src/schemas/session.py src/utils/tutor_core.py tests/test_session_progress.py` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_skill_names.py tests/test_default_profile_seed.py tests/test_session_progress.py -q` 通过 7 passed；`./scripts/harness-check.sh` 通过 0 warning；远端 health/frontend/session state 均通过。
