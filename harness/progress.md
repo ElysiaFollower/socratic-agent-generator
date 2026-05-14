@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-14，Shell 面板可用性跟进修正已完成：frontend tests 4 passed、frontend build 通过、harness-check 0 warning、git diff --check 通过。
-- 下一步最佳动作：同步本修正到 linux-01 并确认前后端健康。
+- 上次验证：2026-05-14，Shell 面板可用性跟进修正已同步到 linux-01：远端 build 通过，前后端健康，`demo/admin` 登录验证通过。
+- 下一步最佳动作：等待 PR #26 review/merge。
 
 ## 状态约定
 
@@ -32,6 +32,16 @@
 - 新增 `frontend/src/test/SessionEvidencePanel.test.tsx`，覆盖宽度上限、audit transcript 格式和 metadata 清理。
 - 验证：`./scripts/harness-check.sh` 0 warning；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 - 状态：`vnext-shell-panel-usability-fixes` 标记为 `passing`，计划归档到 `plans/archive/20260514-shell-panel-usability-fixes.md`。
+
+### 2026-05-14 - 同步 Shell 面板可用性修正到 linux-01
+
+- 将 commit `4149d61` archive 上传到 `/home/ely/deploy/socratic-live/` 并切换部署目录。
+- 部署脚本已修正数据复制顺序：先删除新包自带空 `data/`，再复制旧部署的 `data/`，避免再次出现 `data/data` 嵌套和空 DB 被应用读取的问题。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514150015`。
+- 远端验证：DB users count 为 3；`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 重启 tmux `socratic-backend` 与 `socratic-frontend`；linux-01 本机 health OK、frontend HTTP 200，监听为 `0.0.0.0:8000` 和 `0.0.0.0:5173`。
+- 本地访问验证：`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
+- 登录验证：`demo / SocraticDemo2026!` 返回 200，角色 student；`admin / SocraticAdmin2026!` 返回 200，角色 admin。
 
 ### 2026-05-14 - 开启 Shell 面板 UX 修正任务
 
