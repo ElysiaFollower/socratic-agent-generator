@@ -39,7 +39,9 @@
     "open": "打开 Shell 证据",
     "empty": "当前会话还没有记录远程命令证据。",
     "noMachine": "未选择实验机",
-    "selectMachineFirst": "请先选择实验机，再查看 Shell 证据。"
+    "selectMachineFirst": "请先选择实验机，再查看 Shell 证据。",
+    "terminal": "Shell",
+    "records": "条"
   },
   "common": {
     "loading": "加载中...",

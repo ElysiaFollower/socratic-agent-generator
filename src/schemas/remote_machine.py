@@ -90,6 +90,9 @@ class SessionRemoteBindingUpdateRequest(BaseModel):
 class RemoteCommandAudit(BaseModel):
     audit_id: str
     session_id: str
+    binding_id: Optional[str] = None
+    runner_session_id: Optional[str] = None
+    terminal_id: str = "session"
     action: str
     command: Optional[str] = None
     cwd: Optional[str] = None

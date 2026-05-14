@@ -1,6 +1,10 @@
 from schemas.curriculum import SocraticCurriculum, SocraticStep
 from utils.template_assembler import PromptAssembler
-from utils.tutor_core import _agent_executor_kwargs, _looks_like_tool_only_reply
+from utils.tutor_core import (
+    _agent_executor_kwargs,
+    _looks_like_tool_only_reply,
+    _missing_stream_reply_chunk,
+)
 
 
 def test_agent_executor_uses_force_early_stopping():
@@ -45,4 +49,14 @@ def test_tool_only_reply_detection_catches_remote_probe_preamble():
         "The bridge interface matters because it is where container traffic crosses. "
         "Why would sniffing the wrong interface show no packets?",
         tool_call_count=1,
+    )
+
+
+def test_missing_stream_reply_chunk_returns_unstreamed_suffix():
+    assert _missing_stream_reply_chunk("hello world", "hello ") == "world"
+    assert _missing_stream_reply_chunk("hello world", "hello world") == ""
+    assert _missing_stream_reply_chunk("teaching summary", "") == "teaching summary"
+    assert (
+        _missing_stream_reply_chunk("final teaching summary", "tool preamble")
+        == "\n\nfinal teaching summary"
     )

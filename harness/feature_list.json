@@ -156,11 +156,22 @@
       "priority": "P0",
       "area": "frontend-remote-evidence",
       "title": "Session shell and evidence panel",
-      "behavior": "A student can expand a right-side session panel to inspect remote command tabs, statuses, stdout/stderr summaries, and evidence collected by the tutor during the current learning session.",
+      "behavior": "A student can expand a right-side session panel to inspect sanitized remote command evidence collected by the tutor during the current learning session.",
       "status": "passing",
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
       "evidence": "2026-05-14: implemented a read-only session Shell/Evidence panel. Backend RemoteCommandAudit now returns create_at. Frontend adds SessionEvidencePanel, a header terminal button, i18n strings, and typed remote command/audit API support. The panel fetches /api/sessions/{session_id}/remote-audits, displays audit records as scrollable tabs, and shows command/action/cwd/time/exit status plus sanitized stdout/stderr/error excerpts. It does not provide an arbitrary terminal or bypass Tutor/session-bound Remote Runner permissions. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q -> 5 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed. Playwright local smoke opened http://127.0.0.1:5174/login successfully; only existing favicon and framework warnings were observed.",
-      "notes": "Archived plan: plans/archive/20260514-shell-evidence-panel.md. The panel builds trust by showing real execution results while keeping Remote Runner tools general and permissioned."
+      "notes": "Archived plan: plans/archive/20260514-shell-evidence-panel.md. The original command-tab UI is being corrected by vnext-session-shell-terminal-tabs so tabs represent terminal sessions."
+    },
+    {
+      "id": "vnext-session-shell-terminal-tabs",
+      "priority": "P0",
+      "area": "frontend-remote-evidence",
+      "title": "Session shell terminal tabs",
+      "behavior": "The session Shell/Evidence panel groups evidence by Remote Runner terminal/session tabs, and each selected tab shows a continuous transcript of commands/actions and output for that terminal.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
+      "evidence": "2026-05-14: corrected the Shell/Evidence panel from command tabs to terminal/session tabs. Backend RemoteCommandAudit now persists runner_session_id, returns binding_id/runner_session_id/terminal_id, and init_db applies a narrow SQLite compatibility ALTER TABLE for existing remote_command_audits. Frontend groups audits by terminal_id and renders each selected shell as one continuous transcript of commands/actions, cwd, stdout/stderr/error excerpts, status, and timestamps. Updated docs to define terminal-tab semantics and filed upstream Remote Runner issue https://github.com/ElysiaFollower/SEEDRunner/issues/5 for future persistent PTY shell support. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q -> 5 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260514-session-shell-terminal-tabs.md. The panel remains read-only and permissioned; future student-writable terminal work depends on a persistent Remote Runner terminal API."
     },
     {
       "id": "vnext-single-lab-e2e-benchmark",

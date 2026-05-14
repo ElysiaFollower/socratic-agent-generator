@@ -39,7 +39,9 @@
     "open": "Open shell evidence",
     "empty": "No remote command evidence has been recorded for this session yet.",
     "noMachine": "No lab machine selected",
-    "selectMachineFirst": "Select a lab machine before viewing shell evidence."
+    "selectMachineFirst": "Select a lab machine before viewing shell evidence.",
+    "terminal": "Shell",
+    "records": "records"
   },
   "common": {
     "loading": "Loading...",

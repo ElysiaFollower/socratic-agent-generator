@@ -3,7 +3,7 @@
 This module handles the SQLite database connection using SQLAlchemy.
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import sessionmaker
 from config import DATA_DIR
 from models.base import Base
@@ -24,7 +24,22 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+    _ensure_schema_compatibility()
     seed_default_profiles(SessionLocal)
+
+
+def _ensure_schema_compatibility():
+    """Apply narrow SQLite schema compatibility fixes for existing local DBs."""
+
+    inspector = inspect(engine)
+    if "remote_command_audits" not in inspector.get_table_names():
+        return
+    columns = {column["name"] for column in inspector.get_columns("remote_command_audits")}
+    if "runner_session_id" not in columns:
+        with engine.begin() as connection:
+            connection.execute(
+                text("ALTER TABLE remote_command_audits ADD COLUMN runner_session_id VARCHAR")
+            )
 
 # Initialize DB (create tables if not exist)
 init_db()
