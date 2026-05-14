@@ -42,9 +42,12 @@ describe("SessionEvidencePanel helpers", () => {
       cleanShellTranscript(
         [
           "$ pwd",
+          "source /home/seed/.remote-runner/commands/cmd_1/run.sh",
+          "__REMOTE_RUNNER_CMD_BEGIN_cmd_1__",
           "# action: session_exec",
           "# cwd: /home/seed",
           "/home/seed",
+          "__REMOTE_RUNNER_CMD_END_cmd_1__:0",
           "# exit 0 · 2026/5/14 22:00:00",
         ].join("\n"),
       ),

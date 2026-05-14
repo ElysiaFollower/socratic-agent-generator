@@ -53,6 +53,7 @@ interface ResizeState {
 const MIN_PANEL_WIDTH = 360;
 const MIN_CHAT_WIDTH = 320;
 const MAX_PANEL_RATIO = 0.7;
+const MAX_PANEL_VW = 70;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -107,6 +108,12 @@ export function cleanShellTranscript(transcript: string): string {
   return transcript
     .split("\n")
     .filter((line) => {
+      if (/^source .*\/\.remote-runner\/commands\/.*\/run\.sh$/.test(line)) {
+        return false;
+      }
+      if (/^__REMOTE_RUNNER_CMD_(BEGIN|END)_/.test(line)) {
+        return false;
+      }
       if (/^# action:/.test(line)) {
         return false;
       }
@@ -120,6 +127,10 @@ export function cleanShellTranscript(transcript: string): string {
     })
     .join("\n")
     .trimEnd();
+}
+
+function auditTranscript(audits: readonly RemoteCommandAudit[]): string {
+  return cleanShellTranscript(audits.map(formatAuditTranscript).join("\n\n"));
 }
 
 function isClosedShellError(message: string): boolean {
@@ -279,15 +290,16 @@ export function SessionEvidencePanel({
     if (!selectedTerminal) {
       return "";
     }
+    if (selectedTerminal.audits.length > 0) {
+      return auditTranscript(selectedTerminal.audits);
+    }
     if (
       remoteTranscript &&
       selectedTerminal.id === remoteBinding?.runner_session_id
     ) {
       return cleanShellTranscript(remoteTranscript);
     }
-    return cleanShellTranscript(
-      selectedTerminal.audits.map(formatAuditTranscript).join("\n\n"),
-    );
+    return "";
   }, [remoteBinding?.runner_session_id, remoteTranscript, selectedTerminal]);
 
   const selectedStatus = useMemo<ShellStatus>(() => {
@@ -447,8 +459,8 @@ export function SessionEvidencePanel({
     <Box
       ref={panelRef}
       sx={{
-        width: {xs: "100%", md: panelWidth},
-        maxWidth: {xs: "100%", md: `${MAX_PANEL_RATIO * 100}%`},
+        width: {xs: "100%", md: `min(${panelWidth}px, ${MAX_PANEL_VW}vw)`},
+        maxWidth: {xs: "100%", md: `${MAX_PANEL_VW}vw`},
         minWidth: {xs: "100%", md: MIN_PANEL_WIDTH},
         height: "100%",
         borderLeft: "1px solid",
@@ -459,6 +471,7 @@ export function SessionEvidencePanel({
         flexShrink: 0,
         position: "relative",
         boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
       <Box
