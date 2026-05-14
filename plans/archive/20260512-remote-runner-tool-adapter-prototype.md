@@ -5,6 +5,8 @@
 
 # Remote Runner Tool Adapter Prototype
 
+> 北极星校准说明：本 plan 是早期原型合同，已归档。后续不应沿用“只证明工具链路可用”的产品验收口径；Remote Runner 必须服务于 `docs/product/vision.md` 中的 learning by doing，即降低实验环境摩擦、提供真实证据，并由 Tutor 转化为学生可参与的判断和解释。
+
 ## 目标
 
 快速产出一个可用原型：Socratic Tutor 能通过受限的 Remote Runner adapter 获取学生实验环境信息，并把结构化观察结果作为 LangChain tool 返回给导师，用于更具体地追问、定位错误和指导下一步。

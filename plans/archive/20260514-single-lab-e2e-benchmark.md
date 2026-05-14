@@ -5,6 +5,8 @@
 
 # Single Lab E2E Benchmark
 
+> 北极星校准说明：本 plan 已归档，保留历史任务边界。后续继续维护 benchmark 时，应以 `docs/product/vision.md` 和 `docs/benchmarks/single-lab-e2e.md` 的最新口径为准：`isFinished=true`、step completion 和 remote audit 是必要信号，但不能单独证明学习成功。benchmark 还需要逐步检查学生 reasoning、Tutor 是否把工具证据转化为教学，以及是否存在工具循环。
+
 ## 目标
 
 实现一套后端 API 驱动的单实验端到端 benchmark，初始目标为 Sniffing/Spoofing。它应能在真实部署环境中登录学生账号、选择内置 profile、创建会话、可选绑定实验机、可选上传 LabSetup、驱动若干轮学生消息、检查进度、检查远程命令 audit，并输出结构化结果。

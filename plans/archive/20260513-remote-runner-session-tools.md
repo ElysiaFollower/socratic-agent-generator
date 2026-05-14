@@ -5,6 +5,8 @@
 
 # Remote Runner Session Tools
 
+> 北极星校准说明：本 plan 已归档，保留历史实现合同。后续继续维护 session-bound Remote Runner 时，应以 `docs/product/vision.md` 和 `docs/architecture/remote-runner-session-tools.md` 的最新口径为准：真实命令和审计证据是 learning by doing 的支撑，不是 Tutor 自动代做实验的理由。验收应同时看学生 reasoning、Tutor 对证据的解释和报告证据链，而不只看课程节点完成。
+
 ## 目标
 
 让学生在 Socratic 中配置自己的实验机，并在创建学习会话时绑定其中一台机器；该会话中的 Tutor 拥有内置 Remote Runner skill，且只能访问这台绑定机器，从而能在对话中执行实验诊断命令、收集实验结果、辅助排错，并支撑完整实验报告材料的形成。

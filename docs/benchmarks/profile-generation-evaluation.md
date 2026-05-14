@@ -35,6 +35,13 @@ Use `--json` to print the full JSON report.
 - `risk_coverage`: fixed probes for the mismatch taxonomy collected during
   manual calibration.
 
+These metrics are a static proxy, not the whole product goal. Per
+`docs/product/vision.md`, a strong profile should identify the judgment chain
+students need to personally understand, preserve real lab friction that teaches
+something, and mark peripheral details that Tutor/tools can absorb. A profile
+that merely mirrors the lab manual's task list can score structurally well while
+still failing the product goal.
+
 The aggregate score is weighted:
 
 - 25% structure
@@ -67,3 +74,7 @@ and should explain any metric movement.
 This benchmark is a static gate. It does not prove the Tutor can complete a live
 session, retrieve lab manuals, or use Remote Runner. Use
 `scripts/benchmarks/single_lab_e2e.py` for backend-driven end-to-end checks.
+
+When generator changes look good in this static benchmark, still inspect at
+least one live or recorded session for the north-star behavior: student
+reasoning, tool evidence converted into teaching, and no pure AI代做 path.

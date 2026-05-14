@@ -8,6 +8,8 @@ The target behavior is session-scoped lab assistance: a student configures a lab
 
 A second target behavior is session-scoped lab setup assistance. A session can own uploaded files, such as `docker-compose.yml`, helper scripts, or small LabSetup artifacts. The backend can then transfer those files to the session-bound lab machine and run controlled setup commands, so the student can complete environment preparation through Socratic instead of directly operating the remote host.
 
+Product alignment is defined by `docs/product/vision.md`: Remote Runner reduces lab friction and makes learning evidence real, but it must not turn the tutor into an automatic lab executor. The tutor remains responsible for converting command output into the current learning question, student reasoning, and report-ready evidence.
+
 ## Current State
 
 The merged vNext prototype already contains:
@@ -143,6 +145,12 @@ collection of narrow teaching actions such as "collect report evidence" or
 "diagnose this specific lab." That keeps the capability flexible while command
 policy, session binding, audit, and output redaction provide the safety boundary.
 
+The runtime teaching boundary is stricter than the tool boundary: after a command
+returns, Tutor must explain why the observation matters for the current step,
+ask the student to make or refine a judgment, or connect the evidence to the
+student's answer. Repeated command execution without this conversion is a product
+failure even if the tool calls themselves succeed.
+
 ### Command Interaction Modes
 
 The tutor-facing contract must keep short observations distinct from long-running
@@ -223,7 +231,10 @@ Session creation should include an optional machine selector:
 
 - Default: no remote machine.
 - If selected: show connection status and the machine display name.
-- Once a session is created, the binding is immutable for that session in the MVP.
+- A session may bind, switch, or detach its lab machine through the session
+  header control. Switching must recreate the underlying Remote Runner session
+  and preserve the Socratic permission boundary: Tutor can only use the machine
+  currently bound to that learning session.
 
 ## Acceptance Demo
 
@@ -236,6 +247,8 @@ The required final proof is a real `demo` student session:
 - The conversation must complete every curriculum step.
 - The tutor must execute commands through Remote Runner, collect results, explain at least one output, and help with at least one point of student uncertainty or failure.
 - The exported session artifact must be credential-free and include enough command/result evidence to support a lab report.
+- The conversation must show learning, not only completion: student messages should contain real judgments, explanations, pseudo-code, or evidence interpretation; Tutor responses should not be dominated by "let me check" tool loops.
+- A benchmark or demo that reaches `isFinished=true` while the student mostly watches the tutor operate the machine is not sufficient evidence of product success.
 
 ## Deployment Notes
 

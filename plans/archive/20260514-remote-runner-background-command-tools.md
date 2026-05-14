@@ -5,6 +5,8 @@
 
 # Remote Runner Background Command Tools
 
+> 北极星校准说明：本 plan 已归档，保留历史实现合同。后续继续扩展 Remote Runner 工具时，应以 `docs/product/vision.md` 和 `docs/architecture/remote-runner-session-tools.md` 的最新口径为准：工具保持通用，负责连通和反馈；Tutor 负责把命令输出转化为当前学习问题、学生判断和证据链。长命令后台化是为降低等待摩擦，不是为了让 Tutor 自动代做完整实验。
+
 ## 目标
 
 把上游 Remote Runner 新增的后台命令和显式 wait time 接口接入 Socratic Tutor，让绑定实验机会话中的导师不再只能发起同步 `session exec`。本任务的用户可见行为是：Tutor 可以把短诊断命令作为同步命令执行，也可以为抓包、服务、构建、长时间实验步骤启动后台命令，立即返回 command id，并在后续对话中显式等待、查询结果或停止命令。

@@ -29,6 +29,7 @@
 - 新增产品北极星文档 `docs/product/vision.md`，定义本项目不是自动代做系统，而是用 AI 吸收外围实验摩擦、保留学生核心思考的 learning-by-doing 系统。`docs/overview.md` 已加入该入口。
 - 修复并部署 `a0642d6` 后，linux-01 live benchmark 重新通过：session `d37e5ce4-bcb7-4a0b-8d56-0efd7b04a1c6`，`final_progress={isFinished:true, stepIndex:9, totalSteps:9}`，`step_completion_count=9`，`remote_audit_count=30`。但用户随后指出需要先沉淀产品愿景文档，后续实现应按 `docs/product/vision.md` 重新校准学习质量，而不是只看通关。
 - `docs/product/vision.md` 已进一步增加 `产品原则` 小节，用更具体的语言写清：反对传统实验高摩擦和纯 AI 代做两种低质量形态；目标是重新分配学生、AI、系统职责；Tutor 不能陷入工具循环；系统真正解决的是实验学习摩擦成本。
+- 已按北极星校准关键设计文档和计划：`docs/architecture/vnext-integrations.md`、`docs/architecture/remote-runner-session-tools.md`、`docs/benchmarks/single-lab-e2e.md`、`docs/benchmarks/profile-generation-evaluation.md`、harness rubric/quality/decisions，以及 Remote Runner / benchmark 相关归档 plan。
 
 ## 验证记录
 
@@ -45,6 +46,7 @@
 - 2026-05-14 live single-lab benchmark：部署机命令 `/root/miniconda3/envs/SocraticAgent/bin/python scripts/benchmarks/single_lab_e2e.py --dotenv /home/ely/deploy/socratic-live/.benchmark.env` 已真实运行，退出码 1；失败阶段为 `final_validation`，错误为 `Session did not finish within the scripted turns.`。
 - 2026-05-14 Tutor remote-tool pedagogical fix：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_single_lab_e2e_benchmark.py -q` 通过 10 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_session_progress.py tests/test_default_profile_seed.py -q` 通过 24 passed；`python3 -m compileall src scripts/benchmarks/single_lab_e2e.py tests/test_tutor_executor.py` 通过；linux-01 live benchmark 退出码 0。
 - 2026-05-14 product vision docs：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+- 2026-05-14 north-star doc alignment：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
@@ -52,6 +54,7 @@
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；本次临时 `.benchmark.env`、本地临时凭据文件和 Remote Runner session 均已清理。
 - 工作树中存在上一轮 Tutor remote-tool streaming 收束的未提交代码改动；用户已要求先暂停实现、沉淀文档，因此该代码改动未纳入本次产品愿景文档提交，后续需单独决定保留、调整或提交。
+- 本次北极星校准只更新文档和归档计划，不部署 linux-01，不改 runtime 行为。
 
 ## 设计结论
 
@@ -65,13 +68,14 @@
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 - 当前产品愿景文档改动待提交：`AGENTS.md`、`docs/.gitignore`、`docs/overview.md`、`docs/product/vision.md`、`harness/progress.md`、`harness/session-handoff.md`。
+- 当前北极星校准文档改动待提交：架构文档、benchmark 文档、harness rubric/quality/decisions/progress/handoff，以及相关归档 plan。
 - 另有未提交运行时代码改动：`src/utils/tutor_core.py`，来自上一轮 benchmark 通过后的 streaming 收束微调；本次文档提交不应包含它。
 
 ## 下一步最佳动作
 
-1. 提交产品愿景文档改动。
+1. 提交北极星校准后的设计文档和计划改动。
 2. 决定 `src/utils/tutor_core.py` 的未提交 streaming 收束微调是否保留、测试、提交或重做。
-3. 将 `docs/product/vision.md` 作为后续 prompt、profile、benchmark、Remote tool 和前端交互设计的优先对齐依据。
+3. 后续新 plan 必须显式写出如何降低外围摩擦、保留学生核心思考，以及如何观察学习质量。
 
 ## 命令
 

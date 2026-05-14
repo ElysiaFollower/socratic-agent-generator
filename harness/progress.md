@@ -381,3 +381,12 @@
 - 在 `docs/product/vision.md` 增加 `产品原则` 小节，明确反对两种低质量学习形态：传统实验的高摩擦低投入产出比，以及纯 AI 代做导致学生绕过思维过程。
 - 进一步写清三方分工：学生负责理解、判断、解释和工程思维路径；AI 负责检索、整理、补全细节、执行命令和收集反馈；系统负责把大实验拆成连续小认知任务。
 - 补充更具体的 learning-by-doing、Remote tool、Tutor 非工具循环和实验学习摩擦成本原则，作为后续实现、benchmark 和 prompt 校准的高优先级判断依据。
+
+### 2026-05-14 - 按产品北极星校准设计文档和归档计划
+
+- 用户要求从北极星出发，修正目前设计不合理的文档和计划，避免后续实现继续把系统推向工具执行 agent 或只看通关指标。
+- `docs/architecture/vnext-integrations.md` 增加产品北极星入口，并把 Remote Runner、single-lab benchmark、profile generation evaluation 的目标改写为“降低外围摩擦、保留学生核心思考、避免工具循环和纯代做”。
+- `docs/architecture/remote-runner-session-tools.md` 明确 remote tool 是通用反馈通道，命令返回后 Tutor 必须转化为当前学习问题、学生判断和证据链；同时更新会话机器绑定可切换的当前事实，并强化 acceptance demo 的学习质量要求。
+- `docs/benchmarks/single-lab-e2e.md` 与 `docs/benchmarks/profile-generation-evaluation.md` 补充产品质量边界：`isFinished=true`、step completion、remote audit 和静态 profile 分数都是必要但不充分信号。
+- `harness/evaluator-rubric.md`、`harness/quality.md` 和 `harness/decisions.md` 加入产品对齐要求：涉及 Tutor、profile、benchmark、Remote tool 或学习前端的变更必须检查是否替代了学生核心思考。
+- 相关归档 plan 增加北极星校准说明，保留历史实现合同，但指向最新产品愿景和设计文档，避免未来照旧口径继续扩展。

@@ -17,6 +17,14 @@ The script is designed to catch large regressions without manual clicking:
 - remote command audit check
 - step completion check
 
+This benchmark is also a product-quality guardrail. Per
+`docs/product/vision.md`, success is not just "the session finished." The
+scripted student turns should contain real student reasoning, and the Tutor's
+responses should connect tools and evidence back to the current learning goal.
+A run that reaches `isFinished=true` but consists mostly of Tutor-side command
+execution and little student judgment should be treated as a high-risk pass or a
+benchmark gap to close.
+
 It does not store credentials in the repository. Provide live credentials and
 the target lab machine through `.env`, environment variables, or command line
 arguments. A remote machine is required by default; pass
@@ -83,3 +91,19 @@ The backend currently exposes remote command audit records, but it does not yet
 expose a first-class RAG retrieval audit. This benchmark therefore checks
 conversation completion and Remote Runner evidence directly, while RAG-specific
 coverage remains indirect until a retrieval audit API exists.
+
+The current script has only coarse learning-quality signals. It checks progress,
+step completion, and remote audits, but it cannot yet automatically grade
+whether the student genuinely reasoned through each step or whether Tutor
+converted every tool result into a teaching moment. Until those checks exist,
+review the generated session history when changing Tutor prompts, profile
+generation, or remote-tool behavior.
+
+Future benchmark extensions should add:
+
+- student-reasoning checks for each scripted turn
+- detection of repeated tool-preamble replies such as "let me check..."
+- evidence-to-learning linkage checks in Tutor replies
+- direct RAG/retrieval audit checks when the backend exposes them
+- a weak-student script that verifies Tutor can decompose confusion without
+  jumping to full solutions
