@@ -339,3 +339,11 @@
 - 当前基线：`profile_generation_eval score=0.7343 status=warn labs=6 pass=2 warn=4 fail=0`。这是 generated draft 对 calibrated profile 的质量差距信号，不要求全部 pass。
 - 计划已归档到 `plans/archive/20260514-profile-generation-evaluation.md`，功能项 `vnext-profile-generation-evaluation` 标记为 passing。
 - 验证：`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q` 通过 3 passed；`python3 -m compileall scripts tests` 通过；`python3 scripts/benchmarks/profile_generation_eval.py --json` 返回 score 0.7343/status warn/lab_count 6。
+
+### 2026-05-14 - 同步最终 vNext 状态到 linux-01
+
+- `dev` 已包含 Remote Runner session tools、Shell/Evidence 面板、单实验 E2E benchmark、Profile Management 文档身份 UX 和 Profile 生成质量评估第一版。
+- 通过 Remote Runner `linux-01` 上传 `0af3a48` archive 到 `/home/ely/deploy/socratic-live/`，保留旧 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`，切换应用目录并保留备份 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514050023`。
+- 远端运行 `python3 scripts/benchmarks/profile_generation_eval.py` 通过，输出 `score=0.7343 status=warn labs=6 pass=2 warn=4 fail=0`。
+- 已重启 tmux `socratic-backend` 和 `socratic-frontend`；后端日志显示 `EMBEDDING_PROVIDER=volcengine` 并跳过 HuggingFace 下载。
+- 可访问性验证：本地访问 `http://10.203.15.128:8000/api/health` 返回 `{\"status\":\"ok\"}`，`http://10.203.15.128:5173` 返回 HTTP 200；linux-01 本机 curl 同样返回后端 OK、前端 200。

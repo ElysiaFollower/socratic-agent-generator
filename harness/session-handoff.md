@@ -20,7 +20,9 @@
 - lab manual readiness 同时检查同目录 artifact 与引用 profile 的 persona/curriculum 数据，修复内置校准 profile 显示“有 curriculum、无 persona”的误导。
 - 已完成 Profile 生成质量评估第一版：`scripts/benchmarks/profile_generation_eval.py` 对 generated vs calibrated profile 做离线评分，维度包括结构、persona、curriculum alignment 和 mismatch taxonomy risk coverage。
 - 评估文档：`docs/benchmarks/profile-generation-evaluation.md`；当前基线为 score 0.7343/status warn/labs 6。
-- linux-01 最终演示部署在上一轮已通过，服务仍预期为 tmux `socratic-backend`、`socratic-frontend`。
+- linux-01 已同步当前 `dev` commit `0af3a48`，包含 Remote Runner session tools、Shell/Evidence 面板、单实验 E2E benchmark、Profile Management 文档身份 UX 和 Profile 生成质量评估第一版。
+- linux-01 服务运行在 tmux `socratic-backend`、`socratic-frontend`；后端 `http://10.203.15.128:8000/api/health` 返回 OK，前端 `http://10.203.15.128:5173` 返回 HTTP 200。
+- 本次部署保留旧 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`，备份目录为 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514050023`。
 
 ## 验证记录
 
@@ -32,12 +34,13 @@
 - `git diff --check` 通过。
 - `./scripts/harness-check.sh` 通过 0 warning。
 - 2026-05-14 profile generation eval：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q` 通过 3 passed；`python3 -m compileall scripts tests` 通过；`python3 scripts/benchmarks/profile_generation_eval.py --json` 返回 score 0.7343/status warn/lab_count 6。
+- 2026-05-14 linux-01 deploy：Remote Runner `linux-01` doctor reachable/auth/default_cwd 全 true；远端 `python3 scripts/benchmarks/profile_generation_eval.py` 返回 score 0.7343/status warn/labs 6；重启后本地与远端 curl 均验证后端 OK、前端 200。
 
 ## 仍损坏或未验证
 
-- 当前分支未重新部署到 linux-01；这是管理页 UX/API 改动，本地构建验证已通过。
+- 当前 `dev` 已重新部署到 linux-01；管理页 UX/API 改动和 benchmark 脚本均已包含在部署目录中。
 - vNext 单实验 benchmark 的 live linux-01 run 仍需要通过环境变量提供 `SOCRATIC_BENCHMARK_PASSWORD`，未写入仓库。
-- 当前列出的 vNext 近期目标均已实现第一版；下一步应按用户新优先级选择是否部署当前 dev、运行 live benchmark，或继续改 generator 本体。
+- 当前列出的 vNext 近期目标均已实现第一版并已部署到 linux-01；后续可按用户新优先级继续改 generator 本体或运行 live benchmark。
 
 ## 设计结论
 
@@ -50,14 +53,13 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前改动集中在 profile generation benchmark 脚本、benchmark 文档、测试和 harness/docs。
+- 当前仅有一条部署记录更新待提交：`harness/progress.md` 与本交接。
 
 ## 下一步最佳动作
 
-1. 运行 `git diff --check` 和最终 `git status`。
-2. 提交并推送 `vnext-profile-generation-evaluation`。
-3. 创建 PR 到 `dev` 并合并。
-4. 若用户要求“最终形态部署”，从 `dev` 部署到 linux-01 并重启服务。
+1. 提交并推送本次部署记录到 `dev`。
+2. 若用户要求更强验收，可提供 `SOCRATIC_BENCHMARK_PASSWORD` 后运行 live `single_lab_e2e.py`。
+3. 后续进入 generator 本体改造前，先用 `profile_generation_eval.py` 记录基线对比。
 
 ## 命令
 
