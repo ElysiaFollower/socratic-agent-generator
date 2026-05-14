@@ -108,11 +108,14 @@ Remote Runner is optional but supported for session-bound lab machine tools. Ins
 ```bash
 pip install -e ../SEEDRunner
 
+# Generate before enabling password-based remote machine settings:
+# python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+
 REMOTE_TOOL_ENABLED="true"
 REMOTE_RUNNER_REPO_PATH="/absolute/path/to/workspace/SEEDRunner"
 REMOTE_RUNNER_PYTHON_EXECUTABLE="/absolute/path/to/conda/env/bin/python"
 REMOTE_RUNNER_STATE_DIR=""
-REMOTE_MACHINE_SECRET_KEY="replace_with_a_fernet_key_or_reuse_LLM_API_KEY_ENCRYPTION_KEY"
+REMOTE_MACHINE_SECRET_KEY="replace_with_generated_fernet_key"
 REMOTE_TOOL_COMMAND_TIMEOUT=20
 REMOTE_TOOL_AGENT_IDLE_TIMEOUT=15
 REMOTE_TOOL_OUTPUT_CHARS=4000
@@ -125,6 +128,10 @@ REMOTE_TOOL_ALLOWED_CWD_PREFIXES=""
 Users configure lab machines from Settings. A learning session only gets the Remote Runner tool when it has a selected machine. Users can select a machine during session creation or switch/detach the current session's machine from the session header. The Tutor receives the current fixed machine/session binding and cannot switch to a different machine by prompt.
 
 `REMOTE_RUNNER_PYTHON_EXECUTABLE` is optional when Remote Runner is installed in the same conda environment as Socratic. Set it when Socratic and Remote Runner are maintained in separate conda environments.
+
+`REMOTE_MACHINE_SECRET_KEY` must be a valid Fernet key before users save password-based remote machines. If the key is missing or invalid, Socratic refuses to store or use remote passwords instead of falling back to plaintext. Key-based and existing Remote Runner machine entries do not require a stored password.
+
+Remote command policy is fail-closed: if both `REMOTE_TOOL_ALLOWED_COMMANDS` and `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` are empty, Tutor command execution is denied. Add exact commands or narrow prefixes deliberately, then restart the backend.
 
 Tutor remote command tools intentionally separate command lifecycles:
 
@@ -257,7 +264,8 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 - Backend tries to download from HuggingFace: check that `EMBEDDING_PROVIDER` was not set to `huggingface`.
 - Need an offline memory-only demo: set `DREAMINGRAG_MEMORY_MOCK_MODE="true"` temporarily, then switch it back to `false` for real memory behavior.
 - Remote machine test fails: first run `remote-runner machine doctor <machine-id> --json`; do not debug with raw SSH unless you are changing Remote Runner itself.
-- Tutor cannot execute a lab command: add the exact command or a narrow prefix to `REMOTE_TOOL_ALLOWED_COMMANDS` or `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES`, then restart the backend.
+- Tutor cannot execute a lab command: confirm the command policy is not empty, then add the exact command or a narrow prefix to `REMOTE_TOOL_ALLOWED_COMMANDS` or `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` and restart the backend.
+- Password-based remote machine save fails: set `REMOTE_MACHINE_SECRET_KEY` to a valid Fernet key and restart the backend; Socratic will not store remote passwords in plaintext.
 - A long-running Tutor tool appears to hang: use `start_remote_command` plus `wait_remote_command`/`get_remote_command_result` instead of increasing the synchronous command timeout.
 
 ## Maintenance Contract

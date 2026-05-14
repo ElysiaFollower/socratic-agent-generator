@@ -3,8 +3,8 @@
 ## 仓库状态
 
 - 分支：`remote-runner-session-tools`
-- 当前功能项：无 active；`remote-runner-background-command-tools` 状态 `passing`。
-- Active plan：无；任务计划已归档到 `plans/archive/20260514-remote-runner-background-command-tools.md`。
+- 当前功能项：无 active；`pr17-security-review-fixes` 状态 `passing`。
+- Active plan：无；PR17 安全修复计划已归档到 `plans/archive/20260514-pr17-security-review-fixes.md`。
 - 目标分支：`dev`。
 - 当前 PR：#17 `feat(remote): integrate session-bound lab tools`，目标 `dev`。
 
@@ -23,6 +23,7 @@
 - linux-01 已同步当前 Socratic archive 和支持后台命令的 SEEDRunner 代码；部署侧后台命令工具链 smoke 已通过。
 - vNext 目标已记录：Shell/Evidence 面板、单实验端到端 benchmark、profile 生成质量评估体系、Profile Management 文档身份与元信息 UX。
 - Profile Management 文档身份问题已创建 GitHub issue：`https://github.com/ElysiaFollower/socratic-agent-generator/issues/18`。
+- PR #17 reviewer 标出的 security-critical/high 问题已修复：远程机器 password auth 缺少有效 Fernet key 时拒绝保存/使用密码；Remote Runner command allowlist 空配置时拒绝执行命令。
 
 ## 真实验收
 
@@ -46,6 +47,7 @@
 - `cd frontend && npm test -- --run` 通过。
 - `cd frontend && npm run build` 通过。
 - `git diff --check` 通过。
+- 2026-05-14 PR17 security fix：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q` 通过 22 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 - 早期完整本地验证通过：focused pytest 18 passed、`python3 -m compileall src tests`、frontend test/build、`git diff --check`。
 - 远端最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
 - linux-01 后端 `/api/health` 返回 OK，前端 HTTP 200。
@@ -66,18 +68,20 @@
 - 当前产品默认不应让学生为工具调用等待很久：`REMOTE_TOOL_AGENT_IDLE_TIMEOUT` 默认 15 秒，`REMOTE_TOOL_COMMAND_TIMEOUT` 默认 20 秒，`LANGCHAIN_MAX_ITERATIONS` 默认 4。
 - Remote Runner 当前 CLI 已支持 `session exec --mode wait|background` 和 `session command list/show/result/wait/stop`。
 - Socratic 侧应明确区分：短命令 `run_and_wait`、长命令 `run_background`、已有命令 `wait/result/list/stop`。不应让学生为了后台任务等待很长的同步工具调用。
+- 远程机器密码存储必须使用 `cryptography.fernet.Fernet`；没有有效 `REMOTE_MACHINE_SECRET_KEY` 时不能保存或使用 password auth 凭据。
+- Remote Runner 命令策略 fail-closed；exact command 和 prefix allowlist 均为空时不执行命令。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 - linux-01 上为了演示保留最终 demo session 和运行服务。
-- 本地当前有 vNext 文档和 harness 更新待提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
+- 本地当前有 PR17 安全修复待提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 
 ## 下一步最佳动作
 
-1. 提交并推送 vNext 规划更新到 PR #17。
-2. 等待 review/merge。
-3. 后续从 `vnext-shell-evidence-panel` 或 `vnext-single-lab-e2e-benchmark` 中择一开新分支和 active plan。
+1. 提交并推送 PR17 安全修复到 PR #17。
+2. 回复 reviewer 两个 security 评论，说明已 fail-closed 并补测试。
+3. 等待 review/merge；后续从 `vnext-shell-evidence-panel` 或 `vnext-single-lab-e2e-benchmark` 中择一开新分支和 active plan。
 
 ## 命令
 

@@ -84,7 +84,11 @@ Expected persistent objects:
   - Stores sanitized filenames, file size, and upload timestamp.
   - Files are deleted with the owning session and are never included in exported examples unless explicitly curated.
 
-Secrets must follow the same operational posture as LLM API keys: encrypted when an encryption key is configured, never returned by read APIs, and never included in LLM context.
+Secrets must follow a fail-closed posture: password-based remote machine
+entries require a valid Fernet `REMOTE_MACHINE_SECRET_KEY`; if the key is
+missing or invalid, Socratic refuses to store or use the password instead of
+falling back to plaintext. Secrets are never returned by read APIs and never
+included in LLM context.
 
 ## API Sketch
 
@@ -239,7 +243,8 @@ The official deployment path should remain conda-based. Remote Runner setup must
 
 - Install or expose the Remote Runner package/CLI.
 - Configure the Socratic environment with the Remote Runner repository/package path if needed.
-- Configure encryption for stored remote credentials.
+- Configure a valid Fernet `REMOTE_MACHINE_SECRET_KEY` before allowing password-based remote credentials.
+- Configure a non-empty exact command or prefix allowlist; empty command policy means deny-all.
 - Keep per-user credentials out of `.env.example`, git, logs, and exported examples.
 - Run a smoke test against a configured machine.
 

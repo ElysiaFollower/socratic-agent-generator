@@ -2,9 +2,9 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`remote-runner-background-command-tools` 已 passing。
-- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-remote-runner-background-command-tools.md`。
-- 上次验证：2026-05-14，focused backend tests 21 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，前端 `npm test -- --run` 通过，`git diff --check` 通过；linux-01 已部署当前 Socratic archive 和最新 SEEDRunner background-command 代码，后台命令真实 smoke 通过。
+- 当前功能项：无 active；`pr17-security-review-fixes` 已 passing。
+- 当前任务计划：无 active；PR17 安全修复计划已归档到 `plans/archive/20260514-pr17-security-review-fixes.md`。
+- 上次验证：2026-05-14，PR17 security focused tests 22 passed，remote/tool/skill focused tests 24 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
 - 下一步最佳动作：等待 PR #17 review/merge；后续从 vNext 目标中择一开新分支和 active plan。
 
 ## 状态约定
@@ -54,6 +54,15 @@
 - 更新 `docs/architecture/remote-runner-session-tools.md` 的 tool boundary，明确远程工具职责是连通、执行、生命周期管理、结构化反馈和审计。
 - 创建 GitHub issue `https://github.com/ElysiaFollower/socratic-agent-generator/issues/18`，跟踪 Profile Management 中 lab manual/persona 元信息显示、文档重命名和 Generate Profile 文档选择难以核验的问题；实施前需要先决策 UX 方案。
 - 这些目标均记录为 `not_started`，未开启 active plan。
+
+### 2026-05-14 - 修复 PR17 安全 review 问题
+
+- 读取 PR #17 reviewer 评论，确认两个问题：远程机器密码在缺少 `REMOTE_MACHINE_SECRET_KEY` 时会明文存储；Remote Runner 命令策略空配置时会默认 allow-all。
+- 修复 `RemoteMachineManager`：继续使用 `cryptography.fernet.Fernet`，但缺失或无效 key 时 password auth 远程机器保存/解密直接失败，不再明文 fallback。
+- 修复 `RemoteRunnerProvider`：`allowed_commands` 和 `allowed_command_prefixes` 均为空时拒绝执行命令。
+- 更新 `.env.example`、`docs/deployment.md`、`docs/architecture/remote-runner-session-tools.md`，记录 Fernet key 生成方式和命令策略 deny-all 语义。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q` 通过 22 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 状态：`pr17-security-review-fixes` 标记为 `passing`，计划归档。
 
 ### 2026-05-11 - 记录 vNext 集成路线
 

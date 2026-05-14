@@ -141,6 +141,17 @@
       "notes": "Archived plan: plans/archive/20260514-remote-runner-background-command-tools.md. This is a Socratic-side adapter/tooling upgrade; no runtime DB, Remote Runner state, logs, credentials, or remote machine data are committed."
     },
     {
+      "id": "pr17-security-review-fixes",
+      "priority": "P0",
+      "area": "security",
+      "title": "PR17 Remote Runner security review fixes",
+      "behavior": "Remote machine password storage and remote command execution both fail closed when required security configuration is missing or invalid.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q && python3 -m compileall src tests && git diff --check",
+      "evidence": "2026-05-14: addressed PR #17 reviewer security-critical/high comments. RemoteMachineManager now uses cryptography Fernet only and refuses to save or decrypt password-based remote machines when REMOTE_MACHINE_SECRET_KEY is missing or invalid; no plaintext fallback remains. RemoteRunnerProvider command policy now denies session_exec/session_exec_background when both exact command and prefix allowlists are empty. Updated .env.example, docs/deployment.md, and docs/architecture/remote-runner-session-tools.md to document Fernet key generation and fail-closed command policy. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q -> 22 passed; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q -> 24 passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260514-pr17-security-review-fixes.md. This task only hardens the PR #17 security review findings; it does not change runtime DB/state or submit any secrets."
+    },
+    {
       "id": "vnext-shell-evidence-panel",
       "priority": "P0",
       "area": "frontend-remote-evidence",

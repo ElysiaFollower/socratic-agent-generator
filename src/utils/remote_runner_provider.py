@@ -539,7 +539,10 @@ class RemoteRunnerProvider:
             raise RemoteRunnerPermissionError(
                 "Command is not allowed by Remote Runner command policy."
             )
-        return safe_command
+        raise RemoteRunnerPermissionError(
+            "No Remote Runner command allowlist is configured; refusing to execute "
+            "commands by default."
+        )
 
     def _validate_cwd(self, cwd: str) -> str:
         safe_cwd = cwd.strip()

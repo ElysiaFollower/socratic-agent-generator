@@ -141,6 +141,30 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         self.assertIn("not allowed", result["error"])
         self.assertEqual([], runner.calls)
 
+    def test_session_exec_denies_all_when_command_policy_is_empty(self):
+        runner = FakeRunner()
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_commands=(),
+                allowed_command_prefixes=(),
+            ),
+            command_runner=runner,
+        )
+
+        result = json.loads(
+            provider.observe(
+                action="session_exec",
+                session_id="sess1",
+                command="pwd",
+            )
+        )
+
+        self.assertFalse(result["ok"])
+        self.assertIn("allowlist", result["error"])
+        self.assertEqual([], runner.calls)
+
     def test_session_exec_allows_configured_prefix_command(self):
         runner = FakeRunner(
             [

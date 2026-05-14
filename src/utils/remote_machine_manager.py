@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pytz
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy.orm import Session
 
 from config import REMOTE_MACHINE_SECRET_KEY
@@ -36,11 +36,22 @@ from utils.remote_runner_provider import (
 
 logger = logging.getLogger(__name__)
 
-_CIPHER = Fernet(REMOTE_MACHINE_SECRET_KEY.encode()) if REMOTE_MACHINE_SECRET_KEY else None
-if not _CIPHER:
-    logger.warning(
-        "REMOTE_MACHINE_SECRET_KEY is not set; remote machine secrets will be stored in plain text."
+_CIPHER = None
+_CIPHER_ERROR: Optional[Exception] = None
+if REMOTE_MACHINE_SECRET_KEY:
+    try:
+        _CIPHER = Fernet(REMOTE_MACHINE_SECRET_KEY.encode())
+    except (TypeError, ValueError) as exc:
+        _CIPHER_ERROR = exc
+        logger.error("REMOTE_MACHINE_SECRET_KEY is not a valid Fernet key.")
+else:
+    logger.info(
+        "REMOTE_MACHINE_SECRET_KEY is not set; password-based remote machines are disabled."
     )
+
+
+class RemoteMachineSecretError(ValueError):
+    """Raised when remote machine credentials cannot be encrypted or decrypted."""
 
 
 class RemoteMachineNotFoundError(ValueError):
@@ -528,16 +539,18 @@ class RemoteMachineManager:
     def _encrypt(self, secret: Optional[str]) -> Optional[str]:
         if not secret:
             return None
-        if _CIPHER:
-            return _CIPHER.encrypt(secret.encode()).decode()
-        return secret
+        return _remote_machine_cipher().encrypt(secret.encode()).decode()
 
     def _decrypt(self, secret: Optional[str]) -> Optional[str]:
         if not secret:
             return None
-        if _CIPHER:
-            return _CIPHER.decrypt(secret.encode()).decode()
-        return secret
+        try:
+            return _remote_machine_cipher().decrypt(secret.encode()).decode()
+        except InvalidToken as exc:
+            raise RemoteMachineSecretError(
+                "Stored remote machine password cannot be decrypted with the current "
+                "REMOTE_MACHINE_SECRET_KEY."
+            ) from exc
 
 
 def _extract_exit_code(result: Dict[str, Any]) -> Optional[int]:
@@ -550,3 +563,18 @@ def _extract_exit_code(result: Dict[str, Any]) -> Optional[int]:
     if isinstance(nested, dict):
         return _extract_exit_code(nested)
     return None
+
+
+def _remote_machine_cipher() -> Fernet:
+    if _CIPHER is not None:
+        return _CIPHER
+    if _CIPHER_ERROR is not None:
+        raise RemoteMachineSecretError(
+            "REMOTE_MACHINE_SECRET_KEY must be a valid Fernet key before saving or "
+            "using password-based remote machines."
+        ) from _CIPHER_ERROR
+    raise RemoteMachineSecretError(
+        "REMOTE_MACHINE_SECRET_KEY must be set before saving or using "
+        "password-based remote machines. Generate one with: python -c "
+        "'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'"
+    )
