@@ -117,17 +117,27 @@ Tutor runtime:
 
 ## Tool Boundary
 
-The tutor-facing tool should not expose raw SSH or credential concepts. It should expose lab-oriented actions such as:
+The tutor-facing tool should not expose raw SSH or credential concepts, but it
+also should not over-specialize remote execution into lab-specific teaching
+verbs. Remote tools are infrastructure: they connect to the bound machine, run
+commands, manage command lifecycle, and return structured observations. The
+model and the profile decide what command is pedagogically appropriate.
 
-- `check_connection`
-- `run_command`
-- `read_file_excerpt`
-- `list_directory`
-- `collect_report_evidence`
+The stable tool surface should therefore stay general:
 
-The MVP tool exposes `check_connection` and `run_command`; richer lab-oriented aliases can be added once the end-to-end command evidence path is stable.
+- `check_remote_connection`
+- `run_remote_command`
+- `start_remote_command`
+- `wait_remote_command`
+- `get_remote_command_result`
+- `list_remote_commands`
+- `stop_remote_command`
 
-The implementation may map these actions to Remote Runner CLI calls internally. The LLM should see only sanitized command results and stable error messages.
+Lab-specific prompt guidance can still say when a command is useful, but the
+tool implementation should remain a general feedback channel rather than a
+collection of narrow teaching actions such as "collect report evidence" or
+"diagnose this specific lab." That keeps the capability flexible while command
+policy, session binding, audit, and output redaction provide the safety boundary.
 
 ### Command Interaction Modes
 

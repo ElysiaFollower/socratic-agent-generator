@@ -139,6 +139,50 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_skill_names.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && git diff --check",
       "evidence": "2026-05-14: confirmed /Users/ely/workspace/research/agent/SEEDRunner was already up to date on dev/remote-runner-background-commands and exposes session exec --mode wait|background plus session command list/show/result/wait/stop. Socratic provider now supports session_exec_background, session_command_list/show/result/wait/stop with explicit wait_timeout_seconds and session binding validation. Session-bound Tutor skill now exposes explicit tools: check_remote_connection, run_remote_command, start_remote_command, list_remote_commands, get_remote_command_result, wait_remote_command, and stop_remote_command, while legacy observe_remote_environment remains available. Backend debug /api/sessions/{session_id}/remote-command accepts action, command_id, and wait_timeout_seconds for the same command lifecycle. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q -> 21 passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; cd frontend && npm test -- --run passed; git diff --check passed. linux-01 deployment follow-up: deployed current Socratic archive ae93f4a and updated /home/ely/deploy/socratic-live/SEEDRunner from the upstream background-command branch because the deployed Remote Runner copy initially rejected --mode background. Restarted tmux socratic-backend and socratic-frontend; /api/health returned {\"status\":\"ok\"} and frontend returned HTTP 200. Real deployment smoke against existing demo session 42f4f635-4ab3-41a0-911a-233cf4cebe0d called session-bound start_remote_command -> wait_remote_command -> get_remote_command_result -> list_remote_commands; command_id cmd_20260513_172642_504854_653050c4 exited 0, wait_timed_out=false, stdout contained socratic-background-ok, and tool_count=7.",
       "notes": "Archived plan: plans/archive/20260514-remote-runner-background-command-tools.md. This is a Socratic-side adapter/tooling upgrade; no runtime DB, Remote Runner state, logs, credentials, or remote machine data are committed."
+    },
+    {
+      "id": "vnext-shell-evidence-panel",
+      "priority": "P0",
+      "area": "frontend-remote-evidence",
+      "title": "Session shell and evidence panel",
+      "behavior": "A student can expand a right-side session panel to inspect remote command tabs, statuses, stdout/stderr summaries, and evidence collected by the tutor during the current learning session.",
+      "status": "not_started",
+      "verification": "Create a dedicated plan before implementation; first proof should use a seeded or live remote-bound session and verify command list/result rendering without exposing secrets.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. The panel should build trust by showing real execution results while keeping Remote Runner tools general and permissioned."
+    },
+    {
+      "id": "vnext-single-lab-e2e-benchmark",
+      "priority": "P0",
+      "area": "evaluation",
+      "title": "Single-lab end-to-end benchmark",
+      "behavior": "A repeatable backend-driven benchmark can complete one representative lab flow and catch regressions in login, profile selection, RAG, remote command execution, audit evidence, and step completion.",
+      "status": "not_started",
+      "verification": "Create a dedicated plan before implementation; initial target should be Sniffing/Spoofing and should output clear failure stage summaries.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. Keep scope narrow: one stable experiment is enough for the first benchmark."
+    },
+    {
+      "id": "vnext-profile-generation-evaluation",
+      "priority": "P1",
+      "area": "profile-generator",
+      "title": "Profile generation quality evaluation",
+      "behavior": "Generator prompt and agent changes can be compared against stable rubrics and curated SEED artifacts before increasing system complexity.",
+      "status": "not_started",
+      "verification": "Create a dedicated evaluation plan before changing generator architecture; first version should compare generated profiles against calibrated SEED profiles and fixed rubrics.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. This should precede major multi-agent generator redesign."
+    },
+    {
+      "id": "vnext-profile-management-document-identity",
+      "priority": "P1",
+      "area": "profile-management",
+      "title": "Profile manual identity and metadata UX",
+      "behavior": "Users can quickly identify the correct lab manual when generating a profile, inspect enough document metadata to disambiguate similar names, and fix missing persona/curriculum metadata display issues.",
+      "status": "not_started",
+      "verification": "Resolve design decision first; implementation should verify Profile Management, Lab Manuals, and Generate Profile use a consistent document identity model.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. GitHub issue: https://github.com/ElysiaFollower/socratic-agent-generator/issues/18."
     }
   ]
 }

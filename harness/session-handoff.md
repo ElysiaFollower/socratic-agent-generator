@@ -6,6 +6,7 @@
 - 当前功能项：无 active；`remote-runner-background-command-tools` 状态 `passing`。
 - Active plan：无；任务计划已归档到 `plans/archive/20260514-remote-runner-background-command-tools.md`。
 - 目标分支：`dev`。
+- 当前 PR：#17 `feat(remote): integrate session-bound lab tools`，目标 `dev`。
 
 ## 当前已验证状态
 
@@ -20,6 +21,8 @@
 - Tutor 工具表面现在区分短命令 `run_remote_command` 和长命令 `start_remote_command`，并提供 `wait_remote_command`、`get_remote_command_result`、`list_remote_commands`、`stop_remote_command`。
 - 后端调试 API `/api/sessions/{session_id}/remote-command` 同步支持 `action`、`command_id` 和 `wait_timeout_seconds`。
 - linux-01 已同步当前 Socratic archive 和支持后台命令的 SEEDRunner 代码；部署侧后台命令工具链 smoke 已通过。
+- vNext 目标已记录：Shell/Evidence 面板、单实验端到端 benchmark、profile 生成质量评估体系、Profile Management 文档身份与元信息 UX。
+- Profile Management 文档身份问题已创建 GitHub issue：`https://github.com/ElysiaFollower/socratic-agent-generator/issues/18`。
 
 ## 真实验收
 
@@ -56,6 +59,7 @@
 
 - 无阻塞当前任务的问题。
 - 浏览器插件连接本地页面三次超时的旧问题仍未复核；本任务预计不触碰前端 UI。
+- vNext 目标只是规划记录，尚未进入实现。
 
 ## 设计结论
 
@@ -67,12 +71,13 @@
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 - linux-01 上为了演示保留最终 demo session 和运行服务。
-- 本地当前有 harness evidence 未提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
+- 本地当前有 vNext 文档和 harness 更新待提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 
 ## 下一步最佳动作
 
-1. 提交并推送部署 evidence 更新到 PR #17。
+1. 提交并推送 vNext 规划更新到 PR #17。
 2. 等待 review/merge。
+3. 后续从 `vnext-shell-evidence-panel` 或 `vnext-single-lab-e2e-benchmark` 中择一开新分支和 active plan。
 
 ## 命令
 
