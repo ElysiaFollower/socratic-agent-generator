@@ -85,6 +85,11 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 当前真实验收依赖人工完整对话测试。随着 Tutor、profile generator、RAG、Remote Runner 和前端持续变化，人工测试成本高且容易遗漏回归。
 
+当前实现入口：
+
+- `scripts/benchmarks/single_lab_e2e.py`
+- `docs/benchmarks/single-lab-e2e.md`
+
 设计意图：
 
 - 先为一个稳定实验建立最小端到端 benchmark，推荐继续使用 Sniffing/Spoofing。
@@ -95,7 +100,7 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 验收信号：
 
 - 会话最终 `isFinished=true`。
-- 至少一次 lab manual RAG 检索生效。
+- 至少一次 lab manual RAG 检索生效。当前后端还没有一等 RAG audit API，因此第一版 benchmark 先记录这个缺口，并用会话完成度与回复内容作为间接信号；后续 Shell/Evidence 或 retrieval audit 接入后应改成直接检查。
 - 至少一次 Remote Runner 命令生效，并留下脱敏 audit。
 - 后台命令 start/wait/result 链路至少被覆盖一次。
 - benchmark 失败时能输出明确失败阶段和关键响应摘要。

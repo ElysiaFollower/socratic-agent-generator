@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`pr17-security-review-fixes` 已 passing。
-- 当前任务计划：无 active；PR17 安全修复计划已归档到 `plans/archive/20260514-pr17-security-review-fixes.md`。
-- 上次验证：2026-05-14，PR17 security focused tests 22 passed，remote/tool/skill focused tests 24 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
-- 下一步最佳动作：等待 PR #17 review/merge；后续从 vNext 目标中择一开新分支和 active plan。
+- 当前功能项：无 active；`vnext-single-lab-e2e-benchmark` 已 passing。
+- 当前任务计划：无 active；单实验 benchmark 计划已归档到 `plans/archive/20260514-single-lab-e2e-benchmark.md`。
+- 上次验证：2026-05-14，single-lab benchmark tests 5 passed，`python3 -m compileall scripts tests` 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
+- 下一步最佳动作：提交并推送 `vnext-single-lab-e2e-benchmark` 分支，创建 PR 到 `dev`；后续可运行 live linux-01 benchmark 或开启 Shell/Evidence 面板。
 
 ## 状态约定
 
@@ -63,6 +63,17 @@
 - 更新 `.env.example`、`docs/deployment.md`、`docs/architecture/remote-runner-session-tools.md`，记录 Fernet key 生成方式和命令策略 deny-all 语义。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q` 通过 22 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 - 状态：`pr17-security-review-fixes` 标记为 `passing`，计划归档。
+
+### 2026-05-14 - 完成单实验端到端 Benchmark
+
+- PR #17 已合并到 `dev`；本地/远端已删除已合入 `dev` 的完成分支 `manual-enhance`、`rag-memory-adapter`、`remote-tool`，PR head `remote-runner-session-tools` 已删除。
+- 检查集成仓库：DreamingRAG `dev` 和 SEEDRunner `dev/remote-runner-background-commands` 均 `git pull --ff-only` 后 up to date。
+- 创建分支 `vnext-single-lab-e2e-benchmark`，实现 `scripts/benchmarks/single_lab_e2e.py`。
+- benchmark 通过后端 API 驱动：login、profile selection、session create、optional remote machine binding、optional LabSetup upload/remote-put、sync remote smoke、optional background start/wait/result smoke、streamed Tutor turns、final progress、remote audits、step completions。
+- 新增 `docs/benchmarks/single-lab-e2e.md`，记录 linux-01 真实运行命令和环境变量；不在仓库保存密码、JWT、远程机器凭据或运行时输出。
+- 新增 `tests/test_single_lab_e2e_benchmark.py`，覆盖 SSE 解析、成功路径、profile failure、turns file loading 和 background command lifecycle。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 5 passed；`python3 -m compileall scripts tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。真实 linux-01 benchmark 未在本提交运行，因为仓库和 shell 中没有保存 benchmark password。
+- 状态：`vnext-single-lab-e2e-benchmark` 标记为 `passing`，计划归档。
 
 ### 2026-05-11 - 记录 vNext 集成路线
 

@@ -168,10 +168,10 @@
       "area": "evaluation",
       "title": "Single-lab end-to-end benchmark",
       "behavior": "A repeatable backend-driven benchmark can complete one representative lab flow and catch regressions in login, profile selection, RAG, remote command execution, audit evidence, and step completion.",
-      "status": "not_started",
-      "verification": "Create a dedicated plan before implementation; initial target should be Sniffing/Spoofing and should output clear failure stage summaries.",
-      "evidence": "",
-      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. Keep scope narrow: one stable experiment is enough for the first benchmark."
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q && python3 -m compileall scripts tests && git diff --check",
+      "evidence": "2026-05-14: implemented scripts/benchmarks/single_lab_e2e.py as a backend API-driven Sniffing/Spoofing benchmark. It logs in with supplied credentials, selects a matching profile, optionally ensures/binds an existing Remote Runner machine, optionally uploads LabSetup and remote-puts it, runs a synchronous remote smoke command, optionally covers background command start/wait/result, drives streamed Tutor turns, then validates final progress, remote audit count, step completion count, and required reply phrases. Added docs/benchmarks/single-lab-e2e.md and unit tests for SSE parsing, success path, profile failure reporting, turns file loading, and background command lifecycle coverage. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q -> 5 passed; python3 -m compileall scripts tests passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed. Live linux-01 benchmark command is documented but not run in this commit because no benchmark password env is stored in the repo or shell.",
+      "notes": "Archived plan: plans/archive/20260514-single-lab-e2e-benchmark.md. The first benchmark intentionally stays narrow and credential-free in git."
     },
     {
       "id": "vnext-profile-generation-evaluation",
