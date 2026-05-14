@@ -11,6 +11,7 @@ Socratic Agent Generator 是一个基于苏格拉底式教学的智能辅导系�
 
 ## 唯一事实来源
 
+- 产品北极星和价值标准线：`docs/product/vision.md`
 - 项目概览和边界：`docs/overview.md`
 - 官方部署流程：`docs/deployment.md`
 - vNext 集成方向：`docs/architecture/vnext-integrations.md`

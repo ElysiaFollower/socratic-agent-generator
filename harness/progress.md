@@ -365,3 +365,12 @@
 - 失败时 `turns_sent=7`，`final_progress={isFinished:false, stepIndex:0, totalSteps:9}`，`step_completion_count=0`，但 `remote_audit_count=37`，说明登录、会话创建、profile 发现、实验机绑定和 remote tool 调用链路均可用，失败点在 Tutor 没有推动学习节点完成。
 - 后端日志显示 evaluator 多次低置信度保守拒绝推进步骤，并出现 LangChain agent 因 stop condition 提前停止；这是需要继续修复的教学策略/工具规划问题，而不是凭据或部署连通性问题。
 - 脱敏结果文件保留在部署机 `/home/ely/deploy/socratic-live/logs/single-lab-e2e-live-result.json`；临时 `.benchmark.env` 和本地临时凭据文件已删除，Remote Runner 会话 `sess_20260514_061128_790975_7fada631` 已销毁。
+
+### 2026-05-14 - 沉淀产品愿景与价值标准线
+
+- 用户指出项目缺少单一权威入口来定义核心需求、终极目标和理想产品形态，导致实现时容易把 Tutor 做成工具执行 agent，而不是学习系统。
+- 新增 `docs/product/vision.md`，明确 Socratic Tutor 的产品定位：用 AI 降低实验摩擦，让学生始终参与关键判断、关键推理和关键验证，在真实环境中 learning by doing。
+- 文档同时包含速读总结和可长期引用的标准线：背景问题、核心痛点、产品使命、职责分工、理想学习循环、Tutor 行为硬标准、Profile/Benchmark/前端要求和设计判断问题。
+- 文档保留两个真实场景例子：网络/系统实验中如何从长实验文档进入最小真实验证；复杂系统类或模块实现中如何让 Tutor 压缩代码库外围复杂度，但保留学生对职责、接口和状态流的理解。
+- `docs/overview.md` 和 `AGENTS.md` 已增加产品愿景入口，`docs/.gitignore` 也显式允许 `docs/product/`，后续 prompt、profile、benchmark、Remote tool 和前端交互的设计分歧应优先回到该文档对齐。
+- 验证：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。

@@ -4,6 +4,8 @@
 
 Socratic Agent Generator 将技术实验手册转换为可交互的苏格拉底式 AI 导师。系统通过生成 Persona、Curriculum 和运行时 Prompt，把静态实验文档变成可部署、可审阅、可对话的学习 Profile。
 
+产品北极星与价值标准线见 `docs/product/vision.md`。当实现方案、prompt、profile、benchmark 或前端交互出现分歧时，优先用该文档判断系统是否仍在服务“用 AI 降低实验摩擦，同时保留学生核心思考”的目标。
+
 ## 受众
 
 - 学生：通过分步骤追问、反馈和进度跟踪完成技术实验学习。
