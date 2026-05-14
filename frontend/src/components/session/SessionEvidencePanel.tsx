@@ -50,56 +50,76 @@ interface ResizeState {
   readonly startWidth: number;
 }
 
-function statusLabel(audit: RemoteCommandAudit): string {
-  if (audit.error) {
-    return "error";
-  }
-  if (audit.exit_code === 0) {
-    return "exit 0";
-  }
-  if (typeof audit.exit_code === "number") {
-    return `exit ${audit.exit_code}`;
-  }
-  return "recorded";
+const MIN_PANEL_WIDTH = 360;
+const MIN_CHAT_WIDTH = 320;
+const MAX_PANEL_RATIO = 0.7;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function panelWidthBounds(containerWidth: number): {min: number; max: number} {
+  const usableWidth = Number.isFinite(containerWidth) && containerWidth > 0
+    ? containerWidth
+    : 1024;
+  const maxByRatio = Math.floor(usableWidth * MAX_PANEL_RATIO);
+  const maxByRemainingChat = usableWidth - MIN_CHAT_WIDTH;
+  return {
+    min: MIN_PANEL_WIDTH,
+    max: Math.max(
+      MIN_PANEL_WIDTH,
+      Math.min(maxByRatio, maxByRemainingChat),
+    ),
+  };
 }
 
 function terminalKey(audit: RemoteCommandAudit): string {
   return audit.terminal_id || audit.runner_session_id || audit.binding_id || "session";
 }
 
-function formatTimestamp(value?: string | null): string {
-  if (!value) {
-    return "";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
+function commandPrompt(audit: RemoteCommandAudit): string {
+  const cwd = audit.cwd?.trim();
+  return cwd ? `${cwd} $` : "$";
 }
 
-function formatAuditTranscript(audit: RemoteCommandAudit): string {
+export function formatAuditTranscript(audit: RemoteCommandAudit): string {
   const lines: string[] = [];
-  const commandLine = audit.command ? `$ ${audit.command}` : `$ ${audit.action}`;
+  const commandLine = audit.command
+    ? `${commandPrompt(audit)} ${audit.command}`
+    : `$ ${audit.action}`;
   lines.push(commandLine);
-  if (audit.action && audit.command && audit.action !== "session_exec") {
-    lines.push(`# action: ${audit.action}`);
-  }
-  if (audit.cwd) {
-    lines.push(`# cwd: ${audit.cwd}`);
-  }
   if (audit.stdout_excerpt) {
     lines.push(audit.stdout_excerpt.trimEnd());
   }
   if (audit.stderr_excerpt) {
-    lines.push(`[stderr]\n${audit.stderr_excerpt.trimEnd()}`);
+    lines.push(audit.stderr_excerpt.trimEnd());
   }
   if (audit.error) {
-    lines.push(`[error]\n${audit.error.trimEnd()}`);
+    lines.push(`error: ${audit.error.trimEnd()}`);
   }
-  const timestamp = formatTimestamp(audit.create_at);
-  lines.push(`# ${statusLabel(audit)}${timestamp ? ` · ${timestamp}` : ""}`);
+  if (!audit.error && audit.exit_code && audit.exit_code !== 0) {
+    lines.push(`exit ${audit.exit_code}`);
+  }
   return lines.join("\n");
+}
+
+export function cleanShellTranscript(transcript: string): string {
+  return transcript
+    .split("\n")
+    .filter((line) => {
+      if (/^# action:/.test(line)) {
+        return false;
+      }
+      if (/^# cwd:/.test(line)) {
+        return false;
+      }
+      if (/^# (recorded|error|exit \d+)( · .*)?$/.test(line)) {
+        return false;
+      }
+      return true;
+    })
+    .join("\n")
+    .trimEnd();
 }
 
 function isClosedShellError(message: string): boolean {
@@ -136,10 +156,10 @@ function groupStatus(
 }
 
 function lineColor(line: string): string {
-  if (line.startsWith("$ ")) {
+  if (/(^|\s)\$ /.test(line)) {
     return "#9cdcfe";
   }
-  if (line.startsWith("[stderr]") || line.startsWith("[error]")) {
+  if (line.startsWith("error:") || line.startsWith("exit ")) {
     return "#f48771";
   }
   if (line.startsWith("# ")) {
@@ -217,6 +237,7 @@ export function SessionEvidencePanel({
   const [isRunningCommand, setIsRunningCommand] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(480);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const resizeState = useRef<ResizeState | null>(null);
 
   const canLoad = Boolean(open && sessionId && remoteBinding);
@@ -262,9 +283,11 @@ export function SessionEvidencePanel({
       remoteTranscript &&
       selectedTerminal.id === remoteBinding?.runner_session_id
     ) {
-      return remoteTranscript;
+      return cleanShellTranscript(remoteTranscript);
     }
-    return selectedTerminal.audits.map(formatAuditTranscript).join("\n\n");
+    return cleanShellTranscript(
+      selectedTerminal.audits.map(formatAuditTranscript).join("\n\n"),
+    );
   }, [remoteBinding?.runner_session_id, remoteTranscript, selectedTerminal]);
 
   const selectedStatus = useMemo<ShellStatus>(() => {
@@ -361,18 +384,11 @@ export function SessionEvidencePanel({
       if (!resizeState.current) {
         return;
       }
-      const viewportWidth = window.innerWidth || 1024;
-      const minWidth = 360;
-      const maxWidth = Math.max(
-        minWidth,
-        Math.min(Math.round(viewportWidth * 0.72), viewportWidth - 320),
-      );
+      const containerWidth =
+        panelRef.current?.parentElement?.clientWidth || window.innerWidth || 1024;
+      const {min, max} = panelWidthBounds(containerWidth);
       const delta = resizeState.current.startX - event.clientX;
-      const nextWidth = Math.min(
-        maxWidth,
-        Math.max(minWidth, resizeState.current.startWidth + delta),
-      );
-      setPanelWidth(nextWidth);
+      setPanelWidth(clamp(resizeState.current.startWidth + delta, min, max));
     };
 
     const handleMouseUp = () => {
@@ -389,6 +405,21 @@ export function SessionEvidencePanel({
     return () => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const containerWidth =
+        panelRef.current?.parentElement?.clientWidth || window.innerWidth || 1024;
+      const {min, max} = panelWidthBounds(containerWidth);
+      setPanelWidth((current) => clamp(current, min, max));
+    };
+
+    window.addEventListener("resize", handleWindowResize);
+    handleWindowResize();
+    return () => {
+      window.removeEventListener("resize", handleWindowResize);
     };
   }, []);
 
@@ -414,10 +445,11 @@ export function SessionEvidencePanel({
 
   return (
     <Box
+      ref={panelRef}
       sx={{
         width: {xs: "100%", md: panelWidth},
-        maxWidth: {xs: "100%", md: "72vw"},
-        minWidth: {xs: "100%", md: 360},
+        maxWidth: {xs: "100%", md: `${MAX_PANEL_RATIO * 100}%`},
+        minWidth: {xs: "100%", md: MIN_PANEL_WIDTH},
         height: "100%",
         borderLeft: "1px solid",
         borderColor: "divider",
@@ -426,6 +458,7 @@ export function SessionEvidencePanel({
         flexDirection: "column",
         flexShrink: 0,
         position: "relative",
+        boxSizing: "border-box",
       }}
     >
       <Box

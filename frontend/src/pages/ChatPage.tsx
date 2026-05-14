@@ -843,8 +843,10 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             flex: 1,
             overflow: "hidden",
             width: "100%",
+            maxWidth: "100%",
             display: "flex",
             minHeight: 0,
+            minWidth: 0,
           }}
         >
           {isChatView ? (

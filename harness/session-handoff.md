@@ -40,6 +40,7 @@
 - linux-01 真实 Sniffing/Spoofing benchmark 完整通过：session `1e707d80-f321-4318-ae1c-1c7ba007b984`，`final_progress={isFinished:true, stepIndex:9, totalSteps:9}`，`step_completion_count=9`，`remote_audit_count=30`；persistent shell API 返回 runner session `sess_20260514_132555_964262_e7fad1ad` 且 transcript 可读。
 - 用户新反馈 Shell 面板 UX 问题已修复：命名改为 Shell，面板可拖动放大，transcript 以 terminal 风格渲染，聊天 fallback 不再泄露未渲染 raw JSON evidence，shell session 关闭或不可读时有明确状态。计划已归档：`plans/archive/20260514-shell-panel-ux.md`。
 - linux-01 已同步 commit `67e8b5d`：部署目录切换完成，远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
+- Shell 面板可用性跟进修正已完成：resize 上限按实际对话容器计算，最大约 70%，避免页面级横向滚动；audit fallback transcript 改成 `cwd $ command` 加输出的轻量 terminal 样式。计划已归档：`plans/archive/20260514-shell-panel-usability-fixes.md`。
 
 ## 验证记录
 
@@ -62,10 +63,11 @@
 - 2026-05-14 persistent remote shell：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 25 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；SEEDRunner 上游 focused test `tests/test_remote_runner_mvp.py::test_session_preserves_shell_state_and_incremental_transcript` 通过 1 passed。
 - 2026-05-14 shell panel UX：`./init.sh` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 30 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；`curl -I http://127.0.0.1:5174/` 返回 HTTP 200。Browser 自动化两次尝试本地页面均因 Browser node runtime 超时未获得截图。
 - 2026-05-14 linux-01 shell panel UX deploy：Remote Runner `linux-01` doctor 通过；上传 `67e8b5d` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过；重启 tmux 后 linux-01 本机 health OK/frontend 200；本地访问 `http://10.203.15.128:8000/api/health` OK，`http://10.203.15.128:5173` HTTP 200。
+- 2026-05-14 shell panel usability follow-up：`./scripts/harness-check.sh` 0 warning；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
-- Shell 面板 UX 已实现、通过命令验证并同步到 linux-01；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 超时。
+- Shell 面板 UX 和 follow-up 可用性修正已实现；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 曾超时。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
 
@@ -81,6 +83,7 @@
 - 学生面板命令默认走 `session exec`，不是 raw `session send`；这样既利用 Remote Runner 持久 shell，又保留 command allowlist、exit code、stdout/stderr、timeout、redaction 和 audit。
 - 用户可见面板名为 Shell；audit/evidence 是内部数据来源，不应作为主要 UI 命名。
 - Remote Runner JSON observation 不应裸露在聊天正文；Tutor fallback 需要先摘要为可读 Shell result summary，再回到当前学习问题。
+- Shell 面板 resize 应以实际对话容器为边界，不能让页面总宽度超过 viewport；audit fallback 是备用数据源，默认显示应更像 terminal，而不是审计日志。
 
 ## 清洁状态
 
@@ -90,8 +93,9 @@
 
 ## 下一步最佳动作
 
-1. 等待 PR #26 review/merge。
-2. 如后续能稳定连接 Browser，再补一张 Shell 面板拖拽/terminal 风格截图级验证；当前命令和 linux-01 smoke 验证已经通过。
+1. 同步 Shell 面板可用性 follow-up 到 linux-01。
+2. 等待 PR #26 review/merge。
+3. 如后续能稳定连接 Browser，再补一张 Shell 面板拖拽/terminal 风格截图级验证；当前命令验证已经通过。
 
 ## 命令
 

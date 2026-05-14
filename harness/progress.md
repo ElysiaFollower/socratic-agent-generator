@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-14，Shell 面板 UX 修正已同步到 linux-01：远端 compileall 通过、frontend build 通过、tmux 后端/前端已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
-- 下一步最佳动作：等待 PR #26 review/merge；如需要，做一次人工 UI 点击验证 Shell 面板拖拽和 terminal 渲染。
+- 上次验证：2026-05-14，Shell 面板可用性跟进修正已完成：frontend tests 4 passed、frontend build 通过、harness-check 0 warning、git diff --check 通过。
+- 下一步最佳动作：同步本修正到 linux-01 并确认前后端健康。
 
 ## 状态约定
 
@@ -15,6 +15,23 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-14 - 开启 Shell 面板可用性跟进修正
+
+- 用户在部署效果中发现两个问题：Shell 面板继续向左拖拽会把页面总宽度撑出 viewport，出现页面级横向滚动；Shell transcript 中混入较多审计元信息，不像轻便的真实 terminal。
+- 创建 active plan：`plans/active/20260514-shell-panel-usability-fixes.md`。
+- 将 `vnext-shell-panel-usability-fixes` 设置为当前唯一 active feature。
+- 范围判断：本任务只处理前端布局边界和 transcript 呈现，不改变 Remote Runner API、命令策略、审计落库、登录/数据库或 DreamingRAG。
+
+### 2026-05-14 - 完成 Shell 面板可用性跟进修正
+
+- Shell 面板 resize 现在按实际父容器宽度计算，而不是直接使用 `window.innerWidth`；桌面端最大约为对话区域容器 70%，并保留至少 320px 左侧聊天区域。
+- `ChatPage` 中承载聊天和 Shell 的 flex 容器增加 `minWidth: 0` 与 `maxWidth: 100%`，避免拖拽后产生页面级横向滚动。
+- audit fallback transcript 改为轻量 terminal 样式：`cwd $ command` 后跟 stdout/stderr/error，不再默认显示 `# action`、`# cwd`、`# exit 0 · timestamp`。
+- displayed transcript 会过滤已生成的 audit 元信息行，减少 Shell 内的审计噪声。
+- 新增 `frontend/src/test/SessionEvidencePanel.test.tsx`，覆盖宽度上限、audit transcript 格式和 metadata 清理。
+- 验证：`./scripts/harness-check.sh` 0 warning；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
+- 状态：`vnext-shell-panel-usability-fixes` 标记为 `passing`，计划归档到 `plans/archive/20260514-shell-panel-usability-fixes.md`。
 
 ### 2026-05-14 - 开启 Shell 面板 UX 修正任务
 
