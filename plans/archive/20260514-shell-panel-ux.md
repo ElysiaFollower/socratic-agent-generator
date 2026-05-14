@@ -105,6 +105,9 @@ cd frontend && npm run dev
 
 ## 下一步最佳动作
 
-1. 先定位 `Relevant evidence` raw JSON 的来源，判断是 prompt 注入、tool observation 泄露还是前端消息渲染问题。
-2. 评估现有依赖与可选 terminal 组件，选择最小可维护方案。
-3. 实现 Shell 面板文案、拖拽宽度、terminal 渲染和状态显示，再补 focused tests 与手动 UI 验证。
+已完成并归档。
+
+- `Relevant evidence` raw JSON 来源定位为 Tutor remote-tool fallback 直接拼接 tool observation；已改为 `_summarize_remote_observations()` 生成可读 Shell 结果摘要。
+- 未引入重量级 terminal emulator 依赖；使用现有 MUI + monospace terminal surface 实现当前只读 transcript 风格，避免为尚未开放 raw PTY 输入的阶段增加维护成本。
+- Shell 面板已完成文案、拖拽宽度、terminal 渲染和状态显示。
+- 验证已记录在 `harness/feature_list.json`、`harness/progress.md` 和 `harness/session-handoff.md`。

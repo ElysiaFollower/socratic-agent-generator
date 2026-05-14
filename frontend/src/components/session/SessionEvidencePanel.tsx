@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useTranslation} from "react-i18next";
 import {
   Alert,
@@ -21,7 +21,11 @@ import {
   getSessionRemoteShellTranscript,
   runSessionRemoteShellCommand,
 } from "../../api";
-import {RemoteBindingSummary, RemoteCommandAudit} from "../../types";
+import {
+  RemoteBindingSummary,
+  RemoteCommandAudit,
+  SessionRemoteShellReadResponse,
+} from "../../types";
 import {CircularProgress} from "../common/CircularProgress";
 
 interface SessionEvidencePanelProps {
@@ -37,6 +41,13 @@ interface TerminalGroup {
   readonly label: string;
   readonly audits: readonly RemoteCommandAudit[];
   readonly hasError: boolean;
+}
+
+type ShellStatus = "connected" | "running" | "closed" | "error" | "idle";
+
+interface ResizeState {
+  readonly startX: number;
+  readonly startWidth: number;
 }
 
 function statusLabel(audit: RemoteCommandAudit): string {
@@ -91,6 +102,102 @@ function formatAuditTranscript(audit: RemoteCommandAudit): string {
   return lines.join("\n");
 }
 
+function isClosedShellError(message: string): boolean {
+  return /not found|destroy|closed|pane/i.test(message);
+}
+
+function shellStatusColor(
+  status: ShellStatus,
+): "success" | "info" | "warning" | "error" | "default" {
+  if (status === "connected") {
+    return "success";
+  }
+  if (status === "running") {
+    return "info";
+  }
+  if (status === "closed") {
+    return "warning";
+  }
+  if (status === "error") {
+    return "error";
+  }
+  return "default";
+}
+
+function groupStatus(
+  group: TerminalGroup,
+  selectedTerminalId: string | undefined,
+  selectedStatus: ShellStatus,
+): ShellStatus {
+  if (group.id === selectedTerminalId) {
+    return selectedStatus;
+  }
+  return group.hasError ? "error" : "connected";
+}
+
+function lineColor(line: string): string {
+  if (line.startsWith("$ ")) {
+    return "#9cdcfe";
+  }
+  if (line.startsWith("[stderr]") || line.startsWith("[error]")) {
+    return "#f48771";
+  }
+  if (line.startsWith("# ")) {
+    return "#6a9955";
+  }
+  return "#d4d4d4";
+}
+
+function TerminalTranscript({
+  text,
+  emptyText,
+}: {
+  readonly text: string;
+  readonly emptyText: string;
+}) {
+  const lines = text ? text.split("\n") : [];
+  return (
+    <Box
+      role='log'
+      aria-live='polite'
+      sx={{
+        m: 0,
+        p: 1.5,
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 1,
+        bgcolor: "#111318",
+        color: "#d4d4d4",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        lineHeight: 1.55,
+        overflow: "auto",
+        flex: 1,
+        minHeight: 0,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+      }}
+    >
+      {lines.length === 0 ? (
+        <Box sx={{color: "#858585"}}>{emptyText}</Box>
+      ) : (
+        lines.map((line, index) => (
+          <Box
+            // Transcript lines do not have stable ids; index is stable for this render.
+            key={`${index}-${line.slice(0, 16)}`}
+            component='div'
+            sx={{
+              color: lineColor(line),
+              whiteSpace: "pre",
+              minHeight: "1.55em",
+            }}
+          >
+            {line || " "}
+          </Box>
+        ))
+      )}
+    </Box>
+  );
+}
+
 export function SessionEvidencePanel({
   sessionId,
   remoteBinding,
@@ -102,10 +209,15 @@ export function SessionEvidencePanel({
   const [audits, setAudits] = useState<readonly RemoteCommandAudit[]>([]);
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(null);
   const [remoteTranscript, setRemoteTranscript] = useState("");
+  const [shellRead, setShellRead] =
+    useState<SessionRemoteShellReadResponse | null>(null);
+  const [shellError, setShellError] = useState<string | null>(null);
   const [commandInput, setCommandInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRunningCommand, setIsRunningCommand] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(480);
+  const resizeState = useRef<ResizeState | null>(null);
 
   const canLoad = Boolean(open && sessionId && remoteBinding);
   const machineLabel = remoteBinding?.display_name || remoteBinding?.runner_machine_name || "";
@@ -155,22 +267,53 @@ export function SessionEvidencePanel({
     return selectedTerminal.audits.map(formatAuditTranscript).join("\n\n");
   }, [remoteBinding?.runner_session_id, remoteTranscript, selectedTerminal]);
 
+  const selectedStatus = useMemo<ShellStatus>(() => {
+    if (isRunningCommand) {
+      return "running";
+    }
+    if (!remoteBinding) {
+      return "idle";
+    }
+    if (remoteBinding.status && remoteBinding.status !== "active") {
+      return "closed";
+    }
+    if (shellError) {
+      return isClosedShellError(shellError) ? "closed" : "error";
+    }
+    if (selectedTerminal?.hasError) {
+      return "error";
+    }
+    return shellRead ? "connected" : "idle";
+  }, [isRunningCommand, remoteBinding, selectedTerminal?.hasError, shellError, shellRead]);
+
   const refreshAudits = useCallback(async () => {
     if (!sessionId || !remoteBinding) {
       setAudits([]);
       setSelectedTerminalId(null);
       setRemoteTranscript("");
+      setShellRead(null);
+      setShellError(null);
       return;
     }
     setIsLoading(true);
     setError(null);
+    setShellError(null);
     try {
-      const [nextAudits, shellRead] = await Promise.all([
-        getSessionRemoteAudits(sessionId),
-        getSessionRemoteShellTranscript(sessionId),
-      ]);
+      const nextAudits = await getSessionRemoteAudits(sessionId);
       setAudits(nextAudits);
-      setRemoteTranscript(shellRead.transcript || "");
+      try {
+        const nextShellRead = await getSessionRemoteShellTranscript(sessionId);
+        setShellRead(nextShellRead);
+        setRemoteTranscript(nextShellRead.transcript || "");
+      } catch (nextShellError) {
+        setShellRead(null);
+        setRemoteTranscript("");
+        setShellError(
+          nextShellError instanceof Error
+            ? nextShellError.message
+            : String(nextShellError),
+        );
+      }
       setSelectedTerminalId((previous) => {
         const nextKeys = [
           remoteBinding.runner_session_id,
@@ -214,6 +357,52 @@ export function SessionEvidencePanel({
   );
 
   useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!resizeState.current) {
+        return;
+      }
+      const viewportWidth = window.innerWidth || 1024;
+      const minWidth = 360;
+      const maxWidth = Math.max(
+        minWidth,
+        Math.min(Math.round(viewportWidth * 0.72), viewportWidth - 320),
+      );
+      const delta = resizeState.current.startX - event.clientX;
+      const nextWidth = Math.min(
+        maxWidth,
+        Math.max(minWidth, resizeState.current.startWidth + delta),
+      );
+      setPanelWidth(nextWidth);
+    };
+
+    const handleMouseUp = () => {
+      if (!resizeState.current) {
+        return;
+      }
+      resizeState.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  const handlePanelResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    resizeState.current = {
+      startX: event.clientX,
+      startWidth: panelWidth,
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  useEffect(() => {
     if (canLoad) {
       void refreshAudits();
     }
@@ -226,8 +415,9 @@ export function SessionEvidencePanel({
   return (
     <Box
       sx={{
-        width: {xs: "100%", md: 420},
-        maxWidth: {xs: "100%", md: "42vw"},
+        width: {xs: "100%", md: panelWidth},
+        maxWidth: {xs: "100%", md: "72vw"},
+        minWidth: {xs: "100%", md: 360},
         height: "100%",
         borderLeft: "1px solid",
         borderColor: "divider",
@@ -235,8 +425,28 @@ export function SessionEvidencePanel({
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
+        position: "relative",
       }}
     >
+      <Box
+        role='separator'
+        aria-orientation='vertical'
+        aria-label={t("evidence.resize")}
+        onMouseDown={handlePanelResizeStart}
+        sx={{
+          display: {xs: "none", md: "block"},
+          position: "absolute",
+          top: 0,
+          left: -4,
+          width: 8,
+          height: "100%",
+          cursor: "col-resize",
+          zIndex: 2,
+          "&:hover": {
+            bgcolor: "rgba(25, 118, 210, 0.12)",
+          },
+        }}
+      />
       <Stack
         direction='row'
         spacing={1}
@@ -248,18 +458,27 @@ export function SessionEvidencePanel({
           <Typography variant='subtitle2' sx={{fontWeight: 700}}>
             {t("evidence.title")}
           </Typography>
-          <Typography
-            variant='caption'
-            sx={{
-              color: "text.secondary",
-              display: "block",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {machineLabel || t("evidence.noMachine")}
-          </Typography>
+          <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
+            <Chip
+              size='small'
+              label={t(`evidence.status.${selectedStatus}`)}
+              color={shellStatusColor(selectedStatus)}
+              sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
+            />
+            <Typography
+              variant='caption'
+              sx={{
+                color: "text.secondary",
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
+              {machineLabel || t("evidence.noMachine")}
+            </Typography>
+          </Stack>
         </Box>
         <Tooltip title={t("common.refresh")} arrow>
           <span>
@@ -283,6 +502,13 @@ export function SessionEvidencePanel({
       {error && (
         <Alert severity='error' sx={{m: 2}}>
           {error}
+        </Alert>
+      )}
+      {shellError && !error && (
+        <Alert severity={isClosedShellError(shellError) ? "warning" : "error"} sx={{m: 2}}>
+          {isClosedShellError(shellError)
+            ? t("evidence.sessionClosed")
+            : shellError}
         </Alert>
       )}
 
@@ -314,68 +540,74 @@ export function SessionEvidencePanel({
               },
             }}
           >
-            {terminalGroups.map((group) => (
-              <Tab
-                key={group.id}
-                value={group.id}
-                label={
-                  <Stack direction='row' spacing={0.75} alignItems='center' sx={{minWidth: 0}}>
-                    <Typography
-                      variant='caption'
-                      sx={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: 120,
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      {group.label}
-                    </Typography>
-                    <Chip
-                      size='small'
-                      label={`${group.audits.length} ${t("evidence.records")}`}
-                      color={group.hasError ? "warning" : "success"}
-                      sx={{height: 18, "& .MuiChip-label": {px: 0.75, fontSize: 10}}}
-                    />
-                  </Stack>
-                }
-              />
-            ))}
+            {terminalGroups.map((group) => {
+              const status = groupStatus(
+                group,
+                selectedTerminal?.id,
+                selectedStatus,
+              );
+              return (
+                <Tab
+                  key={group.id}
+                  value={group.id}
+                  label={
+                    <Stack direction='row' spacing={0.75} alignItems='center' sx={{minWidth: 0}}>
+                      <Typography
+                        variant='caption'
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: 120,
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {group.label}
+                      </Typography>
+                      <Chip
+                        size='small'
+                        label={t(`evidence.status.${status}`)}
+                        color={shellStatusColor(status)}
+                        sx={{height: 18, "& .MuiChip-label": {px: 0.75, fontSize: 10}}}
+                      />
+                    </Stack>
+                  }
+                />
+              );
+            })}
           </Tabs>
 
           {selectedTerminal && (
             <Stack spacing={1.25} sx={{p: 2, overflow: "hidden", flex: 1, minHeight: 0}}>
               <Stack spacing={0.5}>
-                <Typography variant='caption' color='text.secondary'>
+                <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
+                  <Typography variant='body2' sx={{fontWeight: 700}}>
+                    {selectedTerminal.label}
+                  </Typography>
+                  <Chip
+                    size='small'
+                    label={t(`evidence.status.${selectedStatus}`)}
+                    color={shellStatusColor(selectedStatus)}
+                    sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
+                  />
+                </Stack>
+                <Typography
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{
+                    fontFamily: "var(--font-mono)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {selectedTerminal.id}
                 </Typography>
-                <Typography variant='body2' sx={{fontWeight: 700}}>
-                  {selectedTerminal.label}
-                </Typography>
               </Stack>
-              <Box
-                component='pre'
-                sx={{
-                  m: 0,
-                  p: 1.5,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 1,
-                  bgcolor: "var(--color-surface-muted)",
-                  color: "text.primary",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  overflow: "auto",
-                  flex: 1,
-                  minHeight: 0,
-                }}
-              >
-                {selectedTranscript}
-              </Box>
+              <TerminalTranscript
+                text={selectedTranscript}
+                emptyText={t("evidence.noTranscript")}
+              />
               <Box component='form' onSubmit={submitCommand}>
                 <Stack direction='row' spacing={1} alignItems='center'>
                   <TextField

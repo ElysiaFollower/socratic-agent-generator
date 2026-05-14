@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：`vnext-shell-panel-ux` active。
-- 当前任务计划：`plans/active/20260514-shell-panel-ux.md`。
-- 上次验证：2026-05-14，linux-01 已同步 `dev` commit `043fbcf`，真实 Sniffing/Spoofing benchmark 完整通过：session `1e707d80-f321-4318-ae1c-1c7ba007b984`，`stepIndex=9,totalSteps=9,isFinished=true`，remote audit 30，persistent shell transcript API 可读。
-- 下一步最佳动作：实现 Shell 面板 UX 修正：简化命名、支持拖动宽度、terminal 风格渲染、结构化 raw JSON evidence、显示 shell session 状态。
+- 当前功能项：无 active feature。
+- 当前任务计划：无 active plan。
+- 上次验证：2026-05-14，Shell 面板 UX 修正已完成并通过验证：focused pytest 30 passed、compileall、frontend test/build、harness-check 0 warning、git diff --check、本地 Vite HTTP 200。
+- 下一步最佳动作：提交并推送 `vnext-shell-panel-ux`，按需要创建到 `dev` 的 PR。
 
 ## 状态约定
 
@@ -24,6 +24,19 @@
 - 将 `vnext-shell-panel-ux` 设置为当前唯一 active feature。
 - 范围判断：本任务只修正 Shell 面板和 remote evidence 的用户可见呈现，不放宽 Remote Runner 权限策略，不实现 raw PTY，不修改 profile/RAG/benchmark 语义。
 - 下一步：先定位 raw JSON evidence 来源，再评估 terminal 渲染方案，随后实现前端拖拽宽度、状态显示和 focused tests。
+
+### 2026-05-14 - 完成 Shell 面板 UX 修正
+
+- 前端会话右侧面板用户可见命名改为 `Shell`，不再强调 `Shell evidence`。
+- `SessionEvidencePanel` 支持桌面端拖动左边界调整宽度，并保持移动端全宽降级。
+- transcript 区域改为 terminal 风格渲染：深色背景、等宽字体、命令/stdout/stderr/error/comment 分层颜色、长行横向滚动。
+- Shell header、tab 和详情区显示 `connected/running/closed/error/idle` 状态；tab 不再以 `xx records` 作为主要信息。
+- shell transcript 读取失败时仍保留 audit fallback，并把 closed/unreadable 状态显式呈现。
+- `Tutor` remote-tool fallback 将 Remote Runner JSON observation 转成可读的 Shell 结果摘要，不再把 `Relevant evidence: {...}` raw JSON 泄露到聊天正文。
+- 更新 `docs/architecture/vnext-integrations.md` 和 `docs/architecture/remote-runner-session-tools.md`，明确 Shell 面板命名、terminal 风格、状态显示和 raw JSON evidence 边界。
+- 验证：`./init.sh` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 30 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；`curl -I http://127.0.0.1:5174/` 返回 HTTP 200。
+- 浏览器自动化曾两次尝试打开本地 Vite 页面，但 Browser node runtime 超时，未得到截图；本次 UI 交互效果由 TypeScript build、HTTP smoke 和代码路径验证覆盖。
+- 状态：`vnext-shell-panel-ux` 标记为 `passing`，计划归档。
 
 ### 2026-05-14 - 开启 Persistent Remote Shell 对接任务
 

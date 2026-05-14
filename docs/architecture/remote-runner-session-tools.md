@@ -237,7 +237,7 @@ Session creation should include an optional machine selector:
   and preserve the Socratic permission boundary: Tutor can only use the machine
   currently bound to that learning session.
 
-The session Shell/Evidence panel should use a terminal-tab model:
+The session Shell panel should use a terminal-tab model:
 
 - A tab represents a Remote Runner shell/session, usually grouped by
   `runner_session_id`.
@@ -255,6 +255,17 @@ The session Shell/Evidence panel should use a terminal-tab model:
   timeout, allowlist policy, redaction, and audit intact.
 - Raw `session send/read` is a lower-level capability for future interactive
   flows. It must not become a policy bypass.
+- The user-facing name is simply Shell. Audit records are implementation
+  evidence, but the interface should look and read like a terminal, not a
+  generic evidence text box.
+- The panel should be horizontally resizable on desktop, keep a stable mobile
+  full-width fallback, render transcript content with terminal-style contrast
+  and monospace layout, and show explicit shell state such as connected,
+  running, closed, or error.
+- Raw Remote Runner JSON observations must not leak into ordinary chat text.
+  If a tool-heavy turn needs a fallback teaching reply, the backend should
+  summarize the observation into a short student-readable Shell result summary
+  and then return to the current learning question.
 
 ## Acceptance Demo
 

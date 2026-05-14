@@ -4,6 +4,7 @@ from utils.tutor_core import (
     _agent_executor_kwargs,
     _looks_like_tool_only_reply,
     _missing_stream_reply_chunk,
+    _summarize_remote_observations,
 )
 
 
@@ -60,3 +61,20 @@ def test_missing_stream_reply_chunk_returns_unstreamed_suffix():
         _missing_stream_reply_chunk("final teaching summary", "tool preamble")
         == "\n\nfinal teaching summary"
     )
+
+
+def test_remote_observation_summary_hides_raw_json():
+    summary = _summarize_remote_observations(
+        [
+            '{"action":"machine_doctor","ok":true,"result":{"reachable":true,'
+            '"auth_ok":true,"default_cwd_ok":true}}',
+            '{"action":"session_exec","ok":false,'
+            '"error":"Command is not allowed by Remote Runner command policy."}',
+        ]
+    )
+
+    assert "machine_doctor:" in summary
+    assert "reachable=True" in summary
+    assert "session_exec: failed" in summary
+    assert "{" not in summary
+    assert "Relevant evidence" not in summary

@@ -3,10 +3,10 @@
 ## 仓库状态
 
 - 分支：`vnext-shell-panel-ux`
-- 当前功能项：`vnext-shell-panel-ux` active。
-- Active plan：`plans/active/20260514-shell-panel-ux.md`。
+- 当前功能项：无 active feature。
+- Active plan：无；`vnext-shell-panel-ux` 已归档到 `plans/archive/20260514-shell-panel-ux.md`。
 - 目标分支：`dev`。
-- 当前 PR：无；本分支刚创建，尚未实现或开 PR。
+- 当前 PR：无；本分支已实现完成，待提交/推送/开 PR。
 
 ## 当前已验证状态
 
@@ -38,7 +38,7 @@
 - 已完成 Persistent Remote Shell 对接：基于 SEEDRunner `9324432 feat(remote-runner): unify sessions with persistent shell backend`，Socratic 后端可读取 `session read` transcript，前端 Shell/Evidence 面板优先显示真实 persistent transcript，学生面板命令输入走受控 `session exec` 而不是 raw `session send`。
 - PR #23 和 #25 已合并到 `dev`；linux-01 已同步 `dev` commit `043fbcf` 与 SEEDRunner `9324432`，后端 `http://10.203.15.128:8000/api/health` OK，前端 `http://10.203.15.128:5173` HTTP 200。
 - linux-01 真实 Sniffing/Spoofing benchmark 完整通过：session `1e707d80-f321-4318-ae1c-1c7ba007b984`，`final_progress={isFinished:true, stepIndex:9, totalSteps:9}`，`step_completion_count=9`，`remote_audit_count=30`；persistent shell API 返回 runner session `sess_20260514_132555_964262_e7fad1ad` 且 transcript 可读。
-- 用户新反馈 Shell 面板 UX 问题：命名不应强调 evidence、面板应可拖动放大、transcript 应像真实 shell、聊天中不应出现未渲染 raw JSON evidence、shell session 关闭时应显示明确状态。已创建 active plan `plans/active/20260514-shell-panel-ux.md`，实现尚未开始。
+- 用户新反馈 Shell 面板 UX 问题已修复：命名改为 Shell，面板可拖动放大，transcript 以 terminal 风格渲染，聊天 fallback 不再泄露未渲染 raw JSON evidence，shell session 关闭或不可读时有明确状态。计划已归档：`plans/archive/20260514-shell-panel-ux.md`。
 
 ## 验证记录
 
@@ -59,10 +59,11 @@
 - 2026-05-14 Tutor streaming 收束提交前验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_single_lab_e2e_benchmark.py -q` 通过 10 passed；`python3 -m compileall src/utils/tutor_core.py tests/test_tutor_executor.py` 通过；`git diff --check` 通过。
 - 2026-05-14 session shell terminal tabs：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 - 2026-05-14 persistent remote shell：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 25 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；SEEDRunner 上游 focused test `tests/test_remote_runner_mvp.py::test_session_preserves_shell_state_and_incremental_transcript` 通过 1 passed。
+- 2026-05-14 shell panel UX：`./init.sh` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 30 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；`curl -I http://127.0.0.1:5174/` 返回 HTTP 200。Browser 自动化两次尝试本地页面均因 Browser node runtime 超时未获得截图。
 
 ## 仍损坏或未验证
 
-- Shell 面板 UX 修正尚未实现；当前只有 active plan 和 feature 状态。
+- Shell 面板 UX 已实现并通过命令验证；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 超时。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
 
@@ -76,18 +77,20 @@
 - Shell/Evidence 面板的 tab 代表 terminal/session，不代表命令；命令是选中 terminal transcript 中的连续片段。
 - Socratic audit 需要在记录时保存当时的 `runner_session_id`，不能只依赖当前 binding 反查，否则切换机器后旧 evidence 会被错分。
 - 学生面板命令默认走 `session exec`，不是 raw `session send`；这样既利用 Remote Runner 持久 shell，又保留 command allowlist、exit code、stdout/stderr、timeout、redaction 和 audit。
+- 用户可见面板名为 Shell；audit/evidence 是内部数据来源，不应作为主要 UI 命名。
+- Remote Runner JSON observation 不应裸露在聊天正文；Tutor fallback 需要先摘要为可读 Shell result summary，再回到当前学习问题。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：Shell 面板 UX active plan、`harness/feature_list.json`、`harness/progress.md`、本 handoff。
+- 当前待提交范围：Shell 面板 UX 代码、测试、文档、归档 plan、`harness/feature_list.json`、`harness/progress.md`、本 handoff。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送 `vnext-shell-panel-ux` 的规划提交。
-2. 开始实现：先定位 `Relevant evidence` raw JSON 来源，再处理 Shell 面板文案、拖拽宽度、terminal 风格渲染和 session 状态显示。
-3. 完成后运行 plan 中验证命令，并做浏览器手动验证。
+1. 提交并推送 `vnext-shell-panel-ux`。
+2. 按需要创建到 `dev` 的 PR。
+3. 如后续能稳定连接 Browser，再补一张 Shell 面板拖拽/terminal 风格截图级验证；当前命令验证已经通过。
 
 ## 命令
 
