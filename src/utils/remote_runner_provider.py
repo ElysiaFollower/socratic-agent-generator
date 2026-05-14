@@ -231,7 +231,7 @@ class RemoteRunnerProvider:
         if replace:
             args.extend(["--replace", "--confirm-replace", machine_id])
         args.append("--json")
-        return redact_sensitive(self._run_json(tuple(args)))
+        return self._run_json(tuple(args))
 
     def create_session(self, *, machine_id: str, cwd: str = "") -> Dict[str, Any]:
         """Create a Remote Runner session for a machine."""
@@ -240,7 +240,7 @@ class RemoteRunnerProvider:
         if cwd:
             args.extend(["--cwd", cwd])
         args.append("--json")
-        return redact_sensitive(self._run_json(tuple(args)))
+        return self._run_json(tuple(args))
 
     def destroy_session(self, *, session_id: str) -> Dict[str, Any]:
         """Destroy a Remote Runner session."""
