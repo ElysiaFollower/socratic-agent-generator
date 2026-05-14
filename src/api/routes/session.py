@@ -5,7 +5,7 @@ This module handles HTTP endpoints for learning session operations.
 
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from api.routes.auth import get_current_user
 from core.dependencies import (
@@ -31,6 +31,7 @@ from schemas.remote_machine import (
     SessionRemoteBindingUpdateRequest,
     SessionRemoteCommandRequest,
     SessionRemoteCommandResponse,
+    SessionRemoteShellReadResponse,
 )
 from utils.remote_machine_manager import RemoteBindingNotFoundError, RemoteMachineNotFoundError
 from utils.remote_runner_provider import RemoteRunnerError
@@ -255,6 +256,78 @@ def list_remote_audits(
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return remote_manager.list_audits(session_id, current_user.user_id)
+
+
+@router.get(
+    "/{session_id}/remote-shell",
+    response_model=SessionRemoteShellReadResponse,
+    summary="读取绑定实验机的持久 shell transcript",
+)
+def read_session_remote_shell(
+    session_id: str,
+    session_manager: SessionManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    since: int = Query(default=0, ge=0),
+    max_chars: int = Query(default=12000, ge=1, le=50000),
+    current_user: User = Depends(get_current_user),
+) -> SessionRemoteShellReadResponse:
+    """Read the persistent Remote Runner transcript for the bound session."""
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+        payload = remote_manager.read_bound_shell(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+            since=since,
+            max_chars=max_chars,
+        )
+        return SessionRemoteShellReadResponse(
+            ok=True,
+            runner_session_id=str(payload.get("session_id") or ""),
+            transcript=str(payload.get("transcript") or ""),
+            cursor=int(payload.get("cursor") or 0),
+            since=int(payload.get("since") or since),
+            transcript_truncated=bool(payload.get("transcript_truncated") or False),
+            result=payload,
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RemoteBindingNotFoundError, RemoteRunnerError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/{session_id}/remote-shell/command",
+    response_model=SessionRemoteCommandResponse,
+    summary="在绑定实验机的持久 shell 中执行受控命令",
+)
+def run_session_remote_shell_command(
+    session_id: str,
+    req: SessionRemoteCommandRequest,
+    session_manager: SessionManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> SessionRemoteCommandResponse:
+    """Execute one policy-checked command in the persistent session shell."""
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+        payload = remote_manager.run_bound_command(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+            action="session_exec",
+            command=req.command or "",
+            cwd=req.cwd or "",
+            reason=req.reason or "Shell panel command",
+            wait_timeout_seconds=req.wait_timeout_seconds or 0,
+        )
+        return SessionRemoteCommandResponse(**payload)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RemoteBindingNotFoundError, RemoteRunnerError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get(

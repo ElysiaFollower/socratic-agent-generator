@@ -127,6 +127,8 @@ REMOTE_TOOL_ALLOWED_CWD_PREFIXES=""
 
 Users configure lab machines from Settings. A learning session only gets the Remote Runner tool when it has a selected machine. Users can select a machine during session creation or switch/detach the current session's machine from the session header. The Tutor receives the current fixed machine/session binding and cannot switch to a different machine by prompt.
 
+Current Socratic expects the Remote Runner persistent shell interface from SEEDRunner main, including `remote-runner session exec`, `remote-runner session read`, and `remote-runner session send`. `session exec` is the default path for Tutor and Shell/Evidence panel commands because it preserves command boundaries, exit code, stdout/stderr, timeout, audit, and command-policy enforcement while still running inside the persistent session shell.
+
 `REMOTE_RUNNER_PYTHON_EXECUTABLE` is optional when Remote Runner is installed in the same conda environment as Socratic. Set it when Socratic and Remote Runner are maintained in separate conda environments.
 
 `REMOTE_MACHINE_SECRET_KEY` must be a valid Fernet key before users save password-based remote machines. If the key is missing or invalid, Socratic refuses to store or use remote passwords instead of falling back to plaintext. Key-based and existing Remote Runner machine entries do not require a stored password.

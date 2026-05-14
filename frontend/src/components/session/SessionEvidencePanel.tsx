@@ -8,13 +8,19 @@ import {
   Stack,
   Tab,
   Tabs,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import SendIcon from "@mui/icons-material/Send";
 import TerminalIcon from "@mui/icons-material/Terminal";
-import {getSessionRemoteAudits} from "../../api";
+import {
+  getSessionRemoteAudits,
+  getSessionRemoteShellTranscript,
+  runSessionRemoteShellCommand,
+} from "../../api";
 import {RemoteBindingSummary, RemoteCommandAudit} from "../../types";
 import {CircularProgress} from "../common/CircularProgress";
 
@@ -95,7 +101,10 @@ export function SessionEvidencePanel({
   const {t} = useTranslation();
   const [audits, setAudits] = useState<readonly RemoteCommandAudit[]>([]);
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(null);
+  const [remoteTranscript, setRemoteTranscript] = useState("");
+  const [commandInput, setCommandInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isRunningCommand, setIsRunningCommand] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canLoad = Boolean(open && sessionId && remoteBinding);
@@ -112,13 +121,16 @@ export function SessionEvidencePanel({
         grouped.set(key, [audit]);
       }
     });
+    if (remoteBinding?.runner_session_id && !grouped.has(remoteBinding.runner_session_id)) {
+      grouped.set(remoteBinding.runner_session_id, []);
+    }
     return Array.from(grouped.entries()).map(([id, groupAudits], index) => ({
       id,
       label: `${t("evidence.terminal")} ${index + 1}`,
       audits: groupAudits,
       hasError: groupAudits.some((audit) => Boolean(audit.error) || (audit.exit_code ?? 0) !== 0),
     }));
-  }, [audits, t]);
+  }, [audits, remoteBinding?.runner_session_id, t]);
 
   const selectedTerminal = useMemo(() => {
     if (terminalGroups.length === 0) {
@@ -134,22 +146,36 @@ export function SessionEvidencePanel({
     if (!selectedTerminal) {
       return "";
     }
+    if (
+      remoteTranscript &&
+      selectedTerminal.id === remoteBinding?.runner_session_id
+    ) {
+      return remoteTranscript;
+    }
     return selectedTerminal.audits.map(formatAuditTranscript).join("\n\n");
-  }, [selectedTerminal]);
+  }, [remoteBinding?.runner_session_id, remoteTranscript, selectedTerminal]);
 
   const refreshAudits = useCallback(async () => {
     if (!sessionId || !remoteBinding) {
       setAudits([]);
       setSelectedTerminalId(null);
+      setRemoteTranscript("");
       return;
     }
     setIsLoading(true);
     setError(null);
     try {
-      const nextAudits = await getSessionRemoteAudits(sessionId);
+      const [nextAudits, shellRead] = await Promise.all([
+        getSessionRemoteAudits(sessionId),
+        getSessionRemoteShellTranscript(sessionId),
+      ]);
       setAudits(nextAudits);
+      setRemoteTranscript(shellRead.transcript || "");
       setSelectedTerminalId((previous) => {
-        const nextKeys = nextAudits.map(terminalKey);
+        const nextKeys = [
+          remoteBinding.runner_session_id,
+          ...nextAudits.map(terminalKey),
+        ].filter(Boolean);
         if (nextKeys.length === 0) {
           return null;
         }
@@ -161,6 +187,31 @@ export function SessionEvidencePanel({
       setIsLoading(false);
     }
   }, [remoteBinding, sessionId]);
+
+  const submitCommand = useCallback(
+    async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault();
+      const command = commandInput.trim();
+      if (!sessionId || !remoteBinding || !command) {
+        return;
+      }
+      setIsRunningCommand(true);
+      setError(null);
+      try {
+        await runSessionRemoteShellCommand(sessionId, {
+          command,
+          reason: "Shell panel command",
+        });
+        setCommandInput("");
+        await refreshAudits();
+      } catch (nextError) {
+        setError(nextError instanceof Error ? nextError.message : String(nextError));
+      } finally {
+        setIsRunningCommand(false);
+      }
+    },
+    [commandInput, refreshAudits, remoteBinding, sessionId],
+  );
 
   useEffect(() => {
     if (canLoad) {
@@ -235,7 +286,7 @@ export function SessionEvidencePanel({
         </Alert>
       )}
 
-      {remoteBinding && audits.length === 0 && !isLoading && !error && (
+      {remoteBinding && terminalGroups.length === 0 && !isLoading && !error && (
         <Stack spacing={1} alignItems='center' justifyContent='center' sx={{p: 3, flex: 1}}>
           <TerminalIcon color='disabled' />
           <Typography variant='body2' color='text.secondary' textAlign='center'>
@@ -244,7 +295,7 @@ export function SessionEvidencePanel({
         </Stack>
       )}
 
-      {audits.length > 0 && (
+      {terminalGroups.length > 0 && (
         <>
           <Tabs
             value={selectedTerminal?.id || false}
@@ -324,6 +375,38 @@ export function SessionEvidencePanel({
                 }}
               >
                 {selectedTranscript}
+              </Box>
+              <Box component='form' onSubmit={submitCommand}>
+                <Stack direction='row' spacing={1} alignItems='center'>
+                  <TextField
+                    size='small'
+                    fullWidth
+                    value={commandInput}
+                    onChange={(event) => setCommandInput(event.target.value)}
+                    placeholder={t("evidence.commandPlaceholder")}
+                    disabled={disabled || isRunningCommand}
+                    inputProps={{
+                      style: {fontFamily: "var(--font-mono)", fontSize: 12},
+                    }}
+                  />
+                  <Tooltip title={t("evidence.runCommand")} arrow>
+                    <span>
+                      <IconButton
+                        type='submit'
+                        size='small'
+                        color='primary'
+                        disabled={disabled || isRunningCommand || !commandInput.trim()}
+                        aria-label={t("evidence.runCommand")}
+                      >
+                        {isRunningCommand ? (
+                          <CircularProgress size={18} />
+                        ) : (
+                          <SendIcon fontSize='small' />
+                        )}
+                      </IconButton>
+                    </span>
+                  </Tooltip>
+                </Stack>
               </Box>
             </Stack>
           )}

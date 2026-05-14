@@ -271,6 +271,85 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         )
         self.assertEqual("password=<redacted>", payload["result"]["stdout"].split()[-1])
 
+    def test_read_session_transcript_uses_persistent_shell_read(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "transcript": "$ cd /tmp\n$ pwd\n/tmp\n",
+                            "cursor": 24,
+                            "since": 0,
+                            "transcript_truncated": False,
+                        }
+                    ),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_machine_ids=("lab1",),
+            ),
+            command_runner=runner,
+        )
+
+        payload = provider.read_session_transcript(
+            machine_id="lab1",
+            session_id="sess1",
+            since=4,
+            max_chars=200,
+        )
+
+        self.assertIn("$ pwd", payload["transcript"])
+        self.assertEqual(
+            ["session", "read", "--session", "sess1", "--since", "4", "--max-chars", "200", "--json"],
+            runner.calls[1]["args"][3:],
+        )
+
+    def test_send_session_input_uses_raw_shell_send_without_command_policy(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "machine_id": "lab1"}),
+                ),
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps({"session_id": "sess1", "input_sent": True}),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_machine_ids=("lab1",),
+                allowed_commands=("pwd",),
+            ),
+            command_runner=runner,
+        )
+
+        payload = provider.send_session_input(
+            machine_id="lab1",
+            session_id="sess1",
+            input_text="python",
+            enter=False,
+        )
+
+        self.assertTrue(payload["input_sent"])
+        self.assertEqual(
+            ["session", "send", "--session", "sess1", "--input", "python", "--no-enter", "--json"],
+            runner.calls[1]["args"][3:],
+        )
+
     def test_session_exec_background_returns_command_metadata(self):
         runner = FakeRunner(
             [

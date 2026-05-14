@@ -278,6 +278,64 @@ class RemoteRunnerProvider:
             )
         )
 
+    def read_session_transcript(
+        self,
+        *,
+        session_id: str,
+        machine_id: str = "",
+        since: int = 0,
+        max_chars: int = 12000,
+    ) -> Dict[str, Any]:
+        """Read the persistent Remote Runner shell transcript for a session."""
+        if not self.enabled:
+            raise RemoteRunnerUnavailable("Remote tool is disabled by configuration.")
+        safe_session = _require_value(session_id, "session_id")
+        self._validate_session_machine(safe_session, machine_id)
+        args = [
+            "session",
+            "read",
+            "--session",
+            safe_session,
+            "--since",
+            str(max(0, since)),
+            "--max-chars",
+            str(max(1, max_chars)),
+            "--json",
+        ]
+        return redact_sensitive(self._run_json(tuple(args)))
+
+    def send_session_input(
+        self,
+        *,
+        session_id: str,
+        machine_id: str = "",
+        input_text: str,
+        enter: bool = True,
+    ) -> Dict[str, Any]:
+        """Send raw input to the persistent shell.
+
+        This is intentionally not the default student command path; normal
+        command entry should use session_exec so command policy and audit stay
+        structured.
+        """
+        if not self.enabled:
+            raise RemoteRunnerUnavailable("Remote tool is disabled by configuration.")
+        safe_session = _require_value(session_id, "session_id")
+        safe_input = _require_value(input_text, "input")
+        self._validate_session_machine(safe_session, machine_id)
+        args = [
+            "session",
+            "send",
+            "--session",
+            safe_session,
+            "--input",
+            safe_input,
+        ]
+        if not enter:
+            args.append("--no-enter")
+        args.append("--json")
+        return redact_sensitive(self._run_json(tuple(args)))
+
     def _build_cli_args(
         self,
         action: str,

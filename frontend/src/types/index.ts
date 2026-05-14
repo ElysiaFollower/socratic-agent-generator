@@ -301,6 +301,16 @@ export interface SessionRemoteCommandResponse {
   readonly result: Record<string, unknown>;
 }
 
+export interface SessionRemoteShellReadResponse {
+  readonly ok: boolean;
+  readonly runner_session_id: string;
+  readonly transcript: string;
+  readonly cursor: number;
+  readonly since: number;
+  readonly transcript_truncated: boolean;
+  readonly result: Record<string, unknown>;
+}
+
 /**
  * Health check response.
  */

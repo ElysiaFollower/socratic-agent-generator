@@ -73,25 +73,27 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 当前实现入口：
 
-- 前端右侧只读面板：`frontend/src/components/session/SessionEvidencePanel.tsx`
-- 后端数据源：`GET /api/sessions/{session_id}/remote-audits`
+- 前端右侧面板：`frontend/src/components/session/SessionEvidencePanel.tsx`
+- 后端 transcript 数据源：`GET /api/sessions/{session_id}/remote-shell`
+- 后端受控命令入口：`POST /api/sessions/{session_id}/remote-shell/command`
+- 后端审计数据源：`GET /api/sessions/{session_id}/remote-audits`
 - 非敏感审计 schema：`RemoteCommandAudit`
 
 设计意图：
 
 - 在会话界面右侧增加可展开的 Shell / Evidence 面板。
 - 面板形式类似 VS Code 的 terminal tabs：一个 tab 代表一个 Remote Runner shell/session，而不是一条命令。
-- 每个 terminal tab 内按时间顺序展示该 shell/session 中连续执行过的命令或动作、运行状态、stdout/stderr 摘要、exit code 和时间。
+- 每个 terminal tab 优先展示 Remote Runner persistent transcript；`session exec` 在同一 session shell 中执行，因此 shell-local state 能跨命令保留。
 - 前端不应把每条 audit 记录做成 tab；audit 记录应作为同一个 terminal transcript 中的连续片段。
 - 后台命令应能显示 running/exited/failed/stopped 状态，并支持刷新或查看最新结果。
-- 面板是观察和信任建立工具，不应把它做成绕过 Tutor 权限模型的任意 Web terminal。
+- 面板是观察和信任建立工具。学生输入命令时应默认走受控 `session exec`，而不是绕过 policy 的 raw shell input。
 
 边界：
 
 - 数据来源应优先复用 `RemoteCommandAuditModel`、`SessionRemoteBindingModel.runner_session_id` 和 Remote Runner command lifecycle，而不是新增一套独立日志系统。
 - 不显示密码、私钥、token、host 私密细节或本地路径。
-- 初版只做只读查看，停止后台命令可以作为明确按钮单独评估。
-- 如果未来允许学生从面板执行命令，应沿用 terminal tab 模型：学生在选中的 terminal 中输入命令，系统仍通过当前 session binding、command policy 和 audit 记录执行。
+- raw `session send` 只适合未来复杂交互 flows；在没有明确 policy/audit 方案前，不应作为默认 UI 输入路径。
+- 停止后台命令可以作为明确按钮单独评估。
 
 ## 5. 单实验端到端 Benchmark
 
