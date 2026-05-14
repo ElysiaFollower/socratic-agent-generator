@@ -26,13 +26,15 @@ except ImportError:  # pragma: no cover - dependency is in requirements.txt
 
 
 DEFAULT_TURNS = [
-    "I am ready to start. Please guide me through the lab step by step, and use the bound lab machine when checking the environment would help.",
-    "I am not fully sure what packet sniffing should show. Can you break down the next task and check the lab environment for me?",
-    "I think I should inspect interfaces and containers before running the sniffing task. Please help me verify the setup.",
-    "Can you help me reason about BPF filters for ICMP and TCP traffic? I may make mistakes, so please ask smaller questions.",
-    "Please help me collect enough command output and observations to support a short lab report, then continue to the next task.",
-    "Let's continue. If a command would clarify the state, please run it and explain the result.",
-    "I want to finish the remaining tasks. Please check any final environment evidence and summarize what I should understand.",
+    "I am ready. Please use the bound lab machine for one quick environment check if useful. My first answer: when sniffing shows nothing, I should not blame Scapy first; I should verify root privileges, identify the correct Docker bridge/interface, and prove the listening point with a simple ICMP ping capture.",
+    "For basic Scapy sniffing, root and normal users differ because packet capture needs raw socket or pcap privileges. I would expect root to sniff successfully, while a normal user may fail or see restricted behavior because it lacks permission to open the capture interface.",
+    "For BPF filters, I should express the traffic condition precisely: `icmp` for ping, `tcp port 23` for Telnet, and `src net` or `dst net` for a subnet or host direction. Each filter keeps only packets matching those protocol/header fields, so it reduces noise without changing the traffic itself.",
+    "For spoofing ICMP with Scapy, the key fields are the IP source address and the ICMP Echo Request type/code. The evidence should show that tcpdump sees a packet whose source IP is forged, while the actual sender is the attacker container or host.",
+    "Traceroute works by sending packets with increasing TTL values. Each router that decrements TTL to zero returns ICMP Time Exceeded, and the destination eventually returns Echo Reply or another final response, so the sequence reveals each hop.",
+    "In sniff-and-spoof, replying to every ICMP request would make the result misleading because not every destination should be spoofed. I should only answer the target requests for the experiment, then compare unreachable LAN addresses, external addresses, and real reachable addresses to explain the different observations.",
+    "When moving to C and pcap, several issues become engineering issues: compilation and library flags, choosing the right interface, installing a pcap filter, and parsing packet headers safely. For Telnet password sniffing, the evidence boundary is a captured TCP payload from the lab network, not a claim that encrypted protocols can be read.",
+    "C raw-socket spoofing is more error-prone than Scapy because I must fill IP and ICMP header fields, calculate or leave correct checksums as required, and handle host/network byte order. A successful test is that tcpdump captures a spoofed ICMP packet with the expected forged source.",
+    "For the C sniff-and-spoof closure, I need evidence for both halves: the program captures the ICMP request, constructs a forged reply, sends it, and the ping side receives that reply. If I only show captured requests or only show sent packets, the loop is incomplete.",
 ]
 DEFAULT_DOTENV = ".env"
 

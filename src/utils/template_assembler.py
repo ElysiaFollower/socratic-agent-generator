@@ -14,6 +14,15 @@ from schemas.curriculum import SocraticCurriculum
 from schemas.definition import TutorPersona
 
 
+RUNTIME_TUTOR_INTERACTION_CONTRACT = """### Runtime Interaction Contract
+- The student is here to learn, not just to watch tool output. Every turn must end with a clear teaching response for the current task.
+- Use tools only when they directly support the current learning objective. Prefer one targeted lookup or command, then explain what the observation means.
+- Do not keep inventorying the environment after you already have enough evidence for the current step. Convert evidence into a short hint, a misconception check, or one concrete question.
+- If the student is confused or gives a weak answer, break the current task into a smaller conceptual question before running more tools.
+- When remote command output is available, summarize only the relevant evidence and ask the student to reason from it. Do not let command logs replace the Socratic dialogue.
+"""
+
+
 class TemplateAssembler(ABC):
     """Abstract base class for assembling templates.
 
@@ -226,8 +235,12 @@ class PromptAssembler(TemplateAssembler):
         # Merge static and dynamic context
         final_context = {**static_context, **dynamic_context}
 
-        # Render template with merged context
+        # Render template with merged context. The runtime contract is appended
+        # outside stored profile templates so older built-in and user profiles
+        # receive the same tool/teaching behavior without data migration.
         final_prompt = self.template.render(final_context)
+        if "### Runtime Interaction Contract" not in final_prompt:
+            final_prompt = f"{final_prompt.rstrip()}\n\n{RUNTIME_TUTOR_INTERACTION_CONTRACT}"
         return final_prompt
 
     def _build_static_context(
@@ -306,4 +319,3 @@ class PromptAssembler(TemplateAssembler):
         )
         
         return "\n".join(lines)
-

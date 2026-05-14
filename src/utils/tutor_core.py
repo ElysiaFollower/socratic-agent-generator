@@ -61,6 +61,51 @@ logger = logging.getLogger(__name__)
 # Cheat code for skipping steps (for testing purposes only)
 CHEAT_CODE = "希儿天下第一可爱"
 
+_TOOL_ONLY_REPLY_PHRASES = (
+    "let me check",
+    "let me look",
+    "let me inspect",
+    "let me verify",
+    "let me try",
+    "i'll check",
+    "i will check",
+    "i need to check",
+    "i need to inspect",
+    "先检查",
+    "我先检查",
+    "让我检查",
+    "我来检查",
+)
+
+
+def _looks_like_tool_only_reply(reply: str, *, tool_call_count: int) -> bool:
+    """Return whether a tool-heavy turn failed to become a teaching reply."""
+    normalized = " ".join(reply.strip().lower().split())
+    if not normalized:
+        return True
+    if tool_call_count >= 2 and len(normalized) < 260:
+        return True
+    has_tool_preamble = any(phrase in normalized for phrase in _TOOL_ONLY_REPLY_PHRASES)
+    has_teaching_marker = any(
+        marker in normalized
+        for marker in (
+            "?",
+            "why",
+            "what",
+            "how",
+            "explain",
+            "reason",
+            "observe",
+            "理解",
+            "为什么",
+            "如何",
+            "你觉得",
+            "请你",
+            "思考",
+        )
+    )
+    return has_tool_preamble and not has_teaching_marker
+
 
 def _agent_executor_kwargs() -> Dict[str, Any]:
     """Return the shared AgentExecutor settings used by Tutor.
@@ -426,27 +471,50 @@ class Tutor:
             return
         self.memory_provider.record_turn(user_input, assistant_output)
 
+    def _remote_tool_teaching_reply(
+        self,
+        user_input: str,
+        tool_observations: List[str],
+    ) -> str:
+        """Build a teaching reply when a tool-heavy turn has no real answer."""
+        observation_text = "\n".join(obs for obs in tool_observations if obs).strip()
+        if len(observation_text) > 1800:
+            observation_text = observation_text[:1800] + "\n..."
+        if not observation_text:
+            observation_text = "The remote tool completed, but it did not return additional output."
+
+        step_info = self._get_current_step_info()
+        step_title = step_info.get("step_title", "the current step")
+        learning_objective = step_info.get("learning_objective", "")
+        guiding_question = self.session.get_curriculum().get_guiding_question(
+            self.session.state.stepIndex
+        )
+
+        if self.session.output_language == "English":
+            return (
+                "I checked the lab machine, but the important part is still your reasoning.\n\n"
+                f"Relevant evidence:\n{observation_text}\n\n"
+                f"For the current step, \"{step_title}\", focus on this goal: "
+                f"{learning_objective} Based on the evidence, answer this in your own words: "
+                f"{guiding_question} Try to connect the command output to the concept rather "
+                "than just listing what the command printed."
+            )
+
+        return (
+            "我已经检查了实验机，但这一步真正要完成的是你的理解，而不是只看命令输出。\n\n"
+            f"相关证据：\n{observation_text}\n\n"
+            f"当前步骤是「{step_title}」，目标是：{learning_objective}"
+            f"请你基于这些证据，用自己的话回答：{guiding_question}"
+            "重点不是复述命令输出，而是把输出和实验原理联系起来。"
+        )
+
     def _remote_tool_idle_reply(
         self,
         user_input: str,
         tool_observations: List[str],
     ) -> str:
-        """Build a usable reply when the model stalls after remote tool output."""
-        observation_text = "\n".join(obs for obs in tool_observations if obs).strip()
-        if len(observation_text) > 1800:
-            observation_text = observation_text[:1800] + "\n..."
-        if not observation_text:
-            observation_text = "远端工具已完成调用，但没有返回可展示的额外输出。"
-        return (
-            "我已经完成了实验机检查，但模型在工具调用后没有继续生成自然语言回复。"
-            "为避免会话卡住，我先把可用观察结果整理给你：\n\n"
-            f"{observation_text}\n\n"
-            "从这些结果继续推理时，先确认容器是否都处于 Up 状态，再确认 attacker "
-            "容器内的接口和地址是否位于实验网络。若容器和接口正常，下一步就可以用 "
-            "ping 或 tcpdump/scapy 产生并观察 ICMP 流量；若没有包，再回头检查 root "
-            "权限、监听接口和 BPF 过滤器。你刚才的思路是对的：先排除实验环境与权限，"
-            "再判断抓包代码。"
-        )
+        """Backward-compatible wrapper for older tests/imports."""
+        return self._remote_tool_teaching_reply(user_input, tool_observations)
     
     def _add_message_to_history(self, message: str, role: str) -> int:
         """Add a message to history and update token count incrementally.
@@ -868,6 +936,7 @@ class Tutor:
             tool_call_completed = False
             tool_observations: List[str] = []
             stream_timed_out_after_tool = False
+            defer_stream_until_final = self.remote_environment_skill is not None
             try:
                 event_stream = chain.astream_events(
                     {
@@ -954,7 +1023,8 @@ class Tutor:
 
                             if token:
                                 reply += token
-                                yield token
+                                if not defer_stream_until_final:
+                                    yield token
                                 # Log if this is output after tool call completion
                                 if tool_call_completed and not tool_call_in_progress:
                                     logger.debug(
@@ -1045,7 +1115,8 @@ class Tutor:
                                         additional = output[len(reply):]
                                         if additional:
                                             reply = output
-                                            yield additional
+                                            if not defer_stream_until_final:
+                                                yield additional
                                             logger.info(
                                                 "Extended reply with final output: "
                                                 "+%d chars",
@@ -1058,7 +1129,8 @@ class Tutor:
                                         additional = output.replace(reply, "", 1)
                                         if additional:
                                             reply = output
-                                            yield additional
+                                            if not defer_stream_until_final:
+                                                yield additional
                                             logger.info(
                                                 "Reply found in output, extended: "
                                                 "+%d chars",
@@ -1116,7 +1188,22 @@ class Tutor:
                         "This may indicate a bug.",
                         tool_call_count,
                     )
-                reply = self._remote_tool_idle_reply(user_input, tool_observations)
+                reply = self._remote_tool_teaching_reply(user_input, tool_observations)
+
+            if tool_called and _looks_like_tool_only_reply(
+                reply,
+                tool_call_count=tool_call_count,
+            ):
+                logger.warning(
+                    "Replacing tool-only tutor reply with teaching summary: "
+                    "session=%s reply_len=%d tool_calls=%d",
+                    self.session.session_id,
+                    len(reply),
+                    tool_call_count,
+                )
+                reply = self._remote_tool_teaching_reply(user_input, tool_observations)
+
+            if reply and defer_stream_until_final:
                 yield reply
 
             # Add AI response to history with incremental token counting
