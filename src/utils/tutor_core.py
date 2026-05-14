@@ -1203,9 +1203,6 @@ class Tutor:
                 )
                 reply = self._remote_tool_teaching_reply(user_input, tool_observations)
 
-            if reply and defer_stream_until_final:
-                yield reply
-
             # Add AI response to history with incremental token counting
             # Only add non-empty replies to history
             if reply:
@@ -1242,13 +1239,15 @@ class Tutor:
                 # This makes the semantic boundary clear between current step reply
                 # and next step transition message
                 separator = "\n\n---\n\n"
-                yield separator
                 transition_message += separator
+                if not defer_stream_until_final:
+                    yield separator
 
                 # Generate transition message
                 async for token in self._generate_transition_message():
-                    yield token
                     transition_message += token
+                    if not defer_stream_until_final:
+                        yield token
 
             # Clear evaluation lock (after transition message is complete, if any)
             # This ensures the entire response (including transition) is complete
@@ -1259,6 +1258,9 @@ class Tutor:
             # Update reply to include transition message if evaluation passed
             if transition_message:
                 reply += transition_message
+
+            if reply and defer_stream_until_final:
+                yield reply
 
             if reply:
                 self._record_memory_turn(user_input, reply)
