@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-14，Shell 面板 UX 修正已完成并通过验证：focused pytest 30 passed、compileall、frontend test/build、harness-check 0 warning、git diff --check、本地 Vite HTTP 200。
-- 下一步最佳动作：提交并推送 `vnext-shell-panel-ux`，按需要创建到 `dev` 的 PR。
+- 上次验证：2026-05-14，Shell 面板 UX 修正已同步到 linux-01：远端 compileall 通过、frontend build 通过、tmux 后端/前端已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
+- 下一步最佳动作：等待 PR #26 review/merge；如需要，做一次人工 UI 点击验证 Shell 面板拖拽和 terminal 渲染。
 
 ## 状态约定
 
@@ -37,6 +37,16 @@
 - 验证：`./init.sh` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 30 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；`curl -I http://127.0.0.1:5174/` 返回 HTTP 200。
 - 浏览器自动化曾两次尝试打开本地 Vite 页面，但 Browser node runtime 超时，未得到截图；本次 UI 交互效果由 TypeScript build、HTTP smoke 和代码路径验证覆盖。
 - 状态：`vnext-shell-panel-ux` 标记为 `passing`，计划归档。
+
+### 2026-05-14 - 同步 Shell 面板 UX 到 linux-01
+
+- 将 commit `67e8b5d` archive 上传到 `/home/ely/deploy/socratic-live/`，切换部署目录为新的 `socratic-agent-generator`，并保留旧 `.env`、`data`、`frontend/node_modules` 和 `frontend/dist`。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514141857`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 重启 tmux `socratic-backend` 与 `socratic-frontend`；远端监听确认 `0.0.0.0:8000` 和 `0.0.0.0:5173`。
+- 可访问性验证：linux-01 本机 `http://127.0.0.1:8000/api/health` 返回 `{"status":"ok"}`，本地访问 `http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
+- 源码验证：部署侧 `frontend/src/i18n/locales/en.json` 包含 `Resize Shell`，确认已同步 Shell UX 分支内容。
+- Remote Runner 部署 session 已销毁；日志保留在本机 Remote Runner log 目录，不提交到仓库。
 
 ### 2026-05-14 - 开启 Persistent Remote Shell 对接任务
 
