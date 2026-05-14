@@ -297,9 +297,7 @@ export function SessionEvidencePanel({
             <Stack spacing={1.25} sx={{p: 2, overflow: "hidden", flex: 1, minHeight: 0}}>
               <Stack spacing={0.5}>
                 <Typography variant='caption' color='text.secondary'>
-                  {selectedTerminal.id === remoteBinding?.runner_session_id
-                    ? remoteBinding.runner_session_id
-                    : selectedTerminal.id}
+                  {selectedTerminal.id}
                 </Typography>
                 <Typography variant='body2' sx={{fontWeight: 700}}>
                   {selectedTerminal.label}

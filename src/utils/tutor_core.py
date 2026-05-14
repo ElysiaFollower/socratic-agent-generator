@@ -107,6 +107,17 @@ def _looks_like_tool_only_reply(reply: str, *, tool_call_count: int) -> bool:
     return has_tool_preamble and not has_teaching_marker
 
 
+def _missing_stream_reply_chunk(reply: str, yielded_reply: str) -> str:
+    """Return the part of the final reply that has not reached the stream."""
+    if not reply or reply == yielded_reply:
+        return ""
+    if reply.startswith(yielded_reply):
+        return reply[len(yielded_reply):]
+    if yielded_reply and yielded_reply in reply:
+        return reply.replace(yielded_reply, "", 1)
+    return ("\n\n" if yielded_reply else "") + reply
+
+
 def _agent_executor_kwargs() -> Dict[str, Any]:
     """Return the shared AgentExecutor settings used by Tutor.
 
@@ -937,6 +948,7 @@ class Tutor:
             tool_observations: List[str] = []
             stream_timed_out_after_tool = False
             defer_stream_until_final = self.remote_environment_skill is not None
+            yielded_reply = ""
             try:
                 event_stream = chain.astream_events(
                     {
@@ -1025,6 +1037,7 @@ class Tutor:
                                 reply += token
                                 if not defer_stream_until_final:
                                     yield token
+                                    yielded_reply += token
                                 # Log if this is output after tool call completion
                                 if tool_call_completed and not tool_call_in_progress:
                                     logger.debug(
@@ -1101,7 +1114,9 @@ class Tutor:
                                     # This handles the case where tool was called but
                                     # LLM didn't stream any tokens
                                     reply = output
-                                    yield output
+                                    if not defer_stream_until_final:
+                                        yield output
+                                        yielded_reply += output
                                     logger.info(
                                         "Using final output from on_chain_end "
                                         "(no stream): %d chars",
@@ -1117,6 +1132,7 @@ class Tutor:
                                             reply = output
                                             if not defer_stream_until_final:
                                                 yield additional
+                                                yielded_reply += additional
                                             logger.info(
                                                 "Extended reply with final output: "
                                                 "+%d chars",
@@ -1131,6 +1147,7 @@ class Tutor:
                                             reply = output
                                             if not defer_stream_until_final:
                                                 yield additional
+                                                yielded_reply += additional
                                             logger.info(
                                                 "Reply found in output, extended: "
                                                 "+%d chars",
@@ -1210,6 +1227,12 @@ class Tutor:
 
             # Wait for evaluation to complete
             evaluation_result = await evaluation_task
+
+            if reply and not defer_stream_until_final and reply != yielded_reply:
+                missing_reply = _missing_stream_reply_chunk(reply, yielded_reply)
+                if missing_reply:
+                    yield missing_reply
+                    yielded_reply = reply
 
             # If evaluation passed, generate transition message
             # Note: Step advancement goes through _advance_step() method for consistency.
