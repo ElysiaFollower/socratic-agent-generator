@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`vnext-session-shell-terminal-tabs`
+- 分支：`vnext-persistent-remote-shell`
 - 当前功能项：无 active。
-- Active plan：无；计划已归档到 `plans/archive/20260514-session-shell-terminal-tabs.md`。
+- Active plan：无；计划已归档到 `plans/archive/20260514-persistent-remote-shell.md`。
 - 目标分支：`dev`。
-- 当前 PR：#23 open/mergeable，`https://github.com/ElysiaFollower/socratic-agent-generator/pull/23`。
+- 当前 PR：#23 open，`https://github.com/ElysiaFollower/socratic-agent-generator/pull/23`；本分支待推送/开 stacked PR。
 
 ## 当前已验证状态
 
@@ -33,8 +33,9 @@
 - 已提交上一轮遗留的 Tutor remote-tool streaming 收束修复：`97783d5 fix(tutor): defer remote tool stream until final turn`。
 - 已完成 Shell/Evidence 面板 terminal-tab 修正：`RemoteCommandAuditModel` 记录 `runner_session_id`，audit API 返回 `binding_id`、`runner_session_id`、`terminal_id`；前端 tab 现在代表 Remote Runner terminal/session，选中 tab 后展示连续 transcript，而不是一条命令一个 tab。
 - 旧 SQLite 通过 `init_db()` 做窄兼容加列：缺少 `remote_command_audits.runner_session_id` 时自动 `ALTER TABLE`，不迁移运行时数据进 git。
-- 已确认 Remote Runner 当前 session command log 足以支持只读 transcript grouping，但不是持久 PTY shell；已向 SEEDRunner 提交 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/5`，用于未来学生可写 terminal 的上游能力。
+- PR #23 阶段曾因 Remote Runner 尚非持久 shell 提交 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/5`；当前 SEEDRunner main 已提供持久 session shell，Socratic 已完成第一版受控对接。
 - 已整理 `docs/overview.md`、`harness/quality.md`、`harness/progress.md` 和本 handoff，明确当前已实现价值、剩余缺口和下一阶段持久化 shell 对接入口。
+- 已完成 Persistent Remote Shell 对接：基于 SEEDRunner `9324432 feat(remote-runner): unify sessions with persistent shell backend`，Socratic 后端可读取 `session read` transcript，前端 Shell/Evidence 面板优先显示真实 persistent transcript，学生面板命令输入走受控 `session exec` 而不是 raw `session send`。
 
 ## 验证记录
 
@@ -54,14 +55,15 @@
 - 2026-05-14 north-star doc alignment：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
 - 2026-05-14 Tutor streaming 收束提交前验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_single_lab_e2e_benchmark.py -q` 通过 10 passed；`python3 -m compileall src/utils/tutor_core.py tests/test_tutor_executor.py` 通过；`git diff --check` 通过。
 - 2026-05-14 session shell terminal tabs：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 2026-05-14 persistent remote shell：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 25 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；SEEDRunner 上游 focused test `tests/test_remote_runner_mvp.py::test_session_preserves_shell_state_and_incremental_transcript` 通过 1 passed。
 
 ## 仍损坏或未验证
 
-- PR #23 尚未合并到 `dev`。
-- linux-01 未部署本次 terminal-tab UI 修正；本任务目前只完成本地代码、文档和测试。
+- PR #23 尚未合并到 `dev`；本分支基于 PR #23 之后的状态，适合创建 stacked PR 到 `vnext-session-shell-terminal-tabs` 或在 #23 合并后 rebase 到 `dev`。
+- linux-01 未部署本次 terminal-tab UI 和 persistent shell 适配；本任务目前只完成本地代码、文档和测试。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；本次临时 `.benchmark.env`、本地临时凭据文件和 Remote Runner session 均已清理。
-- Remote Runner 不是持久 PTY shell；只读 transcript 可用，但未来学生可写 terminal 需要先解决 `https://github.com/ElysiaFollower/SEEDRunner/issues/5`。
+- linux-01 未部署本次 persistent shell Socratic 适配；真实部署 smoke 待 PR 合并后执行。
 
 ## 设计结论
 
@@ -72,19 +74,19 @@
 - Profile generator 改造前应先跑静态评估；该评估不能替代单实验 E2E benchmark 和真实 Tutor 会话。
 - Shell/Evidence 面板的 tab 代表 terminal/session，不代表命令；命令是选中 terminal transcript 中的连续片段。
 - Socratic audit 需要在记录时保存当时的 `runner_session_id`，不能只依赖当前 binding 反查，否则切换机器后旧 evidence 会被错分。
+- 学生面板命令默认走 `session exec`，不是 raw `session send`；这样既利用 Remote Runner 持久 shell，又保留 command allowlist、exit code、stdout/stderr、timeout、redaction 和 audit。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：本次文档收口更新，包括 `docs/overview.md`、`harness/quality.md`、`harness/progress.md`、`harness/session-handoff.md`。
+- 当前待提交范围：persistent shell 适配相关后端 provider/manager/API/schema、前端 Shell/Evidence 面板/API/types/i18n、docs、tests、harness 状态和归档 plan。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 运行最终 `./scripts/harness-check.sh`、`git diff --check`。
-2. 提交并推送本次文档收口更新到 PR #23。
-3. 等待/处理 PR #23 review；合并后部署 linux-01 并做 Shell/Evidence terminal transcript smoke。
-4. 用户提供持久化 shell 版 Remote Runner 后，创建新 active plan 对接真实 persistent shell。
+1. 提交并推送 `vnext-persistent-remote-shell`。
+2. 创建 stacked PR；若 PR #23 先合并，则 rebase/retarget 到 `dev`。
+3. 合并后部署 linux-01，并做真实 persistent shell smoke：在同一会话中执行 `cd`、`export`、`pwd && printf "$VAR"`，再通过 Shell/Evidence 面板/API 验证 transcript。
 
 ## 命令
 

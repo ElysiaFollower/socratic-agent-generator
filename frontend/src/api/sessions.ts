@@ -15,6 +15,7 @@ import {
   SessionFileInfo,
   SessionRemoteCommandRequest,
   SessionRemoteCommandResponse,
+  SessionRemoteShellReadResponse,
   StepCompletion,
 } from '../types';
 
@@ -170,6 +171,41 @@ export async function getSessionRemoteAudits(
   } catch (error) {
     throw new Error(
       `Failed to fetch remote audits: ${handleApiError(error)}`,
+    );
+  }
+}
+
+export async function getSessionRemoteShellTranscript(
+  sessionId: string,
+  since = 0,
+  maxChars = 12000,
+): Promise<SessionRemoteShellReadResponse> {
+  try {
+    const response = await apiClient.get<SessionRemoteShellReadResponse>(
+      `/api/sessions/${sessionId}/remote-shell`,
+      {params: {since, max_chars: maxChars}},
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch remote shell transcript: ${handleApiError(error)}`,
+    );
+  }
+}
+
+export async function runSessionRemoteShellCommand(
+  sessionId: string,
+  request: SessionRemoteCommandRequest,
+): Promise<SessionRemoteCommandResponse> {
+  try {
+    const response = await apiClient.post<SessionRemoteCommandResponse>(
+      `/api/sessions/${sessionId}/remote-shell/command`,
+      request,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to run remote shell command: ${handleApiError(error)}`,
     );
   }
 }

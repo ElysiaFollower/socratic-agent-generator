@@ -323,6 +323,24 @@ class RemoteMachineManager:
             )
             raise
 
+    def read_bound_shell(
+        self,
+        *,
+        owner_id: str,
+        session_id: str,
+        since: int = 0,
+        max_chars: int = 12000,
+    ) -> Dict[str, Any]:
+        """Read the persistent shell transcript for the bound Remote Runner session."""
+        binding = self.get_binding_model(session_id, owner_id)
+        provider = self._session_provider_from_binding(binding)
+        return provider.read_session_transcript(
+            session_id=binding.runner_session_id,
+            machine_id=binding.runner_machine_name,
+            since=since,
+            max_chars=max_chars,
+        )
+
     def put_session_file(
         self,
         *,

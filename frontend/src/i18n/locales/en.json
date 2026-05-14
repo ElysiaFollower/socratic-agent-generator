@@ -41,7 +41,9 @@
     "noMachine": "No lab machine selected",
     "selectMachineFirst": "Select a lab machine before viewing shell evidence.",
     "terminal": "Shell",
-    "records": "records"
+    "records": "records",
+    "commandPlaceholder": "Run command in this shell",
+    "runCommand": "Run command"
   },
   "common": {
     "loading": "Loading...",

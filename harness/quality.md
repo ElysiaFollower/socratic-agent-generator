@@ -25,7 +25,7 @@
 - 为后端补充最小 pytest 覆盖，至少覆盖配置加载、health endpoint 和关键 manager 的纯逻辑。
 - 为 Profile 生成和学习会话建立可重复的端到端 smoke test，并增加学生 reasoning、Tutor evidence-to-learning 转化、工具循环检测等质量信号。
 - 合并并部署 `vnext-session-shell-terminal-tabs` 后，在 linux-01 做一次轻量 smoke，确认 Shell/Evidence 面板以 terminal transcript 方式展示真实 remote audit。
-- Remote Runner 持久化 shell 可用后，优先创建新 active plan，目标是把 Socratic session shell 从只读 transcript 升级为可选的学生/导师共享 terminal 入口，同时保留 session binding、command policy、audit 和教学边界。
+- Persistent shell 已接入 Socratic 的受控命令输入和 transcript 展示；后续若要支持复杂 TUI/raw input，应单独设计 raw `session send` 的 policy、audit 和前端渲染。
 - 为 RAG 检索建立一等 audit API，让 benchmark 能直接检查 lab manual/document retrieval 是否发生，以及 Tutor 是否把检索结果转化为教学。
 - 当 `src/utils/memory_provider.py`、`src/config.py`、`.env.example` 或 DreamingRAG `public_api`/依赖变化时，同步维护 `docs/deployment.md`、README 链接和部署 smoke。
 - 评估并处理 npm audit 报告的 20 个依赖漏洞。
