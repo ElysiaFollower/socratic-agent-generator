@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`vnext-profile-management-doc-identity`
-- 当前功能项：无 active；`vnext-profile-management-document-identity` 状态 `passing`。
-- Active plan：无；计划已归档到 `plans/archive/20260514-profile-management-document-identity.md`。
+- 分支：`vnext-profile-generation-evaluation`
+- 当前功能项：无 active；`vnext-profile-generation-evaluation` 状态 `passing`。
+- Active plan：无；计划已归档到 `plans/archive/20260514-profile-generation-evaluation.md`。
 - 目标分支：`dev`。
-- 当前 PR：尚未创建。
+- 当前 PR：尚未创建；上一条 Profile Management PR #21 已合并到 `dev`。
 
 ## 当前已验证状态
 
@@ -18,6 +18,8 @@
 - Lab Manual Management 的查看/删除优先使用 `document_id` API，旧 `lab_name` API 保留兼容；删除仍提示引用 profile 并将引用标记失效，而不是阻止删除或级联删除 profile。
 - Generate Profile 文档选择列表增加只读身份卡、引用数、source path、文件大小和短 preview；完整查看、删除、重命名仍保留在 Lab Manuals 管理入口。
 - lab manual readiness 同时检查同目录 artifact 与引用 profile 的 persona/curriculum 数据，修复内置校准 profile 显示“有 curriculum、无 persona”的误导。
+- 已完成 Profile 生成质量评估第一版：`scripts/benchmarks/profile_generation_eval.py` 对 generated vs calibrated profile 做离线评分，维度包括结构、persona、curriculum alignment 和 mismatch taxonomy risk coverage。
+- 评估文档：`docs/benchmarks/profile-generation-evaluation.md`；当前基线为 score 0.7343/status warn/labs 6。
 - linux-01 最终演示部署在上一轮已通过，服务仍预期为 tmux `socratic-backend`、`socratic-frontend`。
 
 ## 验证记录
@@ -29,12 +31,13 @@
 - `cd frontend && npm run build` 通过。
 - `git diff --check` 通过。
 - `./scripts/harness-check.sh` 通过 0 warning。
+- 2026-05-14 profile generation eval：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q` 通过 3 passed；`python3 -m compileall scripts tests` 通过；`python3 scripts/benchmarks/profile_generation_eval.py --json` 返回 score 0.7343/status warn/lab_count 6。
 
 ## 仍损坏或未验证
 
 - 当前分支未重新部署到 linux-01；这是管理页 UX/API 改动，本地构建验证已通过。
 - vNext 单实验 benchmark 的 live linux-01 run 仍需要通过环境变量提供 `SOCRATIC_BENCHMARK_PASSWORD`，未写入仓库。
-- Profile generation quality evaluation 仍是下一项 vNext 目标，尚未开始实现。
+- 当前列出的 vNext 近期目标均已实现第一版；下一步应按用户新优先级选择是否部署当前 dev、运行 live benchmark，或继续改 generator 本体。
 
 ## 设计结论
 
@@ -42,18 +45,19 @@
 - 对外展示路径使用 repo-relative 或文件名，不暴露本机绝对路径。
 - Generate Profile 不复制完整 Lab Manuals 管理能力，只提供足够核验选中文档身份的只读 preview。
 - 删除文档时提示引用方并使引用失效；不应因为存在引用而彻底不能删。
+- Profile generator 改造前应先跑静态评估；该评估不能替代单实验 E2E benchmark 和真实 Tutor 会话。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前改动集中在 Profile API、DocumentManager、Lab Manual/Profile Generator 前端、i18n、测试和 harness/docs。
+- 当前改动集中在 profile generation benchmark 脚本、benchmark 文档、测试和 harness/docs。
 
 ## 下一步最佳动作
 
-1. 运行 `./scripts/harness-check.sh` 和必要的最终验证。
-2. 提交并推送 `vnext-profile-management-doc-identity`。
+1. 运行 `git diff --check` 和最终 `git status`。
+2. 提交并推送 `vnext-profile-generation-evaluation`。
 3. 创建 PR 到 `dev` 并合并。
-4. 之后开启 `vnext-profile-generation-evaluation`。
+4. 若用户要求“最终形态部署”，从 `dev` 部署到 linux-01 并重启服务。
 
 ## 命令
 
@@ -64,3 +68,4 @@
 - `cd frontend && npm test -- --run`
 - `cd frontend && npm run build`
 - `git diff --check`
+- `python3 scripts/benchmarks/profile_generation_eval.py`
