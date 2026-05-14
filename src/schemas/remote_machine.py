@@ -119,6 +119,16 @@ class SessionRemoteCommandResponse(BaseModel):
     result: Dict[str, Any] = Field(default_factory=dict)
 
 
+class SessionRemoteShellReadResponse(BaseModel):
+    ok: bool = True
+    runner_session_id: str
+    transcript: str = ""
+    cursor: int = 0
+    since: int = 0
+    transcript_truncated: bool = False
+    result: Dict[str, Any] = Field(default_factory=dict)
+
+
 class SessionFileInfo(BaseModel):
     filename: str
     size_bytes: int

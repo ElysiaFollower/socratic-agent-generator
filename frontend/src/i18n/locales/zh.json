@@ -41,7 +41,9 @@
     "noMachine": "未选择实验机",
     "selectMachineFirst": "请先选择实验机，再查看 Shell 证据。",
     "terminal": "Shell",
-    "records": "条"
+    "records": "条",
+    "commandPlaceholder": "在此 Shell 中执行命令",
+    "runCommand": "执行命令"
   },
   "common": {
     "loading": "加载中...",

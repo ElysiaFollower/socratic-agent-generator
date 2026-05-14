@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`vnext-session-shell-terminal-tabs` 已 passing。
-- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-session-shell-terminal-tabs.md`。
+- 当前功能项：无 active；`vnext-persistent-remote-shell` 已 passing。
+- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-persistent-remote-shell.md`。
 - 上次验证：2026-05-14，remote machine focused tests 5 passed，`python3 -m compileall src tests` 通过，前端 test/build 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
-- 下一步最佳动作：等待/处理 PR #23 review；合并后部署 linux-01 并做 Shell/Evidence terminal transcript smoke。用户下一阶段会提供持久化 shell 版 Remote Runner，届时新建 active plan 对接。
+- 下一步最佳动作：提交并推送 `vnext-persistent-remote-shell`，创建 stacked PR；合并后部署 linux-01 并做真实 persistent shell smoke。
 
 ## 状态约定
 
@@ -15,6 +15,21 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-14 - 开启 Persistent Remote Shell 对接任务
+
+- 用户确认 Remote Runner 已完成持久化 shell 需求，要求新建 active plan 并实现 Socratic 侧对接。
+- 本地 SEEDRunner 位于 `/Users/ely/workspace/research/agent/SEEDRunner`，当前 `main` 已是最新：`9324432 feat(remote-runner): unify sessions with persistent shell backend`。
+- 已确认上游接口：`remote-runner session exec` 在持久 session shell 内执行并保留 `cd/export` 等 shell-local state；`session send --input ...` 可向 shell 发送原始输入；`session read --since --max-chars` 返回 transcript/cursor。
+- 从 `vnext-session-shell-terminal-tabs` 创建新分支 `vnext-persistent-remote-shell`，继续基于 PR #23 的 terminal/session tab 模型实现。
+- 创建 active plan：`plans/active/20260514-persistent-remote-shell.md`。
+- 将 `vnext-persistent-remote-shell` 设置为当前唯一 active feature。
+- 范围判断：本任务优先把 Socratic 的 session shell 变成真实 Remote Runner persistent transcript + 受控命令输入；不做完整浏览器 terminal emulator，不做学习质量 benchmark，不放宽 command policy。
+- 实现完成：`RemoteRunnerProvider` 支持 `read_session_transcript` 和 `send_session_input`；`RemoteMachineManager` 增加 bound shell transcript 读取；后端新增 `GET /api/sessions/{session_id}/remote-shell` 和 `POST /api/sessions/{session_id}/remote-shell/command`。
+- 前端 `SessionEvidencePanel` 优先读取 Remote Runner persistent transcript；命令输入仍走受控 `session exec`，继承 allowlist、timeout、redaction 和 audit。
+- 文档已更新 `docs/architecture/vnext-integrations.md`、`docs/architecture/remote-runner-session-tools.md`、`docs/deployment.md`，明确 `session exec` 是默认受控入口，raw `session send/read` 是未来复杂交互 flow 的底层能力。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 25 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；上游 SEEDRunner focused persistent transcript test 1 passed。
+- 状态：`vnext-persistent-remote-shell` 标记为 `passing`，计划归档。
 
 ### 2026-05-14 - 开启会话 Shell terminal tab 修正任务
 

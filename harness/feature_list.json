@@ -174,6 +174,17 @@
       "notes": "Archived plan: plans/archive/20260514-session-shell-terminal-tabs.md. The panel remains read-only and permissioned; future student-writable terminal work depends on a persistent Remote Runner terminal API."
     },
     {
+      "id": "vnext-persistent-remote-shell",
+      "priority": "P0",
+      "area": "frontend-remote-evidence",
+      "title": "Persistent Remote Runner shell",
+      "behavior": "A remote-bound learning session uses Remote Runner's persistent session shell for command execution and shell transcript display, preserving shell-local state while keeping session binding, command policy, redaction, and audit boundaries.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
+      "evidence": "2026-05-14: integrated the upstream Remote Runner persistent shell interface. Socratic provider now supports session read/send primitives, session manager exposes bound shell transcript reads, backend adds GET /api/sessions/{session_id}/remote-shell and POST /api/sessions/{session_id}/remote-shell/command, and the Shell/Evidence panel reads the real persistent transcript while command input still executes through policy-checked session exec and audit. Updated architecture/deployment docs and active plan. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q -> 25 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed. Upstream SEEDRunner focused test python3 -m pytest tests/test_remote_runner_mvp.py::test_session_preserves_shell_state_and_incremental_transcript -q passed 1 test.",
+      "notes": "Archived plan: plans/archive/20260514-persistent-remote-shell.md. The UI uses session exec for student commands by default; raw session send remains a lower-level provider capability, not a default policy bypass."
+    },
+    {
       "id": "vnext-single-lab-e2e-benchmark",
       "priority": "P0",
       "area": "evaluation",

@@ -278,3 +278,87 @@ def test_bound_command_records_audit():
     assert audits[0].binding_id
     assert audits[0].runner_session_id == "rr-sess"
     assert audits[0].terminal_id == "rr-sess"
+
+
+def test_bound_shell_read_uses_session_binding():
+    SessionLocal = make_db()
+    runner = FakeRunner(
+        [
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "machine_id": "seed-lab",
+                        "reachable": True,
+                        "auth_ok": True,
+                        "default_cwd_ok": True,
+                    }
+                ),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-sess", "machine_id": "seed-lab"}),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-sess", "machine_id": "seed-lab"}),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "session_id": "rr-sess",
+                        "transcript": "$ cd /tmp\n$ pwd\n/tmp\n",
+                        "cursor": 22,
+                        "since": 0,
+                        "transcript_truncated": False,
+                    }
+                ),
+            ),
+        ]
+    )
+    provider = RemoteRunnerProvider(
+        RemoteRunnerProviderConfig(
+            enabled=True,
+            repo_path=None,
+            allowed_machine_ids=("seed-lab",),
+        ),
+        command_runner=runner,
+    )
+
+    with SessionLocal() as db:
+        manager = RemoteMachineManager(db, provider=provider)
+        machine = manager.create_machine(
+            "user1",
+            RemoteMachineCreate(
+                display_name="SEED Lab",
+                runner_machine_name="seed-lab",
+                auth_type="existing",
+                default_cwd="/home/seed",
+            ),
+        )
+        manager.create_binding(
+            owner_id="user1",
+            session_id="socratic-session",
+            machine_id=machine.machine_id,
+        )
+        transcript = manager.read_bound_shell(
+            owner_id="user1",
+            session_id="socratic-session",
+            since=0,
+            max_chars=500,
+        )
+
+    assert "$ pwd" in transcript["transcript"]
+    assert runner.calls[2][3:] == ["session", "show", "--session", "rr-sess", "--json"]
+    assert runner.calls[3][3:] == [
+        "session",
+        "read",
+        "--session",
+        "rr-sess",
+        "--since",
+        "0",
+        "--max-chars",
+        "500",
+        "--json",
+    ]

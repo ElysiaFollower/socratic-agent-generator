@@ -243,19 +243,18 @@ The session Shell/Evidence panel should use a terminal-tab model:
   `runner_session_id`.
 - A tab does not represent a single command. Single commands are transcript
   entries inside the selected terminal.
-- The transcript preserves command order and shows command/action, cwd, status,
-  stdout/stderr excerpts, errors, and timestamps.
-- The first shipped version remains read-only. If student-entered commands are
-  later added, they should execute through the selected terminal's existing
-  session binding and command policy rather than through a separate bypass.
-
-Known upstream gap: current Remote Runner sessions are sufficient for grouped
-command transcripts, but synchronous commands are still executed as separate SSH
-commands rather than a persistent PTY shell. That means shell-local state such as
-`cd`, exported variables, aliases, and job control should not be assumed to
-persist across commands. Track persistent terminal support in
-`https://github.com/ElysiaFollower/SEEDRunner/issues/5` before making the panel
-student-writable.
+- The primary transcript should come from Remote Runner `session read`, because
+  Remote Runner `session exec` now runs inside a persistent session shell and
+  preserves shell-local state such as `cd`, exported variables, aliases, and
+  shell functions.
+- Socratic audit records remain useful fallback and structured evidence, but
+  they should not replace the persistent shell transcript when `session read` is
+  available.
+- Student-entered commands should use `session exec` rather than raw `session
+  send` by default. That keeps command boundaries, stdout/stderr, exit code,
+  timeout, allowlist policy, redaction, and audit intact.
+- Raw `session send/read` is a lower-level capability for future interactive
+  flows. It must not become a policy bypass.
 
 ## Acceptance Demo
 
@@ -287,4 +286,4 @@ The official deployment path should remain conda-based. Remote Runner setup must
 - Remote Runner's background command lifecycle is available, but Socratic must keep tool prompts and tests aligned with that CLI as it evolves.
 - Running real packet labs may require root privileges, Docker access, privileged containers, or network capabilities that differ between machines.
 - Tutor command use can drift from Socratic guidance into direct solution automation. The prompt and command policy must keep the tutor focused on observation, explanation, debugging, and evidence collection.
-- Fully interactive terminal programs may still need a richer job/terminal model; the current background command lifecycle is best for start-inspect-stop workflows.
+- Fully interactive terminal programs may still need additional frontend rendering and input handling beyond the current command input box; raw `session send` should be introduced only with explicit policy and audit decisions.
