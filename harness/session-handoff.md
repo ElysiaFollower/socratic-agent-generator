@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`vnext-profile-generation-evaluation`
-- 当前功能项：无 active；`vnext-profile-generation-evaluation` 状态 `passing`。
+- 分支：`dev`
+- 当前功能项：无 active。
 - Active plan：无；计划已归档到 `plans/archive/20260514-profile-generation-evaluation.md`。
 - 目标分支：`dev`。
-- 当前 PR：尚未创建；上一条 Profile Management PR #21 已合并到 `dev`。
+- 当前 PR：无；近期 vNext 分支已合并到 `dev`。
 
 ## 当前已验证状态
 
@@ -24,6 +24,8 @@
 - linux-01 服务运行在 tmux `socratic-backend`、`socratic-frontend`；后端 `http://10.203.15.128:8000/api/health` 返回 OK，前端 `http://10.203.15.128:5173` 返回 HTTP 200。
 - 本次部署保留旧 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`，备份目录为 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514050023`。
 - live `single_lab_e2e.py` benchmark 已改为 `.env` 驱动：默认加载 `.env`，默认测试用户为 `admin`，默认要求 `SOCRATIC_BENCHMARK_REMOTE_MACHINE`；当前推荐机器名为 `SEED Lab on linux-01`。
+- 2026-05-14 已按用户要求在 linux-01 真实部署环境运行 live benchmark。基础链路通过：admin 登录、profile 发现、session 创建、Settings 机器配置、remote machine 连接、Tutor remote tool 调用和 backend memory/provider 调用均可用。
+- 同一次 live benchmark 未通过完整教学验收：session `df650fd7-3bba-43fa-b3c7-ffbbcba7c75b` 在 7 个 scripted turns 后仍停在 `stepIndex=0,totalSteps=9,isFinished=false`，`step_completion_count=0`，但 `remote_audit_count=37`。结果文件保留在 linux-01：`/home/ely/deploy/socratic-live/logs/single-lab-e2e-live-result.json`。
 
 ## 验证记录
 
@@ -37,12 +39,13 @@
 - 2026-05-14 profile generation eval：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q` 通过 3 passed；`python3 -m compileall scripts tests` 通过；`python3 scripts/benchmarks/profile_generation_eval.py --json` 返回 score 0.7343/status warn/lab_count 6。
 - 2026-05-14 linux-01 deploy：Remote Runner `linux-01` doctor reachable/auth/default_cwd 全 true；远端 `python3 scripts/benchmarks/profile_generation_eval.py` 返回 score 0.7343/status warn/labs 6；重启后本地与远端 curl 均验证后端 OK、前端 200。
 - 2026-05-14 benchmark env update：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 7 passed；`python3 -m compileall scripts/benchmarks/single_lab_e2e.py tests/test_single_lab_e2e_benchmark.py` 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+- 2026-05-14 live single-lab benchmark：部署机命令 `/root/miniconda3/envs/SocraticAgent/bin/python scripts/benchmarks/single_lab_e2e.py --dotenv /home/ely/deploy/socratic-live/.benchmark.env` 已真实运行，退出码 1；失败阶段为 `final_validation`，错误为 `Session did not finish within the scripted turns.`。
 
 ## 仍损坏或未验证
 
 - 当前 `dev` 已重新部署到 linux-01；管理页 UX/API 改动和 benchmark 脚本均已包含在部署目录中。
-- vNext 单实验 benchmark 的 live linux-01 run 仍需要通过环境变量提供 `SOCRATIC_BENCHMARK_PASSWORD`，未写入仓库。
-- 当前列出的 vNext 近期目标均已实现第一版并已部署到 linux-01；后续可按用户新优先级继续改 generator 本体或运行 live benchmark。
+- live benchmark 暴露真实失败：Tutor 会调用远程工具并收集大量 audit，但 scripted turns 内没有完成第 1 个 learning step。后端 evaluator 低置信度保守拒绝推进，LangChain agent 也有提前 stop condition。下一轮应优先修复 Tutor 工具规划/step completion 策略，而不是再做部署连通性排查。
+- benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；本次临时 `.benchmark.env`、本地临时凭据文件和 Remote Runner session 均已清理。
 
 ## 设计结论
 
@@ -59,9 +62,9 @@
 
 ## 下一步最佳动作
 
-1. 提交并推送 benchmark `.env` 配置更新到 `dev`。
-2. 若用户提供或在 `.env` 中配置 `SOCRATIC_BENCHMARK_PASSWORD`，可运行 live `single_lab_e2e.py`。
-3. 后续进入 generator 本体改造前，先用 `profile_generation_eval.py` 记录基线对比。
+1. 提交并推送本次 live benchmark evidence 到 `dev`。
+2. 修复 Tutor 在真实部署环境中“会调用工具但不推进 learning step”的问题，可从 step evaluator 证据判定、agent max-iteration/stop behavior、benchmark scripted turns 质量三处切入。
+3. 修复后重新运行 linux-01 live `single_lab_e2e.py`，以 `final_progress.isFinished=true` 和足够 remote audit/evidence 作为验收。
 
 ## 命令
 

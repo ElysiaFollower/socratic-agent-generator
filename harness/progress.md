@@ -355,3 +355,13 @@
 - live benchmark 默认用户名改为 `admin`，默认要求提供 `SOCRATIC_BENCHMARK_REMOTE_MACHINE`；只有显式 `--allow-no-remote-machine` / `SOCRATIC_BENCHMARK_ALLOW_NO_REMOTE_MACHINE=true` 才允许非远程弱 smoke。
 - `.env.example` 和 `docs/benchmarks/single-lab-e2e.md` 已补充 linux-01 当前推荐配置：`SOCRATIC_BENCHMARK_BASE_URL=http://10.203.15.128:8000`、`SOCRATIC_BENCHMARK_USERNAME=admin`、`SOCRATIC_BENCHMARK_REMOTE_MACHINE=\"SEED Lab on linux-01\"` 等。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 7 passed；`python3 -m compileall scripts/benchmarks/single_lab_e2e.py tests/test_single_lab_e2e_benchmark.py` 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+
+### 2026-05-14 - 在 linux-01 真实部署环境运行 live single-lab benchmark
+
+- 按用户要求在 linux-01 部署机的真实服务上运行 `scripts/benchmarks/single_lab_e2e.py`，使用 admin 测试用户、Profile `Sniffing_Spoofing manual calibrated` 和 admin Settings 中的 `SEED Lab on linux-01` 实验机配置。
+- 运行前将本地 `07d600d` 同步到 `/home/ely/deploy/socratic-live/socratic-agent-generator`，保留部署 `.env`、`data/`、`frontend/node_modules`、`frontend/dist`，重启 tmux `socratic-backend` 与 `socratic-frontend`；后端 `/api/health` 返回 OK，前端 HTTP 200。
+- 如部署机原有 admin 配置中没有该实验机，则通过后端 Settings API 创建 `SEED Lab on linux-01`，连接测试返回 `ready Connection ready.`。
+- benchmark 真实执行结果未通过最终验收：`stage=final_validation`，错误为 `Session did not finish within the scripted turns.`；session `df650fd7-3bba-43fa-b3c7-ffbbcba7c75b`，profile `3b76689b-1cea-4961-a68b-6b4bd5743e00`，remote machine `8460e4fe-6217-470f-86e0-1d667f00f166`。
+- 失败时 `turns_sent=7`，`final_progress={isFinished:false, stepIndex:0, totalSteps:9}`，`step_completion_count=0`，但 `remote_audit_count=37`，说明登录、会话创建、profile 发现、实验机绑定和 remote tool 调用链路均可用，失败点在 Tutor 没有推动学习节点完成。
+- 后端日志显示 evaluator 多次低置信度保守拒绝推进步骤，并出现 LangChain agent 因 stop condition 提前停止；这是需要继续修复的教学策略/工具规划问题，而不是凭据或部署连通性问题。
+- 脱敏结果文件保留在部署机 `/home/ely/deploy/socratic-live/logs/single-lab-e2e-live-result.json`；临时 `.benchmark.env` 和本地临时凭据文件已删除，Remote Runner 会话 `sess_20260514_061128_790975_7fada631` 已销毁。
