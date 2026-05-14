@@ -151,6 +151,14 @@ Profile 自动生成是项目的重要卖点，但当前 generator 的多智能�
 - Generate Profile 不应复制完整文档管理功能，只提供足够让用户确认文档身份的只读 preview。
 - persona/curriculum/document_status 的显示缺口应作为 bug 独立修复，而不是混入 profile generator 改造。
 
+已实现的第一步：
+
+- Lab manual 列表返回稳定 `document_id`、`display_name`、文件名、owner、上传时间、相对 source path、大小、引用 profile 数和短 preview。
+- Lab Manuals 支持编辑 display name；该操作不改变 `doc_name`、存储路径、索引路径或已有 profile 的 `document_id` 引用。
+- 文档查看和删除优先通过 `document_id` 调用，避免 admin 视角下同名文档误操作；旧的按 `lab_name` API 保留向后兼容。
+- Generate Profile 的选择列表增加只读身份卡和短 preview，完整查看、删除、重命名仍留在 Lab Manuals。
+- persona/curriculum readiness 同时检查同目录 artifact 和引用该 document 的 profile 数据，修复内置校准 profile 只显示 curriculum、不显示 persona 的误导。
+
 ## 实施原则
 
 - 每个方向都应先形成独立 plan 和分支，再进入实现。

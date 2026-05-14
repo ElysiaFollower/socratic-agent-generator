@@ -190,10 +190,10 @@
       "area": "profile-management",
       "title": "Profile manual identity and metadata UX",
       "behavior": "Users can quickly identify the correct lab manual when generating a profile, inspect enough document metadata to disambiguate similar names, and fix missing persona/curriculum metadata display issues.",
-      "status": "not_started",
-      "verification": "Resolve design decision first; implementation should verify Profile Management, Lab Manuals, and Generate Profile use a consistent document identity model.",
-      "evidence": "",
-      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. GitHub issue: https://github.com/ElysiaFollower/socratic-agent-generator/issues/18."
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
+      "evidence": "2026-05-14: implemented stable lab manual identity payloads, display-name editing, document-id based content/delete APIs, Generate Profile read-only document preview cards, and persona/curriculum readiness derived from linked profile data as well as artifact files. Validation passed: ./scripts/harness-check.sh passed with 0 warnings; tests/test_default_profile_seed.py -> 6 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260514-profile-management-document-identity.md. GitHub issue: https://github.com/ElysiaFollower/socratic-agent-generator/issues/18."
     }
   ]
 }

@@ -138,3 +138,19 @@ class DocumentManager:
             self.db.refresh(doc)
             return doc
         return None
+
+    def update_display_name(
+        self,
+        doc_id: int,
+        display_name: str,
+    ) -> Optional[Document]:
+        """Update the human-facing display name for a document."""
+        doc = self.get_document_by_id(doc_id)
+        if not doc:
+            return None
+        meta_info = dict(doc.meta_info or {})
+        meta_info["display_name"] = display_name
+        doc.meta_info = meta_info
+        self.db.commit()
+        self.db.refresh(doc)
+        return doc

@@ -32,17 +32,76 @@ logger = logging.getLogger(__name__)
 # Constants
 MAX_PDF_SIZE = 10 * 1024 * 1024  # 10MB limit for PDF files
 MIN_EXTRACTED_TEXT_LENGTH = 100  # Minimum length for extracted PDF text
+LAB_MANUAL_EXCERPT_CHARS = 700
 
 router = APIRouter(prefix="/api/profiles", tags=["Profile"])
 
 
-def _document_references(document_manager: DocumentManagerDep, doc_id: int) -> List[dict]:
-    models = (
+def _absolute_repo_path(path_value: str) -> Path:
+    path = Path(path_value)
+    if path.is_absolute():
+        return path
+    return ROOT_DIR / path
+
+
+def _display_repo_path(path_value: Optional[str]) -> Optional[str]:
+    if not path_value:
+        return None
+    path = Path(path_value)
+    if not path.is_absolute():
+        return path.as_posix()
+    try:
+        return path.relative_to(ROOT_DIR).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _read_excerpt(path: Path, limit: int = LAB_MANUAL_EXCERPT_CHARS) -> str:
+    if not path.exists() or not path.is_file():
+        return ""
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            content = file.read(limit * 2)
+    except UnicodeDecodeError:
+        return ""
+    except OSError:
+        return ""
+    normalized = re.sub(r"\s+", " ", content).strip()
+    if len(normalized) <= limit:
+        return normalized
+    return normalized[: limit - 1].rstrip() + "…"
+
+
+def _profile_has_persona(model: ProfileModel) -> bool:
+    hints = model.persona_hints or []
+    return bool(hints) or bool(model.target_audience)
+
+
+def _profile_has_curriculum(model: ProfileModel) -> bool:
+    curriculum = model.curriculum
+    if isinstance(curriculum, dict):
+        root = curriculum.get("root")
+        if isinstance(root, list):
+            return len(root) > 0
+        return bool(curriculum)
+    if isinstance(curriculum, list):
+        return len(curriculum) > 0
+    return False
+
+
+def _document_reference_models(
+    document_manager: DocumentManagerDep,
+    doc_id: int,
+) -> List[ProfileModel]:
+    return (
         document_manager.db.query(ProfileModel)
         .filter(ProfileModel.document_id == doc_id)
         .order_by(ProfileModel.profile_name.asc())
         .all()
     )
+
+
+def _profile_reference_payload(models: List[ProfileModel]) -> List[dict]:
     return [
         {
             "profile_id": model.profile_id,
@@ -52,6 +111,51 @@ def _document_references(document_manager: DocumentManagerDep, doc_id: int) -> L
         }
         for model in models
     ]
+
+
+def _document_references(document_manager: DocumentManagerDep, doc_id: int) -> List[dict]:
+    return _profile_reference_payload(
+        _document_reference_models(document_manager, doc_id)
+    )
+
+
+def _lab_manual_info(
+    document_manager: DocumentManagerDep,
+    doc: Document,
+    include_excerpt: bool = True,
+) -> dict:
+    lab_dir = _absolute_repo_path(str(Path(doc.storage_path).parent))
+    lab_manual_path = _absolute_repo_path(doc.storage_path)
+    meta_info = doc.meta_info or {}
+    references = _document_reference_models(document_manager, doc.id)
+    has_lab_manual = lab_manual_path.exists()
+    has_persona = (lab_dir / "definition.json").exists() or any(
+        _profile_has_persona(model) for model in references
+    )
+    has_curriculum = (lab_dir / "curriculum.json").exists() or any(
+        _profile_has_curriculum(model) for model in references
+    )
+    size_bytes = lab_manual_path.stat().st_size if has_lab_manual else None
+    display_name = str(meta_info.get("display_name") or doc.doc_name)
+
+    return {
+        "document_id": doc.id,
+        "lab_name": doc.doc_name,
+        "display_name": display_name,
+        "owner_id": doc.owner_id,
+        "filename": doc.filename,
+        "upload_time": doc.upload_time,
+        "source_path": _display_repo_path(doc.storage_path),
+        "index_path": _display_repo_path(doc.index_path),
+        "size_bytes": size_bytes,
+        "excerpt": _read_excerpt(lab_manual_path) if include_excerpt else "",
+        "has_lab_manual": has_lab_manual,
+        "has_persona": has_persona,
+        "has_curriculum": has_curriculum,
+        "is_builtin": bool(meta_info.get("is_builtin")),
+        "referenced_profiles": _profile_reference_payload(references),
+        "referenced_profile_count": len(references),
+    }
 
 
 def check_document_access(
@@ -106,6 +210,32 @@ def check_document_access(
     )
 
 
+def check_document_access_by_id(
+    document_manager: DocumentManagerDep,
+    document_id: int,
+    current_user: User,
+    allow_admin: bool = True,
+    allow_builtin_for_teacher: bool = True,
+) -> Document:
+    """Check access to a document by stable database ID."""
+    doc = document_manager.get_document_by_id(document_id)
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    if allow_admin and current_user.role == "admin":
+        return doc
+    if current_user.role == "teacher":
+        if doc.owner_id == current_user.user_id:
+            return doc
+        if allow_builtin_for_teacher and doc.owner_id == "builtin":
+            return doc
+    if current_user.role == "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Students cannot access lab manuals.",
+        )
+    raise HTTPException(status_code=403, detail="Document access denied.")
+
+
 class GenerateProfileRequest(BaseModel):
     """Request schema for generating a profile."""
 
@@ -136,6 +266,16 @@ class RenameProfileRequest(BaseModel):
     profile_name: str = Field(
         description="New profile name.",
         min_length=1,
+    )
+
+
+class UpdateLabManualDisplayNameRequest(BaseModel):
+    """Request schema for updating a lab manual display name."""
+
+    display_name: str = Field(
+        description="Human-facing document display name.",
+        min_length=1,
+        max_length=160,
     )
 
 
@@ -193,36 +333,84 @@ def list_lab_manuals(
             (Document.owner_id == current_user.user_id) | (Document.owner_id == "builtin")
         ).order_by(Document.upload_time.desc()).all()
     
-    lab_manuals = []
-    for doc in docs:
-        lab_dir = Path(doc.storage_path).parent
-        if not lab_dir.is_absolute():
-            lab_dir = ROOT_DIR / lab_dir
-        lab_manual_path = Path(doc.storage_path)
-        if not lab_manual_path.is_absolute():
-            lab_manual_path = ROOT_DIR / lab_manual_path
-        meta_info = doc.meta_info or {}
-        references = _document_references(document_manager, doc.id)
-        
-        # ✅ 检查文件是否存在（使用绝对路径）
-        has_persona = (lab_dir / "definition.json").exists()
-        has_curriculum = (lab_dir / "curriculum.json").exists()
-        has_lab_manual = lab_manual_path.exists()
-        
-        lab_manuals.append({
-            "lab_name": doc.doc_name,
-            "owner_id": doc.owner_id,  # ✅ 返回所有者信息
-            "filename": doc.filename,
-            "upload_time": doc.upload_time,
-            "has_lab_manual": has_lab_manual,  # ✅ 明确返回是否有lab_manual
-            "has_persona": has_persona,
-            "has_curriculum": has_curriculum,
-            "is_builtin": bool(meta_info.get("is_builtin")),
-            "referenced_profiles": references,
-            "referenced_profile_count": len(references),
-        })
+    lab_manuals = [
+        _lab_manual_info(document_manager, doc, include_excerpt=True)
+        for doc in docs
+    ]
     
-    return sorted(lab_manuals, key=lambda x: x["lab_name"])
+    return sorted(lab_manuals, key=lambda x: x["display_name"].lower())
+
+
+@router.put("/lab-manuals/by-id/{document_id}/display-name", summary="更新实验文档显示名")
+def update_lab_manual_display_name(
+    document_id: int,
+    request: UpdateLabManualDisplayNameRequest,
+    current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None,
+) -> dict:
+    """Update a lab manual display name without changing document identity."""
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(status_code=403, detail="Forbidden")
+    doc = check_document_access_by_id(
+        document_manager,
+        document_id,
+        current_user,
+        allow_builtin_for_teacher=False,
+    )
+    display_name = request.display_name.strip()
+    if not display_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Display name cannot be empty.",
+        )
+    updated = document_manager.update_display_name(doc.id, display_name)
+    if not updated:
+        raise HTTPException(status_code=404, detail="Document not found.")
+    return _lab_manual_info(document_manager, updated, include_excerpt=True)
+
+
+def _lab_manual_content_response(
+    document_manager: DocumentManagerDep,
+    doc: Document,
+) -> dict:
+    lab_manual_path = _absolute_repo_path(doc.storage_path)
+    
+    if not lab_manual_path.exists():
+         raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Lab manual file not found for lab '{doc.doc_name}'.",
+        )
+
+    try:
+        with open(lab_manual_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        return {
+            "document_id": doc.id,
+            "lab_name": doc.doc_name,
+            "display_name": str((doc.meta_info or {}).get("display_name") or doc.doc_name),
+            "filename": doc.filename,
+            "content": content,
+            "size": len(content),
+            "source_path": _display_repo_path(doc.storage_path),
+            "referenced_profiles": _document_references(document_manager, doc.id),
+        }
+    except Exception as e:
+        logger.error("Failed to read lab manual content: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to read lab manual content: {str(e)}",
+        )
+
+
+@router.get("/lab-manuals/by-id/{document_id}/content", summary="按ID获取实验文档内容")
+def get_lab_manual_content_by_id(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None,
+) -> dict:
+    """Get lab manual content by stable document ID."""
+    doc = check_document_access_by_id(document_manager, document_id, current_user)
+    return _lab_manual_content_response(document_manager, doc)
 
 
 @router.get("/lab-manuals/{lab_name}/content", summary="获取实验文档内容")
@@ -234,56 +422,20 @@ def get_lab_manual_content(
     """Get the content of a lab manual file."""
     # ✅ 检查文档访问权限
     doc = check_document_access(document_manager, lab_name, current_user)
-    
-    # ✅ 使用文档的存储路径
-    lab_manual_path = Path(doc.storage_path)
-    if not lab_manual_path.is_absolute():
-        lab_manual_path = ROOT_DIR / lab_manual_path
-    
-    if not lab_manual_path.exists():
-         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Lab manual file not found for lab '{lab_name}'.",
-        )
-
-    try:
-        with open(lab_manual_path, "r", encoding="utf-8") as f:
-            content = f.read()
-        return {
-            "lab_name": lab_name,
-            "content": content,
-            "size": len(content),
-        }
-    except Exception as e:
-        logger.error("Failed to read lab manual content: %s", e)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to read lab manual content: {str(e)}",
-        )
+    return _lab_manual_content_response(document_manager, doc)
 
 
-@router.delete("/lab-manuals/{lab_name}", summary="删除实验文档")
-def delete_lab_manual(
-    lab_name: str,
-    current_user: User = Depends(get_current_user),
-    document_manager: DocumentManagerDep = None
+def _delete_lab_manual_document(
+    document_manager: DocumentManagerDep,
+    doc: Document,
+    username: str,
 ) -> dict:
-    """Delete a lab manual directory and all its contents."""
+    """Delete a document record and unlink profiles that reference it."""
     import shutil
 
-    if current_user.role not in ["admin", "teacher"]:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only admins and teachers can delete lab manuals.",
-        )
-
-    # ✅ 检查文档访问权限
-    doc = check_document_access(document_manager, lab_name, current_user)
-    
-    # ✅ 使用文档的存储路径
-    lab_dir = Path(doc.storage_path).parent
-    if not lab_dir.is_absolute():
-        lab_dir = ROOT_DIR / lab_dir
+    doc_id = doc.id
+    doc_name = doc.doc_name
+    lab_dir = _absolute_repo_path(str(Path(doc.storage_path).parent))
     index_dir = Path(doc.index_path) if doc.index_path else None
     if index_dir and not index_dir.is_absolute():
         index_dir = ROOT_DIR / index_dir
@@ -299,7 +451,7 @@ def delete_lab_manual(
         profile_model.document_id = None
     document_manager.db.commit()
 
-    document_manager.delete_document_by_id(doc.id)
+    document_manager.delete_document_by_id(doc_id)
 
     # Delete user-uploaded files. Built-in source artifacts are versioned repo
     # fixtures, so deletion only removes their DB/index binding at runtime.
@@ -308,7 +460,7 @@ def delete_lab_manual(
             shutil.rmtree(lab_dir)
             logger.info(
                 "Lab manual directory deleted by user %s: %s",
-                current_user.username,
+                username,
                 lab_dir,
             )
         except Exception as e:
@@ -322,12 +474,54 @@ def delete_lab_manual(
 
     return {
         "success": True,
-        "message": f"Lab manual '{lab_name}' deleted successfully.",
-        "lab_name": lab_name,
+        "message": f"Lab manual '{doc_name}' deleted successfully.",
+        "lab_name": doc_name,
+        "document_id": doc_id,
         "affected_profiles": references,
         "affected_profile_count": len(references),
         "document_unlinked": True,
     }
+
+
+@router.delete("/lab-manuals/by-id/{document_id}", summary="按ID删除实验文档")
+def delete_lab_manual_by_id(
+    document_id: int,
+    current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None,
+) -> dict:
+    """Delete a lab manual by stable document ID."""
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can delete lab manuals.",
+        )
+    doc = check_document_access_by_id(document_manager, document_id, current_user)
+    return _delete_lab_manual_document(
+        document_manager,
+        doc,
+        current_user.username,
+    )
+
+
+@router.delete("/lab-manuals/{lab_name}", summary="删除实验文档")
+def delete_lab_manual(
+    lab_name: str,
+    current_user: User = Depends(get_current_user),
+    document_manager: DocumentManagerDep = None
+) -> dict:
+    """Delete a lab manual directory and all its contents."""
+    if current_user.role not in ["admin", "teacher"]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins and teachers can delete lab manuals.",
+        )
+
+    doc = check_document_access(document_manager, lab_name, current_user)
+    return _delete_lab_manual_document(
+        document_manager,
+        doc,
+        current_user.username,
+    )
 
 
 @router.get("/{profile_id}", response_model=Profile, summary="获取指定导师的完整配置")

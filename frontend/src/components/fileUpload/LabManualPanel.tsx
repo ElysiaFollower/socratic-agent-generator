@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import {
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -49,7 +50,10 @@ import {
   uploadLabManual,
   listLabManuals,
   getLabManualContent,
+  getLabManualContentById,
+  updateLabManualDisplayName,
   deleteLabManual,
+  deleteLabManualById,
   type UploadLabManualRequest,
   type UploadLabManualResponse,
   type LabManualInfo,
@@ -97,7 +101,14 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   );
   const [viewingLabName, setViewingLabName] = useState<string | null>(null);
   const [isLoadingContent, setIsLoadingContent] = useState<boolean>(false);
-  const [deletingLab, setDeletingLab] = useState<string | null>(null);
+  const [deletingDocumentId, setDeletingDocumentId] = useState<number | null>(
+    null,
+  );
+  const [editingDocumentId, setEditingDocumentId] = useState<number | null>(
+    null,
+  );
+  const [displayNameDraft, setDisplayNameDraft] = useState<string>("");
+  const [savingDocumentId, setSavingDocumentId] = useState<number | null>(null);
 
   const buildDefaultLabName = (file: File): string => {
     const name = file.name;
@@ -263,12 +274,27 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   /**
    * Handles viewing lab manual content.
    */
-  const handleViewContent = async (labName: string) => {
-    setViewingLabName(labName);
+  const getLabTitle = (lab: LabManualInfo): string =>
+    lab.display_name || lab.lab_name;
+
+  const formatFileSize = (sizeBytes?: number | null): string => {
+    if (!sizeBytes) {
+      return t("labManual.unknownSize");
+    }
+    if (sizeBytes < 1024 * 1024) {
+      return `${(sizeBytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleViewContent = async (lab: LabManualInfo) => {
+    setViewingLabName(getLabTitle(lab));
     setViewingContent(null);
     setIsLoadingContent(true);
     try {
-      const content = await getLabManualContent(labName);
+      const content = lab.document_id
+        ? await getLabManualContentById(lab.document_id)
+        : await getLabManualContent(lab.lab_name);
       setViewingContent(content);
     } catch (err) {
       const errorMessage =
@@ -279,11 +305,45 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     }
   };
 
+  const handleStartDisplayNameEdit = (lab: LabManualInfo) => {
+    setEditingDocumentId(lab.document_id);
+    setDisplayNameDraft(getLabTitle(lab));
+  };
+
+  const handleCancelDisplayNameEdit = () => {
+    setEditingDocumentId(null);
+    setDisplayNameDraft("");
+  };
+
+  const handleSaveDisplayName = async (lab: LabManualInfo) => {
+    const nextName = displayNameDraft.trim();
+    if (!nextName) {
+      notifyError(t("labManual.displayNameRequired"));
+      return;
+    }
+    setSavingDocumentId(lab.document_id);
+    try {
+      await updateLabManualDisplayName(lab.document_id, {
+        display_name: nextName,
+      });
+      await loadLabManuals();
+      notifySuccess(t("labManual.displayNameUpdated"));
+      setEditingDocumentId(null);
+      setDisplayNameDraft("");
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : t("labManual.displayNameFailed");
+      notifyError(errorMessage);
+    } finally {
+      setSavingDocumentId(null);
+    }
+  };
+
   /**
    * Handles deleting a lab manual.
    */
-  const handleDelete = async (labName: string) => {
-    const lab = labManuals.find((item) => item.lab_name === labName);
+  const handleDelete = async (lab: LabManualInfo) => {
+    const labTitle = getLabTitle(lab);
     const referencedProfiles = lab?.referenced_profiles ?? [];
     const referenceSummary =
       referencedProfiles.length > 0
@@ -294,7 +354,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
     const shouldDelete = await confirm({
       title: t("labManual.deleteConfirmTitle"),
       description:
-        t("labManual.deleteConfirmDescription", { labName }) +
+        t("labManual.deleteConfirmDescription", { labName: labTitle }) +
         referenceSummary,
       confirmLabel: t("labManual.deleteConfirmButton"),
       confirmColor: "error",
@@ -303,17 +363,19 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
       return;
     }
 
-    setDeletingLab(labName);
+    setDeletingDocumentId(lab.document_id);
     try {
-      const response = await deleteLabManual(labName);
+      const response = lab.document_id
+        ? await deleteLabManualById(lab.document_id)
+        : await deleteLabManual(lab.lab_name);
       await loadLabManuals();
       notifySuccess(
         t("labManual.deletedSuccess", {
-          labName,
+          labName: labTitle,
           count: response.affected_profile_count,
         }),
       );
-      if (viewingLabName === labName) {
+      if (viewingLabName === labTitle) {
         setViewingLabName(null);
         setViewingContent(null);
       }
@@ -322,7 +384,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
         err instanceof Error ? err.message : t("labManual.deleteFailed");
       notifyError(errorMessage);
     } finally {
-      setDeletingLab(null);
+      setDeletingDocumentId(null);
     }
   };
 
@@ -348,7 +410,16 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredManuals = normalizedQuery
     ? labManuals.filter((lab) =>
-        lab.lab_name.toLowerCase().includes(normalizedQuery),
+        [
+          lab.lab_name,
+          lab.display_name,
+          lab.filename || "",
+          lab.owner_id || "",
+          lab.source_path || "",
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalizedQuery),
       )
     : labManuals;
 
@@ -561,7 +632,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
             }}
           >
             {filteredManuals.map((lab) => (
-              <Paper key={lab.lab_name} variant='outlined' sx={{ p: 2 }}>
+              <Paper key={lab.document_id} variant='outlined' sx={{ p: 2 }}>
                 <Stack spacing={2}>
                   <Stack
                     direction={{ xs: "column", sm: "row" }}
@@ -569,10 +640,99 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                     justifyContent='space-between'
                     alignItems={{ xs: "flex-start", sm: "center" }}
                   >
-                    <Box>
-                      <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                        {lab.lab_name}
-                      </Typography>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      {editingDocumentId === lab.document_id ? (
+                        <Stack direction='row' spacing={1} alignItems='center'>
+                          <TextField
+                            size='small'
+                            value={displayNameDraft}
+                            onChange={(event) =>
+                              setDisplayNameDraft(event.target.value)
+                            }
+                            fullWidth
+                            autoFocus
+                          />
+                          <Tooltip title={t("common.save")} arrow>
+                            <IconButton
+                              size='small'
+                              onClick={() => handleSaveDisplayName(lab)}
+                              disabled={savingDocumentId === lab.document_id}
+                            >
+                              {savingDocumentId === lab.document_id ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <Check fontSize='small' />
+                              )}
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title={t("common.cancel")} arrow>
+                            <IconButton
+                              size='small'
+                              onClick={handleCancelDisplayNameEdit}
+                              disabled={savingDocumentId === lab.document_id}
+                            >
+                              <Close fontSize='small' />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      ) : (
+                        <Stack
+                          direction='row'
+                          spacing={1}
+                          alignItems='center'
+                          sx={{ minWidth: 0 }}
+                        >
+                          <Typography
+                            variant='subtitle1'
+                            sx={{ fontWeight: 600 }}
+                            noWrap
+                          >
+                            {getLabTitle(lab)}
+                          </Typography>
+                          <Tooltip title={t("labManual.editDisplayName")} arrow>
+                            <span>
+                              <IconButton
+                                size='small'
+                                onClick={() => handleStartDisplayNameEdit(lab)}
+                              >
+                                <Edit fontSize='small' />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        </Stack>
+                      )}
+                      {lab.display_name !== lab.lab_name && (
+                        <Typography variant='caption' color='text.secondary'>
+                          {lab.lab_name}
+                        </Typography>
+                      )}
+                      <Stack
+                        direction='row'
+                        spacing={1}
+                        sx={{ mt: 0.75, flexWrap: "wrap", gap: 0.5 }}
+                      >
+                        <Chip
+                          size='small'
+                          label={
+                            lab.is_builtin
+                              ? t("labManual.builtinSource")
+                              : t("labManual.uploadedSource")
+                          }
+                          variant='outlined'
+                        />
+                        {lab.filename && (
+                          <Chip
+                            size='small'
+                            label={lab.filename}
+                            variant='outlined'
+                          />
+                        )}
+                        <Chip
+                          size='small'
+                          label={formatFileSize(lab.size_bytes)}
+                          variant='outlined'
+                        />
+                      </Stack>
                       {(lab.referenced_profile_count ?? 0) > 0 && (
                         <Typography variant='caption' color='text.secondary'>
                           {t("labManual.referencedProfileCount", {
@@ -604,7 +764,7 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                           variant='outlined'
                           size='small'
                           startIcon={<Visibility fontSize='small' />}
-                          onClick={() => handleViewContent(lab.lab_name)}
+                          onClick={() => handleViewContent(lab)}
                           disabled={isLoadingContent}
                         >
                           {isLoadingContent
@@ -617,16 +777,16 @@ export function LabManualPanel(props: LabManualPanelProps): JSX.Element {
                         color='error'
                         size='small'
                         startIcon={
-                          deletingLab === lab.lab_name ? (
+                          deletingDocumentId === lab.document_id ? (
                             <CircularProgress size={14} />
                           ) : (
                             <Delete fontSize='small' />
                           )
                         }
-                        onClick={() => handleDelete(lab.lab_name)}
-                        disabled={deletingLab === lab.lab_name}
+                        onClick={() => handleDelete(lab)}
+                        disabled={deletingDocumentId === lab.document_id}
                       >
-                        {deletingLab === lab.lab_name
+                        {deletingDocumentId === lab.document_id
                           ? t("labManual.deleting")
                           : t("labManual.delete")}
                       </Button>
