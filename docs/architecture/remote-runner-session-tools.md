@@ -152,6 +152,15 @@ ask the student to make or refine a judgment, or connect the evidence to the
 student's answer. Repeated command execution without this conversion is a product
 failure even if the tool calls themselves succeed.
 
+Tutor should also prefer single-command observations. Compound shell expressions
+such as `id && whoami` can be convenient for operators, but they make evidence
+harder for students to map back to one concept and are harder for policy layers
+to classify. When the tutor needs several facts, it should run several clear
+commands and explain each result's role in the current learning step. If a
+command is rejected by policy and the evidence is still needed, the tutor should
+recover with a smaller policy-compliant command instead of stopping at the
+policy error.
+
 ### Command Interaction Modes
 
 The tutor-facing contract must keep short observations distinct from long-running
@@ -195,6 +204,12 @@ Required controls:
 - Clear user-facing error when a command is blocked.
 
 For the SEED Sniffing/Spoofing acceptance run, the command policy will likely need read-only diagnostics plus controlled lab commands such as checking interfaces, container status, routing, permissions, and packet capture outputs. The exact allowlist should be finalized after inspecting the Remote Runner CLI and the lab environment.
+
+Remote Runner compound-command behavior is tracked upstream in
+`https://github.com/ElysiaFollower/SEEDRunner/issues/7`. Socratic should not
+depend on compound commands as the default tutor style; the issue is about
+making the lower-level tool contract explicit enough for robust recovery when a
+compact shell expression is rejected.
 
 Setup commands still need policy. For Sniffing/Spoofing, the expected setup is small: create a LabSetup directory, upload the known `docker-compose.yml`, create the empty `volumes` directory, and run Docker Compose in that directory. The system should not require cloning the whole SEED Labs repository for this case.
 

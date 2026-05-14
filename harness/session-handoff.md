@@ -4,9 +4,9 @@
 
 - 分支：`vnext-shell-panel-ux`
 - 当前功能项：无 active feature。
-- Active plan：无；`vnext-shell-panel-ux` 已归档到 `plans/archive/20260514-shell-panel-ux.md`。
+- Active plan：无；最近计划已归档到 `plans/archive/20260515-remote-command-style.md`。
 - 目标分支：`dev`。
-- 当前 PR：无；本分支已实现完成，待提交/推送/开 PR。
+- 当前 PR：#26（`vnext-shell-panel-ux` -> `dev`）。
 
 ## 当前已验证状态
 
@@ -42,6 +42,7 @@
 - linux-01 已同步 commit `67e8b5d`：部署目录切换完成，远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
 - Shell 面板可用性跟进修正已完成：resize 上限按实际对话容器计算，最大约 70%，避免页面级横向滚动；audit fallback transcript 改成 `cwd $ command` 加输出的轻量 terminal 样式。计划已归档：`plans/archive/20260514-shell-panel-usability-fixes.md`。
 - linux-01 已同步 commit `4149d61`：远端 build 通过，前后端重启并健康，DB users count 为 3，`demo/admin` 两个账号登录验证均通过。
+- Tutor 远程命令风格修正已完成：已创建 SEEDRunner issue `https://github.com/ElysiaFollower/SEEDRunner/issues/7` 追踪 compound command 支持/契约；Socratic runtime contract 现在要求 tutor 优先单条远程命令、多个观察拆分多次调用、policy 拒绝后用更小的 policy-compliant 命令恢复。计划已归档：`plans/archive/20260515-remote-command-style.md`。
 
 ## 验证记录
 
@@ -66,6 +67,7 @@
 - 2026-05-14 linux-01 shell panel UX deploy：Remote Runner `linux-01` doctor 通过；上传 `67e8b5d` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过；重启 tmux 后 linux-01 本机 health OK/frontend 200；本地访问 `http://10.203.15.128:8000/api/health` OK，`http://10.203.15.128:5173` HTTP 200。
 - 2026-05-14 shell panel usability follow-up：`./scripts/harness-check.sh` 0 warning；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 - 2026-05-14 linux-01 shell panel usability deploy：上传 `4149d61` archive；部署脚本先删除新包空 `data/` 再复制旧 `data/`；远端 DB users count=3；远端 compileall 和 frontend build 通过；前后端重启后本地与远端 health/frontend 验证通过；`demo/admin` 登录验证通过。
+- 2026-05-15 remote command style：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
@@ -86,6 +88,7 @@
 - 用户可见面板名为 Shell；audit/evidence 是内部数据来源，不应作为主要 UI 命名。
 - Remote Runner JSON observation 不应裸露在聊天正文；Tutor fallback 需要先摘要为可读 Shell result summary，再回到当前学习问题。
 - Shell 面板 resize 应以实际对话容器为边界，不能让页面总宽度超过 viewport；audit fallback 是备用数据源，默认显示应更像 terminal，而不是审计日志。
+- Tutor 默认应使用单条、清晰、可解释的远程命令；compound command 是 Remote Runner 工具契约问题，不是 Socratic 教学默认风格。需要多个观察时拆成多次工具调用，policy 拒绝后用更小命令恢复。
 
 ## 清洁状态
 

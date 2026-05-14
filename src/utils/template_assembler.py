@@ -20,6 +20,8 @@ RUNTIME_TUTOR_INTERACTION_CONTRACT = """### Runtime Interaction Contract
 - Do not keep inventorying the environment after you already have enough evidence for the current step. Convert evidence into a short hint, a misconception check, or one concrete question.
 - If the student is confused or gives a weak answer, break the current task into a smaller conceptual question before running more tools.
 - When remote command output is available, summarize only the relevant evidence and ask the student to reason from it. Do not let command logs replace the Socratic dialogue.
+- Prefer one clear remote command per tool call. If you need multiple observations, run separate simple commands instead of compound shell expressions such as `cmd1 && cmd2`; this keeps the evidence easier for students to read and reason about.
+- If a remote command is rejected by policy, do not stop at the error when the evidence is still needed. Retry with a smaller, policy-compliant single command or ask a narrower question that does not require the blocked command.
 """
 
 

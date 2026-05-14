@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-14，Shell 面板可用性跟进修正已同步到 linux-01：远端 build 通过，前后端健康，`demo/admin` 登录验证通过。
-- 下一步最佳动作：等待 PR #26 review/merge。
+- 上次验证：2026-05-15，tutor 远程命令风格修正通过 focused tests、compileall、harness check 和 diff check。
+- 下一步最佳动作：等待 PR #26 review/merge，或按新反馈继续收口远程工具体验。
 
 ## 状态约定
 
@@ -15,6 +15,23 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 开启 tutor 远程命令风格修正
+
+- 用户建议将 compound command 问题拆成两层：Remote Runner 上游应记录 `id && whoami` 这类 compound command 支持/契约缺口；Socratic tutor 则应优先使用单条命令，因为单条命令更容易解释、审计，也更符合教学场景。
+- 创建 active plan：`plans/active/20260515-remote-command-style.md`。
+- 将 `vnext-remote-command-style` 设置为当前唯一 active feature。
+- 范围判断：本任务只发上游 issue，并修正 Socratic runtime contract、文档和 focused tests；不在本仓库实现 compound command parser，不放宽命令 allowlist，不修改 Remote Runner 源码。
+- 下一步：创建 SEEDRunner issue，然后更新 tutor prompt contract 和测试。
+
+### 2026-05-15 - 完成 tutor 远程命令风格修正
+
+- 已创建上游 issue：`https://github.com/ElysiaFollower/SEEDRunner/issues/7`，要求 Remote Runner 明确或支持 `session exec` compound command 行为，并在不支持时返回可机器读取的拒绝原因。
+- Socratic runtime interaction contract 已新增规则：tutor 优先每次工具调用运行一条清晰命令；需要多个观察时拆成多次调用；命令被 policy 拒绝且证据仍必要时，用更小的 policy-compliant 单条命令恢复。
+- `docs/architecture/remote-runner-session-tools.md` 已记录单条命令作为教学默认风格，并链接上游 issue。
+- `tests/test_tutor_executor.py` 已覆盖旧 profile 渲染 runtime prompt 时自动包含单条命令和 policy recovery 规则。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 状态：`vnext-remote-command-style` 标记为 `passing`，计划归档到 `plans/archive/20260515-remote-command-style.md`。
 
 ### 2026-05-14 - 开启 Shell 面板可用性跟进修正
 
