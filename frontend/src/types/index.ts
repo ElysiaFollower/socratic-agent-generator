@@ -273,6 +273,7 @@ export interface RemoteCommandAudit {
   readonly stdout_excerpt?: string | null;
   readonly stderr_excerpt?: string | null;
   readonly error?: string | null;
+  readonly create_at?: string | null;
 }
 
 export interface SessionFileInfo {
@@ -282,9 +283,12 @@ export interface SessionFileInfo {
 }
 
 export interface SessionRemoteCommandRequest {
-  readonly command: string;
+  readonly action?: string;
+  readonly command?: string | null;
+  readonly command_id?: string | null;
   readonly cwd?: string | null;
   readonly reason?: string | null;
+  readonly wait_timeout_seconds?: number | null;
 }
 
 export interface SessionRemoteCommandResponse {

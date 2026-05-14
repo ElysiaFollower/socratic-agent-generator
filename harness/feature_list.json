@@ -157,10 +157,10 @@
       "area": "frontend-remote-evidence",
       "title": "Session shell and evidence panel",
       "behavior": "A student can expand a right-side session panel to inspect remote command tabs, statuses, stdout/stderr summaries, and evidence collected by the tutor during the current learning session.",
-      "status": "not_started",
-      "verification": "Create a dedicated plan before implementation; first proof should use a seeded or live remote-bound session and verify command list/result rendering without exposing secrets.",
-      "evidence": "",
-      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. The panel should build trust by showing real execution results while keeping Remote Runner tools general and permissioned."
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
+      "evidence": "2026-05-14: implemented a read-only session Shell/Evidence panel. Backend RemoteCommandAudit now returns create_at. Frontend adds SessionEvidencePanel, a header terminal button, i18n strings, and typed remote command/audit API support. The panel fetches /api/sessions/{session_id}/remote-audits, displays audit records as scrollable tabs, and shows command/action/cwd/time/exit status plus sanitized stdout/stderr/error excerpts. It does not provide an arbitrary terminal or bypass Tutor/session-bound Remote Runner permissions. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q -> 5 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed. Playwright local smoke opened http://127.0.0.1:5174/login successfully; only existing favicon and framework warnings were observed.",
+      "notes": "Archived plan: plans/archive/20260514-shell-evidence-panel.md. The panel builds trust by showing real execution results while keeping Remote Runner tools general and permissioned."
     },
     {
       "id": "vnext-single-lab-e2e-benchmark",

@@ -56,6 +56,7 @@ import {
   SettingsModal,
   SidebarRail,
   ProfileDetailCard,
+  SessionEvidencePanel,
 } from "../components";
 import {
   createSession,
@@ -114,6 +115,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     readonly RemoteMachineSummary[]
   >([]);
   const [isRemoteBindingUpdating, setIsRemoteBindingUpdating] =
+    useState<boolean>(false);
+  const [isEvidencePanelOpen, setIsEvidencePanelOpen] =
     useState<boolean>(false);
   const [selectedLlm, setSelectedLlm] = useState<string>(defaultLlmOption);
   const sidebarMinRatio = 0.1;
@@ -235,6 +238,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     async (session: SessionSummary) => {
       setSessionId(session.session_id);
       setActivePanel("chat");
+      setIsEvidencePanelOpen(false);
 
       try {
         const sessionDetail = await getSession(session.session_id);
@@ -324,6 +328,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           profile_id: profile.profile_id,
           profile_name: profile.profile_name || profile.topic_name,
           topic_name: profile.topic_name,
+          remote_binding: res.remote_binding ?? null,
           create_at: new Date().toISOString(),
           update_at: new Date().toISOString(),
         };
@@ -552,6 +557,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     sessionState.setProfile(null);
     setShowProfileSelector(false);
     setActivePanel("chat");
+    setIsEvidencePanelOpen(false);
   }, [sessionState]);
 
   const handleProfileGenerateSuccess = useCallback(
@@ -828,6 +834,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           onRemoteMachineChange={handleRemoteMachineChange}
           onRefreshRemoteMachines={refreshRemoteMachines}
           sessionToolsDisabled={chatLoading}
+          isEvidencePanelOpen={isEvidencePanelOpen}
+          onToggleEvidencePanel={() => setIsEvidencePanelOpen((prev) => !prev)}
         />
 
         <Box
@@ -835,6 +843,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
             flex: 1,
             overflow: "hidden",
             width: "100%",
+            display: "flex",
+            minHeight: 0,
           }}
         >
           {isChatView ? (
@@ -844,7 +854,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               sx={{
                 height: "100%",
                 overflow: "auto",
-                width: "100%",
+                flex: 1,
+                minWidth: 0,
               }}
             >
               <Box
@@ -872,6 +883,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               sx={{
                 height: "100%",
                 overflow: "auto",
+                flex: 1,
+                minWidth: 0,
                 px: 1,
                 scrollbarWidth: "none",
                 "&::-webkit-scrollbar": {
@@ -894,6 +907,15 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
               )}
               {activePanel === "class" && <ClassManagerPanel variant='panel' />}
             </Box>
+          )}
+          {isChatView && (
+            <SessionEvidencePanel
+              sessionId={sessionId}
+              remoteBinding={currentSession?.remote_binding ?? null}
+              open={isEvidencePanelOpen}
+              disabled={chatLoading}
+              onClose={() => setIsEvidencePanelOpen(false)}
+            />
           )}
         </Box>
 

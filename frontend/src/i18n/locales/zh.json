@@ -34,6 +34,13 @@
     "switch": "切换语言",
     "current": "当前语言"
   },
+  "evidence": {
+    "title": "Shell 证据",
+    "open": "打开 Shell 证据",
+    "empty": "当前会话还没有记录远程命令证据。",
+    "noMachine": "未选择实验机",
+    "selectMachineFirst": "请先选择实验机，再查看 Shell 证据。"
+  },
   "common": {
     "loading": "加载中...",
     "save": "保存",

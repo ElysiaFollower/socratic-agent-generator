@@ -412,6 +412,7 @@ class RemoteMachineManager:
                 stdout_excerpt=row.stdout_excerpt,
                 stderr_excerpt=row.stderr_excerpt,
                 error=row.error,
+                create_at=row.create_at.isoformat() if row.create_at else None,
             )
             for row in rows
         ]

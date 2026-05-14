@@ -62,9 +62,12 @@ export async function getSession(sessionId: string): Promise<Session> {
  */
 export async function createSession(
   request: CreateSessionRequest,
-): Promise<{session_id: string}> {
+): Promise<{session_id: string; remote_binding?: RemoteBindingSummary | null}> {
   try {
-    const response = await apiClient.post<{session_id: string}>(
+    const response = await apiClient.post<{
+      session_id: string;
+      remote_binding?: RemoteBindingSummary | null;
+    }>(
       '/api/sessions/create',
       request,
     );

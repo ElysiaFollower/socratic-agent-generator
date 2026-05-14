@@ -67,6 +67,12 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 当前系统已经能通过 Remote Runner 执行真实命令，并在后端记录审计证据。但学生在前端聊天界面里不一定能直接看到完整执行过程，因此容易出现“Tutor 说它检查过了，但用户不确信”的体验问题。
 
+当前实现入口：
+
+- 前端右侧只读面板：`frontend/src/components/session/SessionEvidencePanel.tsx`
+- 后端数据源：`GET /api/sessions/{session_id}/remote-audits`
+- 非敏感审计 schema：`RemoteCommandAudit`
+
 设计意图：
 
 - 在会话界面右侧增加可展开的 Shell / Evidence 面板。

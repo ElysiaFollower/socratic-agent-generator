@@ -274,3 +274,4 @@ def test_bound_command_records_audit():
     assert len(audits) == 1
     assert audits[0].command == "pwd"
     assert audits[0].exit_code == 0
+    assert audits[0].create_at
