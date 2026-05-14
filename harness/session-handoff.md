@@ -6,7 +6,7 @@
 - 当前功能项：无 active。
 - Active plan：无；计划已归档到 `plans/archive/20260514-session-shell-terminal-tabs.md`。
 - 目标分支：`dev`。
-- 当前 PR：待创建。
+- 当前 PR：#23 open/mergeable，`https://github.com/ElysiaFollower/socratic-agent-generator/pull/23`。
 
 ## 当前已验证状态
 
@@ -34,6 +34,7 @@
 - 已完成 Shell/Evidence 面板 terminal-tab 修正：`RemoteCommandAuditModel` 记录 `runner_session_id`，audit API 返回 `binding_id`、`runner_session_id`、`terminal_id`；前端 tab 现在代表 Remote Runner terminal/session，选中 tab 后展示连续 transcript，而不是一条命令一个 tab。
 - 旧 SQLite 通过 `init_db()` 做窄兼容加列：缺少 `remote_command_audits.runner_session_id` 时自动 `ALTER TABLE`，不迁移运行时数据进 git。
 - 已确认 Remote Runner 当前 session command log 足以支持只读 transcript grouping，但不是持久 PTY shell；已向 SEEDRunner 提交 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/5`，用于未来学生可写 terminal 的上游能力。
+- 已整理 `docs/overview.md`、`harness/quality.md`、`harness/progress.md` 和本 handoff，明确当前已实现价值、剩余缺口和下一阶段持久化 shell 对接入口。
 
 ## 验证记录
 
@@ -56,7 +57,7 @@
 
 ## 仍损坏或未验证
 
-- 当前工作分支 `vnext-session-shell-terminal-tabs` 尚未推送和创建 PR。
+- PR #23 尚未合并到 `dev`。
 - linux-01 未部署本次 terminal-tab UI 修正；本任务目前只完成本地代码、文档和测试。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；本次临时 `.benchmark.env`、本地临时凭据文件和 Remote Runner session 均已清理。
@@ -75,14 +76,15 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：terminal-tab 修正相关后端 schema/model/manager/database compatibility、前端 evidence panel/types/i18n、架构文档、harness feature/progress/handoff、归档 plan。
+- 当前待提交范围：本次文档收口更新，包括 `docs/overview.md`、`harness/quality.md`、`harness/progress.md`、`harness/session-handoff.md`。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
 1. 运行最终 `./scripts/harness-check.sh`、`git diff --check`。
-2. 提交并推送 `vnext-session-shell-terminal-tabs`。
-3. 创建 PR 到 `dev`，说明 terminal-tab 修正和 Remote Runner 持久 PTY follow-up。
+2. 提交并推送本次文档收口更新到 PR #23。
+3. 等待/处理 PR #23 review；合并后部署 linux-01 并做 Shell/Evidence terminal transcript smoke。
+4. 用户提供持久化 shell 版 Remote Runner 后，创建新 active plan 对接真实 persistent shell。
 
 ## 命令
 

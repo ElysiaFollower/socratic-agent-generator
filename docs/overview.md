@@ -19,7 +19,8 @@ Socratic Agent Generator 将技术实验手册转换为可交互的苏格拉底�
 - 教师管理：班级、邀请码、Profile 可见性和自定义技能。
 - 本地开发与研究迭代：FastAPI 后端、React/Vite 前端、SQLite 数据存储、文件系统文档和向量索引。
 - 官方部署：`docs/deployment.md`，默认安装并配置 DreamingRAG 长期记忆。
-- vNext 规划：SEED 报告语料、Remote Runner 环境观察、DreamingRAG 长程记忆。
+- vNext 已落地能力：默认校准 SEED profiles、DreamingRAG 长程记忆、Remote Runner 会话绑定工具、会话文件缓存、远程命令审计、Shell/Evidence transcript 面板、单实验 E2E benchmark 和 Profile Management 文档身份 UX。
+- vNext 继续演进方向：学习质量 benchmark、Profile 生成质量提升、RAG 检索审计、持久化 remote shell、部署自动化和生产运维能力。
 
 ## 范围外
 
@@ -33,7 +34,17 @@ Socratic Agent Generator 将技术实验手册转换为可交互的苏格拉底�
 - 学习对话：学生选择可见 Profile，创建 Session，通过流式对话逐步完成课程节点。
 - 进度评估：StepEvaluator 根据课程节点的成功标准判断是否推进，Assessment Skill 只提供指导信息。
 - 自定义技能：教师上传材料并建立向量索引，让导师能在特定实验资料中检索辅助信息。
-- 未来增强：从真实 SEED 报告提取教学资产，通过 Remote Runner 观察实验环境，用 DreamingRAG 支持长期学习记忆。
+- 默认实验：新部署会种入 6 个经过真实报告和实验文档校准的 SEED profiles，并关联内置 lab manual 文档。
+- 真实实验环境：用户可在 Settings 配置 Remote Runner 实验机，创建或切换会话绑定后，Tutor 只能访问该会话绑定的机器。
+- 实验证据：Tutor 通过 Remote Runner 执行命令、上传 session 文件、收集 stdout/stderr/exit code，并把脱敏 audit 展示在会话右侧 Shell/Evidence 面板。
+- Shell/Evidence 面板：tab 代表 remote terminal/session，命令是该 terminal transcript 中的连续片段；当前只读，不允许绕过 Tutor 权限直接执行任意命令。
+- 长期记忆：Tutor 默认尝试使用 DreamingRAG 进行 session-scoped recall/write，依赖不可用时安全降级。
+
+## 当前成熟度
+
+- 演示级链路已经贯通：linux-01 曾完成真实部署、远程实验机绑定、Tutor 工具调用、完整实验会话和 live benchmark。
+- 工程核心边界已经建立：产品北极星、deployment 文档、feature list、active/archive plan、harness check、focused tests 和 benchmark 入口均在仓库中维护。
+- 仍未达到生产级：学习质量自动评估、RAG 检索审计、Profile generator 改进评估、持久化 interactive shell、多用户运维和部署自动化仍是后续重点。
 
 ## 验证
 
