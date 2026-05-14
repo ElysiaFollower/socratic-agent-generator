@@ -39,6 +39,7 @@ import {
   OpenInFull,
   BadgeOutlined,
   Settings,
+  TerminalOutlined,
   Translate,
 } from "@mui/icons-material";
 import {
@@ -87,6 +88,8 @@ export interface HeaderProps {
   readonly onRemoteMachineChange?: (machineId: string | null) => void;
   readonly onRefreshRemoteMachines?: () => void;
   readonly sessionToolsDisabled?: boolean;
+  readonly isEvidencePanelOpen?: boolean;
+  readonly onToggleEvidencePanel?: () => void;
 }
 
 /**
@@ -120,6 +123,8 @@ export function Header(props: HeaderProps): JSX.Element {
     onRemoteMachineChange,
     onRefreshRemoteMachines,
     sessionToolsDisabled = false,
+    isEvidencePanelOpen = false,
+    onToggleEvidencePanel,
   } = props;
 
   const { t, i18n } = useTranslation();
@@ -482,6 +487,26 @@ export function Header(props: HeaderProps): JSX.Element {
                         {remoteMachineLabel}
                       </Box>
                     </Button>
+                  </span>
+                </Tooltip>
+                <Tooltip
+                  title={
+                    remoteBinding
+                      ? t("evidence.open")
+                      : t("evidence.selectMachineFirst")
+                  }
+                  arrow
+                >
+                  <span>
+                    <IconButton
+                      size='small'
+                      color={isEvidencePanelOpen ? "primary" : "default"}
+                      disabled={!remoteBinding || sessionToolsDisabled || !onToggleEvidencePanel}
+                      onClick={onToggleEvidencePanel}
+                      aria-label={t("evidence.open")}
+                    >
+                      <TerminalOutlined fontSize='small' />
+                    </IconButton>
                   </span>
                 </Tooltip>
                 <Tooltip

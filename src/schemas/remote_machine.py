@@ -97,6 +97,7 @@ class RemoteCommandAudit(BaseModel):
     stdout_excerpt: Optional[str] = None
     stderr_excerpt: Optional[str] = None
     error: Optional[str] = None
+    create_at: Optional[str] = None
 
 
 class SessionRemoteCommandRequest(BaseModel):

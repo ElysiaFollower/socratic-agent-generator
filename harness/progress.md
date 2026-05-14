@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`vnext-single-lab-e2e-benchmark` 已 passing。
-- 当前任务计划：无 active；单实验 benchmark 计划已归档到 `plans/archive/20260514-single-lab-e2e-benchmark.md`。
-- 上次验证：2026-05-14，single-lab benchmark tests 5 passed，`python3 -m compileall scripts tests` 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
-- 下一步最佳动作：提交并推送 `vnext-single-lab-e2e-benchmark` 分支，创建 PR 到 `dev`；后续可运行 live linux-01 benchmark 或开启 Shell/Evidence 面板。
+- 当前功能项：无 active；`vnext-shell-evidence-panel` 已 passing。
+- 当前任务计划：无 active；Shell/Evidence 面板计划已归档到 `plans/archive/20260514-shell-evidence-panel.md`。
+- 上次验证：2026-05-14，remote machine focused tests 5 passed，`python3 -m compileall src tests` 通过，前端 test/build 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过；Playwright 本地登录页 smoke 通过。
+- 下一步最佳动作：提交并推送 `vnext-shell-evidence-panel` 分支，创建 PR 到 `dev`；后续开启 Profile Management 文档身份 UX。
 
 ## 状态约定
 
@@ -74,6 +74,16 @@
 - 新增 `tests/test_single_lab_e2e_benchmark.py`，覆盖 SSE 解析、成功路径、profile failure、turns file loading 和 background command lifecycle。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 5 passed；`python3 -m compileall scripts tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。真实 linux-01 benchmark 未在本提交运行，因为仓库和 shell 中没有保存 benchmark password。
 - 状态：`vnext-single-lab-e2e-benchmark` 标记为 `passing`，计划归档。
+
+### 2026-05-14 - 完成会话 Shell/Evidence 面板
+
+- PR #19 已合并到 `dev`，从最新 `dev` 创建分支 `vnext-shell-evidence-panel`。
+- 后端 `RemoteCommandAudit` 增加 `create_at` 非敏感时间字段，方便前端展示命令执行顺序。
+- 前端新增 `SessionEvidencePanel`，会话顶栏新增终端图标；面板从 `/api/sessions/{session_id}/remote-audits` 读取当前会话审计记录，以 tab 形式显示命令/action/status，并展示 cwd、时间、stdout/stderr/error 摘要。
+- 面板只读，不提供任意 Web terminal，不绕过 Tutor/session-bound Remote Runner 权限模型。
+- 更新中英文 i18n、frontend API/types、`docs/architecture/vnext-integrations.md` 和 harness 状态。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。Playwright 本地 smoke 成功打开 `http://127.0.0.1:5174/login`；仅观察到既有 favicon 404、React Router future warning 和 Emotion duplicate warning。
+- 状态：`vnext-shell-evidence-panel` 标记为 `passing`，计划归档。
 
 ### 2026-05-11 - 记录 vNext 集成路线
 
