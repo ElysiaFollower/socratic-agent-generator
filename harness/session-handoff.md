@@ -28,6 +28,7 @@
 - 同一次 live benchmark 未通过完整教学验收：session `df650fd7-3bba-43fa-b3c7-ffbbcba7c75b` 在 7 个 scripted turns 后仍停在 `stepIndex=0,totalSteps=9,isFinished=false`，`step_completion_count=0`，但 `remote_audit_count=37`。结果文件保留在 linux-01：`/home/ely/deploy/socratic-live/logs/single-lab-e2e-live-result.json`。
 - 新增产品北极星文档 `docs/product/vision.md`，定义本项目不是自动代做系统，而是用 AI 吸收外围实验摩擦、保留学生核心思考的 learning-by-doing 系统。`docs/overview.md` 已加入该入口。
 - 修复并部署 `a0642d6` 后，linux-01 live benchmark 重新通过：session `d37e5ce4-bcb7-4a0b-8d56-0efd7b04a1c6`，`final_progress={isFinished:true, stepIndex:9, totalSteps:9}`，`step_completion_count=9`，`remote_audit_count=30`。但用户随后指出需要先沉淀产品愿景文档，后续实现应按 `docs/product/vision.md` 重新校准学习质量，而不是只看通关。
+- `docs/product/vision.md` 已进一步增加 `产品原则` 小节，用更具体的语言写清：反对传统实验高摩擦和纯 AI 代做两种低质量形态；目标是重新分配学生、AI、系统职责；Tutor 不能陷入工具循环；系统真正解决的是实验学习摩擦成本。
 
 ## 验证记录
 

@@ -374,3 +374,10 @@
 - 文档保留两个真实场景例子：网络/系统实验中如何从长实验文档进入最小真实验证；复杂系统类或模块实现中如何让 Tutor 压缩代码库外围复杂度，但保留学生对职责、接口和状态流的理解。
 - `docs/overview.md` 和 `AGENTS.md` 已增加产品愿景入口，`docs/.gitignore` 也显式允许 `docs/product/`，后续 prompt、profile、benchmark、Remote tool 和前端交互的设计分歧应优先回到该文档对齐。
 - 验证：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+
+### 2026-05-14 - 精炼产品原则，降低速读版认知偏差
+
+- 用户反馈 `docs/product/vision.md` 的速读版仍偏抽象，容易让读者忽略本项目不是“禁用 AI”，而是重新分配学生、AI 和系统职责。
+- 在 `docs/product/vision.md` 增加 `产品原则` 小节，明确反对两种低质量学习形态：传统实验的高摩擦低投入产出比，以及纯 AI 代做导致学生绕过思维过程。
+- 进一步写清三方分工：学生负责理解、判断、解释和工程思维路径；AI 负责检索、整理、补全细节、执行命令和收集反馈；系统负责把大实验拆成连续小认知任务。
+- 补充更具体的 learning-by-doing、Remote tool、Tutor 非工具循环和实验学习摩擦成本原则，作为后续实现、benchmark 和 prompt 校准的高优先级判断依据。
