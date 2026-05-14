@@ -179,10 +179,10 @@
       "area": "profile-generator",
       "title": "Profile generation quality evaluation",
       "behavior": "Generator prompt and agent changes can be compared against stable rubrics and curated SEED artifacts before increasing system complexity.",
-      "status": "not_started",
-      "verification": "Create a dedicated evaluation plan before changing generator architecture; first version should compare generated profiles against calibrated SEED profiles and fixed rubrics.",
-      "evidence": "",
-      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. This should precede major multi-agent generator redesign."
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q && python3 -m compileall scripts tests && python3 scripts/benchmarks/profile_generation_eval.py --json && git diff --check",
+      "evidence": "2026-05-14: implemented scripts/benchmarks/profile_generation_eval.py, docs/benchmarks/profile-generation-evaluation.md, and tests/test_profile_generation_eval.py. The benchmark compares generated profiles against calibrated SEED profiles with fixed structure, persona, curriculum-alignment, and mismatch-risk rubrics without calling an LLM. Current baseline: aggregate score 0.7343, status warn, 6 labs. Validation passed: ./scripts/harness-check.sh 0 warnings; tests/test_profile_generation_eval.py -> 3 passed; python3 -m compileall scripts tests passed; profile_generation_eval.py --json returned score=0.7343,status=warn,lab_count=6.",
+      "notes": "Archived plan: plans/archive/20260514-profile-generation-evaluation.md. This static gate should be run before major generator prompt or multi-agent architecture changes."
     },
     {
       "id": "vnext-profile-management-document-identity",

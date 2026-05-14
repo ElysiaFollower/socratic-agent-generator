@@ -129,6 +129,13 @@ Profile 自动生成是项目的重要卖点，但当前 generator 的多智能�
 - 小型 LLM-as-judge：只用于辅助排序，必须固定 rubrics 和输入，不作为唯一结论。
 - 端到端行为检查：将生成 profile 放入单实验 benchmark，观察 Tutor 是否能推进、是否过早给答案、是否漏掉关键实验步骤。
 
+已实现的第一步：
+
+- 新增 `scripts/benchmarks/profile_generation_eval.py`，离线比较候选 generated profile 与人工 calibrated profile，不调用 LLM、不需要密钥。
+- 固定评估维度：结构完整性、persona 完整性、curriculum alignment、manual calibration mismatch risk coverage。
+- 当前默认基线为 `docs/manual-enhance/generated` 对比 `docs/manual-enhance/calibrated`，风险 taxonomy 来自 `docs/manual-enhance/mismatch-taxonomy.json`。
+- 使用文档：`docs/benchmarks/profile-generation-evaluation.md`。该评估是 generator 改造前的静态质量门，不能替代 `single_lab_e2e.py` 的真实后端流程验证。
+
 ## 7. Profile Management 文档身份与元信息 UX
 
 用户发现的问题：

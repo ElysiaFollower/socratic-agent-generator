@@ -328,3 +328,14 @@
 - Generate Profile 文档选择列表增加只读身份卡、引用数、source path、文件大小和短 preview；完整查看、删除、重命名仍保留在 Lab Manuals 管理入口。
 - 计划已归档到 `plans/archive/20260514-profile-management-document-identity.md`，功能项 `vnext-profile-management-document-identity` 标记为 passing。
 - 验证：`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py -q` 通过 6 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`git diff --check` 通过。
+
+### 2026-05-14 - 完成 Profile 生成质量评估第一版
+
+- 新增 `scripts/benchmarks/profile_generation_eval.py`，离线比较候选 generated profiles 与人工 calibrated profiles，不调用 LLM、不需要 provider key。
+- 固定评分维度：profile/step 结构完整性、persona 完整性、curriculum alignment、manual calibration mismatch risk coverage。
+- 风险检查复用 `docs/manual-enhance/mismatch-taxonomy.json`，覆盖环境摩擦、过度确定成功标准、负例/失败实验、证据链、任务粒度和 TCP 源文档编号问题。
+- 新增 `docs/benchmarks/profile-generation-evaluation.md`，记录命令、指标、权重、阈值和当前基线。
+- 新增 `tests/test_profile_generation_eval.py`，覆盖真实 6 个 SEED profile 可评分、弱 profile 分数下降、完全匹配 curriculum alignment。
+- 当前基线：`profile_generation_eval score=0.7343 status=warn labs=6 pass=2 warn=4 fail=0`。这是 generated draft 对 calibrated profile 的质量差距信号，不要求全部 pass。
+- 计划已归档到 `plans/archive/20260514-profile-generation-evaluation.md`，功能项 `vnext-profile-generation-evaluation` 标记为 passing。
+- 验证：`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q` 通过 3 passed；`python3 -m compileall scripts tests` 通过；`python3 scripts/benchmarks/profile_generation_eval.py --json` 返回 score 0.7343/status warn/lab_count 6。
