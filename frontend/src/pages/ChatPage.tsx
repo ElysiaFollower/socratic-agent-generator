@@ -31,6 +31,7 @@ import {
   ToolPanelView,
   StepCompletion,
   LLMSettingsResponse,
+  RemoteMachineSummary,
 } from "../types";
 import {
   useProfiles,
@@ -65,6 +66,8 @@ import {
   deleteSession,
   getProfile,
   getLLMSettings,
+  listRemoteMachines,
+  updateSessionRemoteBinding,
 } from "../api";
 import { SUPPORTED_LANGUAGES, SupportedLanguage } from "../i18n";
 import { LLM_PROVIDERS } from "../utils/llmProviders";
@@ -107,6 +110,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   const [llmOptions, setLlmOptions] = useState<
     readonly { value: string; label: string }[]
   >([{ value: defaultLlmOption, label: "默认" }]);
+  const [remoteMachines, setRemoteMachines] = useState<
+    readonly RemoteMachineSummary[]
+  >([]);
+  const [isRemoteBindingUpdating, setIsRemoteBindingUpdating] =
+    useState<boolean>(false);
   const [selectedLlm, setSelectedLlm] = useState<string>(defaultLlmOption);
   const sidebarMinRatio = 0.1;
   const sidebarMaxRatio = 0.3;
@@ -289,7 +297,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
   );
 
   const handleStartNewSession = useCallback(
-    async (profile: Profile) => {
+    async (profile: Profile, remoteMachineId?: string) => {
       if (isCreatingSession) {
         return;
       }
@@ -300,6 +308,7 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           profile_id: profile.profile_id,
           session_name: sessionName,
           output_language: SUPPORTED_LANGUAGES[currentLanguage].llmLanguage,
+          remote_machine_id: remoteMachineId,
         });
 
         setMessages([], res.session_id);
@@ -604,12 +613,53 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
     }
   }, [buildLlmOptions, notifyWarning, t]);
 
+  const refreshRemoteMachines = useCallback(async () => {
+    try {
+      setRemoteMachines(await listRemoteMachines());
+    } catch (error) {
+      notifyWarning(
+        error instanceof Error
+          ? error.message
+          : t("settings.remote.fetchFailed"),
+      );
+    }
+  }, [notifyWarning, t]);
+
+  const handleRemoteMachineChange = useCallback(
+    async (machineId: string | null) => {
+      if (!sessionId) {
+        return;
+      }
+      setIsRemoteBindingUpdating(true);
+      try {
+        await updateSessionRemoteBinding(sessionId, machineId);
+        await refreshSessions();
+        notifySuccess(
+          machineId
+            ? t("sessionFiles.machineUpdated")
+            : t("sessionFiles.machineDetached"),
+        );
+      } catch (error) {
+        console.error("Failed to update remote machine binding:", error);
+        notifyError(
+          error instanceof Error
+            ? error.message
+            : t("sessionFiles.machineUpdateFailed"),
+        );
+      } finally {
+        setIsRemoteBindingUpdating(false);
+      }
+    },
+    [notifyError, notifySuccess, refreshSessions, sessionId, t],
+  );
+
   useEffect(() => {
     if (!user) {
       return;
     }
     void refreshLlmSettings();
-  }, [user, refreshLlmSettings]);
+    void refreshRemoteMachines();
+  }, [user, refreshLlmSettings, refreshRemoteMachines]);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -773,6 +823,11 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           onProfileClick={currentSession ? handleProfileClick : undefined}
           currentLanguage={currentLanguage}
           onLanguageChange={handleLanguageChange}
+          remoteMachines={remoteMachines}
+          isRemoteBindingUpdating={isRemoteBindingUpdating}
+          onRemoteMachineChange={handleRemoteMachineChange}
+          onRefreshRemoteMachines={refreshRemoteMachines}
+          sessionToolsDisabled={chatLoading}
         />
 
         <Box
@@ -983,10 +1038,14 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
       {showProfileSelector && (
         <ProfileSelector
           profiles={profiles}
+          remoteMachines={remoteMachines}
           isLoading={profilesLoading || isCreatingSession}
           onSelect={handleStartNewSession}
           onClose={() => setShowProfileSelector(false)}
-          onOpen={refreshProfiles}
+          onOpen={async () => {
+            await refreshProfiles();
+            await refreshRemoteMachines();
+          }}
         />
       )}
 

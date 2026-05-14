@@ -10,6 +10,11 @@ import {
   SessionSummary,
   CreateSessionRequest,
   RenameSessionRequest,
+  RemoteBindingSummary,
+  RemoteCommandAudit,
+  SessionFileInfo,
+  SessionRemoteCommandRequest,
+  SessionRemoteCommandResponse,
   StepCompletion,
 } from '../types';
 
@@ -112,6 +117,23 @@ export async function deleteSession(
   }
 }
 
+export async function updateSessionRemoteBinding(
+  sessionId: string,
+  remoteMachineId: string | null,
+): Promise<RemoteBindingSummary | null> {
+  try {
+    const response = await apiClient.put<RemoteBindingSummary | null>(
+      `/api/sessions/${sessionId}/remote-binding`,
+      {remote_machine_id: remoteMachineId},
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to update session remote binding: ${handleApiError(error)}`,
+    );
+  }
+}
+
 /**
  * Fetches step completion records for a session.
  *
@@ -134,5 +156,83 @@ export async function getSessionStepCompletions(
   }
 }
 
+export async function getSessionRemoteAudits(
+  sessionId: string,
+): Promise<readonly RemoteCommandAudit[]> {
+  try {
+    const response = await apiClient.get<readonly RemoteCommandAudit[]>(
+      `/api/sessions/${sessionId}/remote-audits`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch remote audits: ${handleApiError(error)}`,
+    );
+  }
+}
 
+export async function listSessionFiles(
+  sessionId: string,
+): Promise<readonly SessionFileInfo[]> {
+  try {
+    const response = await apiClient.get<readonly SessionFileInfo[]>(
+      `/api/sessions/${sessionId}/files`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch session files: ${handleApiError(error)}`);
+  }
+}
 
+export async function uploadSessionFile(
+  sessionId: string,
+  file: File,
+): Promise<SessionFileInfo> {
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post<SessionFileInfo>(
+      `/api/sessions/${sessionId}/files`,
+      formData,
+      {headers: {'Content-Type': 'multipart/form-data'}},
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to upload session file: ${handleApiError(error)}`);
+  }
+}
+
+export async function putSessionFileToRemote(
+  sessionId: string,
+  filename: string,
+  remotePath: string,
+): Promise<{ok: boolean; local_filename: string; remote_path: string}> {
+  try {
+    const response = await apiClient.post<{
+      ok: boolean;
+      local_filename: string;
+      remote_path: string;
+    }>(
+      `/api/sessions/${sessionId}/files/${encodeURIComponent(filename)}/remote-put`,
+      {remote_path: remotePath},
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to put session file: ${handleApiError(error)}`);
+  }
+}
+
+export async function runSessionRemoteCommand(
+  sessionId: string,
+  request: SessionRemoteCommandRequest,
+): Promise<SessionRemoteCommandResponse> {
+  try {
+    const response = await apiClient.post<SessionRemoteCommandResponse>(
+      `/api/sessions/${sessionId}/remote-command`,
+      request,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to run remote command: ${handleApiError(error)}`);
+  }
+}

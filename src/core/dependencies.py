@@ -18,6 +18,8 @@ from utils import user_manager
 from utils import class_manager
 from utils import custom_skill_manager
 from utils import step_completion_manager
+from utils import remote_machine_manager
+from utils import session_file_manager
 
 # Singleton for TutorManager (memory cache)
 _tutor_manager_instance: tutor_manager.TutorManager = None
@@ -102,6 +104,18 @@ def get_step_completion_manager(
     return step_completion_manager.StepCompletionManager(db)
 
 
+def get_remote_machine_manager(
+    db: Session = Depends(get_db),
+) -> remote_machine_manager.RemoteMachineManager:
+    """Get RemoteMachineManager instance with request-scoped DB session."""
+    return remote_machine_manager.RemoteMachineManager(db)
+
+
+def get_session_file_manager() -> session_file_manager.SessionFileManager:
+    """Get SessionFileManager instance."""
+    return session_file_manager.SessionFileManager()
+
+
 # Type aliases for dependency injection
 ProfileManagerDep = Annotated[
     profile_manager.ProfileManager, Depends(get_profile_manager)
@@ -127,4 +141,12 @@ CustomSkillManagerDep = Annotated[
 StepCompletionManagerDep = Annotated[
     step_completion_manager.StepCompletionManager,
     Depends(get_step_completion_manager),
+]
+RemoteMachineManagerDep = Annotated[
+    remote_machine_manager.RemoteMachineManager,
+    Depends(get_remote_machine_manager),
+]
+SessionFileManagerDep = Annotated[
+    session_file_manager.SessionFileManager,
+    Depends(get_session_file_manager),
 ]

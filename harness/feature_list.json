@@ -117,6 +117,83 @@
       "verification": "remote-runner machine doctor linux-01; remote build/install/smoke; curl backend and frontend URLs; student full-session RAG/custom-skill smoke",
       "evidence": "2026-05-13: deployed current rag-memory-adapter commit to linux-01 under /home/ely/deploy/socratic-live with Socratic and DreamingRAG archives. Remote env wrote without printing secrets and confirmed env_has_deepseek=True, env_has_volcengine=True, env_embedding_provider=volcengine, env_embedding_model=doubao-embedding-vision-251215. Remote validation passed: focused pytest suite -> 22 passed; model_check=(True, [], []); embedding_class=VolcengineArkEmbeddings; built-in public profile count=6 with ARP_Attack, LocalDNSAttack, RemoteDNSAttack, Sniffing_Spoofing, TCP_Attacks, VPN_Tunnel. Services run in tmux sessions socratic-backend and socratic-frontend, listening on 0.0.0.0:8000 and 0.0.0.0:5173. Local curl passed for http://10.203.15.128:8000/api/health, /docs, and http://10.203.15.128:5173. Demo account login, profile list, session creation, yes-message streaming smoke, and admin two-turn real conversation smoke passed after fixing stale DeepSeek config, duplicate fallback skill tool names, and agent stop-condition truncation. Additional 2026-05-13 student full-session smoke: uploaded Sniffing_Spoofing.tex as lab manual and DB-backed custom skill material on linux-01, rebuilt custom skill index with 51 chunks, then completed student session 362d3773-bc6e-41e2-a97e-bc76f82c54a1 through all 9 Sniffing_Spoofing steps. The weak BPF answer did not advance the step and the tutor used document retrieval to explain icmp/tcp port 23/src net filters. Final state endpoint returned stepIndex=9,totalSteps=9,isFinished=true with history_len=30. SSE hardening was deployed: cancelled streams clear evaluation_pending, transitions are deterministic, and completion is stepIndex >= totalSteps. Validation passed: compileall targeted files, focused pytest 7 passed, harness-check 0 warnings, remote backend health and frontend HTTP 200. Example artifacts were then exported under docs/examples/live-demo-sessions: admin VPN_Tunnel full session (stepIndex=10,totalSteps=10,isFinished=true) and demo Sniffing_Spoofing full session (stepIndex=9,totalSteps=9,isFinished=true). The demo session was reassigned to username demo on linux-01 so UI observers can see it. tests/test_demo_session_examples.py validates both exports are complete and marked credential-free.",
       "notes": "Archived plan: plans/archive/20260513-linux01-live-deployment.md. Runtime data was intentionally reset because the project is still self-use/demo stage."
+    },
+    {
+      "id": "remote-runner-session-tools",
+      "priority": "P0",
+      "area": "remote-tool-adapter",
+      "title": "Session-bound Remote Runner tutor tools",
+      "behavior": "A student can configure a lab machine, bind one machine when creating a learning session, and have the tutor use Remote Runner only for that bound machine to execute lab commands, collect results, diagnose issues, and finish a full experiment conversation.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_session_progress.py tests/test_skill_names.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && remote-runner machine doctor seed-lab --json && manual demo student full-session seed-lab experiment smoke",
+      "evidence": "2026-05-13: implemented per-user remote machine settings, session remote binding, sanitized remote command audit, session-bound Tutor Remote Runner skill, session file cache/LabSetup upload path, backend debug APIs, frontend machine selector/settings/file panel, REMOTE_RUNNER_PYTHON_EXECUTABLE config, .env.example and deployment docs. Validation passed: ./init.sh; ./scripts/harness-check.sh 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_session_file_manager.py tests/test_session_progress.py tests/test_skill_names.py -q -> 18 passed; python3 -m compileall src tests; cd frontend && npm test -- --run; cd frontend && npm run build; git diff --check. Real seed-lab API smoke passed: machine doctor reachable/auth/default_cwd true; local demo student created remote-bound Sniffing/Spoofing session 92ccedf3-c448-44e6-8537-1f62e58719c2 bound to runner session sess_20260513_121525_193889_2c50ecbe; uploaded SEEDRunner Sniffing_Spoofing/Labsetup/docker-compose.yml to session cache; transferred it to remote LabSetup; mkdir volumes, docker-compose up -d, docker-compose ps, docker ps, and docker exec seed-attacker ip addr all exited 0; audit list recorded 6 entries. Direct Tutor-bound skill invocation from that Socratic session also executed docker ps through observe_remote_environment successfully and appended audit evidence. Final linux-01 live validation passed on deployed Socratic + DreamingRAG + Remote Runner: demo student session 42f4f635-4ab3-41a0-911a-233cf4cebe0d bound to runner session sess_20260513_144634_689262_63b90a86; LabSetup docker-compose.yml uploaded through the session file API and transferred to /home/seed/socratic-labs/<session>/Sniffing_Spoofing/Labsetup; docker-compose up/ps and docker ps succeeded; Tutor used observe_remote_environment during the conversation; final state was stepIndex=9,totalSteps=9,isFinished=true with history_len=27 and 16 remote audit entries. Exported sanitized evidence to docs/examples/live-demo-sessions/remote-runner-sniffing-spoofing-final.json. Post-validation hardening: LangChain early_stopping_method set to force for linux-01 compatibility; remote tool post-call idle timeout defaults to 15s; LANGCHAIN_MAX_ITERATIONS defaults to 4; deployment updated and health checked.",
+      "notes": "Completed on linux-01. Residual product follow-up is upstream Remote Runner support for run_and_wait/run_background/get_command_result; filed https://github.com/ElysiaFollower/SEEDRunner/issues/3. Runtime DB/cache/log state and credentials are not committed."
+    },
+    {
+      "id": "remote-runner-background-command-tools",
+      "priority": "P0",
+      "area": "remote-tool-adapter",
+      "title": "Remote Runner background command tutor tools",
+      "behavior": "A session-bound tutor can distinguish short run-and-wait commands from long-running background commands, then explicitly wait for, inspect, list, or stop previous Remote Runner commands without blocking a student turn for a long timeout.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_skill_names.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && git diff --check",
+      "evidence": "2026-05-14: confirmed /Users/ely/workspace/research/agent/SEEDRunner was already up to date on dev/remote-runner-background-commands and exposes session exec --mode wait|background plus session command list/show/result/wait/stop. Socratic provider now supports session_exec_background, session_command_list/show/result/wait/stop with explicit wait_timeout_seconds and session binding validation. Session-bound Tutor skill now exposes explicit tools: check_remote_connection, run_remote_command, start_remote_command, list_remote_commands, get_remote_command_result, wait_remote_command, and stop_remote_command, while legacy observe_remote_environment remains available. Backend debug /api/sessions/{session_id}/remote-command accepts action, command_id, and wait_timeout_seconds for the same command lifecycle. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q -> 21 passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; cd frontend && npm test -- --run passed; git diff --check passed. linux-01 deployment follow-up: deployed current Socratic archive ae93f4a and updated /home/ely/deploy/socratic-live/SEEDRunner from the upstream background-command branch because the deployed Remote Runner copy initially rejected --mode background. Restarted tmux socratic-backend and socratic-frontend; /api/health returned {\"status\":\"ok\"} and frontend returned HTTP 200. Real deployment smoke against existing demo session 42f4f635-4ab3-41a0-911a-233cf4cebe0d called session-bound start_remote_command -> wait_remote_command -> get_remote_command_result -> list_remote_commands; command_id cmd_20260513_172642_504854_653050c4 exited 0, wait_timed_out=false, stdout contained socratic-background-ok, and tool_count=7.",
+      "notes": "Archived plan: plans/archive/20260514-remote-runner-background-command-tools.md. This is a Socratic-side adapter/tooling upgrade; no runtime DB, Remote Runner state, logs, credentials, or remote machine data are committed."
+    },
+    {
+      "id": "pr17-security-review-fixes",
+      "priority": "P0",
+      "area": "security",
+      "title": "PR17 Remote Runner security review fixes",
+      "behavior": "Remote machine password storage and remote command execution both fail closed when required security configuration is missing or invalid.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q && python3 -m compileall src tests && git diff --check",
+      "evidence": "2026-05-14: addressed PR #17 reviewer security-critical/high comments. RemoteMachineManager now uses cryptography Fernet only and refuses to save or decrypt password-based remote machines when REMOTE_MACHINE_SECRET_KEY is missing or invalid; no plaintext fallback remains. RemoteRunnerProvider command policy now denies session_exec/session_exec_background when both exact command and prefix allowlists are empty. Updated .env.example, docs/deployment.md, and docs/architecture/remote-runner-session-tools.md to document Fernet key generation and fail-closed command policy. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q -> 22 passed; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q -> 24 passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260514-pr17-security-review-fixes.md. This task only hardens the PR #17 security review findings; it does not change runtime DB/state or submit any secrets."
+    },
+    {
+      "id": "vnext-shell-evidence-panel",
+      "priority": "P0",
+      "area": "frontend-remote-evidence",
+      "title": "Session shell and evidence panel",
+      "behavior": "A student can expand a right-side session panel to inspect remote command tabs, statuses, stdout/stderr summaries, and evidence collected by the tutor during the current learning session.",
+      "status": "not_started",
+      "verification": "Create a dedicated plan before implementation; first proof should use a seeded or live remote-bound session and verify command list/result rendering without exposing secrets.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. The panel should build trust by showing real execution results while keeping Remote Runner tools general and permissioned."
+    },
+    {
+      "id": "vnext-single-lab-e2e-benchmark",
+      "priority": "P0",
+      "area": "evaluation",
+      "title": "Single-lab end-to-end benchmark",
+      "behavior": "A repeatable backend-driven benchmark can complete one representative lab flow and catch regressions in login, profile selection, RAG, remote command execution, audit evidence, and step completion.",
+      "status": "not_started",
+      "verification": "Create a dedicated plan before implementation; initial target should be Sniffing/Spoofing and should output clear failure stage summaries.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. Keep scope narrow: one stable experiment is enough for the first benchmark."
+    },
+    {
+      "id": "vnext-profile-generation-evaluation",
+      "priority": "P1",
+      "area": "profile-generator",
+      "title": "Profile generation quality evaluation",
+      "behavior": "Generator prompt and agent changes can be compared against stable rubrics and curated SEED artifacts before increasing system complexity.",
+      "status": "not_started",
+      "verification": "Create a dedicated evaluation plan before changing generator architecture; first version should compare generated profiles against calibrated SEED profiles and fixed rubrics.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. This should precede major multi-agent generator redesign."
+    },
+    {
+      "id": "vnext-profile-management-document-identity",
+      "priority": "P1",
+      "area": "profile-management",
+      "title": "Profile manual identity and metadata UX",
+      "behavior": "Users can quickly identify the correct lab manual when generating a profile, inspect enough document metadata to disambiguate similar names, and fix missing persona/curriculum metadata display issues.",
+      "status": "not_started",
+      "verification": "Resolve design decision first; implementation should verify Profile Management, Lab Manuals, and Generate Profile use a consistent document identity model.",
+      "evidence": "",
+      "notes": "vNext target documented in docs/architecture/vnext-integrations.md. GitHub issue: https://github.com/ElysiaFollower/socratic-agent-generator/issues/18."
     }
   ]
 }

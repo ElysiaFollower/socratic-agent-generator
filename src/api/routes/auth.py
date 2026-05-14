@@ -155,27 +155,6 @@ def register(
 
     # Validate admin registration
     if req.role == "admin":
-        # Debug: Log ADMIN_TOKEN value (masked for security)
-        admin_token_value = ADMIN_TOKEN if ADMIN_TOKEN else None
-        admin_token_display = (
-            f"{admin_token_value[:4]}...{admin_token_value[-4:]}"
-            if admin_token_value and len(admin_token_value) > 8
-            else admin_token_value if admin_token_value else "None"
-        )
-        request_token_display = (
-            f"{req.admin_token[:4]}...{req.admin_token[-4:]}"
-            if req.admin_token and len(req.admin_token) > 8
-            else req.admin_token if req.admin_token else "None"
-        )
-        
-        logger.info("=== Admin Registration Debug Info ===")
-        logger.info(f"ADMIN_TOKEN from config: {admin_token_display}")
-        logger.info(f"ADMIN_TOKEN length: {len(ADMIN_TOKEN) if ADMIN_TOKEN else 0}")
-        logger.info(f"ADMIN_TOKEN is None: {ADMIN_TOKEN is None}")
-        logger.info(f"Request admin_token: {request_token_display}")
-        logger.info(f"Request admin_token length: {len(req.admin_token) if req.admin_token else 0}")
-        logger.info(f"Request admin_token is None: {req.admin_token is None}")
-        
         if not ADMIN_TOKEN:
             logger.error("ADMIN_TOKEN is not set in environment variables")
             raise HTTPException(
@@ -183,15 +162,11 @@ def register(
                 detail="Admin registration is not configured. ADMIN_TOKEN not set.",
             )
         if req.admin_token != ADMIN_TOKEN:
-            logger.error(
-                f"Admin token mismatch. Expected: {admin_token_display}, "
-                f"Got: {request_token_display}"
-            )
+            logger.error("Admin token mismatch")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Invalid admin token",
             )
-        logger.info("Admin token validation passed")
     else:
         # Validate invitation code for teacher/student registration
         if not req.invitation_code:
@@ -209,13 +184,6 @@ def register(
 
     # Create user
     try:
-        # Debug: Log password info before creating user
-        logger.info("=== Password Debug Info ===")
-        logger.info(f"Password type: {type(req.password)}")
-        logger.info(f"Password length: {len(req.password)}")
-        logger.info(f"Password bytes length: {len(req.password.encode('utf-8'))}")
-        logger.info(f"Password value (first 20 chars): {req.password[:20]}")
-        
         user = user_manager.create_user(
             username=req.username,
             password=req.password,

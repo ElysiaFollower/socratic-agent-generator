@@ -12,8 +12,10 @@ from core.exceptions import SessionNotFoundError
 from config import DEFAULT_OUTPUT_LANGUAGE, DEFAULT_SESSION_NAME
 from models.session import SessionModel
 from models.profile import ProfileModel
+from models.remote_machine import SessionRemoteBindingModel, UserRemoteMachineModel
 from schemas.session import Session, SessionSummary
 from schemas.profile import Profile
+from schemas.remote_machine import RemoteBindingSummary
 from utils.converters import session_to_model, model_to_session, profile_to_model
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,7 @@ class SessionManager:
             .all()
         )
 
+        bindings = self._binding_summaries(owner_id, [m.session_id for m in models])
         summaries = []
         for m in models:
             # Handle case where profile might be missing (should be cascade deleted but just in case)
@@ -63,6 +66,7 @@ class SessionManager:
                     profile_id=m.profile.profile_id,
                     profile_name=m.profile.profile_name,
                     topic_name=m.profile.topic_name,
+                    remote_binding=bindings.get(m.session_id),
                     create_at=m.create_at,
                     update_at=m.update_at or m.create_at
                 )
@@ -94,7 +98,12 @@ class SessionManager:
             SessionNotFoundError: If the session does not exist or owner mismatch.
         """
         model = self._get_model(session_id, owner_id)
-        return model_to_session(model)
+        session = model_to_session(model)
+        if model.owner_id:
+            session.remote_binding = self._binding_summaries(
+                model.owner_id, [session_id]
+            ).get(session_id)
+        return session
 
     def create_session(
         self,
@@ -232,3 +241,34 @@ class SessionManager:
             # Legacy behavior: silent if not found?
             # The interface doc says "If the session does not exist, this method does nothing."
             pass
+
+    def _binding_summaries(
+        self, owner_id: str, session_ids: List[str]
+    ) -> dict[str, RemoteBindingSummary]:
+        if not session_ids:
+            return {}
+        rows = (
+            self.db.query(SessionRemoteBindingModel, UserRemoteMachineModel)
+            .outerjoin(
+                UserRemoteMachineModel,
+                UserRemoteMachineModel.machine_id
+                == SessionRemoteBindingModel.user_machine_id,
+            )
+            .filter(
+                SessionRemoteBindingModel.owner_id == owner_id,
+                SessionRemoteBindingModel.session_id.in_(session_ids),
+            )
+            .all()
+        )
+        result: dict[str, RemoteBindingSummary] = {}
+        for binding, machine in rows:
+            result[binding.session_id] = RemoteBindingSummary(
+                binding_id=binding.binding_id,
+                machine_id=binding.user_machine_id,
+                display_name=machine.display_name if machine else None,
+                runner_machine_name=binding.runner_machine_name,
+                runner_session_id=binding.runner_session_id,
+                default_cwd=binding.default_cwd,
+                status=binding.status,
+            )
+        return result

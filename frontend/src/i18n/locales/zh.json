@@ -60,6 +60,7 @@
     "name": "名称",
     "id": "ID",
     "noData": "暂无数据",
+    "refresh": "刷新",
     "notFound": "未找到"
   },
   "notification": {
@@ -69,6 +70,7 @@
     "title": "设置",
     "tabs": {
       "llm": "LLM 配置",
+      "remote": "实验机",
       "preferences": "偏好设置",
       "account": "账户设置"
     },
@@ -104,6 +106,32 @@
       "latencyFailed": "延时测试失败",
       "apiKeyRequired": "请输入 API Key",
       "apiKeyRequiredForTest": "请先输入 API Key"
+    },
+    "remote": {
+      "formTitle": "实验机",
+      "displayName": "显示名称",
+      "runnerMachineName": "Remote Runner 机器名",
+      "authType": "认证方式",
+      "authExisting": "使用已有 Remote Runner 机器",
+      "authPassword": "密码",
+      "authKey": "SSH 密钥",
+      "host": "Host 或 IP",
+      "port": "端口",
+      "username": "用户名",
+      "password": "密码",
+      "keyPath": "SSH 密钥路径",
+      "defaultCwd": "默认目录",
+      "startupCommands": "启动命令",
+      "machineList": "已配置实验机",
+      "noMachines": "还没有配置实验机",
+      "test": "测试",
+      "fetchFailed": "获取实验机失败",
+      "saved": "实验机已保存",
+      "saveFailed": "保存实验机失败",
+      "deleted": "实验机已删除",
+      "deleteFailed": "删除实验机失败",
+      "testReady": "连接可用",
+      "testFailed": "连接测试失败"
     },
     "preferences": {
       "tts": {
@@ -310,6 +338,21 @@
     "generate": "生成邀请码",
     "generating": "生成中...",
     "management": "注册邀请码管理"
+  },
+  "sessionFiles": {
+    "title": "{{machine}} 的会话文件",
+    "upload": "上传",
+    "put": "发送",
+    "remotePath": "远程路径",
+    "remotePathRequired": "请输入远程路径",
+    "noMachine": "未连接实验机",
+    "changeMachine": "选择实验机",
+    "openFiles": "会话文件",
+    "selectMachineFirst": "请先选择实验机",
+    "noMachinesConfigured": "还没有配置实验机",
+    "machineUpdated": "已更新会话实验机",
+    "machineDetached": "已断开会话实验机",
+    "machineUpdateFailed": "更新会话实验机失败"
   },
   "labManual": {
     "selectFile": "请选择一个文件",
@@ -764,6 +807,8 @@
     "selector": {
       "title": "选择学习课程",
       "searchPlaceholder": "搜索课程名称、主题或受众",
+      "remoteMachine": "实验机",
+      "noRemoteMachine": "不连接实验机",
       "targetAudience": "目标受众",
       "courseTopic": "课程主题",
       "learningSteps": "学习步骤",

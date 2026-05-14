@@ -2,77 +2,90 @@
 
 ## 仓库状态
 
-- 分支：`rag-memory-adapter`
-- 当前功能项：无 active；`linux01-live-deployment` 已标记为 `passing`
-- 当前计划：无 active；`plans/archive/20260513-linux01-live-deployment.md` 已归档
-- 当前目标：最终演示形态已部署到 `linux-01`，包含 RAG memory adapter、Remote Runner 工具、6 个预制 SEED 实验 profile 和统一火山方舟 embedding。
-- 当前代码状态：`manual-enhance` 已合并进 `rag-memory-adapter`，因此当前分支包含 remote-tool、manual-enhance/default profile、DreamingRAG public API adapter 和部署文档。
+- 分支：`remote-runner-session-tools`
+- 当前功能项：无 active；`pr17-security-review-fixes` 状态 `passing`。
+- Active plan：无；PR17 安全修复计划已归档到 `plans/archive/20260514-pr17-security-review-fixes.md`。
+- 目标分支：`dev`。
+- 当前 PR：#17 `feat(remote): integrate session-bound lab tools`，目标 `dev`。
 
 ## 当前已验证状态
 
-- 初始化：`./init.sh` 通过；当前 active plan 为 linux-01 部署。
-- Harness：`./scripts/harness-check.sh` 通过，0 warning。
-- 语法验证：`python3 -m compileall src scripts tests` 通过。
-- 合并后 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_skill_names.py tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q` 通过，24 passed。
-- 追加验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过；随后又补跑全量 focused suite，25 passed。
-- 默认 embedding 检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY` 输出 `(True, [], [])`，确认默认 `EMBEDDING_PROVIDER=volcengine` 不再触发 HuggingFace 下载。
-- linux-01 远端连通：`remote-runner machine doctor linux-01 --json` 通过；先前部署尝试确认旧 Socratic 进程可清理、tmux 可用、conda env `/root/miniconda3/envs/SocraticAgent` 可用。
-- linux-01 最终部署：远端 focused pytest 22 passed；`model_check=(True, [], [])`；`embedding_class=VolcengineArkEmbeddings`；默认 public profile count=6；外部 health/docs/frontend curl 通过；demo 登录、profile list、session creation 和 `yes` 流式回复通过，且工具迭代不会过早截断。
-- linux-01 最新同步：2026-05-13 已通过 Remote Runner 部署 `c014790` archive 并重启 tmux 服务；远端 health OK、前端 HTTP 200、`linked_builtin_profiles=6`、`builtin_documents=6`，默认 profile 已具备内置 lab manual Document 链路。
-- PR #16 绝对路径评论已处理：运行时代码不再写死 `/Users/ely/...`，manual-enhance 生成脚本使用 `--runs-root`/`SEEDRUNNER_RUNS_ROOT`，manifest 和示例配置改为相对路径或 placeholder。
-- 追加真实演示：使用 `admin` 账号在 linux-01 上完成了一次两轮真实对话 smoke，session 历史已保留，`history_len=5`。
-- 学生困难路径完整验证：使用学生账号完成 `Sniffing_Spoofing manual calibrated` 全实验会话 `362d3773-bc6e-41e2-a97e-bc76f82c54a1`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，历史 30 条；期间验证了 lab manual RAG、DB-backed custom skill 检索、学生弱回答不推进、导师拆解提示和最终完成态。
-- live demo examples：`docs/examples/live-demo-sessions/` 已归档 admin VPN 完整会话和 demo 学生 Sniffing/Spoofing 完整会话；远端 `demo` 账号现在能直接看到学生完整会话。
-- 内置 profile 文档链路：6 个默认 SEED profile 现在会同时 seed 内置 `Document` 记录，绑定版本化 `.tex` lab manual，并通过 `document_id` 为 lab manual RAG 提供精确来源；Profile Management 可显示文档引用状态。
+- 用户可在 Settings 中维护实验机配置，创建会话时选择一台自己的机器，也可在会话信息顶栏切换或解绑当前会话实验机。
+- 后端创建 `SessionRemoteBindingModel`，Tutor 只为有绑定机器的会话注入 session-bound `observe_remote_environment`。
+- Remote Runner 工具固定访问绑定 machine/session，命令输出脱敏、截断并写入 `RemoteCommandAuditModel`。
+- 会话文件缓存支持上传 LabSetup 文件，并可通过同一套权限链路 remote-put 到绑定实验机。
+- 后端调试 API 覆盖 remote-binding、文件列表/上传、remote-put、remote-command、remote-audits，便于不用前端也能复现实验。
+- 前端完成 Remote Machines 设置页、创建会话机器选择、会话顶栏机器切换和弹出式 session file panel；输入栏上方不再常驻显示文件上传面板。
+- 官方部署文档、`.env.example` 和架构文档已同步 Remote Runner conda 配置、session binding、会话后切换绑定、command policy 和短等待策略。
+- 上游 Remote Runner 后台命令能力缺口已解决；Socratic 已接入新 CLI 的后台运行、显式 wait time、result/list/stop 接口。
+- Tutor 工具表面现在区分短命令 `run_remote_command` 和长命令 `start_remote_command`，并提供 `wait_remote_command`、`get_remote_command_result`、`list_remote_commands`、`stop_remote_command`。
+- 后端调试 API `/api/sessions/{session_id}/remote-command` 同步支持 `action`、`command_id` 和 `wait_timeout_seconds`。
+- linux-01 已同步当前 Socratic archive 和支持后台命令的 SEEDRunner 代码；部署侧后台命令工具链 smoke 已通过。
+- vNext 目标已记录：Shell/Evidence 面板、单实验端到端 benchmark、profile 生成质量评估体系、Profile Management 文档身份与元信息 UX。
+- Profile Management 文档身份问题已创建 GitHub issue：`https://github.com/ElysiaFollower/socratic-agent-generator/issues/18`。
+- PR #17 reviewer 标出的 security-critical/high 问题已修复：远程机器 password auth 缺少有效 Fernet key 时拒绝保存/使用密码；Remote Runner command allowlist 空配置时拒绝执行命令。
 
-## 本会话改动
+## 真实验收
 
-- 将 `manual-enhance` 合并入 `rag-memory-adapter`，保留：
-  - `src/utils/remote_runner_provider.py`、`src/utils/remote_tool_skill.py` 和 Remote Runner tests；
-  - `docs/manual-enhance/` 的 generator 初稿、人工校准 profile、mismatch taxonomy；
-  - `src/utils/default_profile_seed.py` 和默认 profile seed tests；
-  - 6 个内置 public profile：`ARP_Attack`、`LocalDNSAttack`、`RemoteDNSAttack`、`Sniffing_Spoofing`、`TCP_Attacks`、`VPN_Tunnel`。
-- 新增 `src/utils/embedding_provider.py`，提供 LangChain-compatible `VolcengineArkEmbeddings`。
-- Socratic 文档 RAG 与 DreamingRAG memory 统一使用 `EMBEDDING_PROVIDER=volcengine`、`VOLCENGINE_API_KEY`、`VOLCENGINE_EMBEDDING_MODEL`、`VOLCENGINE_EMBEDDING_BASE_URL`。
-- `src/utils/skills.py` 改为通过统一 embedding factory 获取 embeddings。
-- `src/utils/model_manager.py` 在非 `huggingface` provider 下跳过 HuggingFace 模型下载；HuggingFace 仅作为显式 fallback。
-- 更新 `.env.example`、`docs/deployment.md` 和 `requirements.txt`，把 Volcengine embedding 写入默认部署路径，并显式说明 HuggingFace 不是默认部署依赖。
-- 新增 `tests/test_embedding_provider.py`，覆盖火山文本 embedding 和 vision/multimodal embedding payload。
-- 修复 student 创建内置 public profile session 的 403 问题，避免演示账号能看到 profile 但不能进入学习会话。
-- 修复 `BaseSkill.name` 在远端缺少 `SKILL.md` 时回退为 `unknown_skill` 的问题，避免 DeepSeek 拒绝重复工具名。
-- 调整 Tutor 的 AgentExecutor 配置为更高的最小迭代数并启用 `early_stopping_method="generate"`，避免工具驱动的教学回复在查资料阶段提前收尾。
-- 完成 admin 真实对话 smoke，验证会话历史可保留并在后续展示时继续读取。
-- 修复 SSE 客户端中断后的 `evaluation_pending` 锁残留；通过步骤后的过渡语改成本地确定性生成，避免额外 LLM 调用拖住 `END`；完成态统一为 `stepIndex >= totalSteps`。
-- 新增 `tests/test_session_progress.py`，覆盖零基 stepIndex 完成判断。
-- 新增 `tests/test_demo_session_examples.py` 和 `docs/examples/live-demo-sessions/`，把两个真实完成会话作为可审阅 example 工件提交。
-- 新增 `docs/manual-enhance/calibrated/*/lab_manual.tex`，仅包含 6 个可保留 SEED 实验手册；默认 seed 会创建 owner_id=`builtin` 的 Document 记录并将 profile 关联过去。
-- Lab Manual 删除语义改为先提示/返回引用该文档的 profile，删除后清空这些 profile 的 `document_id` 并显示 `unlinked`，不级联删除 profile，也不禁止删除。
-- 前端 Profile Management 显示 `document_status`，Lab Manual Management 显示引用 profile 数并在删除确认里列出引用者；上传支持 `.tex`。
+- 部署机器：linux-01。
+- 服务：tmux `socratic-backend`、`socratic-frontend`。
+- 前端：`http://10.203.15.128:5173/`。
+- 后端健康检查：`http://10.203.15.128:8000/api/health`。
+- 用户：`demo` student。
+- Socratic session：`42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
+- Remote Runner session：`sess_20260513_144634_689262_63b90a86`。
+- 验收 profile：Sniffing/Spoofing。
+- 结果：LabSetup 由系统上传并 remote-put，`docker-compose up -d`、`docker-compose ps`、`docker ps` 成功；Tutor 在完整自然语言会话中调用 remote tool；最终 `stepIndex=9,totalSteps=9,isFinished=true`，history_len=27，remote audit 16 条。
+- 脱敏 example：`docs/examples/live-demo-sessions/remote-runner-sniffing-spoofing-final.json`。
+
+## 验证记录
+
+- `./init.sh` 通过。
+- `./scripts/harness-check.sh` 通过 0 warning。
+- `python3 -m compileall src tests` 通过。
+- `PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 21 passed。
+- `cd frontend && npm test -- --run` 通过。
+- `cd frontend && npm run build` 通过。
+- `git diff --check` 通过。
+- 2026-05-14 PR17 security fix：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q` 通过 22 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 早期完整本地验证通过：focused pytest 18 passed、`python3 -m compileall src tests`、frontend test/build、`git diff --check`。
+- 远端最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
+- linux-01 后端 `/api/health` 返回 OK，前端 HTTP 200。
+- 2026-05-14 追加部署 smoke：demo session `42f4f635-4ab3-41a0-911a-233cf4cebe0d` 的 session-bound `start_remote_command -> wait_remote_command -> get_remote_command_result -> list_remote_commands` 通过；后台命令 `cmd_20260513_172642_504854_653050c4` 退出码 0，`wait_timed_out=false`，stdout 命中 `socratic-background-ok`，工具数 7。
+
+## 当前 active 任务
+
+- 无 active 任务。
 
 ## 仍损坏或未验证
 
-- 尚未配置正式域名、HTTPS、反向代理或 systemd；当前按用户要求使用 tmux 持久化演示服务。
-- `DREAMINGRAG_MEMORY_MOCK_MODE` 是否开启取决于演示稳定性：若只展示 Socratic 主流程，可用 mock memory；若展示真实长期记忆，需要确认 Volcengine 与 DreamingRAG real mode 真实 API 可用。
-- Remote Runner tool 仍默认关闭：`REMOTE_TOOL_ENABLED=false`。若导师演示需要远程环境观察，要在部署 env 中显式开启并设置 allowlist。
-- `Sniffing_Spoofing` 的 `.tex` 实验文档和 custom skill 已在 linux-01 演示数据库中创建，用于这次学生 RAG smoke；这些是远端演示数据，不应提交 SQLite DB 或向量索引。
-- example JSON 是导出工件，不是自动 seed 运行时数据；新部署默认 seed calibrated profiles 和对应内置 lab manual Document，不默认创建 demo/admin 会话。
+- 无阻塞当前任务的问题。
+- 浏览器插件连接本地页面三次超时的旧问题仍未复核；本任务预计不触碰前端 UI。
+- vNext 目标只是规划记录，尚未进入实现。
+
+## 设计结论
+
+- 当前产品默认不应让学生为工具调用等待很久：`REMOTE_TOOL_AGENT_IDLE_TIMEOUT` 默认 15 秒，`REMOTE_TOOL_COMMAND_TIMEOUT` 默认 20 秒，`LANGCHAIN_MAX_ITERATIONS` 默认 4。
+- Remote Runner 当前 CLI 已支持 `session exec --mode wait|background` 和 `session command list/show/result/wait/stop`。
+- Socratic 侧应明确区分：短命令 `run_and_wait`、长命令 `run_background`、已有命令 `wait/result/list/stop`。不应让学生为了后台任务等待很长的同步工具调用。
+- 远程机器密码存储必须使用 `cryptography.fernet.Fernet`；没有有效 `REMOTE_MACHINE_SECRET_KEY` 时不能保存或使用 password auth 凭据。
+- Remote Runner 命令策略 fail-closed；exact command 和 prefix allowlist 均为空时不执行命令。
 
 ## 清洁状态
 
-- 不提交 `_local/`、`frontend/node_modules/`、`data/*.db`、`data/dreamingrag_memory/`、向量索引、模型缓存、日志或任何 provider key。
-- `plans/active/` 只保留 `.gitkeep`；当前无 active plan。
-- 当前已提交并 push 本次内置 lab manual 文档链路修复、live demo example、回归测试和 handoff/progress/feature evidence；PR #16 已创建。
+- 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
+- linux-01 上为了演示保留最终 demo session 和运行服务。
+- 本地当前有 PR17 安全修复待提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 
 ## 下一步最佳动作
 
-1. 将 `http://10.203.15.128:5173` 发给导师演示。
-2. 如需长期公开访问，再补域名、HTTPS、反向代理和 systemd。
-3. 如需展示 Remote Runner 工具能力，开启 `REMOTE_TOOL_ENABLED=true` 并收紧 machine/command allowlist。
+1. 提交并推送 PR17 安全修复到 PR #17。
+2. 回复 reviewer 两个 security 评论，说明已 fail-closed 并补测试。
+3. 等待 review/merge；后续从 `vnext-shell-evidence-panel` 或 `vnext-single-lab-e2e-benchmark` 中择一开新分支和 active plan。
 
 ## 命令
 
-- 初始化：`./init.sh`
-- Harness 检查：`./scripts/harness-check.sh`
-- 后端 focused tests：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_skill_names.py tests/test_embedding_provider.py tests/test_memory_provider.py tests/test_remote_runner_provider.py tests/test_default_profile_seed.py tests/test_manual_enhance_profiles.py -q`
-- 语法验证：`python3 -m compileall src scripts tests`
-- 默认 embedding 下载检查：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python - <<'PY' ... check_and_download_models() ... PY`
+- `./init.sh`
+- `./scripts/harness-check.sh`
+- `python3 -m compileall src tests`
+- `PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_session_file_manager.py tests/test_session_progress.py tests/test_skill_names.py tests/test_demo_session_examples.py -q`

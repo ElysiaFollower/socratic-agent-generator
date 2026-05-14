@@ -4,7 +4,7 @@
 
 Socratic Agent Generator 当前的核心能力是把技术实验手册转换为可交互的苏格拉底式导师。下一阶段的目标不是只让导师“读懂文档”，而是让导师能利用真实实验过程、真实运行环境和长期学习记忆，形成更贴近学生现状的指导。
 
-本文记录三个未来方向，作为后续为每个方案单独开分支实现前的仓库内事实来源。当前只记录规划，不表示这些能力已经实现。
+本文记录未来方向，作为后续为每个方案单独开分支实现前的仓库内事实来源。当前只记录规划，不表示这些能力已经实现。
 
 ## 1. SEED 实验报告语料
 
@@ -34,6 +34,14 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 后续实现需要定义导师调用远程工具的权限模型、只读/可写边界、会话审计、错误脱敏、超时控制和用户确认机制。
 
+当前实现任务：`docs/architecture/remote-runner-session-tools.md` 定义将 Remote Runner 原型产品化为 per-user 机器配置、per-session 机器绑定、Tutor 内置工具和真实实验会话验收的边界。
+
+当前设计结论：
+
+- Remote Runner 工具层保持通用，不做过度教学化封装。
+- 工具职责是连通真实机器、执行命令、管理后台命令生命周期、收集结构化输出和审计记录。
+- 具体执行什么命令、如何解释输出、如何把结果用于教学，由模型、profile、实验文档和会话上下文决定。
+
 ## 3. DreamingRAG 记忆系统集成
 
 当前项目的对话记忆主要依赖简单历史裁剪。对于复杂、长程、多会话学习任务，这不足以支持稳定的个性化导师行为。
@@ -55,9 +63,86 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 后续实现需要定义记忆写入事件、隐私边界、学生可见/可控机制、记忆检索接口、遗忘策略和 benchmark 评估方式。
 
+## 4. 会话 Shell / Evidence 面板
+
+当前系统已经能通过 Remote Runner 执行真实命令，并在后端记录审计证据。但学生在前端聊天界面里不一定能直接看到完整执行过程，因此容易出现“Tutor 说它检查过了，但用户不确信”的体验问题。
+
+设计意图：
+
+- 在会话界面右侧增加可展开的 Shell / Evidence 面板。
+- 面板形式类似 VS Code 的 tab：一个会话可以显示一个或多个 remote shell/session tab。
+- 每个 tab 展示当前 session 中执行过的命令、运行状态、stdout/stderr 摘要、exit code 和时间。
+- 后台命令应能显示 running/exited/failed/stopped 状态，并支持刷新或查看最新结果。
+- 面板是观察和信任建立工具，不应把它做成绕过 Tutor 权限模型的任意 Web terminal。
+
+边界：
+
+- 数据来源应优先复用 `RemoteCommandAuditModel` 和 Remote Runner command lifecycle，而不是新增一套独立日志系统。
+- 不显示密码、私钥、token、host 私密细节或本地路径。
+- 初版只做只读查看，停止后台命令可以作为明确按钮单独评估。
+
+## 5. 单实验端到端 Benchmark
+
+当前真实验收依赖人工完整对话测试。随着 Tutor、profile generator、RAG、Remote Runner 和前端持续变化，人工测试成本高且容易遗漏回归。
+
+设计意图：
+
+- 先为一个稳定实验建立最小端到端 benchmark，推荐继续使用 Sniffing/Spoofing。
+- benchmark 应通过后端 API 驱动真实流程，而不是依赖手点前端。
+- 固定测试内容包括：登录 demo 用户、选择 profile、绑定实验机、上传或确认 LabSetup、触发对话、观察工具调用、检查 step completion、检查远程命令 audit、确认最终完成状态。
+- 初版不追求覆盖所有实验，也不追求完全模拟真实学生，只需要形成一个可重复、能抓重大回归的基准。
+
+验收信号：
+
+- 会话最终 `isFinished=true`。
+- 至少一次 lab manual RAG 检索生效。
+- 至少一次 Remote Runner 命令生效，并留下脱敏 audit。
+- 后台命令 start/wait/result 链路至少被覆盖一次。
+- benchmark 失败时能输出明确失败阶段和关键响应摘要。
+
+## 6. Profile 生成质量评估体系
+
+Profile 自动生成是项目的重要卖点，但当前 generator 的多智能体架构、提示词和人工校准流程仍缺少稳定评估体系。没有评估体系时，提示词或 agent 架构的改动很容易只增加复杂度，而不带来真实质量提升。
+
+设计意图：
+
+- 在改 generator 之前，先定义可重复的 profile 质量评估。
+- 评估对象应包括：课程节点结构、实验事实正确性、学生认知负担、真实实验摩擦、错误诊断节点、RAG 引用质量、step completion 判定标准。
+- 评估材料应优先使用已校准的 6 个 SEED 实验 profile、真实 `.tex` lab manual、手写报告和已导出的 demo session。
+- 评估输出应能比较两个 generator 版本，而不是只生成主观评价。
+
+可能的第一版评估：
+
+- 静态结构检查：profile schema、persona/curriculum/assessment 完整性、lab manual 引用完整性。
+- 人工校准差异检查：新生成 profile 与人工校准 profile 的节点差异、缺失摩擦点、错误成功标准。
+- 小型 LLM-as-judge：只用于辅助排序，必须固定 rubrics 和输入，不作为唯一结论。
+- 端到端行为检查：将生成 profile 放入单实验 benchmark，观察 Tutor 是否能推进、是否过早给答案、是否漏掉关键实验步骤。
+
+## 7. Profile Management 文档身份与元信息 UX
+
+用户发现的问题：
+
+- Profile Management 页面中，某些 lab manual 只显示有 curriculum，没有 persona，说明 profile 或 document 元信息链路可能不完整。
+- Lab Manuals 似乎不能自行重命名，导致相近文档难以区分。
+- 在 Generate Profile 时，用户需要选择一个实验文档；当相似名称的文档很多时，很难快速确认“这就是我想要的那份文档”。
+- 如果在 Generate Profile 中加入完整 View Manual 能力，又会和 Lab Manuals 版块定位重叠。
+
+实施前需要决策的方案：
+
+1. 轻量预览方案：Generate Profile 的文档选择器显示文档身份卡，包括文件名、实验名、上传者、上传时间、大小、引用 profile 数、文档摘要、前几行 preview、source path/内置来源标记。完整编辑、重命名和删除仍留在 Lab Manuals。
+2. 抽屉预览方案：Generate Profile 中点击文档后打开只读 side drawer，支持搜索和片段预览，但不提供管理操作。Lab Manuals 仍是唯一管理入口。
+3. 统一 Document Detail 方案：Lab Manuals 和 Generate Profile 共用同一个 Document Detail 组件；Generate Profile 只以只读模式打开，Lab Manuals 以管理模式打开。
+
+当前建议：
+
+- 采用方案 3 的组件复用方向，但第一步可以实现为方案 1，降低范围。
+- Lab Manuals 应补充 rename/edit display name 能力，并显示“被哪些 profile 引用”。
+- Generate Profile 不应复制完整文档管理功能，只提供足够让用户确认文档身份的只读 preview。
+- persona/curriculum/document_status 的显示缺口应作为 bug 独立修复，而不是混入 profile generator 改造。
+
 ## 实施原则
 
-- 三个方向都应先形成独立 plan 和分支，再进入实现。
+- 每个方向都应先形成独立 plan 和分支，再进入实现。
 - 外部项目先以 submodule 候选和接口合同讨论，不直接复制源码进本仓库。
 - 报告、远程环境输出和学生记忆都可能包含敏感信息，任何导入或调用流程必须先设计脱敏、权限和审计边界。
 - 这些能力应增强苏格拉底式教学，而不是把导师变成直接给答案的自动解题器。

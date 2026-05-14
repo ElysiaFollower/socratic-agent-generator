@@ -70,12 +70,6 @@ class UserManager:
         elif not isinstance(password, str):
             password = str(password)
         
-        # Debug logging
-        logger.info(f"Password type: {type(password)}")
-        logger.info(f"Password length: {len(password)}")
-        logger.info(f"Password bytes length: {len(password.encode('utf-8'))}")
-        logger.info(f"Password value (first 20 chars): {password[:20]}")
-        
         # Truncate password if it exceeds bcrypt's 72-byte limit
         password_bytes = password.encode('utf-8')
         if len(password_bytes) > 72:

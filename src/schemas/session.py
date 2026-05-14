@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field, model_validator
 import config
 from schemas.curriculum import SocraticCurriculum
 from schemas.profile import Profile
+from schemas.remote_machine import RemoteBindingSummary
 
 class SessionState(BaseModel):
     stepIndex: int = Field(
@@ -62,6 +63,10 @@ class Session(BaseModel):
         description="The history of the session.",
         default=[]
     )
+    remote_binding: Optional[RemoteBindingSummary] = Field(
+        default=None,
+        description="Non-secret Remote Runner binding for this session.",
+    )
     
     def get_curriculum(self) -> SocraticCurriculum:
         return self.profile.curriculum
@@ -78,6 +83,7 @@ class SessionSummary(BaseModel):
     profile_id: str
     profile_name: str
     topic_name: str
+    remote_binding: Optional[RemoteBindingSummary] = None
     create_at: str
     update_at: str
     @model_validator(mode='before')

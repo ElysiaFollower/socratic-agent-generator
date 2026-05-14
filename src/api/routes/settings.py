@@ -6,13 +6,21 @@ from typing import Dict
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.routes.auth import get_current_user
+from core.dependencies import RemoteMachineManagerDep
 from schemas.llm import (
     LLMDefaultRequest,
     LLMProviderSettingRequest,
     LLMSettingsResponse,
     LLMTestRequest,
 )
+from schemas.remote_machine import (
+    RemoteMachineCreate,
+    RemoteMachineSummary,
+    RemoteMachineTestResponse,
+    RemoteMachineUpdate,
+)
 from schemas.user import User
+from utils.remote_machine_manager import RemoteMachineNotFoundError
 from utils.llm_manager import get_llm_manager
 
 logger = logging.getLogger(__name__)
@@ -100,3 +108,79 @@ def test_llm_latency(
         logger.exception("LLM latency test failed")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return {"ok": True, **result}
+
+
+@router.get(
+    "/remote-machines",
+    response_model=list[RemoteMachineSummary],
+    summary="获取远程实验机设置",
+)
+def list_remote_machines(
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> list[RemoteMachineSummary]:
+    return remote_manager.list_machines(current_user.user_id)
+
+
+@router.post(
+    "/remote-machines",
+    response_model=RemoteMachineSummary,
+    summary="保存远程实验机设置",
+)
+def create_remote_machine(
+    req: RemoteMachineCreate,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> RemoteMachineSummary:
+    try:
+        return remote_manager.create_machine(current_user.user_id, req)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.put(
+    "/remote-machines/{machine_id}",
+    response_model=RemoteMachineSummary,
+    summary="更新远程实验机设置",
+)
+def update_remote_machine(
+    machine_id: str,
+    req: RemoteMachineUpdate,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> RemoteMachineSummary:
+    try:
+        return remote_manager.update_machine(current_user.user_id, machine_id, req)
+    except RemoteMachineNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.delete("/remote-machines/{machine_id}", summary="删除远程实验机设置")
+def delete_remote_machine(
+    machine_id: str,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> Dict[str, bool]:
+    try:
+        remote_manager.delete_machine(current_user.user_id, machine_id)
+    except RemoteMachineNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return {"success": True}
+
+
+@router.post(
+    "/remote-machines/{machine_id}/test",
+    response_model=RemoteMachineTestResponse,
+    summary="测试远程实验机连接",
+)
+def test_remote_machine(
+    machine_id: str,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> RemoteMachineTestResponse:
+    try:
+        return remote_manager.test_machine(current_user.user_id, machine_id)
+    except RemoteMachineNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc

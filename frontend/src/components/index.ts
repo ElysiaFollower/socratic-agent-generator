@@ -24,5 +24,6 @@ export * from "./class/ClassManagerPanel";
 export * from "./settings/SettingsModal";
 export * from "./layout/SidebarRail";
 export * from "./session/SessionHistoryList";
+export * from "./session/SessionLabFilesPanel";
 export * from "./common/HelpDialog";
 export * from "./common/HelpContent";

@@ -103,6 +103,47 @@ HF_MODELS_DIR="models"
 
 Do not use HuggingFace for the default deployment. Hosts without HuggingFace access should still start normally when Volcengine is configured.
 
+Remote Runner is optional but supported for session-bound lab machine tools. Install it in the same conda environment, then point Socratic at the checkout or installed package:
+
+```bash
+pip install -e ../SEEDRunner
+
+# Generate before enabling password-based remote machine settings:
+# python -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'
+
+REMOTE_TOOL_ENABLED="true"
+REMOTE_RUNNER_REPO_PATH="/absolute/path/to/workspace/SEEDRunner"
+REMOTE_RUNNER_PYTHON_EXECUTABLE="/absolute/path/to/conda/env/bin/python"
+REMOTE_RUNNER_STATE_DIR=""
+REMOTE_MACHINE_SECRET_KEY="replace_with_generated_fernet_key"
+REMOTE_TOOL_COMMAND_TIMEOUT=20
+REMOTE_TOOL_AGENT_IDLE_TIMEOUT=15
+REMOTE_TOOL_OUTPUT_CHARS=4000
+REMOTE_TOOL_ALLOWED_MACHINE_IDS=""
+REMOTE_TOOL_ALLOWED_COMMANDS="pwd,ls,ls -la,whoami,hostname,uname -a,id,ip addr,ip route,ifconfig,cat /etc/os-release,python --version,python3 --version"
+REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES="ls ,cat ,ip ,docker ps,docker exec,docker network inspect,docker compose ps,python ,python3 ,ping "
+REMOTE_TOOL_ALLOWED_CWD_PREFIXES=""
+```
+
+Users configure lab machines from Settings. A learning session only gets the Remote Runner tool when it has a selected machine. Users can select a machine during session creation or switch/detach the current session's machine from the session header. The Tutor receives the current fixed machine/session binding and cannot switch to a different machine by prompt.
+
+`REMOTE_RUNNER_PYTHON_EXECUTABLE` is optional when Remote Runner is installed in the same conda environment as Socratic. Set it when Socratic and Remote Runner are maintained in separate conda environments.
+
+`REMOTE_MACHINE_SECRET_KEY` must be a valid Fernet key before users save password-based remote machines. If the key is missing or invalid, Socratic refuses to store or use remote passwords instead of falling back to plaintext. Key-based and existing Remote Runner machine entries do not require a stored password.
+
+Remote command policy is fail-closed: if both `REMOTE_TOOL_ALLOWED_COMMANDS` and `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` are empty, Tutor command execution is denied. Add exact commands or narrow prefixes deliberately, then restart the backend.
+
+Tutor remote command tools intentionally separate command lifecycles:
+
+- `run_remote_command`: short bounded diagnostics, backed by `session exec --mode wait`.
+- `start_remote_command`: long-running work such as packet capture, servers, or long builds, backed by `session exec --mode background`.
+- `wait_remote_command`: wait for an existing command for an explicit short timeout.
+- `get_remote_command_result`, `list_remote_commands`, and `stop_remote_command`: inspect or control previous commands.
+
+Do not increase `REMOTE_TOOL_COMMAND_TIMEOUT` to cover long-running lab work. Use background commands so a student turn is not blocked for minutes.
+
+Session-scoped LabSetup files are stored under `data/session_files` and capped by `SESSION_FILE_MAX_BYTES` (default 20 MiB). A user can upload files to one session, transfer them to that session's bound lab machine, and then ask the Tutor or debug API to run setup commands such as Docker Compose. Do not commit this cache directory.
+
 ## Smoke Checks
 
 Run the cheap repository checks:
@@ -165,6 +206,26 @@ with SessionLocal() as db:
 PY
 ```
 
+If Remote Runner is enabled, check the target lab machine before using it in Socratic:
+
+```bash
+remote-runner machine doctor <machine-id> --json
+```
+
+Then use Settings to add an "existing runner machine" with the same machine id, test it, create a learning session with that machine selected, and verify `/api/sessions/{session_id}/remote-audits` records sanitized command evidence after the Tutor uses the remote tool.
+
+For backend-only debugging, use the session APIs that mirror the frontend/Tutor path:
+
+- `GET /api/sessions/{session_id}/files`
+- `POST /api/sessions/{session_id}/files`
+- `POST /api/sessions/{session_id}/files/{filename}/remote-put`
+- `PUT /api/sessions/{session_id}/remote-binding`
+- `POST /api/sessions/{session_id}/remote-command`
+
+`remote-command` defaults to the old synchronous action when no action is supplied. For background debugging, send `action` values such as `session_exec_background`, `session_command_result`, `session_command_wait`, or `session_command_stop`; include `command_id` for command inspection actions and `wait_timeout_seconds` for bounded waits.
+
+For the SEED Sniffing/Spoofing demo, prefer uploading the known LabSetup `docker-compose.yml` and creating the empty `volumes` directory on the remote machine. That LabSetup is small enough that cloning the full SEED Labs repository on the lab host is unnecessary.
+
 ## Start Services
 
 Terminal 1:
@@ -189,6 +250,7 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 - The six built-in SEED lab manuals are versioned under `docs/manual-enhance/calibrated/*/lab_manual.tex`. Runtime vector indexes for them are created under `data/vector_stores/builtin/`.
 - Deleting a lab manual from the UI removes the document record and vector index, and unlinks profiles that referenced it. The profiles remain visible but show an invalid/unlinked document reference until a document is restored or the profile is regenerated.
 - DreamingRAG memory storage is under `data/dreamingrag_memory/`.
+- Remote machine settings and session bindings are stored in SQLite. API responses never return passwords or private key contents. Remote command evidence is stored as sanitized excerpts in `remote_command_audits`.
 - Do not commit `.env`, SQLite databases, memory stores, vector indexes, logs, or provider keys.
 - Admin registration requires `ADMIN_TOKEN` to be configured before the backend starts.
 - User-configured LLM keys in the Settings panel override global `.env` provider presets.
@@ -201,6 +263,10 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 - Real mode fails on embeddings: confirm `EMBEDDING_PROVIDER="volcengine"`, `VOLCENGINE_API_KEY`, `VOLCENGINE_EMBEDDING_MODEL`, and `VOLCENGINE_EMBEDDING_BASE_URL`.
 - Backend tries to download from HuggingFace: check that `EMBEDDING_PROVIDER` was not set to `huggingface`.
 - Need an offline memory-only demo: set `DREAMINGRAG_MEMORY_MOCK_MODE="true"` temporarily, then switch it back to `false` for real memory behavior.
+- Remote machine test fails: first run `remote-runner machine doctor <machine-id> --json`; do not debug with raw SSH unless you are changing Remote Runner itself.
+- Tutor cannot execute a lab command: confirm the command policy is not empty, then add the exact command or a narrow prefix to `REMOTE_TOOL_ALLOWED_COMMANDS` or `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` and restart the backend.
+- Password-based remote machine save fails: set `REMOTE_MACHINE_SECRET_KEY` to a valid Fernet key and restart the backend; Socratic will not store remote passwords in plaintext.
+- A long-running Tutor tool appears to hang: use `start_remote_command` plus `wait_remote_command`/`get_remote_command_result` instead of increasing the synchronous command timeout.
 
 ## Maintenance Contract
 
@@ -212,6 +278,7 @@ Maintain this document whenever any of the following change:
 - DreamingRAG `dreaming_rag.public_api`
 - DreamingRAG `setup.py` or dependency requirements
 - Backend Python version support
+- Remote Runner settings, command policy, or session binding behavior
 - Startup commands or frontend dependency workflow
 
 Deployment instructions are part of the repo harness. If they drift, update this document, README links, and `harness/quality.md` in the same task.

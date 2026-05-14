@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`linux01-live-deployment` 已标记为 `passing`。
-- 当前任务计划：无 active；`plans/archive/20260513-linux01-live-deployment.md` 已归档。
-- 上次验证：2026-05-13，linux-01 live deployment 通过；远端 focused tests 22 passed；默认 `EMBEDDING_PROVIDER=volcengine` 下 `check_and_download_models()` 返回 `(True, [], [])`；外部 curl health/docs/frontend 通过；admin 真实对话 smoke 通过，session 历史成功保留，且 demo 登录、profile list、session creation 和 `yes` 流式回复不再触发工具迭代过早截断。
-- 下一步最佳动作：把 `http://10.203.15.128:5173` 发给导师；需要时再配置域名、HTTPS 或 systemd。
+- 当前功能项：无 active；`pr17-security-review-fixes` 已 passing。
+- 当前任务计划：无 active；PR17 安全修复计划已归档到 `plans/archive/20260514-pr17-security-review-fixes.md`。
+- 上次验证：2026-05-14，PR17 security focused tests 22 passed，remote/tool/skill focused tests 24 passed，`python3 -m compileall src tests` 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
+- 下一步最佳动作：等待 PR #17 review/merge；后续从 vNext 目标中择一开新分支和 active plan。
 
 ## 状态约定
 
@@ -15,6 +15,54 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-13 - 开启 session-bound Remote Runner 导师工具任务
+
+- 用户已审核通过 PR #16；已将 `feat: integrate vNext Socratic demo stack` 合并到 `dev`。
+- 本地 `dev/...` 层级分支因已有 `dev` 分支无法创建，改为从最新 `dev` 创建分支 `remote-runner-session-tools`。
+- 创建 active plan：`plans/active/20260513-remote-runner-session-tools.md`。
+- 新增架构任务说明：`docs/architecture/remote-runner-session-tools.md`，明确 per-user 机器配置、per-session 机器绑定、Tutor session-bound Remote Runner skill、命令审计、credential 脱敏和 demo 学生完整实验验收。
+- 将 `remote-runner-session-tools` 设置为当前唯一 active feature。
+- 范围判断：之前的 Remote Runner 原型只是全局 env 开关和全局 allowlist，本任务要把它产品化为学生可配置、会话可绑定、Tutor 可真实执行实验命令并收集报告证据的能力。
+- 下一步：先读 Remote Runner CLI 当前 machine/session/credential 接口，再设计并实现 Socratic 侧 DB model、API、UI、Tutor provider 注入和真实 `seed-lab` 验收路径。
+
+### 2026-05-14 - 开启 Remote Runner 后台命令工具升级
+
+- 用户确认上游 Remote Runner 已解决后台运行和显式 wait time 支持，要求 Socratic 侧跟进 agent 工具设计。
+- 本地检查：`/Users/ely/workspace/research/agent/SEEDRunner` 在 `dev/remote-runner-background-commands` 分支，`git pull --ff-only` 已是最新。
+- 已确认上游 CLI 形态：`remote-runner session exec --mode wait|background --timeout <seconds> --json`；`remote-runner session command list/show/result/wait/stop --json`。
+- 创建 active plan：`plans/active/20260514-remote-runner-background-command-tools.md`。
+- 将 `remote-runner-background-command-tools` 设置为当前唯一 active feature。
+- 范围判断：这次只升级 Socratic 后端 agent 工具表面、provider 适配、tests 和 docs；不改前端布局，不重新做 linux-01 完整演示会话。
+- 下一步：先扩展 provider 的 CLI action 支持，再把 session-bound skill 从单 router tool 改为多个明确工具，并保持旧调试路径兼容。
+
+### 2026-05-14 - 完成 Remote Runner 后台命令工具升级
+
+- `RemoteRunnerProvider` 新增 `session_exec_background`、`session_command_list`、`session_command_show/result`、`session_command_wait`、`session_command_stop`，并支持 `wait_timeout_seconds`。
+- `SessionBoundRemoteEnvironmentSkill` 暴露显式 LangChain tools：`check_remote_connection`、`run_remote_command`、`start_remote_command`、`list_remote_commands`、`get_remote_command_result`、`wait_remote_command`、`stop_remote_command`；旧 `observe_remote_environment` 仍保留兼容。
+- `Tutor` 工具收集支持 `get_tools()` flatten，同时兼容旧 `get_tool()`。
+- 后端调试 API `POST /api/sessions/{session_id}/remote-command` 支持 action、command_id 和 wait_timeout_seconds，方便不用前端也能验证后台命令生命周期。
+- 更新 `docs/architecture/remote-runner-session-tools.md` 和 `docs/deployment.md`，明确短命令同步执行与长命令后台生命周期的区别。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 21 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 通过 0 warning；`cd frontend && npm test -- --run` 通过；`git diff --check` 通过。
+- 部署侧收口：linux-01 上 Socratic 已更新到当前 archive，SEEDRunner 也同步到支持 `--mode background` 的版本；重启 `socratic-backend`/`socratic-frontend` 后，`/api/health` 返回 OK，前端 HTTP 200。真实 demo session `42f4f635-4ab3-41a0-911a-233cf4cebe0d` 的 session-bound 工具 smoke 通过：`start_remote_command -> wait_remote_command -> get_remote_command_result -> list_remote_commands`，命令 `cmd_20260513_172642_504854_653050c4` 退出码 0，`wait_timed_out=false`，stdout 命中 `socratic-background-ok`。
+- 状态：`remote-runner-background-command-tools` 标记为 `passing`，计划归档。
+
+### 2026-05-14 - 记录下一阶段 vNext 目标
+
+- 根据用户反馈更新 `docs/architecture/vnext-integrations.md`：Remote Runner 工具保持通用，不做过度教学化封装；教学策略由模型、profile、实验文档和上下文决定。
+- 新增 vNext 目标：会话右侧 Shell/Evidence 面板、单实验端到端 benchmark、profile 生成质量评估体系、Profile Management 文档身份与元信息 UX。
+- 更新 `docs/architecture/remote-runner-session-tools.md` 的 tool boundary，明确远程工具职责是连通、执行、生命周期管理、结构化反馈和审计。
+- 创建 GitHub issue `https://github.com/ElysiaFollower/socratic-agent-generator/issues/18`，跟踪 Profile Management 中 lab manual/persona 元信息显示、文档重命名和 Generate Profile 文档选择难以核验的问题；实施前需要先决策 UX 方案。
+- 这些目标均记录为 `not_started`，未开启 active plan。
+
+### 2026-05-14 - 修复 PR17 安全 review 问题
+
+- 读取 PR #17 reviewer 评论，确认两个问题：远程机器密码在缺少 `REMOTE_MACHINE_SECRET_KEY` 时会明文存储；Remote Runner 命令策略空配置时会默认 allow-all。
+- 修复 `RemoteMachineManager`：继续使用 `cryptography.fernet.Fernet`，但缺失或无效 key 时 password auth 远程机器保存/解密直接失败，不再明文 fallback。
+- 修复 `RemoteRunnerProvider`：`allowed_commands` 和 `allowed_command_prefixes` 均为空时拒绝执行命令。
+- 更新 `.env.example`、`docs/deployment.md`、`docs/architecture/remote-runner-session-tools.md`，记录 Fernet key 生成方式和命令策略 deny-all 语义。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q` 通过 22 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 状态：`pr17-security-review-fixes` 标记为 `passing`，计划归档。
 
 ### 2026-05-11 - 记录 vNext 集成路线
 
@@ -215,3 +263,36 @@
 - 修复生成脚本：`scripts/generate_manual_enhance_profiles.py` 改为通过 `--runs-root`、`SEEDRUNNER_RUNS_ROOT` 或 sibling `../SEEDRunner/runs` 定位外部语料；manifest 中记录相对路径和环境变量提示。
 - 修复文档/配置：`.env.example` 使用 `/path/to/your/...` placeholder；`docs/manual-enhance/README.md` 的复现命令改为 placeholder；`corpus-manifest.json` 不再包含本机绝对路径。
 - 验证：`rg -n "/Users/ely|/home/ely|/root/miniconda3|ORIGINAL_SEEDRUNNER|external_source_path" src scripts tests .env.example docs/manual-enhance -S` 无命中；`python3 -m compileall scripts/generate_manual_enhance_profiles.py src tests` 通过；focused pytest 13 passed；前端 test/build 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+
+### 2026-05-13 - 实现 session-bound Remote Runner 工具主链路
+
+- 新增 per-user 实验机配置、session remote binding 和 remote command audit 三类持久模型；Settings API/UI 支持新增、编辑、测试、删除实验机，创建会话时可选择用户自己的实验机。
+- Tutor remote skill 改为 session-bound：有绑定机器的会话才注入 `observe_remote_environment`，工具固定使用该绑定的 Remote Runner machine/session，并把每次命令或错误写入审计。
+- 新增会话文件缓存和 LabSetup 链路：用户可以在聊天会话中上传文件，后端可把缓存文件转存到绑定实验机；删除会话时清理会话缓存。
+- 新增后端调试 API：`GET/POST /api/sessions/{session_id}/files`、`POST /api/sessions/{session_id}/files/{filename}/remote-put`、`POST /api/sessions/{session_id}/remote-command`，与 Tutor 使用同一套 binding、policy 和 audit 逻辑。
+- 修复部署可用性：增加 `REMOTE_RUNNER_PYTHON_EXECUTABLE`，便于 Socratic 与 Remote Runner 分别由不同 conda 环境维护；官方部署文档同步 Remote Runner、session file cache 和 debug API。
+- 真实 `seed-lab` API smoke 通过：`demo` 用户创建 Sniffing/Spoofing remote-bound session `92ccedf3-c448-44e6-8537-1f62e58719c2`，绑定 Remote Runner session `sess_20260513_121525_193889_2c50ecbe`；上传本地 SEEDRunner `Sniffing_Spoofing/Labsetup/docker-compose.yml` 到会话缓存，转存到远程 LabSetup 目录，运行 `mkdir -p .../volumes`、`docker-compose up -d`、`docker-compose ps`、`docker ps ...`、`docker exec seed-attacker ip addr` 均返回 exit 0；审计记录 6 条。
+- Tutor-bound skill 也通过真实调用验证：直接从该 Socratic session 加载 `get_remote_environment_skill(session=...)`，调用 `run_command` 执行 `docker ps --format '{{.Names}}'` 成功返回 seed-lab 容器输出并追加审计；验证后已 destroy 相关 Remote Runner probe/session，日志保留在本地 Remote Runner log 目录但不提交。
+- 验证：`./init.sh` 通过；`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_session_file_manager.py tests/test_session_progress.py tests/test_skill_names.py -q` 通过 18 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`remote-runner machine doctor seed-lab --json` 返回 reachable/auth/default_cwd 全 true；`git diff --check` 通过。
+- 剩余限制：本地仓库没有真实 LLM/embedding API key，完整“学生弱理解路径 + Tutor 多轮自然语言完成全部课程节点”的真实 LLM 会话尚未在本分支本地跑完；已有 linux-01 旧基线验证过完整 Sniffing/Spoofing 对话，但它尚未包含本分支新增的 remote-bound tool。
+
+### 2026-05-13 - 完成 linux-01 session-bound Remote Runner 全实验验收
+
+- 将本分支部署到 linux-01 的 `/home/ely/deploy/socratic-live/socratic-agent-generator`，Remote Runner 以 `/home/ely/deploy/socratic-live/SEEDRunner` 安装到 `SocraticAgent` conda 环境；后端和前端分别运行在 tmux `socratic-backend`、`socratic-frontend`。
+- 通过后端 API 为 `demo` 学生配置 `seed-lab` 机器，绑定 linux-01 可访问的 `ssh -p 2222 seed@localhost` 实验机；连接测试返回 ready。
+- 完成最终真实会话：Socratic session `42f4f635-4ab3-41a0-911a-233cf4cebe0d`，Remote Runner session `sess_20260513_144634_689262_63b90a86`，profile 为 Sniffing/Spoofing。
+- LabSetup 由系统包办：通过 session file API 上传 `docker-compose.yml`，remote-put 到 `/home/seed/socratic-labs/<session>/Sniffing_Spoofing/Labsetup/docker-compose.yml`，创建 `volumes/`，运行 `docker-compose up -d`、`docker-compose ps` 和 `docker ps` 成功。
+- Tutor 在完整自然语言会话中使用 session-bound `observe_remote_environment`，完成 9/9 个课程节点，最终 state 为 `stepIndex=9,totalSteps=9,isFinished=true`，history_len=27，remote audit 16 条。
+- 导出脱敏 example：`docs/examples/live-demo-sessions/remote-runner-sniffing-spoofing-final.json`；不包含 token、私钥、密码或数据库。
+- 修复验收暴露的问题：linux-01 当前 LangChain classic 不支持 `early_stopping_method=generate`，改为 `force`；`REMOTE_TOOL_AGENT_IDLE_TIMEOUT` 默认降到 15 秒，避免学生因工具调用等待过久；`LANGCHAIN_MAX_ITERATIONS` 默认设为 4，避免一次 Tutor 轮次无限工具循环。
+- 记录上游接口缺口：Remote Runner 当前只有同步 `session exec --timeout`，不适合 packet capture、server、长 build 等持久命令；已在 SEEDRunner 提 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/3`，建议提供 `run_and_wait`、`run_background`、`get_command_result` 三段式接口。
+- 验证：`python3 -m compileall src` 通过；`./scripts/harness-check.sh` 通过 0 warning；远端后端 `/api/health` 返回 OK；最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
+
+### 2026-05-13 - 调整会话页顶栏实验机与文件入口
+
+- 用户反馈会话页底部的常驻文件面板太碍眼，期望把实验机选择放进会话信息顶栏，并把文件上传收纳为旁边的小入口。
+- 实现：会话头部新增实验机切换按钮与会话文件按钮，文件面板改为顶栏弹出式，输入栏上方不再常驻显示。
+- 后端补充 `PUT /api/sessions/{session_id}/remote-binding`，支持会话创建后切换或解绑实验机；切换时重建 Remote Runner session，并保持 tutor 侧绑定一致。
+- 文档同步：`docs/deployment.md` 与 `docs/architecture/remote-runner-session-tools.md` 补充会话后切换/解绑实验机和顶栏文件入口的约定。
+- 验证：`./scripts/harness-check.sh` 通过 0 warning；`python3 -m compileall src` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`git diff --check` 通过。
+- 补充：`SessionManager` 的 session summary 现在也携带 `default_cwd`，让顶栏弹出式文件面板能继承实验机默认工作目录；上述验证已在最新改动后重跑并通过。

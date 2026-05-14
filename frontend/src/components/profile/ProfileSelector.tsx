@@ -16,19 +16,24 @@ import {
   Button,
   TextField,
   Typography,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
 } from "@mui/material";
 import { School } from "@mui/icons-material";
 import { CircularProgress } from "../common/CircularProgress";
 import { ProfileCard } from "./ProfileCard";
-import { Profile } from "../../types";
+import { Profile, RemoteMachineSummary } from "../../types";
 
 /**
  * Props for ProfileSelector component.
  */
 export interface ProfileSelectorProps {
   readonly profiles: readonly Profile[];
+  readonly remoteMachines?: readonly RemoteMachineSummary[];
   readonly isLoading: boolean;
-  readonly onSelect: (profile: Profile) => void;
+  readonly onSelect: (profile: Profile, remoteMachineId?: string) => void;
   readonly onClose: () => void;
   readonly onOpen?: () => void | Promise<void>;
 }
@@ -40,9 +45,10 @@ export interface ProfileSelectorProps {
  * @returns React component
  */
 export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
-  const { profiles, isLoading, onSelect, onClose, onOpen } = props;
+  const { profiles, remoteMachines = [], isLoading, onSelect, onClose, onOpen } = props;
   const { t } = useTranslation();
   const [searchText, setSearchText] = useState<string>("");
+  const [remoteMachineId, setRemoteMachineId] = useState<string>("");
 
   // Refresh profiles when dialog opens
   useEffect(() => {
@@ -74,13 +80,36 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
       <DialogTitle>{t("profile.selector.title")}</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ mb: 2 }}>
-          <TextField
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            placeholder={t("profile.selector.searchPlaceholder")}
-            size='small'
-            fullWidth
-          />
+          <Grid container spacing={2}>
+            <Grid item xs={12} md={7}>
+              <TextField
+                value={searchText}
+                onChange={(event) => setSearchText(event.target.value)}
+                placeholder={t("profile.selector.searchPlaceholder")}
+                size='small'
+                fullWidth
+              />
+            </Grid>
+            <Grid item xs={12} md={5}>
+              <FormControl fullWidth size='small'>
+                <InputLabel>{t("profile.selector.remoteMachine")}</InputLabel>
+                <Select
+                  label={t("profile.selector.remoteMachine")}
+                  value={remoteMachineId}
+                  onChange={(event) => setRemoteMachineId(String(event.target.value))}
+                >
+                  <MenuItem value=''>
+                    {t("profile.selector.noRemoteMachine")}
+                  </MenuItem>
+                  {remoteMachines.map((machine) => (
+                    <MenuItem key={machine.machine_id} value={machine.machine_id}>
+                      {machine.display_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+          </Grid>
         </Box>
         {filteredProfiles.length > 0 ? (
           <Grid container spacing={2}>
@@ -89,7 +118,7 @@ export function ProfileSelector(props: ProfileSelectorProps): JSX.Element {
                 <Box sx={{ position: "relative" }}>
                   <ProfileCard
                     profile={profile}
-                    onClick={() => onSelect(profile)}
+                    onClick={() => onSelect(profile, remoteMachineId || undefined)}
                     actionDisabled={isLoading}
                   />
                   {isLoading && (
