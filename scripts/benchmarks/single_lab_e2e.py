@@ -19,6 +19,11 @@ from typing import Any, Iterable, Optional, Sequence
 
 import httpx
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - dependency is in requirements.txt
+    load_dotenv = None  # type: ignore[assignment]
+
 
 DEFAULT_TURNS = [
     "I am ready to start. Please guide me through the lab step by step, and use the bound lab machine when checking the environment would help.",
@@ -29,6 +34,7 @@ DEFAULT_TURNS = [
     "Let's continue. If a command would clarify the state, please run it and explain the result.",
     "I want to finish the remaining tasks. Please check any final environment evidence and summarize what I should understand.",
 ]
+DEFAULT_DOTENV = ".env"
 
 
 class BenchmarkFailure(RuntimeError):
@@ -506,14 +512,24 @@ def _excerpt(text: str, limit: int = 600) -> str:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dotenv", default=os.getenv("SOCRATIC_BENCHMARK_DOTENV", DEFAULT_DOTENV))
     parser.add_argument("--base-url", default=os.getenv("SOCRATIC_BENCHMARK_BASE_URL", "http://localhost:8000"))
-    parser.add_argument("--username", default=os.getenv("SOCRATIC_BENCHMARK_USERNAME", "demo"))
+    parser.add_argument("--username", default=os.getenv("SOCRATIC_BENCHMARK_USERNAME", "admin"))
     parser.add_argument("--password", default=os.getenv("SOCRATIC_BENCHMARK_PASSWORD"))
     parser.add_argument("--profile-query", default=os.getenv("SOCRATIC_BENCHMARK_PROFILE", "Sniffing_Spoofing"))
     parser.add_argument("--session-name", default=os.getenv("SOCRATIC_BENCHMARK_SESSION_NAME", "benchmark-sniffing-spoofing"))
     parser.add_argument("--output-language", default=os.getenv("SOCRATIC_BENCHMARK_OUTPUT_LANGUAGE", "English"))
     parser.add_argument("--remote-machine", default=os.getenv("SOCRATIC_BENCHMARK_REMOTE_MACHINE"))
-    parser.add_argument("--ensure-existing-remote-machine", action="store_true")
+    parser.add_argument(
+        "--ensure-existing-remote-machine",
+        action="store_true",
+        default=_env_bool(os.getenv("SOCRATIC_BENCHMARK_ENSURE_EXISTING_REMOTE_MACHINE"), False),
+    )
+    parser.add_argument(
+        "--allow-no-remote-machine",
+        action="store_true",
+        default=_env_bool(os.getenv("SOCRATIC_BENCHMARK_ALLOW_NO_REMOTE_MACHINE"), False),
+    )
     parser.add_argument("--labsetup-file", type=Path, default=_optional_path(os.getenv("SOCRATIC_BENCHMARK_LABSETUP_FILE")))
     parser.add_argument("--remote-labsetup-path", default=os.getenv("SOCRATIC_BENCHMARK_REMOTE_LABSETUP_PATH"))
     parser.add_argument("--remote-smoke-command", default=os.getenv("SOCRATIC_BENCHMARK_REMOTE_SMOKE_COMMAND", "pwd"))
@@ -522,15 +538,26 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--turns-file", type=Path, default=_optional_path(os.getenv("SOCRATIC_BENCHMARK_TURNS_FILE")))
     parser.add_argument("--stream-timeout", type=float, default=float(os.getenv("SOCRATIC_BENCHMARK_STREAM_TIMEOUT", "180")))
     parser.add_argument("--request-timeout", type=float, default=float(os.getenv("SOCRATIC_BENCHMARK_REQUEST_TIMEOUT", "60")))
-    parser.add_argument("--allow-unfinished", action="store_true")
+    parser.add_argument(
+        "--allow-unfinished",
+        action="store_true",
+        default=_env_bool(os.getenv("SOCRATIC_BENCHMARK_ALLOW_UNFINISHED"), False),
+    )
     parser.add_argument("--min-remote-audits", type=int, default=_optional_int(os.getenv("SOCRATIC_BENCHMARK_MIN_REMOTE_AUDITS")))
     parser.add_argument("--require-reply-contains", action="append", default=[])
     return parser
 
 
 def config_from_args(args: argparse.Namespace) -> BenchmarkConfig:
+    if not args.username:
+        raise SystemExit("Missing username: set SOCRATIC_BENCHMARK_USERNAME or pass --username.")
     if not args.password:
         raise SystemExit("Missing password: set SOCRATIC_BENCHMARK_PASSWORD or pass --password.")
+    if not args.remote_machine and not args.allow_no_remote_machine:
+        raise SystemExit(
+            "Missing remote machine: set SOCRATIC_BENCHMARK_REMOTE_MACHINE, "
+            "pass --remote-machine, or pass --allow-no-remote-machine for a non-remote smoke."
+        )
     return BenchmarkConfig(
         base_url=args.base_url,
         username=args.username,
@@ -562,7 +589,35 @@ def _optional_int(value: Optional[str]) -> Optional[int]:
     return int(value) if value else None
 
 
+def _env_bool(value: Optional[str], default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _extract_dotenv_path(argv: Optional[Sequence[str]]) -> Optional[Path]:
+    values = list(argv or [])
+    for index, value in enumerate(values):
+        if value == "--dotenv" and index + 1 < len(values):
+            return Path(values[index + 1]).expanduser()
+        if value.startswith("--dotenv="):
+            return Path(value.split("=", 1)[1]).expanduser()
+    env_value = os.getenv("SOCRATIC_BENCHMARK_DOTENV")
+    if env_value:
+        return Path(env_value).expanduser()
+    return Path(DEFAULT_DOTENV)
+
+
+def load_benchmark_dotenv(argv: Optional[Sequence[str]] = None) -> Optional[Path]:
+    dotenv_path = _extract_dotenv_path(argv)
+    if not dotenv_path or not dotenv_path.exists() or load_dotenv is None:
+        return dotenv_path
+    load_dotenv(dotenv_path, override=False)
+    return dotenv_path
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
+    load_benchmark_dotenv(argv)
     parser = build_arg_parser()
     args = parser.parse_args(argv)
     config = config_from_args(args)

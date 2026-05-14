@@ -23,6 +23,7 @@
 - linux-01 已同步当前 `dev` commit `0af3a48`，包含 Remote Runner session tools、Shell/Evidence 面板、单实验 E2E benchmark、Profile Management 文档身份 UX 和 Profile 生成质量评估第一版。
 - linux-01 服务运行在 tmux `socratic-backend`、`socratic-frontend`；后端 `http://10.203.15.128:8000/api/health` 返回 OK，前端 `http://10.203.15.128:5173` 返回 HTTP 200。
 - 本次部署保留旧 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`，备份目录为 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514050023`。
+- live `single_lab_e2e.py` benchmark 已改为 `.env` 驱动：默认加载 `.env`，默认测试用户为 `admin`，默认要求 `SOCRATIC_BENCHMARK_REMOTE_MACHINE`；当前推荐机器名为 `SEED Lab on linux-01`。
 
 ## 验证记录
 
@@ -35,6 +36,7 @@
 - `./scripts/harness-check.sh` 通过 0 warning。
 - 2026-05-14 profile generation eval：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_profile_generation_eval.py -q` 通过 3 passed；`python3 -m compileall scripts tests` 通过；`python3 scripts/benchmarks/profile_generation_eval.py --json` 返回 score 0.7343/status warn/lab_count 6。
 - 2026-05-14 linux-01 deploy：Remote Runner `linux-01` doctor reachable/auth/default_cwd 全 true；远端 `python3 scripts/benchmarks/profile_generation_eval.py` 返回 score 0.7343/status warn/labs 6；重启后本地与远端 curl 均验证后端 OK、前端 200。
+- 2026-05-14 benchmark env update：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 7 passed；`python3 -m compileall scripts/benchmarks/single_lab_e2e.py tests/test_single_lab_e2e_benchmark.py` 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
@@ -53,12 +55,12 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前仅有一条部署记录更新待提交：`harness/progress.md` 与本交接。
+- 当前仅有 benchmark `.env` 配置约定更新待提交：`.env.example`、`docs/benchmarks/single-lab-e2e.md`、`scripts/benchmarks/single_lab_e2e.py`、`tests/test_single_lab_e2e_benchmark.py`、harness 记录。
 
 ## 下一步最佳动作
 
-1. 提交并推送本次部署记录到 `dev`。
-2. 若用户要求更强验收，可提供 `SOCRATIC_BENCHMARK_PASSWORD` 后运行 live `single_lab_e2e.py`。
+1. 提交并推送 benchmark `.env` 配置更新到 `dev`。
+2. 若用户提供或在 `.env` 中配置 `SOCRATIC_BENCHMARK_PASSWORD`，可运行 live `single_lab_e2e.py`。
 3. 后续进入 generator 本体改造前，先用 `profile_generation_eval.py` 记录基线对比。
 
 ## 命令

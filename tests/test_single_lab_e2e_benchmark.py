@@ -11,7 +11,10 @@ if str(ROOT) not in sys.path:
 from scripts.benchmarks.single_lab_e2e import (  # noqa: E402
     BenchmarkConfig,
     SingleLabE2EBenchmark,
+    build_arg_parser,
+    config_from_args,
     load_turns,
+    load_benchmark_dotenv,
     parse_sse_line,
 )
 
@@ -224,3 +227,54 @@ def test_load_turns_accepts_list_or_object(tmp_path):
 
     assert load_turns(list_path) == ["a", "b"]
     assert load_turns(object_path) == ["c"]
+
+
+def test_benchmark_loads_dotenv_before_building_defaults(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    for name in [
+        "SOCRATIC_BENCHMARK_USERNAME",
+        "SOCRATIC_BENCHMARK_PASSWORD",
+        "SOCRATIC_BENCHMARK_REMOTE_MACHINE",
+    ]:
+        monkeypatch.delenv(name, raising=False)
+    (tmp_path / ".env").write_text(
+        "\n".join(
+            [
+                "SOCRATIC_BENCHMARK_USERNAME=admin",
+                "SOCRATIC_BENCHMARK_PASSWORD=secret",
+                "SOCRATIC_BENCHMARK_REMOTE_MACHINE=SEED Lab on linux-01",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    load_benchmark_dotenv([])
+    args = build_arg_parser().parse_args([])
+
+    assert args.username == "admin"
+    assert args.password == "secret"
+    assert args.remote_machine == "SEED Lab on linux-01"
+
+
+def test_config_requires_remote_machine_unless_explicitly_disabled(monkeypatch):
+    for name in [
+        "SOCRATIC_BENCHMARK_USERNAME",
+        "SOCRATIC_BENCHMARK_PASSWORD",
+        "SOCRATIC_BENCHMARK_REMOTE_MACHINE",
+    ]:
+        monkeypatch.delenv(name, raising=False)
+    args = build_arg_parser().parse_args(["--password", "secret"])
+
+    try:
+        config_from_args(args)
+    except SystemExit as exc:
+        assert "Missing remote machine" in str(exc)
+    else:
+        raise AssertionError("config_from_args should require a remote machine")
+
+    args = build_arg_parser().parse_args(
+        ["--password", "secret", "--allow-no-remote-machine"]
+    )
+    config = config_from_args(args)
+    assert config.username == "admin"
+    assert config.remote_machine_query is None

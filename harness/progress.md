@@ -347,3 +347,11 @@
 - 远端运行 `python3 scripts/benchmarks/profile_generation_eval.py` 通过，输出 `score=0.7343 status=warn labs=6 pass=2 warn=4 fail=0`。
 - 已重启 tmux `socratic-backend` 和 `socratic-frontend`；后端日志显示 `EMBEDDING_PROVIDER=volcengine` 并跳过 HuggingFace 下载。
 - 可访问性验证：本地访问 `http://10.203.15.128:8000/api/health` 返回 `{\"status\":\"ok\"}`，`http://10.203.15.128:5173` 返回 HTTP 200；linux-01 本机 curl 同样返回后端 OK、前端 200。
+
+### 2026-05-14 - 固化 live benchmark 的 `.env` 配置约定
+
+- 用户明确 benchmark 使用者应在 `.env` 中提供测试用户和实验机器；当前演示场景使用 admin 用户，以及 admin Settings 中已有的 `SEED Lab on linux-01` 实验机配置。
+- `scripts/benchmarks/single_lab_e2e.py` 现在会在构建参数默认值前加载 `.env`，也支持 `--dotenv` 或 `SOCRATIC_BENCHMARK_DOTENV` 指定其他配置文件。
+- live benchmark 默认用户名改为 `admin`，默认要求提供 `SOCRATIC_BENCHMARK_REMOTE_MACHINE`；只有显式 `--allow-no-remote-machine` / `SOCRATIC_BENCHMARK_ALLOW_NO_REMOTE_MACHINE=true` 才允许非远程弱 smoke。
+- `.env.example` 和 `docs/benchmarks/single-lab-e2e.md` 已补充 linux-01 当前推荐配置：`SOCRATIC_BENCHMARK_BASE_URL=http://10.203.15.128:8000`、`SOCRATIC_BENCHMARK_USERNAME=admin`、`SOCRATIC_BENCHMARK_REMOTE_MACHINE=\"SEED Lab on linux-01\"` 等。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 7 passed；`python3 -m compileall scripts/benchmarks/single_lab_e2e.py tests/test_single_lab_e2e_benchmark.py` 通过；`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。

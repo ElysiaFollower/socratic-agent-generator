@@ -17,23 +17,41 @@ The script is designed to catch large regressions without manual clicking:
 - remote command audit check
 - step completion check
 
-It does not store credentials in the repository. Provide live credentials through
-environment variables or command line arguments.
+It does not store credentials in the repository. Provide live credentials and
+the target lab machine through `.env`, environment variables, or command line
+arguments. A remote machine is required by default; pass
+`--allow-no-remote-machine` only for a deliberately weaker non-remote smoke.
+
+## `.env` Configuration
+
+For the current linux-01 deployment, use the admin test account and the existing
+Socratic remote-machine setting for the SEED lab host:
+
+```dotenv
+SOCRATIC_BENCHMARK_BASE_URL=http://10.203.15.128:8000
+SOCRATIC_BENCHMARK_USERNAME=admin
+SOCRATIC_BENCHMARK_PASSWORD=...
+SOCRATIC_BENCHMARK_PROFILE=Sniffing_Spoofing
+SOCRATIC_BENCHMARK_REMOTE_MACHINE=SEED Lab on linux-01
+SOCRATIC_BENCHMARK_ENSURE_EXISTING_REMOTE_MACHINE=true
+SOCRATIC_BENCHMARK_BACKGROUND_SMOKE_COMMAND=pwd
+SOCRATIC_BENCHMARK_MIN_REMOTE_AUDITS=1
+```
+
+If the machine display name differs in the admin Settings page, set
+`SOCRATIC_BENCHMARK_REMOTE_MACHINE` to any unique substring of its display name,
+runner machine name, or machine id.
 
 ## Command
 
 ```sh
-SOCRATIC_BENCHMARK_PASSWORD="..." \
 PYTHONPATH=src _local/socratic-smoke-venv/bin/python scripts/benchmarks/single_lab_e2e.py \
-  --base-url http://10.203.15.128:8000 \
-  --username demo \
-  --profile-query Sniffing_Spoofing \
-  --remote-machine seed-lab \
-  --ensure-existing-remote-machine \
-  --background-smoke-command pwd \
   --labsetup-file /Users/ely/workspace/research/agent/SEEDRunner/runs/Sniffing_Spoofing/Labsetup/docker-compose.yml \
   --remote-labsetup-path /home/seed/socratic-benchmark/Sniffing_Spoofing/Labsetup/docker-compose.yml
 ```
+
+Use `--dotenv /path/to/.env` or `SOCRATIC_BENCHMARK_DOTENV=/path/to/.env` when
+the benchmark configuration is not in the repository root `.env`.
 
 The command prints a JSON result. Success is `ok: true`; failure is `ok: false`
 with a stage such as `login`, `profile`, `session`, `remote_setup`,
@@ -42,10 +60,13 @@ with a stage such as `login`, `profile`, `session`, `remote_setup`,
 ## Environment Variables
 
 - `SOCRATIC_BENCHMARK_BASE_URL`
+- `SOCRATIC_BENCHMARK_DOTENV`
 - `SOCRATIC_BENCHMARK_USERNAME`
 - `SOCRATIC_BENCHMARK_PASSWORD`
 - `SOCRATIC_BENCHMARK_PROFILE`
 - `SOCRATIC_BENCHMARK_REMOTE_MACHINE`
+- `SOCRATIC_BENCHMARK_ENSURE_EXISTING_REMOTE_MACHINE`
+- `SOCRATIC_BENCHMARK_ALLOW_NO_REMOTE_MACHINE`
 - `SOCRATIC_BENCHMARK_LABSETUP_FILE`
 - `SOCRATIC_BENCHMARK_REMOTE_LABSETUP_PATH`
 - `SOCRATIC_BENCHMARK_BACKGROUND_SMOKE_COMMAND`
