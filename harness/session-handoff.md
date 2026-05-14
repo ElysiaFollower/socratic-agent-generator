@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`remote-runner-session-tools`
-- 当前功能项：无 active；`pr17-security-review-fixes` 状态 `passing`。
-- Active plan：无；PR17 安全修复计划已归档到 `plans/archive/20260514-pr17-security-review-fixes.md`。
+- 分支：`vnext-single-lab-e2e-benchmark`
+- 当前功能项：无 active；`vnext-single-lab-e2e-benchmark` 状态 `passing`。
+- Active plan：无；单实验 benchmark 计划已归档到 `plans/archive/20260514-single-lab-e2e-benchmark.md`。
 - 目标分支：`dev`。
-- 当前 PR：#17 `feat(remote): integrate session-bound lab tools`，目标 `dev`。
+- 当前 PR：无；PR #17 已合并到 `dev`。
 
 ## 当前已验证状态
 
@@ -24,6 +24,9 @@
 - vNext 目标已记录：Shell/Evidence 面板、单实验端到端 benchmark、profile 生成质量评估体系、Profile Management 文档身份与元信息 UX。
 - Profile Management 文档身份问题已创建 GitHub issue：`https://github.com/ElysiaFollower/socratic-agent-generator/issues/18`。
 - PR #17 reviewer 标出的 security-critical/high 问题已修复：远程机器 password auth 缺少有效 Fernet key 时拒绝保存/使用密码；Remote Runner command allowlist 空配置时拒绝执行命令。
+- 已完成 vNext 单实验 E2E benchmark：`scripts/benchmarks/single_lab_e2e.py` 和 `docs/benchmarks/single-lab-e2e.md`。
+- 已清理完成分支：本地/远端仅保留 `main`、`dev`，当前工作分支为 `vnext-single-lab-e2e-benchmark`。
+- DreamingRAG `dev` 与 SEEDRunner `dev/remote-runner-background-commands` 均已 `git pull --ff-only`，结果 up to date。
 
 ## 真实验收
 
@@ -48,6 +51,7 @@
 - `cd frontend && npm run build` 通过。
 - `git diff --check` 通过。
 - 2026-05-14 PR17 security fix：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py -q` 通过 22 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py tests/test_skill_names.py -q` 通过 24 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 2026-05-14 single-lab benchmark：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_single_lab_e2e_benchmark.py -q` 通过 5 passed；`python3 -m compileall scripts tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 - 早期完整本地验证通过：focused pytest 18 passed、`python3 -m compileall src tests`、frontend test/build、`git diff --check`。
 - 远端最终验证脚本返回 `VALIDATION_OK 42f4f635-4ab3-41a0-911a-233cf4cebe0d`。
 - linux-01 后端 `/api/health` 返回 OK，前端 HTTP 200。
@@ -61,7 +65,7 @@
 
 - 无阻塞当前任务的问题。
 - 浏览器插件连接本地页面三次超时的旧问题仍未复核；本任务预计不触碰前端 UI。
-- vNext 目标只是规划记录，尚未进入实现。
+- vNext 单实验 benchmark 已完成第一版；live linux-01 run 需要通过环境变量提供 `SOCRATIC_BENCHMARK_PASSWORD`，未写入仓库。
 
 ## 设计结论
 
@@ -70,18 +74,19 @@
 - Socratic 侧应明确区分：短命令 `run_and_wait`、长命令 `run_background`、已有命令 `wait/result/list/stop`。不应让学生为了后台任务等待很长的同步工具调用。
 - 远程机器密码存储必须使用 `cryptography.fernet.Fernet`；没有有效 `REMOTE_MACHINE_SECRET_KEY` 时不能保存或使用 password auth 凭据。
 - Remote Runner 命令策略 fail-closed；exact command 和 prefix allowlist 均为空时不执行命令。
+- 单实验 benchmark 只通过后端 API 运行，不依赖前端；RAG 目前没有一等 audit API，因此第一版直接验证会话完成度、远程审计和 step completion，RAG 检索只能作为间接信号。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 - linux-01 上为了演示保留最终 demo session 和运行服务。
-- 本地当前有 PR17 安全修复待提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
+- 本地当前有 single-lab benchmark 更新待提交；未提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
 
 ## 下一步最佳动作
 
-1. 提交并推送 PR17 安全修复到 PR #17。
-2. 回复 reviewer 两个 security 评论，说明已 fail-closed 并补测试。
-3. 等待 review/merge；后续从 `vnext-shell-evidence-panel` 或 `vnext-single-lab-e2e-benchmark` 中择一开新分支和 active plan。
+1. 提交并推送 `vnext-single-lab-e2e-benchmark`。
+2. 创建 PR 到 `dev`。
+3. 后续可在有 benchmark password 的环境中运行 live linux-01 benchmark，或开启 Shell/Evidence 面板任务。
 
 ## 命令
 
