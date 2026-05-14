@@ -501,6 +501,23 @@ export function ProfileGeneratorAdvanced(
   };
   const activeStepIndex = stepIndexMap[currentStep];
   const rootSx = variant === "dialog" ? { p: 3 } : {};
+  const selectedLabInfo =
+    selectedLab !== null
+      ? labManuals.find((lab) => lab.lab_name === selectedLab) ?? null
+      : null;
+
+  const getLabTitle = (lab: LabManualInfo): string =>
+    lab.display_name || lab.lab_name;
+
+  const formatFileSize = (sizeBytes?: number | null): string => {
+    if (!sizeBytes) {
+      return t("profile.unknownSize");
+    }
+    if (sizeBytes < 1024 * 1024) {
+      return `${(sizeBytes / 1024).toFixed(1)} KB`;
+    }
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
 
   const renderStatusIndicator = (
     status: "idle" | "generating" | "generated" | "error",
@@ -524,6 +541,64 @@ export function ProfileGeneratorAdvanced(
       color={isReady ? "success" : "default"}
       variant={isReady ? "filled" : "outlined"}
     />
+  );
+
+  const renderLabIdentity = (lab: LabManualInfo) => (
+    <Stack spacing={1.25}>
+      <Stack direction='row' spacing={1} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+        <Chip
+          size='small'
+          label={
+            lab.is_builtin
+              ? t("profile.builtinDocument")
+              : t("profile.uploadedDocument")
+          }
+          variant='outlined'
+        />
+        {lab.filename && (
+          <Chip size='small' label={lab.filename} variant='outlined' />
+        )}
+        <Chip
+          size='small'
+          label={formatFileSize(lab.size_bytes)}
+          variant='outlined'
+        />
+        {(lab.referenced_profile_count ?? 0) > 0 && (
+          <Chip
+            size='small'
+            label={t("profile.referencedProfileCount", {
+              count: lab.referenced_profile_count,
+            })}
+            variant='outlined'
+          />
+        )}
+      </Stack>
+      <Typography variant='caption' color='text.secondary'>
+        {t("profile.documentIdentity", {
+          labName: lab.lab_name,
+          owner: lab.owner_id || t("profile.unknownOwner"),
+        })}
+      </Typography>
+      {lab.source_path && (
+        <Typography variant='caption' color='text.secondary' noWrap>
+          {t("profile.sourcePath", { path: lab.source_path })}
+        </Typography>
+      )}
+      {lab.excerpt && (
+        <Typography
+          variant='body2'
+          color='text.secondary'
+          sx={{
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 3,
+            overflow: "hidden",
+          }}
+        >
+          {lab.excerpt}
+        </Typography>
+      )}
+    </Stack>
   );
 
   return (
@@ -575,7 +650,7 @@ export function ProfileGeneratorAdvanced(
             <Stack spacing={1.5}>
               {labManuals.map((lab) => (
                 <Paper
-                  key={lab.lab_name}
+                  key={lab.document_id}
                   variant='outlined'
                   sx={{
                     borderRadius: 2,
@@ -594,10 +669,15 @@ export function ProfileGeneratorAdvanced(
                       borderRadius: 2,
                     }}
                   >
-                    <Box sx={{ minWidth: 0 }}>
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography variant='subtitle1' sx={{ fontWeight: 600 }}>
-                        {lab.lab_name}
+                        {getLabTitle(lab)}
                       </Typography>
+                      {lab.display_name !== lab.lab_name && (
+                        <Typography variant='caption' color='text.secondary'>
+                          {lab.lab_name}
+                        </Typography>
+                      )}
                       <Stack
                         direction='row'
                         spacing={1}
@@ -616,6 +696,7 @@ export function ProfileGeneratorAdvanced(
                           lab.has_curriculum,
                         )}
                       </Stack>
+                      <Box sx={{ mt: 1.25 }}>{renderLabIdentity(lab)}</Box>
                     </Box>
                     <ChevronRight fontSize='small' color='action' />
                   </ButtonBase>
@@ -635,7 +716,11 @@ export function ProfileGeneratorAdvanced(
             justifyContent='space-between'
           >
             <Typography variant='h6'>
-              {t("profile.generateTitle", { labName: selectedLab })}
+              {t("profile.generateTitle", {
+                labName: selectedLabInfo
+                  ? getLabTitle(selectedLabInfo)
+                  : selectedLab,
+              })}
             </Typography>
             <Button
               onClick={() => {
@@ -651,6 +736,17 @@ export function ProfileGeneratorAdvanced(
               {t("profile.backToSelect")}
             </Button>
           </Stack>
+
+          {selectedLabInfo && (
+            <Paper variant='outlined' sx={{ p: 2 }}>
+              <Stack spacing={1}>
+                <Typography variant='subtitle2' sx={{ fontWeight: 600 }}>
+                  {t("profile.selectedDocument")}
+                </Typography>
+                {renderLabIdentity(selectedLabInfo)}
+              </Stack>
+            </Paper>
+          )}
 
           <Stack
             direction={{ xs: "column", md: "row" }}
@@ -1051,7 +1147,11 @@ export function ProfileGeneratorAdvanced(
             justifyContent='space-between'
           >
             <Typography variant='h6'>
-              {t("profile.finalizeTitle", { labName: selectedLab })}
+              {t("profile.finalizeTitle", {
+                labName: selectedLabInfo
+                  ? getLabTitle(selectedLabInfo)
+                  : selectedLab,
+              })}
             </Typography>
             <Button
               onClick={() => setCurrentStep("generate")}
@@ -1100,8 +1200,13 @@ export function ProfileGeneratorAdvanced(
             </Typography>
             <Stack spacing={0.5}>
               <Typography variant='body2' color='text.secondary'>
-                {t("profile.labDocument", { labName: selectedLab })}
+                {t("profile.labDocument", {
+                  labName: selectedLabInfo
+                    ? getLabTitle(selectedLabInfo)
+                    : selectedLab,
+                })}
               </Typography>
+              {selectedLabInfo && renderLabIdentity(selectedLabInfo)}
               {persona && (
                 <>
                   <Typography variant='body2' color='text.secondary'>

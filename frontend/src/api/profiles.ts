@@ -166,9 +166,16 @@ export async function generateProfile(
  * Lab manual directory information.
  */
 export interface LabManualInfo {
+  readonly document_id: number;
   readonly lab_name: string;
+  readonly display_name: string;
   readonly owner_id?: string | null;
   readonly filename?: string | null;
+  readonly upload_time?: string | null;
+  readonly source_path?: string | null;
+  readonly index_path?: string | null;
+  readonly size_bytes?: number | null;
+  readonly excerpt?: string;
   readonly is_builtin?: boolean;
   readonly has_lab_manual: boolean;
   readonly has_persona: boolean;
@@ -203,9 +210,19 @@ export async function listLabManuals(): Promise<readonly LabManualInfo[]> {
  * Lab manual content response.
  */
 export interface LabManualContent {
+  readonly document_id?: number;
   readonly lab_name: string;
+  readonly display_name?: string;
+  readonly filename?: string | null;
+  readonly source_path?: string | null;
   readonly content: string;
   readonly size: number;
+  readonly referenced_profiles?: readonly {
+    readonly profile_id: string;
+    readonly profile_name?: string | null;
+    readonly lab_name?: string | null;
+    readonly owner_id?: string | null;
+  }[];
 }
 
 /**
@@ -231,6 +248,51 @@ export async function getLabManualContent(
 }
 
 /**
+ * Gets the content of a lab manual file by stable document ID.
+ */
+export async function getLabManualContentById(
+  documentId: number,
+): Promise<LabManualContent> {
+  try {
+    const response = await apiClient.get<LabManualContent>(
+      `/api/profiles/lab-manuals/by-id/${documentId}/content`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to get lab manual content: ${handleApiError(error)}`,
+    );
+  }
+}
+
+/**
+ * Request payload for updating a lab manual display name.
+ */
+export interface UpdateLabManualDisplayNameRequest {
+  readonly display_name: string;
+}
+
+/**
+ * Updates a lab manual display name without changing document identity.
+ */
+export async function updateLabManualDisplayName(
+  documentId: number,
+  request: UpdateLabManualDisplayNameRequest,
+): Promise<LabManualInfo> {
+  try {
+    const response = await apiClient.put<LabManualInfo>(
+      `/api/profiles/lab-manuals/by-id/${documentId}/display-name`,
+      request,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to update lab manual display name: ${handleApiError(error)}`,
+    );
+  }
+}
+
+/**
  * Deletes a lab manual directory and all its contents.
  *
  * @param labName - Name of the lab directory to delete
@@ -241,6 +303,7 @@ export interface DeleteLabManualResponse {
   readonly success: boolean;
   readonly message: string;
   readonly lab_name: string;
+  readonly document_id?: number;
   readonly affected_profiles: readonly {
     readonly profile_id: string;
     readonly profile_name?: string | null;
@@ -257,6 +320,19 @@ export async function deleteLabManual(
   try {
     const response = await apiClient.delete<DeleteLabManualResponse>(
       `/api/profiles/lab-manuals/${labName}`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to delete lab manual: ${handleApiError(error)}`);
+  }
+}
+
+export async function deleteLabManualById(
+  documentId: number,
+): Promise<DeleteLabManualResponse> {
+  try {
+    const response = await apiClient.delete<DeleteLabManualResponse>(
+      `/api/profiles/lab-manuals/by-id/${documentId}`,
     );
     return response.data;
   } catch (error) {

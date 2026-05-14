@@ -7,7 +7,12 @@ from sqlalchemy.orm import sessionmaker
 
 import models  # noqa: F401
 from api.routes.session import _is_builtin_public_profile
-from api.routes.profile import delete_lab_manual
+from api.routes.profile import (
+    UpdateLabManualDisplayNameRequest,
+    delete_lab_manual,
+    list_lab_manuals,
+    update_lab_manual_display_name,
+)
 from models.base import Base
 from models.document import Document
 from models.profile import ProfileModel
@@ -119,3 +124,59 @@ def test_deleting_builtin_document_unlinks_profiles_without_deleting_profile():
 
         profile = ProfileManager(db).read_profile(profile_model.profile_id)
         assert profile.document_status == "unlinked"
+
+
+def test_lab_manual_list_uses_linked_profile_metadata_for_readiness():
+    SessionLocal = make_session_factory()
+    seed_default_profiles(SessionLocal, source_dir=CALIBRATED_DIR)
+
+    with SessionLocal() as db:
+        manager = DocumentManager(db)
+        user = User(
+            user_id="admin",
+            username="admin",
+            password_hash="x",
+            role="admin",
+        )
+        manuals = list_lab_manuals(current_user=user, document_manager=manager)
+
+    assert len(manuals) == EXPECTED_DEFAULT_PROFILE_COUNT
+    assert all(manual["document_id"] for manual in manuals)
+    assert all(manual["display_name"] for manual in manuals)
+    assert all(manual["source_path"].startswith("docs/manual-enhance/") for manual in manuals)
+    assert all(manual["size_bytes"] > 0 for manual in manuals)
+    assert all(manual["has_lab_manual"] for manual in manuals)
+    assert all(manual["has_persona"] for manual in manuals)
+    assert all(manual["has_curriculum"] for manual in manuals)
+    assert all(manual["referenced_profile_count"] == 1 for manual in manuals)
+
+
+def test_lab_manual_display_name_update_does_not_change_identity_or_references():
+    SessionLocal = make_session_factory()
+    seed_default_profiles(SessionLocal, source_dir=CALIBRATED_DIR)
+
+    with SessionLocal() as db:
+        manager = DocumentManager(db)
+        doc = db.query(Document).filter(Document.doc_name == "Sniffing_Spoofing").one()
+        user = User(
+            user_id="admin",
+            username="admin",
+            password_hash="x",
+            role="admin",
+        )
+        response = update_lab_manual_display_name(
+            doc.id,
+            UpdateLabManualDisplayNameRequest(
+                display_name="Network Sniffing and Spoofing verified manual"
+            ),
+            current_user=user,
+            document_manager=manager,
+        )
+
+        assert response["document_id"] == doc.id
+        assert response["lab_name"] == "Sniffing_Spoofing"
+        assert response["display_name"] == "Network Sniffing and Spoofing verified manual"
+        assert response["referenced_profile_count"] == 1
+        stored = db.query(Document).filter(Document.id == doc.id).one()
+        assert stored.doc_name == "Sniffing_Spoofing"
+        assert (stored.meta_info or {})["display_name"] == response["display_name"]

@@ -317,3 +317,14 @@
 - 文档同步：`docs/deployment.md` 与 `docs/architecture/remote-runner-session-tools.md` 补充会话后切换/解绑实验机和顶栏文件入口的约定。
 - 验证：`./scripts/harness-check.sh` 通过 0 warning；`python3 -m compileall src` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`git diff --check` 通过。
 - 补充：`SessionManager` 的 session summary 现在也携带 `default_cwd`，让顶栏弹出式文件面板能继承实验机默认工作目录；上述验证已在最新改动后重跑并通过。
+
+### 2026-05-14 - 完成 Profile Management 文档身份与元信息 UX
+
+- 修复 lab manual readiness：列表不再只看同目录 `definition.json` / `curriculum.json`，也会读取引用该 document 的 profile 中是否已有 persona hints、target audience 和 curriculum，避免内置校准 profile 显示“有 curriculum、无 persona”的误导。
+- 后端 lab manual 列表增加稳定 `document_id`、`display_name`、filename、owner、相对 source/index path、size、preview excerpt 和引用 profile 列表；所有路径对外保持 repo-relative 或文件名，不暴露本机绝对路径。
+- 新增 display name 更新 API：只改 `Document.meta_info.display_name`，不改 `doc_name`、存储路径、索引路径或 profile 的 `document_id` 引用。
+- 新增按 `document_id` 查看/删除 lab manual 的 API，旧的按 `lab_name` API 保留兼容；前端管理页优先使用 ID，避免 admin 视角下同名文档误查看/误删。
+- Lab Manual Management 支持编辑显示名、搜索显示名/文件名/来源，并保留删除前显示引用 profile 的语义。
+- Generate Profile 文档选择列表增加只读身份卡、引用数、source path、文件大小和短 preview；完整查看、删除、重命名仍保留在 Lab Manuals 管理入口。
+- 计划已归档到 `plans/archive/20260514-profile-management-document-identity.md`，功能项 `vnext-profile-management-document-identity` 标记为 passing。
+- 验证：`./scripts/harness-check.sh` 通过 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py -q` 通过 6 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`git diff --check` 通过。
