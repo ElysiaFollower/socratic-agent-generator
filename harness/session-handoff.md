@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`vnext-persistent-remote-shell`
-- 当前功能项：无 active。
-- Active plan：无；计划已归档到 `plans/archive/20260514-persistent-remote-shell.md`。
+- 分支：`vnext-shell-panel-ux`
+- 当前功能项：`vnext-shell-panel-ux` active。
+- Active plan：`plans/active/20260514-shell-panel-ux.md`。
 - 目标分支：`dev`。
-- 当前 PR：#23 open，`https://github.com/ElysiaFollower/socratic-agent-generator/pull/23`；本分支待推送/开 stacked PR。
+- 当前 PR：无；本分支刚创建，尚未实现或开 PR。
 
 ## 当前已验证状态
 
@@ -36,6 +36,9 @@
 - PR #23 阶段曾因 Remote Runner 尚非持久 shell 提交 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/5`；当前 SEEDRunner main 已提供持久 session shell，Socratic 已完成第一版受控对接。
 - 已整理 `docs/overview.md`、`harness/quality.md`、`harness/progress.md` 和本 handoff，明确当前已实现价值、剩余缺口和下一阶段持久化 shell 对接入口。
 - 已完成 Persistent Remote Shell 对接：基于 SEEDRunner `9324432 feat(remote-runner): unify sessions with persistent shell backend`，Socratic 后端可读取 `session read` transcript，前端 Shell/Evidence 面板优先显示真实 persistent transcript，学生面板命令输入走受控 `session exec` 而不是 raw `session send`。
+- PR #23 和 #25 已合并到 `dev`；linux-01 已同步 `dev` commit `043fbcf` 与 SEEDRunner `9324432`，后端 `http://10.203.15.128:8000/api/health` OK，前端 `http://10.203.15.128:5173` HTTP 200。
+- linux-01 真实 Sniffing/Spoofing benchmark 完整通过：session `1e707d80-f321-4318-ae1c-1c7ba007b984`，`final_progress={isFinished:true, stepIndex:9, totalSteps:9}`，`step_completion_count=9`，`remote_audit_count=30`；persistent shell API 返回 runner session `sess_20260514_132555_964262_e7fad1ad` 且 transcript 可读。
+- 用户新反馈 Shell 面板 UX 问题：命名不应强调 evidence、面板应可拖动放大、transcript 应像真实 shell、聊天中不应出现未渲染 raw JSON evidence、shell session 关闭时应显示明确状态。已创建 active plan `plans/active/20260514-shell-panel-ux.md`，实现尚未开始。
 
 ## 验证记录
 
@@ -59,11 +62,9 @@
 
 ## 仍损坏或未验证
 
-- PR #23 尚未合并到 `dev`；本分支基于 PR #23 之后的状态，适合创建 stacked PR 到 `vnext-session-shell-terminal-tabs` 或在 #23 合并后 rebase 到 `dev`。
-- linux-01 未部署本次 terminal-tab UI 和 persistent shell 适配；本任务目前只完成本地代码、文档和测试。
+- Shell 面板 UX 修正尚未实现；当前只有 active plan 和 feature 状态。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
-- benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；本次临时 `.benchmark.env`、本地临时凭据文件和 Remote Runner session 均已清理。
-- linux-01 未部署本次 persistent shell Socratic 适配；真实部署 smoke 待 PR 合并后执行。
+- benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
 
 ## 设计结论
 
@@ -79,14 +80,14 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：persistent shell 适配相关后端 provider/manager/API/schema、前端 Shell/Evidence 面板/API/types/i18n、docs、tests、harness 状态和归档 plan。
+- 当前待提交范围：Shell 面板 UX active plan、`harness/feature_list.json`、`harness/progress.md`、本 handoff。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送 `vnext-persistent-remote-shell`。
-2. 创建 stacked PR；若 PR #23 先合并，则 rebase/retarget 到 `dev`。
-3. 合并后部署 linux-01，并做真实 persistent shell smoke：在同一会话中执行 `cd`、`export`、`pwd && printf "$VAR"`，再通过 Shell/Evidence 面板/API 验证 transcript。
+1. 提交并推送 `vnext-shell-panel-ux` 的规划提交。
+2. 开始实现：先定位 `Relevant evidence` raw JSON 来源，再处理 Shell 面板文案、拖拽宽度、terminal 风格渲染和 session 状态显示。
+3. 完成后运行 plan 中验证命令，并做浏览器手动验证。
 
 ## 命令
 

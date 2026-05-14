@@ -216,6 +216,17 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_default_profile_seed.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
       "evidence": "2026-05-14: implemented stable lab manual identity payloads, display-name editing, document-id based content/delete APIs, Generate Profile read-only document preview cards, and persona/curriculum readiness derived from linked profile data as well as artifact files. Validation passed: ./scripts/harness-check.sh passed with 0 warnings; tests/test_default_profile_seed.py -> 6 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run passed; cd frontend && npm run build passed; git diff --check passed.",
       "notes": "Archived plan: plans/archive/20260514-profile-management-document-identity.md. GitHub issue: https://github.com/ElysiaFollower/socratic-agent-generator/issues/18."
+    },
+    {
+      "id": "vnext-shell-panel-ux",
+      "priority": "P0",
+      "area": "frontend-remote-evidence",
+      "title": "Session Shell panel UX polish",
+      "behavior": "The session Shell panel feels like a real shell: concise Shell naming, resizable width, terminal-style transcript rendering, structured remote evidence display, and clear connected/closed/error status.",
+      "status": "active",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check && manual browser verification of resizable Shell panel and rendered evidence",
+      "evidence": "2026-05-14: active plan created at plans/active/20260514-shell-panel-ux.md. Implementation not started.",
+      "notes": "User-reported UX issues: stop saying Shell evidence, make the panel resizable, render transcript like a real terminal, avoid raw JSON Relevant evidence in chat, and show shell session status instead of record counts."
     }
   ]
 }

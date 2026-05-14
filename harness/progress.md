@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`vnext-persistent-remote-shell` 已 passing。
-- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-persistent-remote-shell.md`。
-- 上次验证：2026-05-14，remote machine focused tests 5 passed，`python3 -m compileall src tests` 通过，前端 test/build 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
-- 下一步最佳动作：提交并推送 `vnext-persistent-remote-shell`，创建 stacked PR；合并后部署 linux-01 并做真实 persistent shell smoke。
+- 当前功能项：`vnext-shell-panel-ux` active。
+- 当前任务计划：`plans/active/20260514-shell-panel-ux.md`。
+- 上次验证：2026-05-14，linux-01 已同步 `dev` commit `043fbcf`，真实 Sniffing/Spoofing benchmark 完整通过：session `1e707d80-f321-4318-ae1c-1c7ba007b984`，`stepIndex=9,totalSteps=9,isFinished=true`，remote audit 30，persistent shell transcript API 可读。
+- 下一步最佳动作：实现 Shell 面板 UX 修正：简化命名、支持拖动宽度、terminal 风格渲染、结构化 raw JSON evidence、显示 shell session 状态。
 
 ## 状态约定
 
@@ -15,6 +15,15 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-14 - 开启 Shell 面板 UX 修正任务
+
+- 用户反馈会话 Shell 面板仍有前端体验问题：不应强调 Shell Evidence；面板宽度太小且不可拖动；transcript 渲染不像真实 shell；聊天中会泄露 `Relevant evidence: {...}` raw JSON；Shell session 关闭时缺少明确状态。
+- 从 `dev` 创建分支 `vnext-shell-panel-ux`。
+- 创建 active plan：`plans/active/20260514-shell-panel-ux.md`。
+- 将 `vnext-shell-panel-ux` 设置为当前唯一 active feature。
+- 范围判断：本任务只修正 Shell 面板和 remote evidence 的用户可见呈现，不放宽 Remote Runner 权限策略，不实现 raw PTY，不修改 profile/RAG/benchmark 语义。
+- 下一步：先定位 raw JSON evidence 来源，再评估 terminal 渲染方案，随后实现前端拖拽宽度、状态显示和 focused tests。
 
 ### 2026-05-14 - 开启 Persistent Remote Shell 对接任务
 
