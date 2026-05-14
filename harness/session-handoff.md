@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`dev`
+- 分支：`vnext-session-shell-terminal-tabs`
 - 当前功能项：无 active。
-- Active plan：无；计划已归档到 `plans/archive/20260514-profile-generation-evaluation.md`。
+- Active plan：无；计划已归档到 `plans/archive/20260514-session-shell-terminal-tabs.md`。
 - 目标分支：`dev`。
-- 当前 PR：无；近期 vNext 分支已合并到 `dev`。
+- 当前 PR：待创建。
 
 ## 当前已验证状态
 
@@ -30,6 +30,10 @@
 - 修复并部署 `a0642d6` 后，linux-01 live benchmark 重新通过：session `d37e5ce4-bcb7-4a0b-8d56-0efd7b04a1c6`，`final_progress={isFinished:true, stepIndex:9, totalSteps:9}`，`step_completion_count=9`，`remote_audit_count=30`。但用户随后指出需要先沉淀产品愿景文档，后续实现应按 `docs/product/vision.md` 重新校准学习质量，而不是只看通关。
 - `docs/product/vision.md` 已进一步增加 `产品原则` 小节，用更具体的语言写清：反对传统实验高摩擦和纯 AI 代做两种低质量形态；目标是重新分配学生、AI、系统职责；Tutor 不能陷入工具循环；系统真正解决的是实验学习摩擦成本。
 - 已按北极星校准关键设计文档和计划：`docs/architecture/vnext-integrations.md`、`docs/architecture/remote-runner-session-tools.md`、`docs/benchmarks/single-lab-e2e.md`、`docs/benchmarks/profile-generation-evaluation.md`、harness rubric/quality/decisions，以及 Remote Runner / benchmark 相关归档 plan。
+- 已提交上一轮遗留的 Tutor remote-tool streaming 收束修复：`97783d5 fix(tutor): defer remote tool stream until final turn`。
+- 已完成 Shell/Evidence 面板 terminal-tab 修正：`RemoteCommandAuditModel` 记录 `runner_session_id`，audit API 返回 `binding_id`、`runner_session_id`、`terminal_id`；前端 tab 现在代表 Remote Runner terminal/session，选中 tab 后展示连续 transcript，而不是一条命令一个 tab。
+- 旧 SQLite 通过 `init_db()` 做窄兼容加列：缺少 `remote_command_audits.runner_session_id` 时自动 `ALTER TABLE`，不迁移运行时数据进 git。
+- 已确认 Remote Runner 当前 session command log 足以支持只读 transcript grouping，但不是持久 PTY shell；已向 SEEDRunner 提交 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/5`，用于未来学生可写 terminal 的上游能力。
 
 ## 验证记录
 
@@ -47,14 +51,16 @@
 - 2026-05-14 Tutor remote-tool pedagogical fix：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_single_lab_e2e_benchmark.py -q` 通过 10 passed；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_session_progress.py tests/test_default_profile_seed.py -q` 通过 24 passed；`python3 -m compileall src scripts/benchmarks/single_lab_e2e.py tests/test_tutor_executor.py` 通过；linux-01 live benchmark 退出码 0。
 - 2026-05-14 product vision docs：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
 - 2026-05-14 north-star doc alignment：`./scripts/harness-check.sh` 通过 0 warning；`git diff --check` 通过。
+- 2026-05-14 Tutor streaming 收束提交前验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_single_lab_e2e_benchmark.py -q` 通过 10 passed；`python3 -m compileall src/utils/tutor_core.py tests/test_tutor_executor.py` 通过；`git diff --check` 通过。
+- 2026-05-14 session shell terminal tabs：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
-- 当前本地 `dev` 比 `origin/dev` 至少领先 `a0642d6` 和产品愿景文档提交；linux-01 已部署 `a0642d6`，但产品愿景文档尚未部署到 linux-01。
+- 当前工作分支 `vnext-session-shell-terminal-tabs` 尚未推送和创建 PR。
+- linux-01 未部署本次 terminal-tab UI 修正；本任务目前只完成本地代码、文档和测试。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；本次临时 `.benchmark.env`、本地临时凭据文件和 Remote Runner session 均已清理。
-- 工作树中存在上一轮 Tutor remote-tool streaming 收束的未提交代码改动；用户已要求先暂停实现、沉淀文档，因此该代码改动未纳入本次产品愿景文档提交，后续需单独决定保留、调整或提交。
-- 本次北极星校准只更新文档和归档计划，不部署 linux-01，不改 runtime 行为。
+- Remote Runner 不是持久 PTY shell；只读 transcript 可用，但未来学生可写 terminal 需要先解决 `https://github.com/ElysiaFollower/SEEDRunner/issues/5`。
 
 ## 设计结论
 
@@ -63,19 +69,20 @@
 - Generate Profile 不复制完整 Lab Manuals 管理能力，只提供足够核验选中文档身份的只读 preview。
 - 删除文档时提示引用方并使引用失效；不应因为存在引用而彻底不能删。
 - Profile generator 改造前应先跑静态评估；该评估不能替代单实验 E2E benchmark 和真实 Tutor 会话。
+- Shell/Evidence 面板的 tab 代表 terminal/session，不代表命令；命令是选中 terminal transcript 中的连续片段。
+- Socratic audit 需要在记录时保存当时的 `runner_session_id`，不能只依赖当前 binding 反查，否则切换机器后旧 evidence 会被错分。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前产品愿景文档改动待提交：`AGENTS.md`、`docs/.gitignore`、`docs/overview.md`、`docs/product/vision.md`、`harness/progress.md`、`harness/session-handoff.md`。
-- 当前北极星校准文档改动待提交：架构文档、benchmark 文档、harness rubric/quality/decisions/progress/handoff，以及相关归档 plan。
-- 另有未提交运行时代码改动：`src/utils/tutor_core.py`，来自上一轮 benchmark 通过后的 streaming 收束微调；本次文档提交不应包含它。
+- 当前待提交范围：terminal-tab 修正相关后端 schema/model/manager/database compatibility、前端 evidence panel/types/i18n、架构文档、harness feature/progress/handoff、归档 plan。
+- 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交北极星校准后的设计文档和计划改动。
-2. 决定 `src/utils/tutor_core.py` 的未提交 streaming 收束微调是否保留、测试、提交或重做。
-3. 后续新 plan 必须显式写出如何降低外围摩擦、保留学生核心思考，以及如何观察学习质量。
+1. 运行最终 `./scripts/harness-check.sh`、`git diff --check`。
+2. 提交并推送 `vnext-session-shell-terminal-tabs`。
+3. 创建 PR 到 `dev`，说明 terminal-tab 修正和 Remote Runner 持久 PTY follow-up。
 
 ## 命令
 

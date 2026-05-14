@@ -75,6 +75,7 @@ Expected persistent objects:
   - `session_id`.
   - `owner_id`.
   - `binding_id`.
+  - `runner_session_id` or derived `terminal_id` in read APIs.
   - `command`, `cwd`, `exit_code`, `duration_ms`.
   - `stdout_excerpt`, `stderr_excerpt`.
   - `redaction_applied`.
@@ -235,6 +236,26 @@ Session creation should include an optional machine selector:
   header control. Switching must recreate the underlying Remote Runner session
   and preserve the Socratic permission boundary: Tutor can only use the machine
   currently bound to that learning session.
+
+The session Shell/Evidence panel should use a terminal-tab model:
+
+- A tab represents a Remote Runner shell/session, usually grouped by
+  `runner_session_id`.
+- A tab does not represent a single command. Single commands are transcript
+  entries inside the selected terminal.
+- The transcript preserves command order and shows command/action, cwd, status,
+  stdout/stderr excerpts, errors, and timestamps.
+- The first shipped version remains read-only. If student-entered commands are
+  later added, they should execute through the selected terminal's existing
+  session binding and command policy rather than through a separate bypass.
+
+Known upstream gap: current Remote Runner sessions are sufficient for grouped
+command transcripts, but synchronous commands are still executed as separate SSH
+commands rather than a persistent PTY shell. That means shell-local state such as
+`cd`, exported variables, aliases, and job control should not be assumed to
+persist across commands. Track persistent terminal support in
+`https://github.com/ElysiaFollower/SEEDRunner/issues/5` before making the panel
+student-writable.
 
 ## Acceptance Demo
 

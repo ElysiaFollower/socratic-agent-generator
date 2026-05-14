@@ -266,6 +266,9 @@ export interface RemoteBindingSummary {
 export interface RemoteCommandAudit {
   readonly audit_id: string;
   readonly session_id: string;
+  readonly binding_id?: string | null;
+  readonly runner_session_id?: string | null;
+  readonly terminal_id: string;
   readonly action: string;
   readonly command?: string | null;
   readonly cwd?: string | null;

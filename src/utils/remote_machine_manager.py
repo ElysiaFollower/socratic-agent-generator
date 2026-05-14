@@ -375,11 +375,24 @@ class RemoteMachineManager:
         error: str = "",
     ) -> None:
         result = result or {}
+        runner_session_id = _extract_runner_session_id(result)
+        if not runner_session_id and binding_id:
+            binding = (
+                self.db.query(SessionRemoteBindingModel)
+                .filter(
+                    SessionRemoteBindingModel.binding_id == binding_id,
+                    SessionRemoteBindingModel.session_id == session_id,
+                    SessionRemoteBindingModel.owner_id == owner_id,
+                )
+                .first()
+            )
+            runner_session_id = binding.runner_session_id if binding else None
         audit = RemoteCommandAuditModel(
             audit_id=str(uuid.uuid4()),
             owner_id=owner_id,
             session_id=session_id,
             binding_id=binding_id,
+            runner_session_id=runner_session_id,
             action=action,
             command=command or None,
             cwd=cwd or None,
@@ -401,10 +414,40 @@ class RemoteMachineManager:
             .order_by(RemoteCommandAuditModel.create_at.asc())
             .all()
         )
+        binding_ids = {row.binding_id for row in rows if row.binding_id}
+        bindings_by_id: Dict[str, SessionRemoteBindingModel] = {}
+        if binding_ids:
+            bindings_by_id = {
+                binding.binding_id: binding
+                for binding in self.db.query(SessionRemoteBindingModel)
+                .filter(
+                    SessionRemoteBindingModel.binding_id.in_(binding_ids),
+                    SessionRemoteBindingModel.session_id == session_id,
+                    SessionRemoteBindingModel.owner_id == owner_id,
+                )
+                .all()
+            }
         return [
             RemoteCommandAudit(
                 audit_id=row.audit_id,
                 session_id=row.session_id,
+                binding_id=row.binding_id,
+                runner_session_id=(
+                    row.runner_session_id
+                    or (
+                        bindings_by_id[row.binding_id].runner_session_id
+                        if row.binding_id in bindings_by_id
+                        else None
+                    )
+                ),
+                terminal_id=(
+                    row.runner_session_id
+                    or (
+                        bindings_by_id[row.binding_id].runner_session_id
+                        if row.binding_id in bindings_by_id
+                        else row.binding_id or "session"
+                    )
+                ),
                 action=row.action,
                 command=row.command,
                 cwd=row.cwd,
@@ -563,6 +606,16 @@ def _extract_exit_code(result: Dict[str, Any]) -> Optional[int]:
     nested = result.get("result")
     if isinstance(nested, dict):
         return _extract_exit_code(nested)
+    return None
+
+
+def _extract_runner_session_id(result: Dict[str, Any]) -> Optional[str]:
+    value = result.get("session_id") or result.get("runner_session_id")
+    if value:
+        return str(value)
+    nested = result.get("result")
+    if isinstance(nested, dict):
+        return _extract_runner_session_id(nested)
     return None
 
 

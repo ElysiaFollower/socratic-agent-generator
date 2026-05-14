@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Chip,
-  Divider,
   IconButton,
   Stack,
   Tab,
@@ -27,24 +26,11 @@ interface SessionEvidencePanelProps {
   readonly onClose: () => void;
 }
 
-function auditLabel(audit: RemoteCommandAudit, index: number): string {
-  if (audit.command) {
-    return audit.command;
-  }
-  return audit.action || `audit-${index + 1}`;
-}
-
-function statusColor(audit: RemoteCommandAudit): "success" | "error" | "warning" | "default" {
-  if (audit.error) {
-    return "error";
-  }
-  if (audit.exit_code === 0) {
-    return "success";
-  }
-  if (typeof audit.exit_code === "number") {
-    return "warning";
-  }
-  return "default";
+interface TerminalGroup {
+  readonly id: string;
+  readonly label: string;
+  readonly audits: readonly RemoteCommandAudit[];
+  readonly hasError: boolean;
 }
 
 function statusLabel(audit: RemoteCommandAudit): string {
@@ -60,38 +46,43 @@ function statusLabel(audit: RemoteCommandAudit): string {
   return "recorded";
 }
 
-function OutputBlock({label, value}: {readonly label: string; readonly value?: string | null}) {
+function terminalKey(audit: RemoteCommandAudit): string {
+  return audit.terminal_id || audit.runner_session_id || audit.binding_id || "session";
+}
+
+function formatTimestamp(value?: string | null): string {
   if (!value) {
-    return null;
+    return "";
   }
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant='caption' sx={{fontWeight: 700, color: "text.secondary"}}>
-        {label}
-      </Typography>
-      <Box
-        component='pre'
-        sx={{
-          m: 0,
-          p: 1,
-          border: "1px solid",
-          borderColor: "divider",
-          borderRadius: 1,
-          bgcolor: "var(--color-surface-muted)",
-          color: "text.primary",
-          fontFamily: "var(--font-mono)",
-          fontSize: 12,
-          lineHeight: 1.45,
-          whiteSpace: "pre-wrap",
-          wordBreak: "break-word",
-          maxHeight: 220,
-          overflow: "auto",
-        }}
-      >
-        {value}
-      </Box>
-    </Stack>
-  );
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+  return date.toLocaleString();
+}
+
+function formatAuditTranscript(audit: RemoteCommandAudit): string {
+  const lines: string[] = [];
+  const commandLine = audit.command ? `$ ${audit.command}` : `$ ${audit.action}`;
+  lines.push(commandLine);
+  if (audit.action && audit.command && audit.action !== "session_exec") {
+    lines.push(`# action: ${audit.action}`);
+  }
+  if (audit.cwd) {
+    lines.push(`# cwd: ${audit.cwd}`);
+  }
+  if (audit.stdout_excerpt) {
+    lines.push(audit.stdout_excerpt.trimEnd());
+  }
+  if (audit.stderr_excerpt) {
+    lines.push(`[stderr]\n${audit.stderr_excerpt.trimEnd()}`);
+  }
+  if (audit.error) {
+    lines.push(`[error]\n${audit.error.trimEnd()}`);
+  }
+  const timestamp = formatTimestamp(audit.create_at);
+  lines.push(`# ${statusLabel(audit)}${timestamp ? ` · ${timestamp}` : ""}`);
+  return lines.join("\n");
 }
 
 export function SessionEvidencePanel({
@@ -103,18 +94,53 @@ export function SessionEvidencePanel({
 }: SessionEvidencePanelProps) {
   const {t} = useTranslation();
   const [audits, setAudits] = useState<readonly RemoteCommandAudit[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const canLoad = Boolean(open && sessionId && remoteBinding);
-  const selectedAudit = audits[selectedIndex] || null;
   const machineLabel = remoteBinding?.display_name || remoteBinding?.runner_machine_name || "";
+
+  const terminalGroups = useMemo<readonly TerminalGroup[]>(() => {
+    const grouped = new Map<string, RemoteCommandAudit[]>();
+    audits.forEach((audit) => {
+      const key = terminalKey(audit);
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.push(audit);
+      } else {
+        grouped.set(key, [audit]);
+      }
+    });
+    return Array.from(grouped.entries()).map(([id, groupAudits], index) => ({
+      id,
+      label: `${t("evidence.terminal")} ${index + 1}`,
+      audits: groupAudits,
+      hasError: groupAudits.some((audit) => Boolean(audit.error) || (audit.exit_code ?? 0) !== 0),
+    }));
+  }, [audits, t]);
+
+  const selectedTerminal = useMemo(() => {
+    if (terminalGroups.length === 0) {
+      return null;
+    }
+    return (
+      terminalGroups.find((group) => group.id === selectedTerminalId) ||
+      terminalGroups[0]
+    );
+  }, [selectedTerminalId, terminalGroups]);
+
+  const selectedTranscript = useMemo(() => {
+    if (!selectedTerminal) {
+      return "";
+    }
+    return selectedTerminal.audits.map(formatAuditTranscript).join("\n\n");
+  }, [selectedTerminal]);
 
   const refreshAudits = useCallback(async () => {
     if (!sessionId || !remoteBinding) {
       setAudits([]);
-      setSelectedIndex(0);
+      setSelectedTerminalId(null);
       return;
     }
     setIsLoading(true);
@@ -122,9 +148,13 @@ export function SessionEvidencePanel({
     try {
       const nextAudits = await getSessionRemoteAudits(sessionId);
       setAudits(nextAudits);
-      setSelectedIndex((previous) =>
-        nextAudits.length === 0 ? 0 : Math.min(previous, nextAudits.length - 1),
-      );
+      setSelectedTerminalId((previous) => {
+        const nextKeys = nextAudits.map(terminalKey);
+        if (nextKeys.length === 0) {
+          return null;
+        }
+        return previous && nextKeys.includes(previous) ? previous : nextKeys[0];
+      });
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : String(nextError));
     } finally {
@@ -137,17 +167,6 @@ export function SessionEvidencePanel({
       void refreshAudits();
     }
   }, [canLoad, refreshAudits]);
-
-  const createdAtLabel = useMemo(() => {
-    if (!selectedAudit?.create_at) {
-      return "";
-    }
-    const date = new Date(selectedAudit.create_at);
-    if (Number.isNaN(date.getTime())) {
-      return selectedAudit.create_at;
-    }
-    return date.toLocaleString();
-  }, [selectedAudit?.create_at]);
 
   if (!open) {
     return null;
@@ -228,8 +247,8 @@ export function SessionEvidencePanel({
       {audits.length > 0 && (
         <>
           <Tabs
-            value={selectedIndex}
-            onChange={(_, value: number) => setSelectedIndex(value)}
+            value={selectedTerminal?.id || false}
+            onChange={(_, value: string) => setSelectedTerminalId(value)}
             variant='scrollable'
             scrollButtons='auto'
             sx={{
@@ -244,9 +263,10 @@ export function SessionEvidencePanel({
               },
             }}
           >
-            {audits.map((audit, index) => (
+            {terminalGroups.map((group) => (
               <Tab
-                key={audit.audit_id}
+                key={group.id}
+                value={group.id}
                 label={
                   <Stack direction='row' spacing={0.75} alignItems='center' sx={{minWidth: 0}}>
                     <Typography
@@ -259,12 +279,12 @@ export function SessionEvidencePanel({
                         fontFamily: "var(--font-mono)",
                       }}
                     >
-                      {auditLabel(audit, index)}
+                      {group.label}
                     </Typography>
                     <Chip
                       size='small'
-                      label={statusLabel(audit)}
-                      color={statusColor(audit)}
+                      label={`${group.audits.length} ${t("evidence.records")}`}
+                      color={group.hasError ? "warning" : "success"}
                       sx={{height: 18, "& .MuiChip-label": {px: 0.75, fontSize: 10}}}
                     />
                   </Stack>
@@ -273,35 +293,40 @@ export function SessionEvidencePanel({
             ))}
           </Tabs>
 
-          {selectedAudit && (
-            <Stack spacing={1.5} sx={{p: 2, overflow: "auto", flex: 1}}>
+          {selectedTerminal && (
+            <Stack spacing={1.25} sx={{p: 2, overflow: "hidden", flex: 1, minHeight: 0}}>
               <Stack spacing={0.5}>
                 <Typography variant='caption' color='text.secondary'>
-                  {selectedAudit.action}
-                  {createdAtLabel ? ` · ${createdAtLabel}` : ""}
+                  {selectedTerminal.id === remoteBinding?.runner_session_id
+                    ? remoteBinding.runner_session_id
+                    : selectedTerminal.id}
                 </Typography>
-                {selectedAudit.command && (
-                  <Typography
-                    variant='body2'
-                    sx={{
-                      fontFamily: "var(--font-mono)",
-                      fontWeight: 700,
-                      wordBreak: "break-word",
-                    }}
-                  >
-                    {selectedAudit.command}
-                  </Typography>
-                )}
-                {selectedAudit.cwd && (
-                  <Typography variant='caption' color='text.secondary' sx={{wordBreak: "break-all"}}>
-                    cwd: {selectedAudit.cwd}
-                  </Typography>
-                )}
+                <Typography variant='body2' sx={{fontWeight: 700}}>
+                  {selectedTerminal.label}
+                </Typography>
               </Stack>
-              <Divider />
-              <OutputBlock label='stdout' value={selectedAudit.stdout_excerpt} />
-              <OutputBlock label='stderr' value={selectedAudit.stderr_excerpt} />
-              <OutputBlock label='error' value={selectedAudit.error} />
+              <Box
+                component='pre'
+                sx={{
+                  m: 0,
+                  p: 1.5,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  bgcolor: "var(--color-surface-muted)",
+                  color: "text.primary",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  overflow: "auto",
+                  flex: 1,
+                  minHeight: 0,
+                }}
+              >
+                {selectedTranscript}
+              </Box>
             </Stack>
           )}
         </>

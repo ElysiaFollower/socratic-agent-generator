@@ -76,6 +76,7 @@ class RemoteCommandAuditModel(Base):
         ForeignKey("session_remote_bindings.binding_id", ondelete="SET NULL"),
         nullable=True,
     )
+    runner_session_id = Column(String, nullable=True)
     action = Column(String, nullable=False)
     command = Column(Text, nullable=True)
     cwd = Column(String, nullable=True)

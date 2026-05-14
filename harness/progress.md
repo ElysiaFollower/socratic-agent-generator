@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`vnext-shell-evidence-panel` 已 passing。
-- 当前任务计划：无 active；Shell/Evidence 面板计划已归档到 `plans/archive/20260514-shell-evidence-panel.md`。
-- 上次验证：2026-05-14，remote machine focused tests 5 passed，`python3 -m compileall src tests` 通过，前端 test/build 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过；Playwright 本地登录页 smoke 通过。
-- 下一步最佳动作：提交并推送 `vnext-shell-evidence-panel` 分支，创建 PR 到 `dev`；后续开启 Profile Management 文档身份 UX。
+- 当前功能项：无 active；`vnext-session-shell-terminal-tabs` 已 passing。
+- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-session-shell-terminal-tabs.md`。
+- 上次验证：2026-05-14，remote machine focused tests 5 passed，`python3 -m compileall src tests` 通过，前端 test/build 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
+- 下一步最佳动作：提交并推送 `vnext-session-shell-terminal-tabs`，创建 PR 到 `dev`。
 
 ## 状态约定
 
@@ -15,6 +15,21 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-14 - 开启会话 Shell terminal tab 修正任务
+
+- 用户指出当前设计点写错：会话 shell 面板的 tab 应代表 terminal/shell session，而不是命令；每个 terminal 内展示连贯的多条命令执行结果。
+- 已先提交上一轮遗留的 Tutor remote-tool streaming 收束改动：`fix(tutor): defer remote tool stream until final turn`，验证 10 passed、compileall 和 diff check 均通过。
+- 因本地已有 `dev` 分支，`dev/...` 命名空间不可用；从 `dev` 创建工作分支 `vnext-session-shell-terminal-tabs`。
+- 创建 active plan：`plans/active/20260514-session-shell-terminal-tabs.md`。
+- 将 `vnext-session-shell-terminal-tabs` 设置为当前唯一 active feature。
+- 范围判断：本任务只修正只读 Shell/Evidence 面板的数据分组和展示模型；不实现学生可写 terminal，也不重写 Remote Runner。
+- 已确认上游 Remote Runner 当前适合 session transcript grouping，但同步命令仍是非持久 PTY 的独立 SSH 执行；已提交上游 issue `https://github.com/ElysiaFollower/SEEDRunner/issues/5` 跟踪未来学生可写 terminal 需要的持久 shell 能力。
+- 实现完成：后端 audit 落库保存 `runner_session_id` 并返回 `binding_id`、`runner_session_id`、`terminal_id`；旧 SQLite 通过 `init_db()` 做窄兼容加列。
+- 前端 `SessionEvidencePanel` 已按 terminal id 分组，tab 代表 Shell 1/2，内容区展示连续 transcript，而不是单条命令详情。
+- 文档已更新 `docs/architecture/vnext-integrations.md` 与 `docs/architecture/remote-runner-session-tools.md`，明确 terminal-tab 模型和上游持久 terminal 缺口。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py -q` 5 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 状态：`vnext-session-shell-terminal-tabs` 标记为 `passing`，计划归档。
 
 ### 2026-05-13 - 开启 session-bound Remote Runner 导师工具任务
 

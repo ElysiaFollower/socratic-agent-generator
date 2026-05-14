@@ -275,3 +275,6 @@ def test_bound_command_records_audit():
     assert audits[0].command == "pwd"
     assert audits[0].exit_code == 0
     assert audits[0].create_at
+    assert audits[0].binding_id
+    assert audits[0].runner_session_id == "rr-sess"
+    assert audits[0].terminal_id == "rr-sess"
