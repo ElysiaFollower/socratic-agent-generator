@@ -240,6 +240,17 @@
       "notes": "Archived plan: plans/archive/20260514-shell-panel-usability-fixes.md. Follow-up to PR #26; no Remote Runner policy, backend auth, database, DreamingRAG, or benchmark behavior changed."
     },
     {
+      "id": "vnext-shell-panel-terminal-header-trim",
+      "priority": "P2",
+      "area": "frontend-remote-evidence",
+      "title": "Shell panel terminal header trim",
+      "behavior": "The Shell panel does not repeat Shell label, status, and runner session id above the transcript when the tab and panel header already identify the selected shell.",
+      "status": "passing",
+      "verification": "cd frontend && npm test -- --run && cd frontend && npm run build && ./scripts/harness-check.sh && git diff --check",
+      "evidence": "2026-05-15: confirmed the selected-terminal content header duplicated tab/header information as `Shell 1`, status, and `sess_...`, then removed that inner header so the transcript starts directly with shell output while status remains visible in the panel header and tab. Validation passed: cd frontend && npm test -- --run -> 2 files, 4 tests passed; cd frontend && npm run build passed with existing Browserslist/chunk-size warnings.",
+      "notes": "Small UX follow-up; no backend, Remote Runner, command policy, session storage, or transcript formatting semantics changed."
+    },
+    {
       "id": "vnext-remote-command-style",
       "priority": "P0",
       "area": "remote-tool-adapter",

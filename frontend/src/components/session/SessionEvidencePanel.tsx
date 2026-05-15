@@ -625,31 +625,6 @@ export function SessionEvidencePanel({
 
           {selectedTerminal && (
             <Stack spacing={1.25} sx={{p: 2, overflow: "hidden", flex: 1, minHeight: 0}}>
-              <Stack spacing={0.5}>
-                <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
-                  <Typography variant='body2' sx={{fontWeight: 700}}>
-                    {selectedTerminal.label}
-                  </Typography>
-                  <Chip
-                    size='small'
-                    label={t(`evidence.status.${selectedStatus}`)}
-                    color={shellStatusColor(selectedStatus)}
-                    sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
-                  />
-                </Stack>
-                <Typography
-                  variant='caption'
-                  color='text.secondary'
-                  sx={{
-                    fontFamily: "var(--font-mono)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {selectedTerminal.id}
-                </Typography>
-              </Stack>
               <TerminalTranscript
                 text={selectedTranscript}
                 emptyText={t("evidence.noTranscript")}

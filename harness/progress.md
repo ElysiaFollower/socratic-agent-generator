@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，Tutor conduct polish 通过 focused tests、compileall、harness check 和 diff check。
-- 下一步最佳动作：提交并推送 `vnext-tutor-conduct-polish` 分支，后续按需发 PR 或同步部署。
+- 上次验证：2026-05-15，Shell panel terminal header trim 通过前端测试、前端构建、harness check 和 diff check。
+- 下一步最佳动作：提交并推送 `vnext-tutor-conduct-polish` 分支增量，后续按需发 PR 或同步部署。
 
 ## 状态约定
 
@@ -15,6 +15,13 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 完成 Shell panel terminal header trim
+
+- 核实同学反馈属实：Shell 面板选中 terminal 的内容区顶部重复显示 `Shell 1`、状态 chip 和 `sess_...` runner session id；tab 和面板顶栏已经足够说明当前 shell 与状态。
+- `frontend/src/components/session/SessionEvidencePanel.tsx` 已移除 transcript 上方的二级标题区，让 terminal 区域直接从实际输出开始；状态仍保留在面板顶栏与 tab 中。
+- 验证：`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 状态：`vnext-shell-panel-terminal-header-trim` 标记为 `passing`；这是小型 UX follow-up，无 active plan。
 
 ### 2026-05-15 - 开启 Tutor conduct polish
 
