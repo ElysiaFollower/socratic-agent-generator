@@ -31,9 +31,16 @@ from schemas.remote_machine import (
     SessionRemoteBindingUpdateRequest,
     SessionRemoteCommandRequest,
     SessionRemoteCommandResponse,
+    SessionRemoteShellCreateRequest,
     SessionRemoteShellReadResponse,
+    SessionRemoteShellSummary,
 )
-from utils.remote_machine_manager import RemoteBindingNotFoundError, RemoteMachineNotFoundError
+from utils.remote_machine_manager import (
+    RemoteBindingNotFoundError,
+    RemoteMachineNotFoundError,
+    RemoteShellLabelError,
+    RemoteShellNotFoundError,
+)
 from utils.remote_runner_provider import RemoteRunnerError
 from utils.session_file_manager import SessionFileError
 
@@ -259,6 +266,60 @@ def list_remote_audits(
 
 
 @router.get(
+    "/{session_id}/remote-shells",
+    response_model=List[SessionRemoteShellSummary],
+    summary="列出会话中的远程 shell terminal",
+)
+def list_session_remote_shells(
+    session_id: str,
+    session_manager: SessionManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> List[SessionRemoteShellSummary]:
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+        return remote_manager.list_shells(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RemoteBindingNotFoundError, RemoteRunnerError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/{session_id}/remote-shells",
+    response_model=SessionRemoteShellSummary,
+    summary="创建会话中的命名远程 shell terminal",
+)
+def create_session_remote_shell(
+    session_id: str,
+    req: SessionRemoteShellCreateRequest,
+    session_manager: SessionManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> SessionRemoteShellSummary:
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+        return remote_manager.create_shell(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+            label=req.label,
+            cwd=req.cwd or "",
+            reason=req.reason or "Create named shell",
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RemoteBindingNotFoundError, RemoteShellLabelError, RemoteRunnerError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
     "/{session_id}/remote-shell",
     response_model=SessionRemoteShellReadResponse,
     summary="读取绑定实验机的持久 shell transcript",
@@ -284,6 +345,8 @@ def read_session_remote_shell(
         )
         return SessionRemoteShellReadResponse(
             ok=True,
+            shell_id="primary",
+            label="main",
             runner_session_id=str(payload.get("session_id") or ""),
             transcript=str(payload.get("transcript") or ""),
             cursor=int(payload.get("cursor") or 0),
@@ -294,6 +357,53 @@ def read_session_remote_shell(
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except (RemoteBindingNotFoundError, RemoteRunnerError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get(
+    "/{session_id}/remote-shells/{shell}/transcript",
+    response_model=SessionRemoteShellReadResponse,
+    summary="读取指定 shell terminal 的 transcript",
+)
+def read_named_session_remote_shell(
+    session_id: str,
+    shell: str,
+    session_manager: SessionManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    since: int = Query(default=0, ge=0),
+    max_chars: int = Query(default=12000, ge=1, le=50000),
+    current_user: User = Depends(get_current_user),
+) -> SessionRemoteShellReadResponse:
+    """Read a named or primary Remote Runner shell transcript for the session."""
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+        payload = remote_manager.read_shell(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+            shell=shell,
+            since=since,
+            max_chars=max_chars,
+        )
+        return SessionRemoteShellReadResponse(
+            ok=True,
+            shell_id=str(payload.get("shell_id") or shell),
+            label=str(payload.get("label") or ""),
+            runner_session_id=str(
+                payload.get("session_id")
+                or payload.get("runner_session_id")
+                or ""
+            ),
+            transcript=str(payload.get("transcript") or ""),
+            cursor=int(payload.get("cursor") or 0),
+            since=int(payload.get("since") or since),
+            transcript_truncated=bool(payload.get("transcript_truncated") or False),
+            result=payload,
+        )
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RemoteBindingNotFoundError, RemoteShellNotFoundError, RemoteRunnerError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -327,6 +437,42 @@ def run_session_remote_shell_command(
     except SessionNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except (RemoteBindingNotFoundError, RemoteRunnerError) as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post(
+    "/{session_id}/remote-shells/{shell}/command",
+    response_model=SessionRemoteCommandResponse,
+    summary="在指定 shell terminal 中执行受控命令",
+)
+def run_named_session_remote_shell_command(
+    session_id: str,
+    shell: str,
+    req: SessionRemoteCommandRequest,
+    session_manager: SessionManagerDep,
+    remote_manager: RemoteMachineManagerDep,
+    current_user: User = Depends(get_current_user),
+) -> SessionRemoteCommandResponse:
+    """Execute one audited command in a named persistent session shell."""
+    try:
+        session_manager.read_session(
+            session_id, owner_id=current_user.user_id
+        )
+        payload = remote_manager.run_shell_command(
+            owner_id=current_user.user_id,
+            session_id=session_id,
+            shell=shell,
+            action=req.action or "session_exec",
+            command=req.command or "",
+            command_id=req.command_id or "",
+            cwd=req.cwd or "",
+            reason=req.reason or "Shell panel command",
+            wait_timeout_seconds=req.wait_timeout_seconds or 0,
+        )
+        return SessionRemoteCommandResponse(**payload)
+    except SessionNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except (RemoteBindingNotFoundError, RemoteShellNotFoundError, RemoteRunnerError) as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 

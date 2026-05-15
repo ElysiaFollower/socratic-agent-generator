@@ -263,6 +263,16 @@ export interface RemoteBindingSummary {
   readonly status: string;
 }
 
+export interface SessionRemoteShellSummary {
+  readonly shell_id: string;
+  readonly label: string;
+  readonly runner_machine_name: string;
+  readonly runner_session_id: string;
+  readonly default_cwd?: string | null;
+  readonly status: string;
+  readonly is_primary: boolean;
+}
+
 export interface RemoteCommandAudit {
   readonly audit_id: string;
   readonly session_id: string;
@@ -303,6 +313,8 @@ export interface SessionRemoteCommandResponse {
 
 export interface SessionRemoteShellReadResponse {
   readonly ok: boolean;
+  readonly shell_id?: string | null;
+  readonly label?: string | null;
   readonly runner_session_id: string;
   readonly transcript: string;
   readonly cursor: number;

@@ -299,11 +299,11 @@
       "priority": "P1",
       "area": "tutor-runtime",
       "title": "Tutor concurrent shell evidence planning",
-      "behavior": "When evidence requires a listener and a stimulus, the tutor can plan background/wait/result or shell-expression execution so observations such as tcpdump plus ping produce meaningful evidence instead of sequential zero-capture results.",
-      "status": "not_started",
-      "verification": "A linux-01 admin conduct or focused tool-planning test shows tcpdump/listener and ping/stimulus evidence collected in one learning turn with non-empty capture or a clear explanation of capture timing.",
-      "evidence": "2026-05-15 admin real conduct session e9293b21-6f37-465a-8fc9-3508696409da exposed the gap: Tutor ran tcpdump and ping sequentially around Task 1.1A, so tcpdump returned 0 packets captured even though ping succeeded. The tutor did use the result pedagogically, but the tool plan should learn to use Remote Runner background command lifecycle or a shell expression for concurrent listener/stimulus evidence.",
-      "notes": "Observed after deploying commit 58d38d7 to linux-01. Runtime artifacts remain outside git under /tmp and deployment DB."
+      "behavior": "When evidence requires a listener and a stimulus, the tutor can create and name additional shell terminals on the bound lab machine, then use them in parallel so observations such as tcpdump plus ping produce meaningful evidence instead of sequential zero-capture results.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q && python3 -m compileall src tests && cd frontend && npm test -- --run && cd frontend && npm run build && git diff --check",
+      "evidence": "2026-05-15: implemented named shell terminals for concurrent evidence collection. Added SessionRemoteShellModel, backend shell list/create/read/run APIs, Tutor tools create_remote_shell/list_remote_shells/read_remote_shell, and shell parameters for run/start/list/result/wait/stop command tools. The frontend Shell panel now lists primary plus named terminals, uses shell labels as tabs, and reads the selected shell transcript. Focused tests cover creating a second Remote Runner session and routing named-shell audits to the correct runner_session_id. Validation passed: ./scripts/harness-check.sh 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q -> 40 passed; python3 -m compileall src tests passed; cd frontend && npm test -- --run -> 2 files / 4 tests passed; cd frontend && npm run build passed with existing Browserslist/chunk-size warnings; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260515-tutor-named-shell-sessions.md. Runtime artifacts remain outside git under /tmp and deployment DB."
     },
     {
       "id": "vnext-tutor-final-closeout-rewrite",

@@ -16,5 +16,6 @@ from .llm_provider_setting import LLMProviderSetting, UserLLMPreference
 from .remote_machine import (
     UserRemoteMachineModel,
     SessionRemoteBindingModel,
+    SessionRemoteShellModel,
     RemoteCommandAuditModel,
 )

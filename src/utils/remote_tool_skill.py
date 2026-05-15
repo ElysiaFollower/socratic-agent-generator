@@ -10,7 +10,11 @@ from langchain_core.tools import tool
 
 from core.database import SessionLocal
 from schemas.session import Session
-from utils.remote_machine_manager import RemoteMachineManager
+from utils.remote_machine_manager import (
+    RemoteMachineManager,
+    RemoteShellLabelError,
+    RemoteShellNotFoundError,
+)
 from utils.remote_runner_provider import (
     RemoteRunnerError,
     RemoteRunnerProvider,
@@ -107,8 +111,10 @@ class SessionBoundRemoteEnvironmentSkill:
         "Use the lab machine bound to this learning session. The machine and "
         "Remote Runner session are fixed by the system; do not ask the student "
         "for machine ids or credentials. Supported actions: check_connection, "
-        "run_command, start_command, list_commands, get_command_result, "
-        "wait_command, and stop_command. Use run_command for short lab "
+        "create_shell, list_shells, read_shell, run_command, start_command, "
+        "list_commands, get_command_result, wait_command, and stop_command. "
+        "Create named shells such as capture or stimulus when an experiment "
+        "needs concurrent evidence collection. Use run_command for short lab "
         "diagnostics, start_command for long-running lab work, and the other "
         "tools to inspect or control previously started commands."
     )
@@ -133,6 +139,9 @@ class SessionBoundRemoteEnvironmentSkill:
     def get_tools(self):
         return [
             self._build_check_connection_tool(),
+            self._build_create_shell_tool(),
+            self._build_list_shells_tool(),
+            self._build_read_shell_tool(),
             self._build_run_command_tool(),
             self._build_start_command_tool(),
             self._build_list_commands_tool(),
@@ -154,17 +163,20 @@ class SessionBoundRemoteEnvironmentSkill:
             cwd: str = "",
             reason: str = "",
             wait_timeout_seconds: int = 0,
+            shell: str = "",
         ) -> str:
             """Observe or execute commands on the session-bound lab machine.
 
             Args:
                 action: check_connection, run_command, start_command,
-                    list_commands, get_command_result, wait_command, or stop_command.
+                    create_shell, list_shells, read_shell, list_commands,
+                    get_command_result, wait_command, or stop_command.
                 command: Command to run when action is command execution.
                 command_id: Background command id for result/wait/stop actions.
                 cwd: Optional cwd override, subject to configured policy.
                 reason: Short reason this observation helps the tutoring step.
                 wait_timeout_seconds: Explicit wait time for wait_command.
+                shell: Optional shell label/id. Omit for the primary shell.
             """
             normalized = action.strip().lower().replace("-", "_")
             if normalized in {"check", "doctor", "check_connection"}:
@@ -175,6 +187,12 @@ class SessionBoundRemoteEnvironmentSkill:
                     cwd="",
                     reason=reason,
                 )
+            if normalized in {"create_shell", "new_shell", "open_shell"}:
+                return skill._create_shell(command or shell, cwd=cwd, reason=reason)
+            if normalized in {"list_shells", "shells"}:
+                return skill._list_shells(reason=reason)
+            if normalized in {"read_shell", "shell_read"}:
+                return skill._read_shell(shell=shell or command, reason=reason)
             if normalized in {"run", "exec", "execute", "run_command", "session_exec"}:
                 return skill._run_bound_action(
                     action="session_exec",
@@ -182,6 +200,7 @@ class SessionBoundRemoteEnvironmentSkill:
                     command_id="",
                     cwd=cwd,
                     reason=reason,
+                    shell=shell,
                 )
             if normalized in {"start", "background", "start_command", "run_background"}:
                 return skill._run_bound_action(
@@ -190,6 +209,7 @@ class SessionBoundRemoteEnvironmentSkill:
                     command_id="",
                     cwd=cwd,
                     reason=reason,
+                    shell=shell,
                 )
             if normalized in {"list", "list_commands", "command_list", "session_command_list"}:
                 return skill._run_bound_action(
@@ -198,6 +218,7 @@ class SessionBoundRemoteEnvironmentSkill:
                     command_id="",
                     cwd="",
                     reason=reason,
+                    shell=shell,
                 )
             if normalized in {"result", "get_result", "get_command_result", "session_command_result", "show"}:
                 return skill._run_bound_action(
@@ -206,6 +227,7 @@ class SessionBoundRemoteEnvironmentSkill:
                     command_id=command_id,
                     cwd="",
                     reason=reason,
+                    shell=shell,
                 )
             if normalized in {"wait", "wait_command", "session_command_wait"}:
                 return skill._run_bound_action(
@@ -215,6 +237,7 @@ class SessionBoundRemoteEnvironmentSkill:
                     cwd="",
                     reason=reason,
                     wait_timeout_seconds=wait_timeout_seconds,
+                    shell=shell,
                 )
             if normalized in {"stop", "stop_command", "session_command_stop"}:
                 return skill._run_bound_action(
@@ -223,6 +246,7 @@ class SessionBoundRemoteEnvironmentSkill:
                     command_id=command_id,
                     cwd="",
                     reason=reason,
+                    shell=shell,
                 )
             return skill._error_payload(normalized, "Unsupported remote action.")
 
@@ -246,6 +270,50 @@ class SessionBoundRemoteEnvironmentSkill:
 
         return check_remote_connection
 
+    def _build_create_shell_tool(self):
+        skill = self
+
+        @tool("create_remote_shell")
+        def create_remote_shell(
+            label: str,
+            cwd: str = "",
+            reason: str = "",
+        ) -> str:
+            """Create a named persistent shell for concurrent lab evidence collection."""
+            return skill._create_shell(label=label, cwd=cwd, reason=reason)
+
+        return create_remote_shell
+
+    def _build_list_shells_tool(self):
+        skill = self
+
+        @tool("list_remote_shells")
+        def list_remote_shells(reason: str = "") -> str:
+            """List available shell terminals for this learning session."""
+            return skill._list_shells(reason=reason)
+
+        return list_remote_shells
+
+    def _build_read_shell_tool(self):
+        skill = self
+
+        @tool("read_remote_shell")
+        def read_remote_shell(
+            shell: str = "",
+            since: int = 0,
+            max_chars: int = 12000,
+            reason: str = "",
+        ) -> str:
+            """Read the transcript from the primary shell or a named shell."""
+            return skill._read_shell(
+                shell=shell,
+                since=since,
+                max_chars=max_chars,
+                reason=reason,
+            )
+
+        return read_remote_shell
+
     def _build_run_command_tool(self):
         skill = self
 
@@ -254,14 +322,16 @@ class SessionBoundRemoteEnvironmentSkill:
             command: str,
             cwd: str = "",
             reason: str = "",
+            shell: str = "",
         ) -> str:
-            """Run a short bounded command and wait for the result."""
+            """Run a short bounded command in the primary or named shell."""
             return skill._run_bound_action(
                 action="session_exec",
                 command=command,
                 command_id="",
                 cwd=cwd,
                 reason=reason,
+                shell=shell,
             )
 
         return run_remote_command
@@ -274,14 +344,16 @@ class SessionBoundRemoteEnvironmentSkill:
             command: str,
             cwd: str = "",
             reason: str = "",
+            shell: str = "",
         ) -> str:
-            """Start a long-running command in the background and return its id."""
+            """Start a long-running command in the primary or named shell."""
             return skill._run_bound_action(
                 action="session_exec_background",
                 command=command,
                 command_id="",
                 cwd=cwd,
                 reason=reason,
+                shell=shell,
             )
 
         return start_remote_command
@@ -290,14 +362,15 @@ class SessionBoundRemoteEnvironmentSkill:
         skill = self
 
         @tool("list_remote_commands")
-        def list_remote_commands(reason: str = "") -> str:
-            """List the commands recorded for the bound Remote Runner session."""
+        def list_remote_commands(shell: str = "", reason: str = "") -> str:
+            """List commands recorded for the primary or named Remote Runner shell."""
             return skill._run_bound_action(
                 action="session_command_list",
                 command="",
                 command_id="",
                 cwd="",
                 reason=reason,
+                shell=shell,
             )
 
         return list_remote_commands
@@ -308,6 +381,7 @@ class SessionBoundRemoteEnvironmentSkill:
         @tool("get_remote_command_result")
         def get_remote_command_result(
             command_id: str,
+            shell: str = "",
             reason: str = "",
         ) -> str:
             """Inspect the latest state and accumulated output for a background command."""
@@ -317,6 +391,7 @@ class SessionBoundRemoteEnvironmentSkill:
                 command_id=command_id,
                 cwd="",
                 reason=reason,
+                shell=shell,
             )
 
         return get_remote_command_result
@@ -328,6 +403,7 @@ class SessionBoundRemoteEnvironmentSkill:
         def wait_remote_command(
             command_id: str,
             timeout_seconds: int = 0,
+            shell: str = "",
             reason: str = "",
         ) -> str:
             """Wait for a background command for a bounded amount of time."""
@@ -338,6 +414,7 @@ class SessionBoundRemoteEnvironmentSkill:
                 cwd="",
                 reason=reason,
                 wait_timeout_seconds=timeout_seconds,
+                shell=shell,
             )
 
         return wait_remote_command
@@ -348,6 +425,7 @@ class SessionBoundRemoteEnvironmentSkill:
         @tool("stop_remote_command")
         def stop_remote_command(
             command_id: str,
+            shell: str = "",
             reason: str = "",
         ) -> str:
             """Request that a running background command stop."""
@@ -357,6 +435,7 @@ class SessionBoundRemoteEnvironmentSkill:
                 command_id=command_id,
                 cwd="",
                 reason=reason,
+                shell=shell,
             )
 
         return stop_remote_command
@@ -370,7 +449,19 @@ class SessionBoundRemoteEnvironmentSkill:
         cwd: str,
         reason: str,
         wait_timeout_seconds: int = 0,
+        shell: str = "",
     ) -> str:
+        requested_shell = (shell or "").strip()
+        if requested_shell and requested_shell.lower() not in {"primary", "main", "default"}:
+            return self._run_named_shell_action(
+                action=action,
+                command=command,
+                command_id=command_id,
+                cwd=cwd,
+                reason=reason,
+                wait_timeout_seconds=wait_timeout_seconds,
+                shell=requested_shell,
+            )
         try:
             if action in _COMMAND_ACTIONS:
                 with _runner_session_lock(self.runner_session_id):
@@ -422,6 +513,123 @@ class SessionBoundRemoteEnvironmentSkill:
                 "Remote Runner action failed.",
             )
         return self.provider._format_observation(payload)
+
+    def _run_named_shell_action(
+        self,
+        *,
+        action: str,
+        command: str,
+        command_id: str,
+        cwd: str,
+        reason: str,
+        wait_timeout_seconds: int,
+        shell: str,
+    ) -> str:
+        try:
+            with SessionLocal() as db:
+                manager = RemoteMachineManager(db, provider=self.provider)
+                payload = manager.run_shell_command(
+                    owner_id=self.owner_id,
+                    session_id=self.session_id,
+                    shell=shell,
+                    action=action,
+                    command=command,
+                    command_id=command_id,
+                    cwd=cwd,
+                    reason=reason,
+                    wait_timeout_seconds=wait_timeout_seconds,
+                )
+        except (RemoteRunnerError, RemoteShellNotFoundError) as exc:
+            payload = {"ok": False, "action": action, "error": str(exc)}
+        except Exception as exc:
+            logger.warning("Named shell Remote Runner action failed: %s", exc, exc_info=True)
+            payload = {
+                "ok": False,
+                "action": action,
+                "error": "Remote Runner action failed.",
+            }
+        return self.provider._format_observation(payload)
+
+    def _create_shell(self, label: str, cwd: str = "", reason: str = "") -> str:
+        cleaned = (label or "").strip()
+        if not cleaned:
+            return self._error_payload("create_shell", "Shell label is required.")
+        try:
+            with SessionLocal() as db:
+                manager = RemoteMachineManager(db, provider=self.provider)
+                shell = manager.create_shell(
+                    owner_id=self.owner_id,
+                    session_id=self.session_id,
+                    label=cleaned,
+                    cwd=cwd,
+                    reason=reason,
+                )
+        except (RemoteRunnerError, RemoteShellLabelError) as exc:
+            return self._error_payload("create_shell", str(exc))
+        except Exception as exc:
+            logger.warning("Failed to create remote shell: %s", exc, exc_info=True)
+            return self._error_payload("create_shell", "Remote shell creation failed.")
+        return self.provider._format_observation(
+            {
+                "ok": True,
+                "action": "create_shell",
+                "result": shell.model_dump(),
+                "reason": reason,
+            }
+        )
+
+    def _list_shells(self, reason: str = "") -> str:
+        try:
+            with SessionLocal() as db:
+                manager = RemoteMachineManager(db, provider=self.provider)
+                shells = manager.list_shells(
+                    owner_id=self.owner_id,
+                    session_id=self.session_id,
+                )
+        except (RemoteRunnerError, RemoteShellNotFoundError) as exc:
+            return self._error_payload("list_shells", str(exc))
+        except Exception as exc:
+            logger.warning("Failed to list remote shells: %s", exc, exc_info=True)
+            return self._error_payload("list_shells", "Remote shell listing failed.")
+        return self.provider._format_observation(
+            {
+                "ok": True,
+                "action": "list_shells",
+                "result": [shell.model_dump() for shell in shells],
+                "reason": reason,
+            }
+        )
+
+    def _read_shell(
+        self,
+        shell: str = "",
+        since: int = 0,
+        max_chars: int = 12000,
+        reason: str = "",
+    ) -> str:
+        try:
+            with SessionLocal() as db:
+                manager = RemoteMachineManager(db, provider=self.provider)
+                payload = manager.read_shell(
+                    owner_id=self.owner_id,
+                    session_id=self.session_id,
+                    shell=shell,
+                    since=max(0, since),
+                    max_chars=max(1, min(max_chars or 12000, 50000)),
+                )
+        except (RemoteRunnerError, RemoteShellNotFoundError) as exc:
+            return self._error_payload("read_shell", str(exc))
+        except Exception as exc:
+            logger.warning("Failed to read remote shell: %s", exc, exc_info=True)
+            return self._error_payload("read_shell", "Remote shell read failed.")
+        return self.provider._format_observation(
+            {
+                "ok": True,
+                "action": "read_shell",
+                "result": payload,
+                "reason": reason,
+            }
+        )
 
     def _record_audit(
         self,

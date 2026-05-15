@@ -20,6 +20,7 @@ import SendIcon from "@mui/icons-material/Send";
 import TerminalIcon from "@mui/icons-material/Terminal";
 import {
   getSessionRemoteAudits,
+  getSessionRemoteShells,
   getSessionRemoteShellTranscript,
   runSessionRemoteShellCommand,
 } from "../../api";
@@ -27,6 +28,7 @@ import {
   RemoteBindingSummary,
   RemoteCommandAudit,
   SessionRemoteShellReadResponse,
+  SessionRemoteShellSummary,
 } from "../../types";
 import {CircularProgress} from "../common/CircularProgress";
 
@@ -40,9 +42,12 @@ interface SessionEvidencePanelProps {
 
 interface TerminalGroup {
   readonly id: string;
+  readonly shellId?: string;
   readonly label: string;
   readonly audits: readonly RemoteCommandAudit[];
   readonly hasError: boolean;
+  readonly isPrimary: boolean;
+  readonly status?: string;
 }
 
 type ShellStatus = "connected" | "running" | "closed" | "error" | "idle";
@@ -240,6 +245,7 @@ export function SessionEvidencePanel({
 }: SessionEvidencePanelProps) {
   const {t} = useTranslation();
   const [audits, setAudits] = useState<readonly RemoteCommandAudit[]>([]);
+  const [shells, setShells] = useState<readonly SessionRemoteShellSummary[]>([]);
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(null);
   const [remoteTranscript, setRemoteTranscript] = useState("");
   const [shellRead, setShellRead] =
@@ -268,16 +274,49 @@ export function SessionEvidencePanel({
         grouped.set(key, [audit]);
       }
     });
-    if (remoteBinding?.runner_session_id && !grouped.has(remoteBinding.runner_session_id)) {
-      grouped.set(remoteBinding.runner_session_id, []);
-    }
-    return Array.from(grouped.entries()).map(([id, groupAudits], index) => ({
-      id,
-      label: `${t("evidence.terminal")} ${index + 1}`,
-      audits: groupAudits,
-      hasError: groupAudits.some((audit) => Boolean(audit.error) || (audit.exit_code ?? 0) !== 0),
-    }));
-  }, [audits, remoteBinding?.runner_session_id, t]);
+    const groups: TerminalGroup[] = [];
+    const usedIds = new Set<string>();
+    const shellSummaries = shells.length > 0
+      ? shells
+      : remoteBinding?.runner_session_id
+        ? [{
+          shell_id: "primary",
+          label: "main",
+          runner_machine_name: remoteBinding.runner_machine_name,
+          runner_session_id: remoteBinding.runner_session_id,
+          default_cwd: remoteBinding.default_cwd,
+          status: remoteBinding.status,
+          is_primary: true,
+        }]
+        : [];
+    shellSummaries.forEach((shell) => {
+      const id = shell.runner_session_id;
+      const groupAudits = grouped.get(id) || [];
+      usedIds.add(id);
+      groups.push({
+        id,
+        shellId: shell.shell_id,
+        label: shell.label || `${t("evidence.terminal")} ${groups.length + 1}`,
+        audits: groupAudits,
+        hasError: groupAudits.some((audit) => Boolean(audit.error) || (audit.exit_code ?? 0) !== 0),
+        isPrimary: shell.is_primary,
+        status: shell.status,
+      });
+    });
+    Array.from(grouped.entries()).forEach(([id, groupAudits]) => {
+      if (usedIds.has(id)) {
+        return;
+      }
+      groups.push({
+        id,
+        label: `${t("evidence.terminal")} ${groups.length + 1}`,
+        audits: groupAudits,
+        hasError: groupAudits.some((audit) => Boolean(audit.error) || (audit.exit_code ?? 0) !== 0),
+        isPrimary: id === remoteBinding?.runner_session_id,
+      });
+    });
+    return groups;
+  }, [audits, remoteBinding, shells, t]);
 
   const selectedTerminal = useMemo(() => {
     if (terminalGroups.length === 0) {
@@ -293,17 +332,17 @@ export function SessionEvidencePanel({
     if (!selectedTerminal) {
       return "";
     }
-    if (selectedTerminal.audits.length > 0) {
-      return auditTranscript(selectedTerminal.audits);
-    }
     if (
       remoteTranscript &&
-      selectedTerminal.id === remoteBinding?.runner_session_id
+      selectedTerminal.id === shellRead?.runner_session_id
     ) {
       return cleanShellTranscript(remoteTranscript);
     }
+    if (selectedTerminal.audits.length > 0) {
+      return auditTranscript(selectedTerminal.audits);
+    }
     return "";
-  }, [remoteBinding?.runner_session_id, remoteTranscript, selectedTerminal]);
+  }, [remoteTranscript, selectedTerminal, shellRead?.runner_session_id]);
 
   const selectedStatus = useMemo<ShellStatus>(() => {
     if (isRunningCommand) {
@@ -327,6 +366,7 @@ export function SessionEvidencePanel({
   const refreshAudits = useCallback(async () => {
     if (!sessionId || !remoteBinding) {
       setAudits([]);
+      setShells([]);
       setSelectedTerminalId(null);
       setRemoteTranscript("");
       setShellRead(null);
@@ -338,9 +378,19 @@ export function SessionEvidencePanel({
     setShellError(null);
     try {
       const nextAudits = await getSessionRemoteAudits(sessionId);
+      const nextShells = await getSessionRemoteShells(sessionId);
       setAudits(nextAudits);
+      setShells(nextShells);
       try {
-        const nextShellRead = await getSessionRemoteShellTranscript(sessionId);
+        const selectedShell =
+          nextShells.find((shell) => shell.runner_session_id === selectedTerminalId) ||
+          nextShells[0];
+        const nextShellRead = await getSessionRemoteShellTranscript(
+          sessionId,
+          0,
+          12000,
+          selectedShell?.shell_id,
+        );
         setShellRead(nextShellRead);
         setRemoteTranscript(nextShellRead.transcript || "");
       } catch (nextShellError) {
@@ -354,7 +404,7 @@ export function SessionEvidencePanel({
       }
       setSelectedTerminalId((previous) => {
         const nextKeys = [
-          remoteBinding.runner_session_id,
+          ...nextShells.map((shell) => shell.runner_session_id),
           ...nextAudits.map(terminalKey),
         ].filter(Boolean);
         if (nextKeys.length === 0) {
@@ -367,7 +417,7 @@ export function SessionEvidencePanel({
     } finally {
       setIsLoading(false);
     }
-  }, [remoteBinding, sessionId]);
+  }, [remoteBinding, selectedTerminalId, sessionId]);
 
   const submitCommand = useCallback(
     async (event: React.FormEvent<HTMLFormElement>) => {
@@ -382,7 +432,7 @@ export function SessionEvidencePanel({
         await runSessionRemoteShellCommand(sessionId, {
           command,
           reason: "Shell panel command",
-        });
+        }, selectedTerminal?.shellId);
         setCommandInput("");
         await refreshAudits();
       } catch (nextError) {
@@ -391,8 +441,44 @@ export function SessionEvidencePanel({
         setIsRunningCommand(false);
       }
     },
-    [commandInput, refreshAudits, remoteBinding, sessionId],
+    [commandInput, refreshAudits, remoteBinding, selectedTerminal?.shellId, sessionId],
   );
+
+  useEffect(() => {
+    if (!sessionId || !remoteBinding || !selectedTerminal) {
+      return;
+    }
+    let isActive = true;
+    setShellError(null);
+    void getSessionRemoteShellTranscript(
+      sessionId,
+      0,
+      12000,
+      selectedTerminal.shellId,
+    )
+      .then((nextShellRead) => {
+        if (!isActive) {
+          return;
+        }
+        setShellRead(nextShellRead);
+        setRemoteTranscript(nextShellRead.transcript || "");
+      })
+      .catch((nextShellError) => {
+        if (!isActive) {
+          return;
+        }
+        setShellRead(null);
+        setRemoteTranscript("");
+        setShellError(
+          nextShellError instanceof Error
+            ? nextShellError.message
+            : String(nextShellError),
+        );
+      });
+    return () => {
+      isActive = false;
+    };
+  }, [remoteBinding, selectedTerminal, sessionId]);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {

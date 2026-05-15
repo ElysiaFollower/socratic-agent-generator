@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -16,6 +17,7 @@ from config import REMOTE_MACHINE_SECRET_KEY
 from models.remote_machine import (
     RemoteCommandAuditModel,
     SessionRemoteBindingModel,
+    SessionRemoteShellModel,
     UserRemoteMachineModel,
 )
 from schemas.remote_machine import (
@@ -25,6 +27,7 @@ from schemas.remote_machine import (
     RemoteMachineTestResponse,
     RemoteMachineUpdate,
     RemoteBindingSummary,
+    SessionRemoteShellSummary,
 )
 from utils.remote_runner_provider import (
     RemoteRunnerError,
@@ -60,6 +63,18 @@ class RemoteMachineNotFoundError(ValueError):
 
 class RemoteBindingNotFoundError(ValueError):
     """Raised when a session has no remote binding."""
+
+
+class RemoteShellNotFoundError(ValueError):
+    """Raised when a requested session shell does not exist."""
+
+
+class RemoteShellLabelError(ValueError):
+    """Raised when a requested shell label is invalid or reserved."""
+
+
+_SHELL_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,59}$")
+_PRIMARY_SHELL_IDS = {"", "primary", "main", "default"}
 
 
 class RemoteMachineManager:
@@ -264,14 +279,211 @@ class RemoteMachineManager:
         binding = self.get_binding_model(session_id, owner_id, required=False)
         if not binding:
             return
-        try:
-            self._session_provider_from_binding(binding).destroy_session(
-                session_id=binding.runner_session_id
+        provider = self._session_provider_from_binding(binding)
+        extra_shells = (
+            self.db.query(SessionRemoteShellModel)
+            .filter(
+                SessionRemoteShellModel.session_id == session_id,
+                SessionRemoteShellModel.owner_id == owner_id,
+                SessionRemoteShellModel.binding_id == binding.binding_id,
             )
+            .all()
+        )
+        for shell in extra_shells:
+            try:
+                provider.destroy_session(session_id=shell.runner_session_id)
+            except Exception as exc:
+                logger.warning(
+                    "Failed to destroy named Remote Runner shell %s: %s",
+                    shell.runner_session_id,
+                    exc,
+                )
+        try:
+            provider.destroy_session(session_id=binding.runner_session_id)
         except Exception as exc:
             logger.warning("Failed to destroy Remote Runner session: %s", exc)
         self.db.delete(binding)
         self.db.commit()
+
+    def list_shells(
+        self,
+        *,
+        owner_id: str,
+        session_id: str,
+    ) -> List[SessionRemoteShellSummary]:
+        """List the primary and named shell terminals for a learning session."""
+        binding = self.get_binding_model(session_id, owner_id)
+        rows = (
+            self.db.query(SessionRemoteShellModel)
+            .filter(
+                SessionRemoteShellModel.session_id == session_id,
+                SessionRemoteShellModel.owner_id == owner_id,
+                SessionRemoteShellModel.binding_id == binding.binding_id,
+            )
+            .order_by(SessionRemoteShellModel.create_at.asc())
+            .all()
+        )
+        shells = [
+            SessionRemoteShellSummary(
+                shell_id="primary",
+                label="main",
+                runner_machine_name=binding.runner_machine_name,
+                runner_session_id=binding.runner_session_id,
+                default_cwd=binding.default_cwd,
+                status=binding.status,
+                is_primary=True,
+            )
+        ]
+        shells.extend(self._shell_summary(row, is_primary=False) for row in rows)
+        return shells
+
+    def create_shell(
+        self,
+        *,
+        owner_id: str,
+        session_id: str,
+        label: str,
+        cwd: str = "",
+        reason: str = "",
+    ) -> SessionRemoteShellSummary:
+        """Create a named persistent shell for concurrent evidence collection."""
+        binding = self.get_binding_model(session_id, owner_id)
+        cleaned_label = self._normalize_shell_label(label)
+        existing = (
+            self.db.query(SessionRemoteShellModel)
+            .filter(
+                SessionRemoteShellModel.session_id == session_id,
+                SessionRemoteShellModel.owner_id == owner_id,
+                SessionRemoteShellModel.label == cleaned_label,
+            )
+            .first()
+        )
+        if existing:
+            return self._shell_summary(existing, is_primary=False)
+
+        provider = self._session_provider_from_binding(binding)
+        session_payload = provider.create_session(
+            machine_id=binding.runner_machine_name,
+            cwd=cwd or binding.default_cwd or "",
+        )
+        runner_session_id = str(session_payload.get("session_id") or "")
+        if not runner_session_id:
+            raise RemoteRunnerError("Remote Runner did not return a session_id.")
+        shell = SessionRemoteShellModel(
+            shell_id=str(uuid.uuid4()),
+            binding_id=binding.binding_id,
+            session_id=session_id,
+            owner_id=owner_id,
+            label=cleaned_label,
+            runner_machine_name=binding.runner_machine_name,
+            runner_session_id=runner_session_id,
+            default_cwd=cwd or binding.default_cwd,
+            status="active",
+        )
+        self.db.add(shell)
+        self.db.commit()
+        self.db.refresh(shell)
+        self.record_audit(
+            owner_id=owner_id,
+            session_id=session_id,
+            binding_id=binding.binding_id,
+            runner_session_id=runner_session_id,
+            action="shell_create",
+            command=f"shell={cleaned_label}",
+            cwd=cwd or binding.default_cwd or "",
+            result={
+                **session_payload,
+                "runner_session_id": runner_session_id,
+                "label": cleaned_label,
+                "reason": reason,
+            },
+            error="",
+        )
+        return self._shell_summary(shell, is_primary=False)
+
+    def read_shell(
+        self,
+        *,
+        owner_id: str,
+        session_id: str,
+        shell: str = "",
+        since: int = 0,
+        max_chars: int = 12000,
+    ) -> Dict[str, Any]:
+        """Read the transcript for the primary or a named shell terminal."""
+        binding, shell_model, runner_session_id, label = self._resolve_shell_target(
+            owner_id=owner_id,
+            session_id=session_id,
+            shell=shell,
+        )
+        provider = self._session_provider_from_binding(binding)
+        payload = provider.read_session_transcript(
+            session_id=runner_session_id,
+            machine_id=binding.runner_machine_name,
+            since=since,
+            max_chars=max_chars,
+        )
+        payload.setdefault("runner_session_id", runner_session_id)
+        payload.setdefault("label", label)
+        payload.setdefault("shell_id", shell_model.shell_id if shell_model else "primary")
+        return payload
+
+    def run_shell_command(
+        self,
+        *,
+        owner_id: str,
+        session_id: str,
+        shell: str = "",
+        command: str = "",
+        action: str = "session_exec",
+        command_id: str = "",
+        cwd: str = "",
+        reason: str = "",
+        wait_timeout_seconds: int = 0,
+    ) -> Dict[str, Any]:
+        """Run an audited action on a primary or named shell terminal."""
+        binding, _shell_model, runner_session_id, _label = self._resolve_shell_target(
+            owner_id=owner_id,
+            session_id=session_id,
+            shell=shell,
+        )
+        provider = self._session_provider_from_binding(binding)
+        try:
+            payload = provider.run_action(
+                action=action,
+                machine_id=binding.runner_machine_name,
+                session_id=runner_session_id,
+                command=command,
+                command_id=command_id,
+                cwd=cwd,
+                reason=reason,
+                wait_timeout_seconds=wait_timeout_seconds,
+            )
+            self.record_audit(
+                owner_id=owner_id,
+                session_id=session_id,
+                binding_id=binding.binding_id,
+                runner_session_id=runner_session_id,
+                action=action,
+                command=command or (f"command_id={command_id}" if command_id else ""),
+                cwd=cwd,
+                result=payload.get("result"),
+                error="",
+            )
+            return payload
+        except RemoteRunnerError as exc:
+            self.record_audit(
+                owner_id=owner_id,
+                session_id=session_id,
+                binding_id=binding.binding_id,
+                runner_session_id=runner_session_id,
+                action=action,
+                command=command or (f"command_id={command_id}" if command_id else ""),
+                cwd=cwd,
+                result=None,
+                error=str(exc),
+            )
+            raise
 
     def run_bound_command(
         self,
@@ -286,42 +498,17 @@ class RemoteMachineManager:
         wait_timeout_seconds: int = 0,
     ) -> Dict[str, Any]:
         """Run one audited action on the session-bound machine."""
-        binding = self.get_binding_model(session_id, owner_id)
-        provider = self._session_provider_from_binding(binding)
-        try:
-            payload = provider.run_action(
-                action=action,
-                machine_id=binding.runner_machine_name,
-                session_id=binding.runner_session_id,
-                command=command,
-                command_id=command_id,
-                cwd=cwd,
-                reason=reason,
-                wait_timeout_seconds=wait_timeout_seconds,
-            )
-            self.record_audit(
-                owner_id=owner_id,
-                session_id=session_id,
-                binding_id=binding.binding_id,
-                action=action,
-                command=command or (f"command_id={command_id}" if command_id else ""),
-                cwd=cwd,
-                result=payload.get("result"),
-                error="",
-            )
-            return payload
-        except RemoteRunnerError as exc:
-            self.record_audit(
-                owner_id=owner_id,
-                session_id=session_id,
-                binding_id=binding.binding_id,
-                action=action,
-                command=command or (f"command_id={command_id}" if command_id else ""),
-                cwd=cwd,
-                result=None,
-                error=str(exc),
-            )
-            raise
+        return self.run_shell_command(
+            owner_id=owner_id,
+            session_id=session_id,
+            shell="primary",
+            command=command,
+            action=action,
+            command_id=command_id,
+            cwd=cwd,
+            reason=reason,
+            wait_timeout_seconds=wait_timeout_seconds,
+        )
 
     def read_bound_shell(
         self,
@@ -332,11 +519,10 @@ class RemoteMachineManager:
         max_chars: int = 12000,
     ) -> Dict[str, Any]:
         """Read the persistent shell transcript for the bound Remote Runner session."""
-        binding = self.get_binding_model(session_id, owner_id)
-        provider = self._session_provider_from_binding(binding)
-        return provider.read_session_transcript(
-            session_id=binding.runner_session_id,
-            machine_id=binding.runner_machine_name,
+        return self.read_shell(
+            owner_id=owner_id,
+            session_id=session_id,
+            shell="primary",
             since=since,
             max_chars=max_chars,
         )
@@ -391,9 +577,10 @@ class RemoteMachineManager:
         cwd: str = "",
         result: Optional[Dict[str, Any]] = None,
         error: str = "",
+        runner_session_id: Optional[str] = None,
     ) -> None:
         result = result or {}
-        runner_session_id = _extract_runner_session_id(result)
+        runner_session_id = runner_session_id or _extract_runner_session_id(result)
         if not runner_session_id and binding_id:
             binding = (
                 self.db.query(SessionRemoteBindingModel)
@@ -525,6 +712,7 @@ class RemoteMachineManager:
                 timeout_seconds=self.provider.config.timeout_seconds,
                 wait_timeout_seconds=self.provider.config.wait_timeout_seconds,
                 max_output_chars=self.provider.config.max_output_chars,
+                command_policy=self.provider.config.command_policy,
                 allowed_machine_ids=(model.runner_machine_name,),
                 allowed_commands=self.provider.config.allowed_commands,
                 allowed_command_prefixes=self.provider.config.allowed_command_prefixes,
@@ -545,6 +733,7 @@ class RemoteMachineManager:
                 timeout_seconds=self.provider.config.timeout_seconds,
                 wait_timeout_seconds=self.provider.config.wait_timeout_seconds,
                 max_output_chars=self.provider.config.max_output_chars,
+                command_policy=self.provider.config.command_policy,
                 allowed_machine_ids=(binding.runner_machine_name,),
                 allowed_commands=self.provider.config.allowed_commands,
                 allowed_command_prefixes=self.provider.config.allowed_command_prefixes,
@@ -597,6 +786,62 @@ class RemoteMachineManager:
             default_cwd=binding.default_cwd,
             status=binding.status,
         )
+
+    def _shell_summary(
+        self,
+        shell: SessionRemoteShellModel,
+        *,
+        is_primary: bool,
+    ) -> SessionRemoteShellSummary:
+        return SessionRemoteShellSummary(
+            shell_id=shell.shell_id,
+            label=shell.label,
+            runner_machine_name=shell.runner_machine_name,
+            runner_session_id=shell.runner_session_id,
+            default_cwd=shell.default_cwd,
+            status=shell.status,
+            is_primary=is_primary,
+        )
+
+    def _normalize_shell_label(self, label: str) -> str:
+        cleaned = label.strip()
+        if cleaned.lower() in _PRIMARY_SHELL_IDS:
+            raise RemoteShellLabelError("'main' and 'primary' are reserved for the default shell.")
+        if not _SHELL_LABEL_RE.fullmatch(cleaned):
+            raise RemoteShellLabelError(
+                "Shell label must start with a letter or number and contain only "
+                "letters, numbers, dots, underscores, or hyphens."
+            )
+        return cleaned
+
+    def _resolve_shell_target(
+        self,
+        *,
+        owner_id: str,
+        session_id: str,
+        shell: str = "",
+    ) -> tuple[SessionRemoteBindingModel, Optional[SessionRemoteShellModel], str, str]:
+        binding = self.get_binding_model(session_id, owner_id)
+        requested = (shell or "").strip()
+        if requested.lower() in _PRIMARY_SHELL_IDS:
+            return binding, None, binding.runner_session_id, "main"
+        shell_model = (
+            self.db.query(SessionRemoteShellModel)
+            .filter(
+                SessionRemoteShellModel.session_id == session_id,
+                SessionRemoteShellModel.owner_id == owner_id,
+                SessionRemoteShellModel.binding_id == binding.binding_id,
+            )
+            .filter(
+                (SessionRemoteShellModel.shell_id == requested)
+                | (SessionRemoteShellModel.label == requested)
+                | (SessionRemoteShellModel.runner_session_id == requested)
+            )
+            .first()
+        )
+        if shell_model is None:
+            raise RemoteShellNotFoundError(requested)
+        return binding, shell_model, shell_model.runner_session_id, shell_model.label
 
     def _encrypt(self, secret: Optional[str]) -> Optional[str]:
         if not secret:

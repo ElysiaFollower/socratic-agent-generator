@@ -70,6 +70,14 @@ Expected persistent objects:
   - `last_error`.
   - `create_at`, `update_at`.
 
+- `SessionRemoteShell`
+  - `shell_id`: Socratic-owned id for an additional terminal.
+  - `binding_id`, `session_id`, `owner_id`: keep the terminal scoped to one learning session and one active machine binding.
+  - `label`: user-facing terminal name such as `capture` or `stimulus`.
+  - `runner_machine_name`: copied from the binding for audit and validation.
+  - `runner_session_id`: distinct Remote Runner persistent shell/session id.
+  - `default_cwd`, `status`, `last_error`, `create_at`, `update_at`.
+
 - `RemoteCommandAudit`
   - `audit_id`.
   - `session_id`.
@@ -113,6 +121,10 @@ Sessions:
 - `POST /api/sessions/{session_id}/files`
 - `POST /api/sessions/{session_id}/files/{filename}/remote-put`
 - `POST /api/sessions/{session_id}/remote-command`
+- `GET /api/sessions/{session_id}/remote-shells`
+- `POST /api/sessions/{session_id}/remote-shells`
+- `GET /api/sessions/{session_id}/remote-shells/{shell}/transcript`
+- `POST /api/sessions/{session_id}/remote-shells/{shell}/command`
 
 The file, binding, audit, and command routes are intentionally useful for both frontend implementation and backend-only debugging. They must call the same managers and policy checks used by the Tutor tool rather than a separate maintenance backdoor.
 
@@ -133,6 +145,9 @@ model and the profile decide what command is pedagogically appropriate.
 The stable tool surface should therefore stay general:
 
 - `check_remote_connection`
+- `create_remote_shell`
+- `list_remote_shells`
+- `read_remote_shell`
 - `run_remote_command`
 - `start_remote_command`
 - `wait_remote_command`
@@ -146,6 +161,15 @@ collection of narrow teaching actions such as "collect report evidence" or
 "diagnose this specific lab." That keeps the capability flexible while command
 optional deployment policy, session binding, audit, and output redaction provide
 the safety boundary.
+
+When a lab observation needs true concurrency, the tutor should create separate
+named shells instead of forcing everything through the primary terminal. For
+example, a packet-capture step can create `capture` for `tcpdump` and `stimulus`
+for `ping`; each shell gets its own Remote Runner `runner_session_id`, transcript
+and audit grouping, while both remain bound to the same Socratic session and
+the same selected machine. This preserves the product goal: the tutor can gather
+real evidence without hiding the workflow from the student or making terminal
+output unreadable.
 
 The runtime teaching boundary is stricter than the tool boundary: after a command
 returns, Tutor must explain why the observation matters for the current step,
@@ -278,6 +302,9 @@ The session Shell panel should use a terminal-tab model:
   `runner_session_id`.
 - A tab does not represent a single command. Single commands are transcript
   entries inside the selected terminal.
+- The first tab is the primary shell created by the session binding. Additional
+  tabs are named terminals created by the Tutor for concurrent work, such as
+  `capture` and `stimulus`.
 - The primary transcript should come from Remote Runner `session read`, because
   Remote Runner `session exec` now runs inside a persistent session shell and
   preserves shell-local state such as `cd`, exported variables, aliases, and

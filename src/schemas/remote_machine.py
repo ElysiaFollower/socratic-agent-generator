@@ -80,6 +80,38 @@ class RemoteBindingSummary(BaseModel):
     status: str
 
 
+class SessionRemoteShellSummary(BaseModel):
+    shell_id: str
+    label: str
+    runner_machine_name: str
+    runner_session_id: str
+    default_cwd: Optional[str] = None
+    status: str = "active"
+    is_primary: bool = False
+
+
+class SessionRemoteShellCreateRequest(BaseModel):
+    label: str = Field(min_length=1, max_length=60)
+    cwd: Optional[str] = Field(default=None, max_length=512)
+    reason: Optional[str] = Field(default=None, max_length=300)
+
+    @field_validator("label")
+    @classmethod
+    def strip_label(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("label cannot be empty")
+        return cleaned
+
+    @field_validator("cwd", "reason")
+    @classmethod
+    def strip_optional_shell_fields(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
+
 class SessionRemoteBindingUpdateRequest(BaseModel):
     remote_machine_id: Optional[str] = Field(
         default=None,
@@ -110,6 +142,11 @@ class SessionRemoteCommandRequest(BaseModel):
     cwd: Optional[str] = Field(default=None, max_length=512)
     reason: Optional[str] = Field(default=None, max_length=300)
     wait_timeout_seconds: Optional[int] = Field(default=None, ge=1, le=120)
+    shell: Optional[str] = Field(
+        default=None,
+        max_length=80,
+        description="Optional shell id or label. Omit for the primary shell.",
+    )
 
 
 class SessionRemoteCommandResponse(BaseModel):
@@ -121,6 +158,8 @@ class SessionRemoteCommandResponse(BaseModel):
 
 class SessionRemoteShellReadResponse(BaseModel):
     ok: bool = True
+    shell_id: Optional[str] = None
+    label: Optional[str] = None
     runner_session_id: str
     transcript: str = ""
     cursor: int = 0

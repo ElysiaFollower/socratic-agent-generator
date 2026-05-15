@@ -16,6 +16,7 @@ import {
   SessionRemoteCommandRequest,
   SessionRemoteCommandResponse,
   SessionRemoteShellReadResponse,
+  SessionRemoteShellSummary,
   StepCompletion,
 } from '../types';
 
@@ -179,10 +180,14 @@ export async function getSessionRemoteShellTranscript(
   sessionId: string,
   since = 0,
   maxChars = 12000,
+  shellId?: string,
 ): Promise<SessionRemoteShellReadResponse> {
   try {
+    const endpoint = shellId && shellId !== 'primary'
+      ? `/api/sessions/${sessionId}/remote-shells/${encodeURIComponent(shellId)}/transcript`
+      : `/api/sessions/${sessionId}/remote-shell`;
     const response = await apiClient.get<SessionRemoteShellReadResponse>(
-      `/api/sessions/${sessionId}/remote-shell`,
+      endpoint,
       {params: {since, max_chars: maxChars}},
     );
     return response.data;
@@ -193,13 +198,32 @@ export async function getSessionRemoteShellTranscript(
   }
 }
 
+export async function getSessionRemoteShells(
+  sessionId: string,
+): Promise<readonly SessionRemoteShellSummary[]> {
+  try {
+    const response = await apiClient.get<readonly SessionRemoteShellSummary[]>(
+      `/api/sessions/${sessionId}/remote-shells`,
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(
+      `Failed to fetch remote shells: ${handleApiError(error)}`,
+    );
+  }
+}
+
 export async function runSessionRemoteShellCommand(
   sessionId: string,
   request: SessionRemoteCommandRequest,
+  shellId?: string,
 ): Promise<SessionRemoteCommandResponse> {
   try {
+    const endpoint = shellId && shellId !== 'primary'
+      ? `/api/sessions/${sessionId}/remote-shells/${encodeURIComponent(shellId)}/command`
+      : `/api/sessions/${sessionId}/remote-shell/command`;
     const response = await apiClient.post<SessionRemoteCommandResponse>(
-      `/api/sessions/${sessionId}/remote-shell/command`,
+      endpoint,
       request,
     );
     return response.data;

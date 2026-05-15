@@ -3,9 +3,9 @@
 ## 当前状态
 
 - 当前功能项：无 active feature。
-- 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，`58d38d7` 已同步 linux-01，admin 真实 Sniffing/Spoofing 会话完成 9/9。
-- 下一步最佳动作：提交并推送部署与真实会话验证记录；后续优先修复真实会话暴露的并发证据采集规划和最终收尾割裂问题。
+- 当前任务计划：无；最近计划已归档到 `plans/archive/20260515-tutor-named-shell-sessions.md`。
+- 上次验证：2026-05-15，Tutor named shell sessions 本地验证通过。
+- 下一步最佳动作：提交并按需同步部署；后续用真实会话验证 Tutor 是否会主动用 `capture`/`stimulus` 这类命名 shell 组织并发证据。
 
 ## 状态约定
 
@@ -15,6 +15,22 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 开启 Tutor named shell sessions
+
+- 用户明确并发证据采集的目标设计：Tutor 应能在同一会话绑定机器下创建多个命名 shell session，例如 `capture` 和 `stimulus`，用于并行执行监听和触发命令。
+- 创建 active plan：`plans/active/20260515-tutor-named-shell-sessions.md`。
+- 将 `vnext-tutor-concurrent-evidence-planning` 设置为当前唯一 active feature。
+- 范围判断：本任务实现 Socratic 侧命名 shell/terminal 层，不改 Remote Runner 源码，不放宽 command policy，不实现浏览器 raw PTY。
+
+### 2026-05-15 - 完成 Tutor named shell sessions
+
+- 新增会话内命名 shell/terminal 层：主绑定 shell 仍由 `SessionRemoteBindingModel` 表示，额外 terminal 由 `SessionRemoteShellModel` 保存，每个 named shell 拥有独立 Remote Runner `runner_session_id`。
+- 后端新增 shell list/create/read/run API；旧 primary shell API 保持兼容。
+- Tutor 工具新增 `create_remote_shell`、`list_remote_shells`、`read_remote_shell`，并支持在 `run/start/list/result/wait/stop` 工具中通过 `shell` 参数指定 named terminal。
+- 前端 Shell 面板现在从 shell list 和 audit 共同构造 terminal tabs，使用 `main`、`capture`、`stimulus` 等 label 显示，并读取选中 shell 的 persistent transcript。
+- 验证：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 40 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
+- 状态：`vnext-tutor-concurrent-evidence-planning` 标记为 `passing`；计划归档到 `plans/archive/20260515-tutor-named-shell-sessions.md`。
 
 ### 2026-05-15 - 同步 Shell/Tutor polish 到 linux-01 并完成真实会话测试
 

@@ -1,6 +1,6 @@
 """Remote lab machine models for session-bound Tutor tools."""
 
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, JSON, String, Text, UniqueConstraint
 from sqlalchemy.sql import func
 
 from .base import Base
@@ -51,6 +51,38 @@ class SessionRemoteBindingModel(Base):
     )
     runner_machine_name = Column(String, nullable=False)
     runner_session_id = Column(String, nullable=False)
+    default_cwd = Column(String, nullable=True)
+    status = Column(String, nullable=False, default="active")
+    last_error = Column(Text, nullable=True)
+    create_at = Column(DateTime(timezone=True), server_default=func.now())
+    update_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SessionRemoteShellModel(Base):
+    """Additional named Remote Runner shell for one learning session."""
+
+    __tablename__ = "session_remote_shells"
+    __table_args__ = (
+        UniqueConstraint("session_id", "owner_id", "label", name="uq_session_remote_shell_label"),
+    )
+
+    shell_id = Column(String, primary_key=True, index=True)
+    binding_id = Column(
+        String,
+        ForeignKey("session_remote_bindings.binding_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    session_id = Column(
+        String,
+        ForeignKey("sessions.session_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+    owner_id = Column(String, ForeignKey("users.user_id"), index=True, nullable=False)
+    label = Column(String, nullable=False)
+    runner_machine_name = Column(String, nullable=False)
+    runner_session_id = Column(String, nullable=False, unique=True, index=True)
     default_cwd = Column(String, nullable=True)
     status = Column(String, nullable=False, default="active")
     last_error = Column(Text, nullable=True)

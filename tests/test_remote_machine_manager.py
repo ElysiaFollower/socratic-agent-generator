@@ -362,3 +362,173 @@ def test_bound_shell_read_uses_session_binding():
         "500",
         "--json",
     ]
+
+
+def test_create_named_shell_lists_primary_and_extra_shells():
+    SessionLocal = make_db()
+    runner = FakeRunner(
+        [
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "machine_id": "seed-lab",
+                        "reachable": True,
+                        "auth_ok": True,
+                        "default_cwd_ok": True,
+                    }
+                ),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-main", "machine_id": "seed-lab"}),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-capture", "machine_id": "seed-lab"}),
+            ),
+        ]
+    )
+    provider = RemoteRunnerProvider(
+        RemoteRunnerProviderConfig(enabled=True, repo_path=None),
+        command_runner=runner,
+    )
+
+    with SessionLocal() as db:
+        manager = RemoteMachineManager(db, provider=provider)
+        machine = manager.create_machine(
+            "user1",
+            RemoteMachineCreate(
+                display_name="SEED Lab",
+                runner_machine_name="seed-lab",
+                auth_type="existing",
+                default_cwd="/home/seed",
+            ),
+        )
+        manager.create_binding(
+            owner_id="user1",
+            session_id="socratic-session",
+            machine_id=machine.machine_id,
+        )
+        shell = manager.create_shell(
+            owner_id="user1",
+            session_id="socratic-session",
+            label="capture",
+            reason="tcpdump listener",
+        )
+        shells = manager.list_shells(
+            owner_id="user1",
+            session_id="socratic-session",
+        )
+
+    assert shell.label == "capture"
+    assert shell.runner_session_id == "rr-capture"
+    assert [item.label for item in shells] == ["main", "capture"]
+    assert shells[0].is_primary is True
+    assert shells[1].is_primary is False
+    assert runner.calls[2][3:] == [
+        "session",
+        "create",
+        "--machine",
+        "seed-lab",
+        "--cwd",
+        "/home/seed",
+        "--json",
+    ]
+
+
+def test_named_shell_command_records_audit_for_named_terminal():
+    SessionLocal = make_db()
+    runner = FakeRunner(
+        [
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "machine_id": "seed-lab",
+                        "reachable": True,
+                        "auth_ok": True,
+                        "default_cwd_ok": True,
+                    }
+                ),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-main", "machine_id": "seed-lab"}),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-stimulus", "machine_id": "seed-lab"}),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps({"session_id": "rr-stimulus", "machine_id": "seed-lab"}),
+            ),
+            RunnerResult(
+                returncode=0,
+                stdout=json.dumps(
+                    {
+                        "session_id": "rr-stimulus",
+                        "machine_id": "seed-lab",
+                        "command": "ping -c 1 10.9.0.5",
+                        "exit_code": 0,
+                        "stdout": "1 packets transmitted, 1 received\n",
+                        "stderr": "",
+                    }
+                ),
+            ),
+        ]
+    )
+    provider = RemoteRunnerProvider(
+        RemoteRunnerProviderConfig(enabled=True, repo_path=None),
+        command_runner=runner,
+    )
+
+    with SessionLocal() as db:
+        manager = RemoteMachineManager(db, provider=provider)
+        machine = manager.create_machine(
+            "user1",
+            RemoteMachineCreate(
+                display_name="SEED Lab",
+                runner_machine_name="seed-lab",
+                auth_type="existing",
+                default_cwd="/home/seed",
+            ),
+        )
+        manager.create_binding(
+            owner_id="user1",
+            session_id="socratic-session",
+            machine_id=machine.machine_id,
+        )
+        manager.create_shell(
+            owner_id="user1",
+            session_id="socratic-session",
+            label="stimulus",
+        )
+        result = manager.run_shell_command(
+            owner_id="user1",
+            session_id="socratic-session",
+            shell="stimulus",
+            command="ping -c 1 10.9.0.5",
+            reason="generate packets",
+        )
+        audits = manager.list_audits("socratic-session", "user1")
+
+    assert result["result"]["stdout"] == "1 packets transmitted, 1 received\n"
+    assert audits[-1].command == "ping -c 1 10.9.0.5"
+    assert audits[-1].runner_session_id == "rr-stimulus"
+    assert audits[-1].terminal_id == "rr-stimulus"
+    assert runner.calls[3][3:] == ["session", "show", "--session", "rr-stimulus", "--json"]
+    assert runner.calls[4][3:] == [
+        "session",
+        "exec",
+        "--session",
+        "rr-stimulus",
+        "--cmd",
+        "ping -c 1 10.9.0.5",
+        "--timeout",
+        "20",
+        "--mode",
+        "wait",
+        "--json",
+    ]

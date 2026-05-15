@@ -4,7 +4,7 @@
 
 - 分支：`vnext-tutor-conduct-polish`
 - 当前功能项：无 active feature。
-- Active plan：无；最近计划已归档到 `plans/archive/20260515-tutor-conduct-polish.md`。
+- Active plan：无；最近计划已归档到 `plans/archive/20260515-tutor-named-shell-sessions.md`。
 - 目标分支：`dev`。
 - 当前 PR：无；当前分支待提交、推送，后续按需发 PR 或同步部署。
 
@@ -54,6 +54,7 @@
 - Shell panel terminal header trim and collapse 已完成：核实选中 terminal 内容区顶部重复显示 `Shell 1`、状态和 `sess_...` runner session id；现已移除该二级标题区，transcript 直接从 shell 输出开始。Shell 顶栏默认展开但可折叠，折叠后只保留紧凑控制按钮，状态仍保留在 tab 和展开顶栏。
 - linux-01 已同步当前分支 commit `58d38d7`：远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过，`cd frontend && npm run build` 通过；tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515041730`。
 - 2026-05-15 admin 真实会话测试已完成：session `e9293b21-6f37-465a-8fc9-3508696409da`，Profile `Sniffing_Spoofing manual calibrated`，机器 `SEED Lab on linux-01`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=17`。artifact 位于 `/tmp/manual-admin-conduct-20260515-shell-collapse.json` 与 `/tmp/manual-admin-conduct-20260515-shell-collapse-continued.json`。
+- Tutor named shell sessions 已完成：Socratic 会话现在可在主绑定 shell 之外创建多个命名 Remote Runner shell terminal；Tutor tools 支持 `create_remote_shell`、`list_remote_shells`、`read_remote_shell`，并可在 `run/start/list/result/wait/stop` 中指定 `shell`。Shell 面板 tab 使用 shell label，并读取选中 terminal 的 persistent transcript。计划已归档：`plans/archive/20260515-tutor-named-shell-sessions.md`。
 
 ## 验证记录
 
@@ -87,12 +88,13 @@
 - 2026-05-15 Shell panel terminal header trim and collapse：`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 - 2026-05-15 linux-01 current branch deploy：上传 commit `58d38d7` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后本地访问后端 health OK、前端 HTTP 200；source grep 命中 `collapseHeader`。
 - 2026-05-15 admin real conduct：通过部署机真实 API 会话 `e9293b21-6f37-465a-8fc9-3508696409da` 完成 Sniffing/Spoofing 全 9 步，`remote_audit_count=17`。
+- 2026-05-15 Tutor named shell sessions：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 40 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
 - Shell 面板 UX 和 follow-up 可用性修正已实现；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 曾超时。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
-- 本次 admin 真实会话暴露：Tutor 对 `tcpdump` 监听加 `ping` 触发这类需要并发的证据采集仍会顺序执行，导致 `0 packets captured`，但它会引导学生解释该现象。后续需要让工具规划更会使用 background/wait/result 或 shell expression 来组织并发观察。
+- 本次 admin 真实会话暴露的 `tcpdump` 监听加 `ping` 触发并发证据问题，Socratic 侧已通过 Tutor named shell sessions 提供能力入口；仍需后续真实会话验证 Tutor 是否会稳定主动创建 `capture`/`stimulus` 这类 shell，而不是继续顺序执行。
 - 本次 admin 真实会话暴露：最后一步完成时 deterministic closeout 已追加，但其前面仍保留一段继续追问实现细节的 LLM 文本，收尾语义略割裂。后续应在最终 step 通过后压制或改写未完成式 follow-up。
 - 真实 conduct 样本应作为后续学习质量分析材料保留；不要为了清理环境删除 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 或对应 runner transcript，除非用户明确要求。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
@@ -105,6 +107,7 @@
 - 删除文档时提示引用方并使引用失效；不应因为存在引用而彻底不能删。
 - Profile generator 改造前应先跑静态评估；该评估不能替代单实验 E2E benchmark 和真实 Tutor 会话。
 - Shell/Evidence 面板的 tab 代表 terminal/session，不代表命令；命令是选中 terminal transcript 中的连续片段。
+- 一个 Socratic session 绑定一台机器；主 terminal 属于 `SessionRemoteBindingModel`，额外命名 terminal 属于 `SessionRemoteShellModel`。Tutor 可按用途创建 `capture`、`stimulus` 等 shell，同一绑定机器、不同 Remote Runner `runner_session_id`，audit 仍按 runner session 分组。
 - Socratic audit 需要在记录时保存当时的 `runner_session_id`，不能只依赖当前 binding 反查，否则切换机器后旧 evidence 会被错分。
 - 学生面板命令默认走 `session exec`，不是 raw `session send`；这样既利用 Remote Runner 持久 shell，又保留 command allowlist、exit code、stdout/stderr、timeout、redaction 和 audit。
 - 用户可见面板名为 Shell；audit/evidence 是内部数据来源，不应作为主要 UI 命名。
@@ -116,13 +119,14 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：部署与真实会话验证记录、后续问题记录；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
+- 当前待提交范围：Tutor named shell sessions 实现、测试和文档；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送部署与真实会话验证记录。
-2. 下一阶段优先修复并发证据采集规划和最终收尾割裂问题。
+1. 提交并按需同步部署 named shell sessions。
+2. 用真实会话验证 Tutor 是否会为 `tcpdump + ping` 主动创建并使用多个命名 shell；若仍不稳定，再调整工具提示或 benchmark。
+3. 下一阶段处理最终收尾割裂问题。
 
 ## 命令
 
