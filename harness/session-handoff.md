@@ -55,6 +55,7 @@
 - linux-01 已同步当前分支 commit `58d38d7`：远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过，`cd frontend && npm run build` 通过；tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515041730`。
 - 2026-05-15 admin 真实会话测试已完成：session `e9293b21-6f37-465a-8fc9-3508696409da`，Profile `Sniffing_Spoofing manual calibrated`，机器 `SEED Lab on linux-01`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=17`。artifact 位于 `/tmp/manual-admin-conduct-20260515-shell-collapse.json` 与 `/tmp/manual-admin-conduct-20260515-shell-collapse-continued.json`。
 - Tutor named shell sessions 已完成：Socratic 会话现在可在主绑定 shell 之外创建多个命名 Remote Runner shell terminal；Tutor tools 支持 `create_remote_shell`、`list_remote_shells`、`read_remote_shell`，并可在 `run/start/list/result/wait/stop` 中指定 `shell`。Shell 面板 tab 使用 shell label，并读取选中 terminal 的 persistent transcript。计划已归档：`plans/archive/20260515-tutor-named-shell-sessions.md`。
+- linux-01 已同步 commit `4791d48`：部署目录切换完成，远端 compileall 与 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启；本机 health 返回 OK、前端 HTTP 200；部署 DB 已存在 `session_remote_shells` 表。备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515045025`。
 
 ## 验证记录
 
@@ -89,6 +90,7 @@
 - 2026-05-15 linux-01 current branch deploy：上传 commit `58d38d7` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后本地访问后端 health OK、前端 HTTP 200；source grep 命中 `collapseHeader`。
 - 2026-05-15 admin real conduct：通过部署机真实 API 会话 `e9293b21-6f37-465a-8fc9-3508696409da` 完成 Sniffing/Spoofing 全 9 步，`remote_audit_count=17`。
 - 2026-05-15 Tutor named shell sessions：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 40 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
+- 2026-05-15 linux-01 named shell deploy：上传并部署 commit `4791d48` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过；重启后远端 health OK、前端 HTTP 200；`session_remote_shells` 表存在；线上 source 命中 `create_remote_shell`。
 
 ## 仍损坏或未验证
 
@@ -124,9 +126,8 @@
 
 ## 下一步最佳动作
 
-1. 提交并按需同步部署 named shell sessions。
-2. 用真实会话验证 Tutor 是否会为 `tcpdump + ping` 主动创建并使用多个命名 shell；若仍不稳定，再调整工具提示或 benchmark。
-3. 下一阶段处理最终收尾割裂问题。
+1. 用真实会话验证 Tutor 是否会为 `tcpdump + ping` 主动创建并使用多个命名 shell；若仍不稳定，再调整工具提示或 benchmark。
+2. 下一阶段处理最终收尾割裂问题。
 
 ## 命令
 

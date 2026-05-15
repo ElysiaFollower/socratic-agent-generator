@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无；最近计划已归档到 `plans/archive/20260515-tutor-named-shell-sessions.md`。
-- 上次验证：2026-05-15，Tutor named shell sessions 本地验证通过。
-- 下一步最佳动作：提交并按需同步部署；后续用真实会话验证 Tutor 是否会主动用 `capture`/`stimulus` 这类命名 shell 组织并发证据。
+- 上次验证：2026-05-15，Tutor named shell sessions 已同步 linux-01 并完成部署 smoke。
+- 下一步最佳动作：后续用真实会话验证 Tutor 是否会主动用 `capture`/`stimulus` 这类命名 shell 组织并发证据。
 
 ## 状态约定
 
@@ -31,6 +31,13 @@
 - 前端 Shell 面板现在从 shell list 和 audit 共同构造 terminal tabs，使用 `main`、`capture`、`stimulus` 等 label 显示，并读取选中 shell 的 persistent transcript。
 - 验证：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 40 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 - 状态：`vnext-tutor-concurrent-evidence-planning` 标记为 `passing`；计划归档到 `plans/archive/20260515-tutor-named-shell-sessions.md`。
+
+### 2026-05-15 - 同步 Tutor named shell sessions 到 linux-01
+
+- 已将 commit `4791d48` 部署到 `/home/ely/deploy/socratic-live/socratic-agent-generator`，备份目录为 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515045025`。
+- 部署保留远端 `.env`、`data/`、`frontend/node_modules` 和真实会话数据。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；tmux `socratic-backend` 与 `socratic-frontend` 已重启；`curl http://127.0.0.1:8000/api/health` 返回 `{"status":"ok"}`；前端 `http://127.0.0.1:5173` 返回 HTTP 200；部署 DB 已存在 `session_remote_shells` 表；线上 source 命中 `create_remote_shell`。
+- Remote Runner 临时部署 session 已销毁，日志保留在本机 Remote Runner log 目录；不提交 runtime artifact。
 
 ### 2026-05-15 - 同步 Shell/Tutor polish 到 linux-01 并完成真实会话测试
 
