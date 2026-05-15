@@ -293,6 +293,28 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q && python3 -m compileall src tests && git diff --check",
       "evidence": "2026-05-15: added deterministic Tutor reply cleanup for LangChain early-stopping control text and a final-session closeout that explicitly says the lab is complete and prompts report evidence-chain organization. This addresses live admin session 03afb887-1cb8-4769-8e17-ff6f33c9fc17 observations where a turn exposed 'Agent stopped due to max iterations' and final completion wording still looked like the tutor wanted to continue raw socket coding. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q -> 9 passed; ./scripts/harness-check.sh 0 warnings; python3 -m compileall src tests passed; git diff --check passed.",
       "notes": "Archived plan: plans/archive/20260515-tutor-conduct-polish.md. This does not change StepEvaluator, profiles, Remote Runner, sudo, Shell panel, or deployment data."
+    },
+    {
+      "id": "vnext-tutor-concurrent-evidence-planning",
+      "priority": "P1",
+      "area": "tutor-runtime",
+      "title": "Tutor concurrent shell evidence planning",
+      "behavior": "When evidence requires a listener and a stimulus, the tutor can plan background/wait/result or shell-expression execution so observations such as tcpdump plus ping produce meaningful evidence instead of sequential zero-capture results.",
+      "status": "not_started",
+      "verification": "A linux-01 admin conduct or focused tool-planning test shows tcpdump/listener and ping/stimulus evidence collected in one learning turn with non-empty capture or a clear explanation of capture timing.",
+      "evidence": "2026-05-15 admin real conduct session e9293b21-6f37-465a-8fc9-3508696409da exposed the gap: Tutor ran tcpdump and ping sequentially around Task 1.1A, so tcpdump returned 0 packets captured even though ping succeeded. The tutor did use the result pedagogically, but the tool plan should learn to use Remote Runner background command lifecycle or a shell expression for concurrent listener/stimulus evidence.",
+      "notes": "Observed after deploying commit 58d38d7 to linux-01. Runtime artifacts remain outside git under /tmp and deployment DB."
+    },
+    {
+      "id": "vnext-tutor-final-closeout-rewrite",
+      "priority": "P2",
+      "area": "tutor-runtime",
+      "title": "Tutor final closeout rewrite",
+      "behavior": "When the final curriculum step is accepted, the user-visible reply should not continue as if more step work is required; any remaining model follow-up should be suppressed or reframed as a report self-check before the deterministic completion closeout.",
+      "status": "not_started",
+      "verification": "A final-step focused test or linux-01 conduct confirms the final reply reads as complete and report-oriented, without leading with unresolved implementation questions.",
+      "evidence": "2026-05-15 admin real conduct session e9293b21-6f37-465a-8fc9-3508696409da reached stepIndex=9,totalSteps=9,isFinished=true and appended the deterministic completion closeout, but the same reply first asked additional pcap/raw-socket implementation questions. The current fix is correct but not fully polished.",
+      "notes": "Do not change StepEvaluator success semantics; this is a user-visible reply shaping issue after final-step acceptance."
     }
   ]
 }

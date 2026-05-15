@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，Shell panel terminal header trim and collapse 通过前端测试、前端构建、harness check 和 diff check。
-- 下一步最佳动作：提交并推送 `vnext-tutor-conduct-polish` 分支增量，后续按需发 PR 或同步部署。
+- 上次验证：2026-05-15，`58d38d7` 已同步 linux-01，admin 真实 Sniffing/Spoofing 会话完成 9/9。
+- 下一步最佳动作：提交并推送部署与真实会话验证记录；后续优先修复真实会话暴露的并发证据采集规划和最终收尾割裂问题。
 
 ## 状态约定
 
@@ -15,6 +15,16 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 同步 Shell/Tutor polish 到 linux-01 并完成真实会话测试
+
+- 已将当前分支 commit `58d38d7` 部署到 linux-01 `/home/ely/deploy/socratic-live/socratic-agent-generator`。部署保留远端 `.env`、`data/` 和 `frontend/node_modules`，备份目录为 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515041730`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启 tmux `socratic-backend` 与 `socratic-frontend` 后，linux-01 本机 `/api/health` 返回 OK、前端 HTTP 200；线上 source 包含 `collapseHeader`，确认 Shell 顶栏折叠 UI 已同步。
+- 使用 admin 账号在真实部署环境创建会话 `e9293b21-6f37-465a-8fc9-3508696409da`，Profile 为 `Sniffing_Spoofing manual calibrated`，绑定 `SEED Lab on linux-01`，扮演不完全懂行学生完成完整实验流程。最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=17`。
+- 本次会话 artifact 保留在本机 `/tmp/manual-admin-conduct-20260515-shell-collapse.json` 和 `/tmp/manual-admin-conduct-20260515-shell-collapse-continued.json`；不提交仓库、不包含真实凭据。
+- 正向观察：当学生连续跳到后续任务时，Tutor 没有盲目推进，而是持续拉回当前 Task 1.1A 并要求给出具体抓包/ping 命令；当学生补齐当前任务核心后，进度正常推进到后续节点。
+- 暴露问题 1：Tutor 需要采集“tcpdump 监听 + ping 触发”这类并发证据时，仍倾向顺序执行命令，导致 tcpdump 输出 `0 packets captured`。后续应让 Tutor 更会使用后台命令、wait/result 或单条 shell expression 组织并发观察。
+- 暴露问题 2：最终回复包含确定性“实验已完成”收尾，但在收尾前仍保留了一组“继续追问实现细节”的 LLM 文本，语义上略割裂。后续最终节点通过时，应考虑压制未完成式 follow-up 或把它改写成报告自查清单。
 
 ### 2026-05-15 - 完成 Shell panel terminal header trim and collapse
 

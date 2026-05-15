@@ -52,6 +52,8 @@
 - 同次真实会话验证 sudo 链路可用：通过 Socratic API 执行 `sudo whoami && sudo id` 返回 `root` 和 `uid=0(root)`，说明实验机免密 sudo 可被 Remote Runner 真实使用。
 - Tutor conduct polish 已完成：`Agent stopped due to max iterations` 这类 LangChain executor 控制文本会在写入历史和展示前清理；最后一个课程节点通过后，Tutor 给出确定性“实验已完成”收尾，并提示按报告证据链整理环境权限、接口流量、过滤器、伪造包、TTL/traceroute、C/pcap/raw socket 等结果。计划已归档：`plans/archive/20260515-tutor-conduct-polish.md`。
 - Shell panel terminal header trim and collapse 已完成：核实选中 terminal 内容区顶部重复显示 `Shell 1`、状态和 `sess_...` runner session id；现已移除该二级标题区，transcript 直接从 shell 输出开始。Shell 顶栏默认展开但可折叠，折叠后只保留紧凑控制按钮，状态仍保留在 tab 和展开顶栏。
+- linux-01 已同步当前分支 commit `58d38d7`：远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过，`cd frontend && npm run build` 通过；tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515041730`。
+- 2026-05-15 admin 真实会话测试已完成：session `e9293b21-6f37-465a-8fc9-3508696409da`，Profile `Sniffing_Spoofing manual calibrated`，机器 `SEED Lab on linux-01`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=17`。artifact 位于 `/tmp/manual-admin-conduct-20260515-shell-collapse.json` 与 `/tmp/manual-admin-conduct-20260515-shell-collapse-continued.json`。
 
 ## 验证记录
 
@@ -83,11 +85,15 @@
 - 2026-05-15 linux-01 thin adapter deploy：上传并部署 commit `4e7dd43`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过；Socratic API compound command smoke 通过。
 - 2026-05-15 Tutor conduct polish：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 9 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 - 2026-05-15 Shell panel terminal header trim and collapse：`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 2026-05-15 linux-01 current branch deploy：上传 commit `58d38d7` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后本地访问后端 health OK、前端 HTTP 200；source grep 命中 `collapseHeader`。
+- 2026-05-15 admin real conduct：通过部署机真实 API 会话 `e9293b21-6f37-465a-8fc9-3508696409da` 完成 Sniffing/Spoofing 全 9 步，`remote_audit_count=17`。
 
 ## 仍损坏或未验证
 
 - Shell 面板 UX 和 follow-up 可用性修正已实现；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 曾超时。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
+- 本次 admin 真实会话暴露：Tutor 对 `tcpdump` 监听加 `ping` 触发这类需要并发的证据采集仍会顺序执行，导致 `0 packets captured`，但它会引导学生解释该现象。后续需要让工具规划更会使用 background/wait/result 或 shell expression 来组织并发观察。
+- 本次 admin 真实会话暴露：最后一步完成时 deterministic closeout 已追加，但其前面仍保留一段继续追问实现细节的 LLM 文本，收尾语义略割裂。后续应在最终 step 通过后压制或改写未完成式 follow-up。
 - 真实 conduct 样本应作为后续学习质量分析材料保留；不要为了清理环境删除 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 或对应 runner transcript，除非用户明确要求。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
 
@@ -110,13 +116,13 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：Tutor conduct polish 与 Shell panel terminal header trim 代码、focused tests/前端验证、归档 plan、harness/progress/handoff/feature evidence；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
+- 当前待提交范围：部署与真实会话验证记录、后续问题记录；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送 `vnext-tutor-conduct-polish` 分支增量。
-2. 后续按用户节奏决定是否发 PR、merge 到 `dev` 或同步部署。
+1. 提交并推送部署与真实会话验证记录。
+2. 下一阶段优先修复并发证据采集规划和最终收尾割裂问题。
 
 ## 命令
 
