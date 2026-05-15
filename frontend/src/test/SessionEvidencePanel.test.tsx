@@ -2,6 +2,7 @@ import {describe, expect, it} from "vitest";
 import {
   cleanShellTranscript,
   formatAuditTranscript,
+  lineColor,
   panelWidthBounds,
 } from "../components/session/SessionEvidencePanel";
 import {RemoteCommandAudit} from "../types";
@@ -52,5 +53,23 @@ describe("SessionEvidencePanel helpers", () => {
         ].join("\n"),
       ),
     ).toBe("$ pwd\n/home/seed");
+  });
+
+  it("keeps real shell prompts highlightable after switching from audit fallback", () => {
+    expect(lineColor("bash-5.0$ docker ps")).toBe("#9cdcfe");
+    expect(lineColor("seed@lab:/tmp# tcpdump -i eth0")).toBe("#9cdcfe");
+    expect(lineColor("/home/seed/lab $ pwd")).toBe("#9cdcfe");
+  });
+
+  it("strips Remote Runner source wrappers from real shell transcripts", () => {
+    expect(
+      cleanShellTranscript(
+        [
+          "bash-5.0$ source /home/seed/.remote-runner/commands/cmd_1/run.sh __REMOTE_RUNNER_CMD_BEGIN_cmd_1__ uid=1001(seed)",
+          "__REMOTE_RUNNER_CMD_END_cmd_1__:0",
+          "bash-5.0$ docker ps",
+        ].join("\n"),
+      ),
+    ).toBe("uid=1001(seed)\nbash-5.0$ docker ps");
   });
 });

@@ -114,8 +114,16 @@ export function formatAuditTranscript(audit: RemoteCommandAudit): string {
 export function cleanShellTranscript(transcript: string): string {
   return transcript
     .split("\n")
+    .map((line) =>
+      line
+        .replace(
+          /^(?:.*[$#]\s*)?source\s+\S+\/\.remote-runner\/commands\/\S+\/run\.sh\s*/g,
+          "",
+        )
+        .replace(/__REMOTE_RUNNER_CMD_(?:BEGIN|END)_[^\s]+(?::\d+)?\s*/g, ""),
+    )
     .filter((line) => {
-      if (/^source .*\/\.remote-runner\/commands\/.*\/run\.sh$/.test(line)) {
+      if (!line.trim()) {
         return false;
       }
       if (/^__REMOTE_RUNNER_CMD_(BEGIN|END)_/.test(line)) {
@@ -173,14 +181,15 @@ function groupStatus(
   return group.hasError ? "error" : "connected";
 }
 
-function lineColor(line: string): string {
-  if (/(^|\s)\$ /.test(line)) {
+export function lineColor(line: string): string {
+  const text = line.replace(/\u001b\[[0-9;]*m/g, "");
+  if (/^(?:[\w.@/:~+-]+)?[$#]\s+\S/.test(text) || /(^|\s)[$#]\s+\S/.test(text)) {
     return "#9cdcfe";
   }
-  if (line.startsWith("error:") || line.startsWith("exit ")) {
+  if (text.startsWith("error:") || text.startsWith("exit ")) {
     return "#f48771";
   }
-  if (line.startsWith("# ")) {
+  if (text.startsWith("# ")) {
     return "#6a9955";
   }
   return "#d4d4d4";
