@@ -3,8 +3,10 @@ from utils.template_assembler import PromptAssembler
 from utils.tutor_core import (
     Tutor,
     _agent_executor_kwargs,
+    _completion_closeout,
     _looks_like_tool_only_reply,
     _missing_stream_reply_chunk,
+    _strip_agent_stop_notice,
     _summarize_remote_observations,
 )
 
@@ -65,6 +67,23 @@ def test_missing_stream_reply_chunk_returns_unstreamed_suffix():
         _missing_stream_reply_chunk("final teaching summary", "tool preamble")
         == "\n\nfinal teaching summary"
     )
+
+
+def test_strip_agent_stop_notice_removes_executor_control_text():
+    reply = "Agent stopped due to max iterations.\n\n---\n\n很好，这一步继续。"
+
+    cleaned = _strip_agent_stop_notice(reply)
+
+    assert "Agent stopped" not in cleaned
+    assert cleaned == "很好，这一步继续。"
+
+
+def test_completion_closeout_is_report_oriented():
+    closeout = _completion_closeout("中文")
+
+    assert "本次实验会话已完成" in closeout
+    assert "报告证据链" in closeout
+    assert "命令输出" in closeout
 
 
 def test_remote_observation_summary_hides_raw_json():

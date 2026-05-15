@@ -119,6 +119,36 @@ def _missing_stream_reply_chunk(reply: str, yielded_reply: str) -> str:
     return ("\n\n" if yielded_reply else "") + reply
 
 
+def _strip_agent_stop_notice(reply: str) -> str:
+    """Remove LangChain executor control text from user-visible replies."""
+    cleaned = (reply or "").replace("Agent stopped due to max iterations.", "")
+    cleaned = cleaned.strip()
+    while cleaned.startswith("---"):
+        cleaned = cleaned[3:].strip()
+    return cleaned
+
+
+def _completion_closeout(output_language: str) -> str:
+    """Return a deterministic final-session closeout."""
+    if output_language == "English":
+        return (
+            "This lab session is complete.\n\n"
+            "For your report, organize the evidence chain around: environment and "
+            "privilege baseline, correct interface and traffic path, filter behavior, "
+            "spoofed packet evidence, TTL/traceroute reasoning, and the C pcap/raw "
+            "socket implementation boundary. The important result is not just that "
+            "commands ran, but that each output supports a protocol or engineering "
+            "judgment you can explain."
+        )
+    return (
+        "本次实验会话已完成。\n\n"
+        "报告证据链可以按这条主线整理：环境与权限基线、正确接口和流量路径、"
+        "过滤器行为、伪造包证据、TTL/traceroute 推理，以及 C/pcap 与 raw socket "
+        "实现边界。关键不是只列命令输出，而是说明每个输出分别支撑了哪个协议或"
+        "工程判断。"
+    )
+
+
 def _summarize_remote_observation(observation: str) -> str:
     """Convert a Remote Runner JSON observation into a student-readable line."""
     text = observation.strip()
@@ -787,10 +817,7 @@ class Tutor:
 
         if current_step_idx >= curriculum.get_len():
             # Curriculum completed
-            message = (
-                "太棒了！你已经完成了本次的所有学习任务。"
-                "期待与你进行下一次的探讨！"
-            )
+            message = _completion_closeout(self.session.output_language)
             self._add_message_to_history(message, "ai")
             yield message
             return
@@ -1295,6 +1322,10 @@ class Tutor:
                     len(reply),
                     tool_call_count,
                 )
+                reply = self._remote_tool_teaching_reply(user_input, tool_observations)
+
+            reply = _strip_agent_stop_notice(reply)
+            if not reply and tool_called:
                 reply = self._remote_tool_teaching_reply(user_input, tool_observations)
 
             # Add AI response to history with incremental token counting

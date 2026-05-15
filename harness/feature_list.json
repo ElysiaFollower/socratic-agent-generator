@@ -271,6 +271,17 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q && python3 -m compileall src tests && git diff --check",
       "evidence": "2026-05-15: corrected the Remote Runner adapter boundary after confirming upstream session exec supports shell expressions. Removed the tutor-facing compound-command guard, made REMOTE_TOOL_COMMAND_POLICY default to passthrough, preserved optional allowlist and deny_all deployment modes, kept per-runner-session command serialization, and improved busy-session summaries so Tutor sees terminal occupancy as distinct from policy rejection. Updated deployment and architecture docs to define Socratic as a thin adapter for binding, credentials, audit, redaction, output limits, and forwarding. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q -> 30 passed; ./scripts/harness-check.sh 0 warnings; python3 -m compileall src tests passed; git diff --check passed.",
       "notes": "Archived plan: plans/archive/20260515-remote-runner-thin-adapter.md. This supersedes the over-restrictive compound-command guard from vnext-manual-conduct-followup-hardening without removing session binding or audit."
+    },
+    {
+      "id": "vnext-tutor-conduct-polish",
+      "priority": "P1",
+      "area": "tutor-runtime",
+      "title": "Tutor conduct completion polish",
+      "behavior": "Tutor replies do not expose agent early-stopping internals, and final step completion produces a clear finished-session closeout with report evidence guidance.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q && python3 -m compileall src tests && git diff --check",
+      "evidence": "2026-05-15: added deterministic Tutor reply cleanup for LangChain early-stopping control text and a final-session closeout that explicitly says the lab is complete and prompts report evidence-chain organization. This addresses live admin session 03afb887-1cb8-4769-8e17-ff6f33c9fc17 observations where a turn exposed 'Agent stopped due to max iterations' and final completion wording still looked like the tutor wanted to continue raw socket coding. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q -> 9 passed; ./scripts/harness-check.sh 0 warnings; python3 -m compileall src tests passed; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260515-tutor-conduct-polish.md. This does not change StepEvaluator, profiles, Remote Runner, sudo, Shell panel, or deployment data."
     }
   ]
 }

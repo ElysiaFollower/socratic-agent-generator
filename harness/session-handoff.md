@@ -2,11 +2,11 @@
 
 ## 仓库状态
 
-- 分支：`vnext-shell-panel-ux`
+- 分支：`vnext-tutor-conduct-polish`
 - 当前功能项：无 active feature。
-- Active plan：无；最近计划已归档到 `plans/archive/20260515-remote-runner-thin-adapter.md`。
+- Active plan：无；最近计划已归档到 `plans/archive/20260515-tutor-conduct-polish.md`。
 - 目标分支：`dev`。
-- 当前 PR：#26（`vnext-shell-panel-ux` -> `dev`）。
+- 当前 PR：无；当前分支待提交、推送，后续按需发 PR 或同步部署。
 
 ## 当前已验证状态
 
@@ -48,6 +48,9 @@
 - linux-01 已同步 commit `63c4420`：远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。部署保留真实 conduct 样本，DB 中 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 的 state 为 `{"stepIndex": 9}`，`remote_command_audits=17`。
 - Remote Runner thin adapter 边界修正已完成：确认上游 Remote Runner 支持 compound shell expression 后，Socratic 移除了 tutor-facing compound guard；`REMOTE_TOOL_COMMAND_POLICY` 默认 `passthrough`，可选 `allowlist`/`deny_all` 用于更严格部署；Socratic 仍保留 session/machine binding、credential hiding、audit、redaction、output limit 和同 runner session 命令串行化。计划已归档：`plans/archive/20260515-remote-runner-thin-adapter.md`。
 - linux-01 已同步 commit `4e7dd43`：远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。部署侧 Socratic API smoke 对 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 执行 `whoami && id`，返回 `ok=true`、`exit_code=0`、stdout 包含 `seed` 和 `uid=1001(seed)`，证明 compound command 已透传给 Remote Runner。
+- 部署侧 admin 真实完整会话已完成：session `03afb887-1cb8-4769-8e17-ff6f33c9fc17`，Profile 为 `Sniffing_Spoofing manual calibrated`，绑定机器 `SEED Lab on linux-01`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=36`。本地临时分析 artifact 为 `/tmp/manual-admin-full-sudo-conduct-20260515.json`，不提交仓库。
+- 同次真实会话验证 sudo 链路可用：通过 Socratic API 执行 `sudo whoami && sudo id` 返回 `root` 和 `uid=0(root)`，说明实验机免密 sudo 可被 Remote Runner 真实使用。
+- Tutor conduct polish 已完成：`Agent stopped due to max iterations` 这类 LangChain executor 控制文本会在写入历史和展示前清理；最后一个课程节点通过后，Tutor 给出确定性“实验已完成”收尾，并提示按报告证据链整理环境权限、接口流量、过滤器、伪造包、TTL/traceroute、C/pcap/raw socket 等结果。计划已归档：`plans/archive/20260515-tutor-conduct-polish.md`。
 
 ## 验证记录
 
@@ -77,6 +80,7 @@
 - 2026-05-15 linux-01 follow-up deploy：上传并部署 commit `63c4420`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过。
 - 2026-05-15 Remote Runner thin adapter：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 30 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 - 2026-05-15 linux-01 thin adapter deploy：上传并部署 commit `4e7dd43`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过；Socratic API compound command smoke 通过。
+- 2026-05-15 Tutor conduct polish：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 9 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
@@ -104,13 +108,13 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：部署收口记录；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
+- 当前待提交范围：Tutor conduct polish 代码、focused tests、归档 plan、harness/progress/handoff/feature evidence；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送部署收口记录。
-2. 等待 PR #26 review/merge。
+1. 提交并推送 `vnext-tutor-conduct-polish` 分支。
+2. 后续按用户节奏决定是否发 PR、merge 到 `dev` 或同步部署。
 
 ## 命令
 

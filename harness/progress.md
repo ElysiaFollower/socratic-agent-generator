@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，Remote Runner thin adapter 修正已提交、推送并同步 linux-01 部署，部署侧 compound command 透传验证通过。
-- 下一步最佳动作：等待 PR #26 review/merge；后续可基于真实 conduct 样本继续改进 Tutor 工具规划与学习质量评估。
+- 上次验证：2026-05-15，Tutor conduct polish 通过 focused tests、compileall、harness check 和 diff check。
+- 下一步最佳动作：提交并推送 `vnext-tutor-conduct-polish` 分支，后续按需发 PR 或同步部署。
 
 ## 状态约定
 
@@ -15,6 +15,22 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 开启 Tutor conduct polish
+
+- 部署侧 admin 真实会话 `03afb887-1cb8-4769-8e17-ff6f33c9fc17` 已顺利完成 `stepIndex=9,totalSteps=9,isFinished=true`，证明系统可跑通完整实验对话。
+- 该会话暴露两个体验问题：中途出现 `Agent stopped due to max iterations` 系统文本；最后一步完成后回复仍像继续引导 raw socket coding，缺少清晰完成收尾。
+- 创建 active plan：`plans/active/20260515-tutor-conduct-polish.md`。
+- 将 `vnext-tutor-conduct-polish` 设置为当前唯一 active feature。
+- 范围判断：本任务只做 tutor runtime 后处理和 deterministic final closeout，不改 evaluator、profile、Remote Runner 或部署数据。
+
+### 2026-05-15 - 完成 Tutor conduct polish
+
+- `src/utils/tutor_core.py` 新增 early-stopping control text 清理，避免 `Agent stopped due to max iterations` 暴露给学生或写入会话历史。
+- 最后一个课程节点通过后，确定性完成收尾现在明确说明实验会话已完成，并提示按“环境与权限、接口和流量路径、过滤器、伪造包、TTL/traceroute、C/pcap/raw socket”整理报告证据链。
+- 新增 `tests/test_tutor_executor.py` focused tests，覆盖 control text 清理和完成收尾文案。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 9 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 状态：`vnext-tutor-conduct-polish` 标记为 `passing`，计划归档到 `plans/archive/20260515-tutor-conduct-polish.md`。
 
 ### 2026-05-15 - 开启 Remote Runner 薄 adapter 边界修正
 
