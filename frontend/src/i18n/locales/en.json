@@ -45,6 +45,8 @@
     "commandPlaceholder": "Run command in this shell",
     "runCommand": "Run command",
     "resize": "Resize Shell",
+    "collapseHeader": "Collapse Shell header",
+    "expandHeader": "Expand Shell header",
     "noTranscript": "$ waiting for shell output...",
     "sessionClosed": "This shell session is closed or no longer readable.",
     "status": {

@@ -13,6 +13,8 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import SendIcon from "@mui/icons-material/Send";
 import TerminalIcon from "@mui/icons-material/Terminal";
@@ -248,6 +250,7 @@ export function SessionEvidencePanel({
   const [isRunningCommand, setIsRunningCommand] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [panelWidth, setPanelWidth] = useState(480);
+  const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
   const panelRef = useRef<HTMLDivElement | null>(null);
   const resizeState = useRef<ResizeState | null>(null);
 
@@ -497,35 +500,66 @@ export function SessionEvidencePanel({
         direction='row'
         spacing={1}
         alignItems='center'
-        sx={{px: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider"}}
+        sx={{
+          px: isHeaderCollapsed ? 1 : 2,
+          py: isHeaderCollapsed ? 0.5 : 1.5,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          minHeight: isHeaderCollapsed ? 38 : 64,
+        }}
       >
-        <TerminalIcon fontSize='small' color='primary' />
-        <Box sx={{minWidth: 0, flex: 1}}>
-          <Typography variant='subtitle2' sx={{fontWeight: 700}}>
-            {t("evidence.title")}
-          </Typography>
-          <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
-            <Chip
-              size='small'
-              label={t(`evidence.status.${selectedStatus}`)}
-              color={shellStatusColor(selectedStatus)}
-              sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
-            />
-            <Typography
-              variant='caption'
-              sx={{
-                color: "text.secondary",
-                display: "block",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                minWidth: 0,
-              }}
-            >
-              {machineLabel || t("evidence.noMachine")}
-            </Typography>
-          </Stack>
-        </Box>
+        {!isHeaderCollapsed && (
+          <>
+            <TerminalIcon fontSize='small' color='primary' />
+            <Box sx={{minWidth: 0, flex: 1}}>
+              <Typography variant='subtitle2' sx={{fontWeight: 700}}>
+                {t("evidence.title")}
+              </Typography>
+              <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
+                <Chip
+                  size='small'
+                  label={t(`evidence.status.${selectedStatus}`)}
+                  color={shellStatusColor(selectedStatus)}
+                  sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
+                />
+                <Typography
+                  variant='caption'
+                  sx={{
+                    color: "text.secondary",
+                    display: "block",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    minWidth: 0,
+                  }}
+                >
+                  {machineLabel || t("evidence.noMachine")}
+                </Typography>
+              </Stack>
+            </Box>
+          </>
+        )}
+        {isHeaderCollapsed && <Box sx={{flex: 1}} />}
+        <Tooltip
+          title={isHeaderCollapsed ? t("evidence.expandHeader") : t("evidence.collapseHeader")}
+          arrow
+        >
+          <IconButton
+            size='small'
+            onClick={() => setIsHeaderCollapsed((current) => !current)}
+            aria-label={
+              isHeaderCollapsed
+                ? t("evidence.expandHeader")
+                : t("evidence.collapseHeader")
+            }
+          >
+            {isHeaderCollapsed ? (
+              <KeyboardArrowDownIcon fontSize='small' />
+            ) : (
+              <KeyboardArrowUpIcon fontSize='small' />
+            )}
+          </IconButton>
+        </Tooltip>
         <Tooltip title={t("common.refresh")} arrow>
           <span>
             <IconButton size='small' onClick={refreshAudits} disabled={disabled || isLoading || !sessionId}>

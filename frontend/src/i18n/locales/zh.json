@@ -45,6 +45,8 @@
     "commandPlaceholder": "在此 Shell 中执行命令",
     "runCommand": "执行命令",
     "resize": "调整 Shell 宽度",
+    "collapseHeader": "收起 Shell 顶栏",
+    "expandHeader": "展开 Shell 顶栏",
     "noTranscript": "$ 等待 Shell 输出...",
     "sessionClosed": "这个 Shell 会话已关闭或无法继续读取。",
     "status": {

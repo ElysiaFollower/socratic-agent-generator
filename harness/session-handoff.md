@@ -51,7 +51,7 @@
 - 部署侧 admin 真实完整会话已完成：session `03afb887-1cb8-4769-8e17-ff6f33c9fc17`，Profile 为 `Sniffing_Spoofing manual calibrated`，绑定机器 `SEED Lab on linux-01`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=36`。本地临时分析 artifact 为 `/tmp/manual-admin-full-sudo-conduct-20260515.json`，不提交仓库。
 - 同次真实会话验证 sudo 链路可用：通过 Socratic API 执行 `sudo whoami && sudo id` 返回 `root` 和 `uid=0(root)`，说明实验机免密 sudo 可被 Remote Runner 真实使用。
 - Tutor conduct polish 已完成：`Agent stopped due to max iterations` 这类 LangChain executor 控制文本会在写入历史和展示前清理；最后一个课程节点通过后，Tutor 给出确定性“实验已完成”收尾，并提示按报告证据链整理环境权限、接口流量、过滤器、伪造包、TTL/traceroute、C/pcap/raw socket 等结果。计划已归档：`plans/archive/20260515-tutor-conduct-polish.md`。
-- Shell panel terminal header trim 已完成：核实选中 terminal 内容区顶部重复显示 `Shell 1`、状态和 `sess_...` runner session id；现已移除该二级标题区，transcript 直接从 shell 输出开始，状态仍保留在面板顶栏和 tab。
+- Shell panel terminal header trim and collapse 已完成：核实选中 terminal 内容区顶部重复显示 `Shell 1`、状态和 `sess_...` runner session id；现已移除该二级标题区，transcript 直接从 shell 输出开始。Shell 顶栏默认展开但可折叠，折叠后只保留紧凑控制按钮，状态仍保留在 tab 和展开顶栏。
 
 ## 验证记录
 
@@ -82,7 +82,7 @@
 - 2026-05-15 Remote Runner thin adapter：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 30 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 - 2026-05-15 linux-01 thin adapter deploy：上传并部署 commit `4e7dd43`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过；Socratic API compound command smoke 通过。
 - 2026-05-15 Tutor conduct polish：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 9 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
-- 2026-05-15 Shell panel terminal header trim：`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 2026-05-15 Shell panel terminal header trim and collapse：`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
