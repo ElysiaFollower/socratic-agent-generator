@@ -648,7 +648,7 @@ class Tutor:
     def extract_step_context(self, max_tokens: int = 2000) -> List[Dict[str, str]]:
         """Extract conversation context for evaluation.
 
-        Uses simplified approach: extracts from all history (does not track
+        Uses simplified approach: extracts recent history (does not track
         step start index). The evaluator can determine current step through
         success_criteria.
 
@@ -658,25 +658,28 @@ class Tutor:
         Returns:
             List of conversation messages with role and content.
         """
-        # Extract from all history (simplified approach)
         messages = self.history.messages
 
-        # Convert to dictionary format
-        context = []
+        # Keep the newest messages first when the conversation is long. Step
+        # evaluation depends on the student's current evidence, not the opener.
+        reversed_context = []
         current_tokens = 0
-        for msg in messages:
+        for msg in reversed(messages):
             msg_tokens = self.llm.get_num_tokens(msg.content)
             if current_tokens + msg_tokens > max_tokens:
-                break
+                if reversed_context:
+                    break
+                # Preserve at least the latest message even if it is oversized.
+                msg_tokens = max_tokens
             role = (
                 "user"
                 if msg.__class__.__name__ == "HumanMessage"
                 else "assistant"
             )
-            context.append({"role": role, "content": msg.content})
+            reversed_context.append({"role": role, "content": msg.content})
             current_tokens += msg_tokens
 
-        return context
+        return list(reversed(reversed_context))
 
     def _ensure_evaluation_lock(self) -> None:
         """Ensure evaluation lock is created.

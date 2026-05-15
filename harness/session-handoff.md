@@ -4,7 +4,7 @@
 
 - 分支：`vnext-shell-panel-ux`
 - 当前功能项：无 active feature。
-- Active plan：无；最近计划已归档到 `plans/archive/20260515-remote-command-style.md`。
+- Active plan：无；最近计划已归档到 `plans/archive/20260515-manual-conduct-followup-hardening.md`。
 - 目标分支：`dev`。
 - 当前 PR：#26（`vnext-shell-panel-ux` -> `dev`）。
 
@@ -43,6 +43,8 @@
 - Shell 面板可用性跟进修正已完成：resize 上限按实际对话容器计算，最大约 70%，避免页面级横向滚动；audit fallback transcript 改成 `cwd $ command` 加输出的轻量 terminal 样式。计划已归档：`plans/archive/20260514-shell-panel-usability-fixes.md`。
 - linux-01 已同步 commit `4149d61`：远端 build 通过，前后端重启并健康，DB users count 为 3，`demo/admin` 两个账号登录验证均通过。
 - Tutor 远程命令风格修正已完成：已创建 SEEDRunner issue `https://github.com/ElysiaFollower/SEEDRunner/issues/7` 追踪 compound command 支持/契约；Socratic runtime contract 现在要求 tutor 优先单条远程命令、多个观察拆分多次调用、policy 拒绝后用更小的 policy-compliant 命令恢复。计划已归档：`plans/archive/20260515-remote-command-style.md`。
+- 2026-05-15 已按产品北极星在 linux-01 清理旧 session 后完成一轮真实 Sniffing/Spoofing conduct，并保留样本数据：session `8dff9e8f-fa86-449c-93a8-836987c4ee9b`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，artifact 位于 `/home/ely/deploy/socratic-live/logs/manual-conduct-sniffing-spoofing-20260515-consolidated.json`。
+- 该真实会话暴露的 follow-up 缺陷已修复并归档：tutor-facing remote tools 会在调用 Remote Runner 前拒绝 compound/pipe/multiline 命令并提示拆分，记录 audit error；同一 `runner_session_id` 的 tutor command actions 在后端进程内串行化；StepEvaluator 上下文现在优先保留最近对话证据。计划已归档：`plans/archive/20260515-manual-conduct-followup-hardening.md`。
 
 ## 验证记录
 
@@ -68,11 +70,13 @@
 - 2026-05-14 shell panel usability follow-up：`./scripts/harness-check.sh` 0 warning；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 - 2026-05-14 linux-01 shell panel usability deploy：上传 `4149d61` archive；部署脚本先删除新包空 `data/` 再复制旧 `data/`；远端 DB users count=3；远端 compileall 和 frontend build 通过；前后端重启后本地与远端 health/frontend 验证通过；`demo/admin` 登录验证通过。
 - 2026-05-15 remote command style：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 2026-05-15 manual conduct follow-up hardening：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q` 通过 28 passed；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 
 ## 仍损坏或未验证
 
 - Shell 面板 UX 和 follow-up 可用性修正已实现；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 曾超时。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
+- 真实 conduct 样本应作为后续学习质量分析材料保留；不要为了清理环境删除 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 或对应 runner transcript，除非用户明确要求。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
 
 ## 设计结论
@@ -89,17 +93,19 @@
 - Remote Runner JSON observation 不应裸露在聊天正文；Tutor fallback 需要先摘要为可读 Shell result summary，再回到当前学习问题。
 - Shell 面板 resize 应以实际对话容器为边界，不能让页面总宽度超过 viewport；audit fallback 是备用数据源，默认显示应更像 terminal，而不是审计日志。
 - Tutor 默认应使用单条、清晰、可解释的远程命令；compound command 是 Remote Runner 工具契约问题，不是 Socratic 教学默认风格。需要多个观察时拆成多次工具调用，policy 拒绝后用更小命令恢复。
+- StepEvaluator 的上下文截断必须优先保留最近对话证据；长会话中最早消息不应挤掉当前 step 的学生解释和实验结果。
 
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：无；最新部署记录已提交到 PR 分支。
+- 当前待提交范围：manual conduct follow-up hardening 代码、测试、文档和 harness 更新；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 等待 PR #26 review/merge。
-2. 如后续能稳定连接 Browser，再补一张 Shell 面板拖拽/terminal 风格截图级验证；当前命令和 linux-01 验证已经通过。
+1. 提交并推送 manual conduct follow-up hardening。
+2. 同步 linux-01 部署并保留真实 conduct session 样本。
+3. 等待 PR #26 review/merge。
 
 ## 命令
 

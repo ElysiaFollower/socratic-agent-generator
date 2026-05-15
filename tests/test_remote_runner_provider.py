@@ -1,6 +1,8 @@
 import json
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -619,6 +621,123 @@ class RemoteRunnerProviderTest(unittest.TestCase):
             {"command_id": "cmd_1", "reason": "inspect"}
         )
         self.assertEqual("session_command_result", provider.calls[-1]["action"])
+
+    @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
+    def test_session_bound_skill_rejects_compound_commands_before_provider(self):
+        class FakeProvider:
+            def __init__(self):
+                self.calls = []
+
+            def run_action(self, **kwargs):
+                self.calls.append(kwargs)
+                return {"ok": True, "action": kwargs["action"], "result": {}}
+
+            def _format_observation(self, payload):
+                return json.dumps(payload)
+
+        provider = FakeProvider()
+        skill = SessionBoundRemoteEnvironmentSkill(
+            provider,
+            owner_id="user1",
+            session_id="session1",
+            binding_id="binding1",
+            runner_machine_name="seed-lab",
+            runner_session_id="rr-session-1",
+        )
+        tools = {tool.name: tool for tool in skill.get_tools()}
+
+        payload = json.loads(
+            tools["run_remote_command"].invoke(
+                {"command": "id && whoami", "reason": "identity"}
+            )
+        )
+
+        self.assertFalse(payload["ok"])
+        self.assertEqual("session_exec", payload["action"])
+        self.assertIn("one clear command", payload["error"])
+        self.assertEqual([], provider.calls)
+
+    @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
+    def test_session_bound_skill_allows_shell_punctuation_inside_quotes(self):
+        class FakeProvider:
+            def __init__(self):
+                self.calls = []
+
+            def run_action(self, **kwargs):
+                self.calls.append(kwargs)
+                return {"ok": True, "action": kwargs["action"], "result": {}}
+
+            def _format_observation(self, payload):
+                return json.dumps(payload)
+
+        provider = FakeProvider()
+        skill = SessionBoundRemoteEnvironmentSkill(
+            provider,
+            owner_id="user1",
+            session_id="session1",
+            binding_id="binding1",
+            runner_machine_name="seed-lab",
+            runner_session_id="rr-session-1",
+        )
+        tools = {tool.name: tool for tool in skill.get_tools()}
+
+        tools["run_remote_command"].invoke(
+            {"command": "python3 -c \"print('a'); print('b')\"", "reason": "script"}
+        )
+
+        self.assertEqual(1, len(provider.calls))
+        self.assertEqual(
+            "python3 -c \"print('a'); print('b')\"",
+            provider.calls[0]["command"],
+        )
+
+    @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
+    def test_session_bound_skill_serializes_command_execution_for_runner_session(self):
+        class FakeProvider:
+            def __init__(self):
+                self.active = 0
+                self.max_active = 0
+                self.calls = []
+                self.lock = threading.Lock()
+
+            def run_action(self, **kwargs):
+                with self.lock:
+                    self.active += 1
+                    self.max_active = max(self.max_active, self.active)
+                time.sleep(0.02)
+                with self.lock:
+                    self.calls.append(kwargs)
+                    self.active -= 1
+                return {"ok": True, "action": kwargs["action"], "result": {}}
+
+            def _format_observation(self, payload):
+                return json.dumps(payload)
+
+        provider = FakeProvider()
+        skill = SessionBoundRemoteEnvironmentSkill(
+            provider,
+            owner_id="user1",
+            session_id="session1",
+            binding_id="binding1",
+            runner_machine_name="seed-lab",
+            runner_session_id="rr-session-1",
+        )
+        tool = {tool.name: tool for tool in skill.get_tools()}["run_remote_command"]
+
+        threads = [
+            threading.Thread(
+                target=tool.invoke,
+                args=({"command": command, "reason": "parallel"},),
+            )
+            for command in ("whoami", "id")
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(2, len(provider.calls))
+        self.assertEqual(1, provider.max_active)
 
     @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
     def test_tutor_tool_collection_flattens_multi_tool_skills(self):

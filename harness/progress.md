@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，tutor 远程命令风格修正通过 focused tests、compileall、harness check 和 diff check。
-- 下一步最佳动作：等待 PR #26 review/merge，或按新反馈继续收口远程工具体验。
+- 上次验证：2026-05-15，manual conduct follow-up hardening 通过 focused tests、compileall、harness check 和 diff check。
+- 下一步最佳动作：提交并同步 linux-01 部署，保留真实会话样本用于后续学习质量分析。
 
 ## 状态约定
 
@@ -15,6 +15,23 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 开启真实会话 follow-up hardening
+
+- 用户要求在部署机清理旧 session 后按产品北极星完整 conduct 一次真实实验流程，并保留数据。
+- 已完成真实会话：`8dff9e8f-fa86-449c-93a8-836987c4ee9b`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，artifact 位于 `/home/ely/deploy/socratic-live/logs/manual-conduct-sniffing-spoofing-20260515-consolidated.json`。
+- 真实会话暴露两个需要立即收口的问题：tutor 仍尝试 compound/pipe 命令且出现 `Session is busy`；长会话后 tutor 文本判断已满足成功标准但 StepEvaluator 不推进，疑似评估上下文只保留早期历史。
+- 创建 active plan：`plans/active/20260515-manual-conduct-followup-hardening.md`。
+- 将 `vnext-manual-conduct-followup-hardening` 设置为当前唯一 active feature。
+
+### 2026-05-15 - 完成真实会话 follow-up hardening
+
+- `SessionBoundRemoteEnvironmentSkill` 现在在 tutor-facing 层拒绝多行命令和顶层 compound shell operators（`&&`、`||`、`;`、`|`、`&`），返回拆分命令指导并记录 audit error，不再调用 provider 执行。
+- 同一个 `runner_session_id` 的 tutor command actions 在后端进程内串行执行，降低 LangChain 并发工具调用造成的 `Session is busy`。
+- `Tutor.extract_step_context()` 改为在 token budget 内优先保留最近对话证据，避免长会话评估时只看到开头历史。
+- `docs/overview.md` 和 `docs/architecture/remote-runner-session-tools.md` 已记录最近上下文评估、Shell 命名和 tutor-facing 单命令守卫边界。
+- 验证：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q` 通过 28 passed；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 状态：`vnext-manual-conduct-followup-hardening` 标记为 `passing`，计划归档到 `plans/archive/20260515-manual-conduct-followup-hardening.md`。
 
 ### 2026-05-15 - 开启 tutor 远程命令风格修正
 

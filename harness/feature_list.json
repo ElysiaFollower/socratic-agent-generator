@@ -249,6 +249,17 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q && python3 -m compileall src tests && git diff --check",
       "evidence": "2026-05-15: filed upstream SEEDRunner issue https://github.com/ElysiaFollower/SEEDRunner/issues/7 to clarify or support compound commands in session exec. Updated Socratic runtime interaction contract so tutors prefer one clear remote command per tool call, split multi-observation checks into separate commands, and recover from policy rejection with smaller policy-compliant commands. Updated remote runner architecture docs to make compound commands non-default for teaching. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q -> 5 passed; python3 -m compileall src tests passed; ./scripts/harness-check.sh passed with 0 warnings; git diff --check passed.",
       "notes": "Archived plan: plans/archive/20260515-remote-command-style.md. This does not change the Socratic command allowlist or Remote Runner implementation."
+    },
+    {
+      "id": "vnext-manual-conduct-followup-hardening",
+      "priority": "P0",
+      "area": "tutor-runtime",
+      "title": "Manual conduct follow-up hardening",
+      "behavior": "Tutor remote tools reject compound tutor commands with split guidance, serialize session-bound remote actions, and StepEvaluator evaluates recent current-step context in long conversations.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q && python3 -m compileall src tests && git diff --check",
+      "evidence": "2026-05-15: hardened the live-session follow-up defects found in manual conduct session 8dff9e8f-fa86-449c-93a8-836987c4ee9b. Session-bound tutor remote tools now reject multi-line and top-level compound commands such as id && whoami or ip link | grep before provider execution, return split-command guidance, and record an audit error. Tutor command execution is serialized per runner_session_id inside the backend process to reduce accidental parallel calls against one persistent shell. StepEvaluator context extraction now keeps recent conversation evidence under the token budget instead of truncating from the oldest messages. Updated overview and remote runner architecture docs. Validation passed: ./scripts/harness-check.sh 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q -> 28 passed; python3 -m compileall src tests passed; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260515-manual-conduct-followup-hardening.md. This does not change Remote Runner global policy, profile content, or runtime DB/session artifacts."
     }
   ]
 }

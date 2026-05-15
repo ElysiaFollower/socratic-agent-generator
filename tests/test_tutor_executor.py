@@ -1,6 +1,7 @@
 from schemas.curriculum import SocraticCurriculum, SocraticStep
 from utils.template_assembler import PromptAssembler
 from utils.tutor_core import (
+    Tutor,
     _agent_executor_kwargs,
     _looks_like_tool_only_reply,
     _missing_stream_reply_chunk,
@@ -81,3 +82,27 @@ def test_remote_observation_summary_hides_raw_json():
     assert "session_exec: failed" in summary
     assert "{" not in summary
     assert "Relevant evidence" not in summary
+
+
+def test_extract_step_context_keeps_recent_messages_under_token_budget():
+    from langchain_community.chat_message_histories import ChatMessageHistory
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    tutor = Tutor.__new__(Tutor)
+    tutor.llm = type(
+        "FakeLLM",
+        (),
+        {"get_num_tokens": staticmethod(lambda text: len(text.split()))},
+    )()
+    history = ChatMessageHistory()
+    history.add_message(HumanMessage(content="old filler " * 60))
+    history.add_message(AIMessage(content="old tutor response " * 60))
+    history.add_message(HumanMessage(content="current step evidence includes BPF filter"))
+    history.add_message(AIMessage(content="current tutor follow-up"))
+    tutor.history = history
+
+    context = tutor.extract_step_context(max_tokens=20)
+    combined = "\n".join(item["content"] for item in context)
+
+    assert "current step evidence includes BPF filter" in combined
+    assert "old filler" not in combined

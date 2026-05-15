@@ -161,6 +161,20 @@ command is rejected by policy and the evidence is still needed, the tutor should
 recover with a smaller policy-compliant command instead of stopping at the
 policy error.
 
+The session-bound tutor tool enforces this teaching boundary before calling
+Remote Runner. `run_remote_command` and `start_remote_command` reject multi-line
+commands and top-level shell composition operators (`&&`, `||`, `;`, `|`, `&`)
+with a split-command hint, while preserving normal shell punctuation inside
+quoted arguments such as `python3 -c "..."`. This guard is intentionally scoped
+to tutor tool calls; the lower-level Remote Runner policy remains the system of
+record for what commands the deployment allows.
+
+Because the upstream shell is persistent and session-like, Socratic also
+serializes tutor command execution per `runner_session_id` inside the backend
+process. This reduces accidental parallel tool calls that compete for the same
+terminal and produce `Session is busy`; long-running work should still use
+`start_remote_command` followed by explicit result/wait/stop tools.
+
 ### Command Interaction Modes
 
 The tutor-facing contract must keep short observations distinct from long-running

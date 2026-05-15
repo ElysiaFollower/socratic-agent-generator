@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import shlex
+import threading
 from typing import Optional
 
 from langchain_core.tools import tool
@@ -18,6 +20,42 @@ from utils.remote_runner_provider import (
 )
 
 logger = logging.getLogger(__name__)
+
+_COMMAND_ACTIONS = {"session_exec", "session_exec_background"}
+_COMPOUND_OPERATORS = {"&&", "||", ";", "|", "|&", "&"}
+_RUNNER_SESSION_LOCKS: dict[str, threading.Lock] = {}
+_RUNNER_SESSION_LOCKS_GUARD = threading.Lock()
+
+
+def _runner_session_lock(session_id: str) -> threading.Lock:
+    with _RUNNER_SESSION_LOCKS_GUARD:
+        return _RUNNER_SESSION_LOCKS.setdefault(session_id, threading.Lock())
+
+
+def _compound_command_error(command: str) -> str:
+    command = (command or "").strip()
+    if "\n" in command:
+        return (
+            "Run one clear command per remote tool call. Split multi-line shell "
+            "scripts into separate run_remote_command or start_remote_command calls."
+        )
+    if not command:
+        return ""
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;")
+        lexer.whitespace_split = True
+        lexer.commenters = ""
+        tokens = list(lexer)
+    except ValueError:
+        return ""
+    for token in tokens:
+        if token in _COMPOUND_OPERATORS:
+            return (
+                "Run one clear command per remote tool call. Compound shell operators "
+                "such as &&, ||, ;, |, and & make tutor evidence harder for students "
+                "to read; split the work into separate simple commands."
+            )
+    return ""
 
 
 class RemoteEnvironmentSkill:
@@ -362,17 +400,36 @@ class SessionBoundRemoteEnvironmentSkill:
         reason: str,
         wait_timeout_seconds: int = 0,
     ) -> str:
+        if action in _COMMAND_ACTIONS:
+            error = _compound_command_error(command)
+            if error:
+                payload = {"ok": False, "action": action, "error": error}
+                self._record_audit(action, command, command_id, cwd, None, error)
+                return self.provider._format_observation(payload)
         try:
-            payload = self.provider.run_action(
-                action=action,
-                machine_id=self.runner_machine_name,
-                session_id=self.runner_session_id,
-                command_id=command_id,
-                command=command,
-                cwd=cwd,
-                reason=reason,
-                wait_timeout_seconds=wait_timeout_seconds,
-            )
+            if action in _COMMAND_ACTIONS:
+                with _runner_session_lock(self.runner_session_id):
+                    payload = self.provider.run_action(
+                        action=action,
+                        machine_id=self.runner_machine_name,
+                        session_id=self.runner_session_id,
+                        command_id=command_id,
+                        command=command,
+                        cwd=cwd,
+                        reason=reason,
+                        wait_timeout_seconds=wait_timeout_seconds,
+                    )
+            else:
+                payload = self.provider.run_action(
+                    action=action,
+                    machine_id=self.runner_machine_name,
+                    session_id=self.runner_session_id,
+                    command_id=command_id,
+                    command=command,
+                    cwd=cwd,
+                    reason=reason,
+                    wait_timeout_seconds=wait_timeout_seconds,
+                )
             self._record_audit(
                 action,
                 command,
