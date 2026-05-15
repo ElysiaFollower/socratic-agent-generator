@@ -39,6 +39,17 @@
 - 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；tmux `socratic-backend` 与 `socratic-frontend` 已重启；`curl http://127.0.0.1:8000/api/health` 返回 `{"status":"ok"}`；前端 `http://127.0.0.1:5173` 返回 HTTP 200；部署 DB 已存在 `session_remote_shells` 表；线上 source 命中 `create_remote_shell`。
 - Remote Runner 临时部署 session 已销毁，日志保留在本机 Remote Runner log 目录；不提交 runtime artifact。
 
+### 2026-05-15 - named shell 真实完整会话验证
+
+- 在 linux-01 真实部署环境使用 admin 创建并完成会话 `15f86b69-97e8-403c-ad35-4a5285785060`，Profile 为 `Sniffing_Spoofing manual calibrated`，绑定机器 `SEED Lab on linux-01`。
+- 最终状态：`stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=20`。
+- named shell 能力真实生效：会话中创建了 `main`、`capture`、`stimulus` 三个 shell；`capture` 和 `stimulus` 分别拥有独立 Remote Runner `runner_session_id`，audit 归属正确。
+- 行为正向：当学生跳过当前问题时，Tutor 没有盲目推进；补齐当前问题后，进度可以恢复推进直到完成。
+- 发现问题 1：初始测试第 7、8 轮出现空回复，SSE 仅有 `END` 事件且 reply 为空，已记录为 `vnext-tutor-empty-stream-reply-guard`。
+- 发现问题 2：Tutor 后半段多次声称“写脚本、启动 tcpdump、ping 三种场景、验证结果”，但 `remote_audit_count` 没有增加，说明 chat narration 可与真实工具证据脱节，已记录为 `vnext-tutor-tool-claim-grounding`。
+- 发现问题 3：`capture` shell 中早期 `tcpdump` 后台命令未被 stop/wait/result 回收，后续抓包尝试多次遇到 busy error，已记录为 `vnext-remote-shell-lifecycle-planning`。
+- 本地临时 artifact：`/tmp/manual-admin-named-shell-conduct-20260515.json`、`/tmp/manual-admin-named-shell-conduct-20260515-continued.json`、`/tmp/manual-admin-named-shell-conduct-20260515-final.json`；不提交仓库。
+
 ### 2026-05-15 - 同步 Shell/Tutor polish 到 linux-01 并完成真实会话测试
 
 - 已将当前分支 commit `58d38d7` 部署到 linux-01 `/home/ely/deploy/socratic-live/socratic-agent-generator`。部署保留远端 `.env`、`data/` 和 `frontend/node_modules`，备份目录为 `/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515041730`。

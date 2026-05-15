@@ -315,6 +315,39 @@
       "verification": "A final-step focused test or linux-01 conduct confirms the final reply reads as complete and report-oriented, without leading with unresolved implementation questions.",
       "evidence": "2026-05-15 admin real conduct session e9293b21-6f37-465a-8fc9-3508696409da reached stepIndex=9,totalSteps=9,isFinished=true and appended the deterministic completion closeout, but the same reply first asked additional pcap/raw-socket implementation questions. The current fix is correct but not fully polished.",
       "notes": "Do not change StepEvaluator success semantics; this is a user-visible reply shaping issue after final-step acceptance."
+    },
+    {
+      "id": "vnext-tutor-empty-stream-reply-guard",
+      "priority": "P1",
+      "area": "tutor-runtime",
+      "title": "Tutor empty stream reply guard",
+      "behavior": "A streamed tutor turn should never complete with an empty visible reply; if the agent returns no text, the backend should retry, synthesize a grounded fallback, or return an explicit recoverable error.",
+      "status": "not_started",
+      "verification": "Focused stream tests and a live conduct replay confirm END events always include non-empty student-visible text or a structured error.",
+      "evidence": "2026-05-15 live admin session 15f86b69-97e8-403c-ad35-4a5285785060 produced empty replies on turns 7 and 8: the SSE event list contained only END and the session did not advance. Local artifact: /tmp/manual-admin-named-shell-conduct-20260515.json.",
+      "notes": "This is separate from LangChain early-stopping control text cleanup; here the user-visible reply was empty rather than polluted."
+    },
+    {
+      "id": "vnext-tutor-tool-claim-grounding",
+      "priority": "P1",
+      "area": "tutor-runtime",
+      "title": "Tutor tool claim grounding",
+      "behavior": "Tutor should not claim it wrote scripts, started captures, ran commands, or observed results unless the corresponding Remote Runner audit/result exists and supports that claim.",
+      "status": "not_started",
+      "verification": "A live or mocked tool-heavy session asserts that tutor text about command execution is backed by new remote audits or explicit prior audit references, especially after busy-shell errors.",
+      "evidence": "2026-05-15 live admin session 15f86b69-97e8-403c-ad35-4a5285785060 reached 9/9, but after audit count 20 the tutor continued saying it wrote scripts, started tcpdump, pinged targets, and verified scenarios while remote_audit_count stayed unchanged. Audit tail shows repeated busy errors on the capture shell because an earlier tcpdump background command was still running.",
+      "notes": "This is a learning-quality risk: the UI evidence is real, but chat narration can overstate what was actually executed."
+    },
+    {
+      "id": "vnext-remote-shell-lifecycle-planning",
+      "priority": "P1",
+      "area": "remote-tools",
+      "title": "Remote shell lifecycle planning",
+      "behavior": "Tutor should manage long-running shell commands explicitly: start listener, run stimulus, read/wait/stop listener, then reuse or recreate the shell instead of repeatedly hitting busy-session errors.",
+      "status": "not_started",
+      "verification": "A tcpdump plus ping scenario completes with capture output, a stopped listener, and no repeated busy errors in the audit tail.",
+      "evidence": "2026-05-15 live admin session 15f86b69-97e8-403c-ad35-4a5285785060 successfully created capture/stimulus shells and started tcpdump in capture, but did not stop or harvest that listener before attempting later captures; subsequent capture commands failed with 'has running commands'.",
+      "notes": "The named shell capability exists; the remaining gap is tool planning around background command lifecycle."
     }
   ]
 }

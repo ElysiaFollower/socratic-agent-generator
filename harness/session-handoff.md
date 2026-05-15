@@ -56,6 +56,8 @@
 - 2026-05-15 admin 真实会话测试已完成：session `e9293b21-6f37-465a-8fc9-3508696409da`，Profile `Sniffing_Spoofing manual calibrated`，机器 `SEED Lab on linux-01`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=17`。artifact 位于 `/tmp/manual-admin-conduct-20260515-shell-collapse.json` 与 `/tmp/manual-admin-conduct-20260515-shell-collapse-continued.json`。
 - Tutor named shell sessions 已完成：Socratic 会话现在可在主绑定 shell 之外创建多个命名 Remote Runner shell terminal；Tutor tools 支持 `create_remote_shell`、`list_remote_shells`、`read_remote_shell`，并可在 `run/start/list/result/wait/stop` 中指定 `shell`。Shell 面板 tab 使用 shell label，并读取选中 terminal 的 persistent transcript。计划已归档：`plans/archive/20260515-tutor-named-shell-sessions.md`。
 - linux-01 已同步 commit `4791d48`：部署目录切换完成，远端 compileall 与 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启；本机 health 返回 OK、前端 HTTP 200；部署 DB 已存在 `session_remote_shells` 表。备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515045025`。
+- named shell 真实完整会话验证已完成：linux-01 session `15f86b69-97e8-403c-ad35-4a5285785060` 最终 `stepIndex=9,totalSteps=9,isFinished=true`，`step_completion_count=9`，`remote_audit_count=20`。会话中真实创建 `main`、`capture`、`stimulus` 三个 shell；补齐 Tutor 当前问题后进度可恢复推进。
+- 同次验证发现 3 个后续问题并写入 feature list：`vnext-tutor-empty-stream-reply-guard`、`vnext-tutor-tool-claim-grounding`、`vnext-remote-shell-lifecycle-planning`。临时 artifact 位于 `/tmp/manual-admin-named-shell-conduct-20260515*.json`，不提交仓库。
 
 ## 验证记录
 
@@ -91,12 +93,14 @@
 - 2026-05-15 admin real conduct：通过部署机真实 API 会话 `e9293b21-6f37-465a-8fc9-3508696409da` 完成 Sniffing/Spoofing 全 9 步，`remote_audit_count=17`。
 - 2026-05-15 Tutor named shell sessions：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_machine_manager.py tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 40 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
 - 2026-05-15 linux-01 named shell deploy：上传并部署 commit `4791d48` archive；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过；重启后远端 health OK、前端 HTTP 200；`session_remote_shells` 表存在；线上 source 命中 `create_remote_shell`。
+- 2026-05-15 live named shell conduct：通过部署机真实 API 会话 `15f86b69-97e8-403c-ad35-4a5285785060` 完成 Sniffing/Spoofing 全 9 步，`remote_audit_count=20`，shell labels 为 `main/capture/stimulus`。
 
 ## 仍损坏或未验证
 
 - Shell 面板 UX 和 follow-up 可用性修正已实现；未完成的是浏览器自动化截图级验证，因为 Browser node runtime 曾超时。
 - live benchmark 在 `a0642d6` 后已能通关，但这不等价于学习质量完全达标。后续 benchmark 和 Tutor 行为仍要按 `docs/product/vision.md` 校准，尤其关注是否真正 learning by doing、是否保留学生核心思考。
 - 本次 admin 真实会话暴露的 `tcpdump` 监听加 `ping` 触发并发证据问题，Socratic 侧已通过 Tutor named shell sessions 提供能力入口；仍需后续真实会话验证 Tutor 是否会稳定主动创建 `capture`/`stimulus` 这类 shell，而不是继续顺序执行。
+- named shell 真实会话验证显示能力入口已可用，但工具规划仍不稳定：Tutor 会创建 `capture/stimulus`，但没有稳定 stop/wait/result 回收 listener，后续会遇到 busy shell；另有空回复和工具执行叙述未被 audit 支撑的问题。
 - 本次 admin 真实会话暴露：最后一步完成时 deterministic closeout 已追加，但其前面仍保留一段继续追问实现细节的 LLM 文本，收尾语义略割裂。后续应在最终 step 通过后压制或改写未完成式 follow-up。
 - 真实 conduct 样本应作为后续学习质量分析材料保留；不要为了清理环境删除 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 或对应 runner transcript，除非用户明确要求。
 - benchmark 密码只应通过 `.env` 或临时文件注入，不写入仓库；最近部署测试中的临时 `.benchmark-current.env` 与本地临时凭据文件已清理。
@@ -126,8 +130,9 @@
 
 ## 下一步最佳动作
 
-1. 用真实会话验证 Tutor 是否会为 `tcpdump + ping` 主动创建并使用多个命名 shell；若仍不稳定，再调整工具提示或 benchmark。
-2. 下一阶段处理最终收尾割裂问题。
+1. 优先处理 `vnext-remote-shell-lifecycle-planning` 与 `vnext-tutor-tool-claim-grounding`，让 Tutor 的工具叙述严格受真实 audit/result 约束。
+2. 处理 `vnext-tutor-empty-stream-reply-guard`，避免 SSE END 空回复。
+3. 后续处理最终收尾割裂问题。
 
 ## 命令
 
