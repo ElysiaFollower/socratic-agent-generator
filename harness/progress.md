@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，manual conduct follow-up hardening 通过 focused tests、compileall、harness check 和 diff check。
-- 下一步最佳动作：提交并同步 linux-01 部署，保留真实会话样本用于后续学习质量分析。
+- 上次验证：2026-05-15，manual conduct follow-up hardening 已提交、推送并同步 linux-01 部署。
+- 下一步最佳动作：等待 PR #26 review/merge；后续学习质量改进继续基于真实 conduct 样本分析。
 
 ## 状态约定
 
@@ -32,6 +32,14 @@
 - `docs/overview.md` 和 `docs/architecture/remote-runner-session-tools.md` 已记录最近上下文评估、Shell 命名和 tutor-facing 单命令守卫边界。
 - 验证：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q` 通过 28 passed；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 - 状态：`vnext-manual-conduct-followup-hardening` 标记为 `passing`，计划归档到 `plans/archive/20260515-manual-conduct-followup-hardening.md`。
+
+### 2026-05-15 - 同步 follow-up hardening 到 linux-01
+
+- 已将 commit `63c4420` archive 上传到 linux-01，切换 `/home/ely/deploy/socratic-live/socratic-agent-generator`，保留远端 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515010759`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 已重启 tmux `socratic-backend` 与 `socratic-frontend`；linux-01 本机 `/api/health` 返回 OK、前端 HTTP 200，本地访问 `http://10.203.15.128:8000/api/health` 返回 OK、`http://10.203.15.128:5173` 返回 HTTP 200。
+- 真实 conduct 样本仍保留：session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 的 DB state 为 `{"stepIndex": 9}`，`remote_command_audits=17`。
 
 ### 2026-05-15 - 开启 tutor 远程命令风格修正
 

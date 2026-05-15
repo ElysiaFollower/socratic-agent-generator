@@ -45,6 +45,7 @@
 - Tutor 远程命令风格修正已完成：已创建 SEEDRunner issue `https://github.com/ElysiaFollower/SEEDRunner/issues/7` 追踪 compound command 支持/契约；Socratic runtime contract 现在要求 tutor 优先单条远程命令、多个观察拆分多次调用、policy 拒绝后用更小的 policy-compliant 命令恢复。计划已归档：`plans/archive/20260515-remote-command-style.md`。
 - 2026-05-15 已按产品北极星在 linux-01 清理旧 session 后完成一轮真实 Sniffing/Spoofing conduct，并保留样本数据：session `8dff9e8f-fa86-449c-93a8-836987c4ee9b`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，artifact 位于 `/home/ely/deploy/socratic-live/logs/manual-conduct-sniffing-spoofing-20260515-consolidated.json`。
 - 该真实会话暴露的 follow-up 缺陷已修复并归档：tutor-facing remote tools 会在调用 Remote Runner 前拒绝 compound/pipe/multiline 命令并提示拆分，记录 audit error；同一 `runner_session_id` 的 tutor command actions 在后端进程内串行化；StepEvaluator 上下文现在优先保留最近对话证据。计划已归档：`plans/archive/20260515-manual-conduct-followup-hardening.md`。
+- linux-01 已同步 commit `63c4420`：远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。部署保留真实 conduct 样本，DB 中 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 的 state 为 `{"stepIndex": 9}`，`remote_command_audits=17`。
 
 ## 验证记录
 
@@ -71,6 +72,7 @@
 - 2026-05-14 linux-01 shell panel usability deploy：上传 `4149d61` archive；部署脚本先删除新包空 `data/` 再复制旧 `data/`；远端 DB users count=3；远端 compileall 和 frontend build 通过；前后端重启后本地与远端 health/frontend 验证通过；`demo/admin` 登录验证通过。
 - 2026-05-15 remote command style：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
 - 2026-05-15 manual conduct follow-up hardening：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q` 通过 28 passed；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 2026-05-15 linux-01 follow-up deploy：上传并部署 commit `63c4420`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过。
 
 ## 仍损坏或未验证
 
@@ -98,14 +100,13 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：manual conduct follow-up hardening 代码、测试、文档和 harness 更新；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
+- 当前待提交范围：部署收口记录；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送 manual conduct follow-up hardening。
-2. 同步 linux-01 部署并保留真实 conduct session 样本。
-3. 等待 PR #26 review/merge。
+1. 提交并推送部署收口记录。
+2. 等待 PR #26 review/merge。
 
 ## 命令
 
