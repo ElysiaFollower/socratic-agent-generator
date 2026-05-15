@@ -808,6 +808,8 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           display: "flex",
           flexDirection: "column",
           bgcolor: "var(--color-surface)",
+          minWidth: 0,
+          overflow: "hidden",
         }}
       >
         <Header
@@ -842,9 +844,12 @@ export function ChatPage(props: ChatPageProps): JSX.Element {
           sx={{
             flex: 1,
             overflow: "hidden",
+            overflowX: "hidden",
             width: "100%",
+            maxWidth: "100%",
             display: "flex",
             minHeight: 0,
+            minWidth: 0,
           }}
         >
           {isChatView ? (

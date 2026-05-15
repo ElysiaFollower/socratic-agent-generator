@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Optional
 
 from langchain_core.tools import tool
@@ -19,6 +20,14 @@ from utils.remote_runner_provider import (
 
 logger = logging.getLogger(__name__)
 
+_COMMAND_ACTIONS = {"session_exec", "session_exec_background"}
+_RUNNER_SESSION_LOCKS: dict[str, threading.Lock] = {}
+_RUNNER_SESSION_LOCKS_GUARD = threading.Lock()
+
+
+def _runner_session_lock(session_id: str) -> threading.Lock:
+    with _RUNNER_SESSION_LOCKS_GUARD:
+        return _RUNNER_SESSION_LOCKS.setdefault(session_id, threading.Lock())
 
 class RemoteEnvironmentSkill:
     """Expose permissioned remote lab observation as a Tutor tool."""
@@ -363,16 +372,29 @@ class SessionBoundRemoteEnvironmentSkill:
         wait_timeout_seconds: int = 0,
     ) -> str:
         try:
-            payload = self.provider.run_action(
-                action=action,
-                machine_id=self.runner_machine_name,
-                session_id=self.runner_session_id,
-                command_id=command_id,
-                command=command,
-                cwd=cwd,
-                reason=reason,
-                wait_timeout_seconds=wait_timeout_seconds,
-            )
+            if action in _COMMAND_ACTIONS:
+                with _runner_session_lock(self.runner_session_id):
+                    payload = self.provider.run_action(
+                        action=action,
+                        machine_id=self.runner_machine_name,
+                        session_id=self.runner_session_id,
+                        command_id=command_id,
+                        command=command,
+                        cwd=cwd,
+                        reason=reason,
+                        wait_timeout_seconds=wait_timeout_seconds,
+                    )
+            else:
+                payload = self.provider.run_action(
+                    action=action,
+                    machine_id=self.runner_machine_name,
+                    session_id=self.runner_session_id,
+                    command_id=command_id,
+                    command=command,
+                    cwd=cwd,
+                    reason=reason,
+                    wait_timeout_seconds=wait_timeout_seconds,
+                )
             self._record_audit(
                 action,
                 command,
@@ -462,6 +484,7 @@ def get_remote_environment_skill(
                     timeout_seconds=provider.config.timeout_seconds,
                     wait_timeout_seconds=provider.config.wait_timeout_seconds,
                     max_output_chars=provider.config.max_output_chars,
+                    command_policy=provider.config.command_policy,
                     allowed_machine_ids=(binding.runner_machine_name,),
                     allowed_commands=provider.config.allowed_commands,
                     allowed_command_prefixes=provider.config.allowed_command_prefixes,

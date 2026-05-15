@@ -17,7 +17,7 @@ The merged vNext prototype already contains:
 - A CLI-backed `RemoteRunnerProvider` in `src/utils/remote_runner_provider.py`.
 - A LangChain tool wrapper named `observe_remote_environment` in `src/utils/remote_tool_skill.py`.
 - Tutor injection in `src/utils/tutor_core.py` when `REMOTE_TOOL_ENABLED=true`.
-- Global allowlist configuration in `src/config.py`.
+- Optional deployment-level command policy configuration in `src/config.py`.
 - Focused tests in `tests/test_remote_runner_provider.py`.
 
 The missing product path is:
@@ -26,7 +26,7 @@ The missing product path is:
 - Session creation can carry an optional remote machine id and creates `SessionRemoteBindingModel`.
 - Command evidence is recorded as sanitized `RemoteCommandAuditModel` rows.
 - Session files are cached under a server-owned per-session directory and can be transferred into the bound Remote Runner session.
-- Backend debug APIs now exercise the same binding, file-transfer, command-policy, and audit path used by the Tutor and frontend.
+- Backend debug APIs now exercise the same binding, file-transfer, optional command policy, and audit path used by the Tutor and frontend.
 - The remaining validation work is proving the full real-lab conversation path against `seed-lab`.
 
 ## Target User Flow
@@ -144,13 +144,28 @@ Lab-specific prompt guidance can still say when a command is useful, but the
 tool implementation should remain a general feedback channel rather than a
 collection of narrow teaching actions such as "collect report evidence" or
 "diagnose this specific lab." That keeps the capability flexible while command
-policy, session binding, audit, and output redaction provide the safety boundary.
+optional deployment policy, session binding, audit, and output redaction provide
+the safety boundary.
 
 The runtime teaching boundary is stricter than the tool boundary: after a command
 returns, Tutor must explain why the observation matters for the current step,
 ask the student to make or refine a judgment, or connect the evidence to the
 student's answer. Repeated command execution without this conversion is a product
 failure even if the tool calls themselves succeed.
+
+Tutor should prefer simple, readable command observations when that helps the
+student connect one result to one concept. That preference is a teaching style,
+not a Socratic adapter restriction. Remote Runner owns shell execution semantics:
+`id && whoami`, pipes, redirection, and other shell expressions are valid
+`session exec --cmd` strings when the deployment policy allows them. Socratic
+must not re-parse shell syntax or apply inconsistent prefix heuristics that
+change what Remote Runner would execute.
+
+Because the upstream shell is persistent and session-like, Socratic also
+serializes tutor command execution per `runner_session_id` inside the backend
+process. This reduces accidental parallel tool calls that compete for the same
+terminal and produce `Session is busy`; long-running work should still use
+`start_remote_command` followed by explicit result/wait/stop tools.
 
 ### Command Interaction Modes
 
@@ -180,11 +195,12 @@ long builds, or commands where the useful interaction is "start now, inspect
 later" should use the background command lifecycle instead of a long blocking
 tool call.
 
-## Command Policy
+## Adapter Boundary And Command Policy
 
-The first implementation should support a profile/session-scoped command policy rather than arbitrary shell execution.
-
-Required controls:
+The default Socratic behavior is a thin adapter: forward the command string to
+Remote Runner, preserve Remote Runner's structured result, and record a
+sanitized audit entry. Socratic does not own shell parsing. It does own the
+application boundary:
 
 - Bound machine only.
 - Bound Remote Runner session only.
@@ -192,11 +208,30 @@ Required controls:
 - Output length limit.
 - Secret and local-path redaction.
 - Audit record for every attempted command.
-- Clear user-facing error when a command is blocked.
+- Clear user-facing error when the remote session is busy, unavailable, or
+  explicitly blocked by deployment policy.
 
-For the SEED Sniffing/Spoofing acceptance run, the command policy will likely need read-only diagnostics plus controlled lab commands such as checking interfaces, container status, routing, permissions, and packet capture outputs. The exact allowlist should be finalized after inspecting the Remote Runner CLI and the lab environment.
+`REMOTE_TOOL_COMMAND_POLICY` controls the optional deployment-level command
+policy:
 
-Setup commands still need policy. For Sniffing/Spoofing, the expected setup is small: create a LabSetup directory, upload the known `docker-compose.yml`, create the empty `volumes` directory, and run Docker Compose in that directory. The system should not require cloning the whole SEED Labs repository for this case.
+- `passthrough` (default): do not reinterpret the command string; Remote Runner
+  is the execution boundary.
+- `allowlist`: use `REMOTE_TOOL_ALLOWED_COMMANDS` and
+  `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` as a strict compatibility policy.
+- `deny_all`: disable tutor/Shell command execution while keeping machine
+  connection checks and non-command actions available.
+
+For the current self-use SEED lab deployment, `passthrough` better matches the
+product goal: the student explicitly binds a lab machine to the session, and the
+Tutor should use Remote Runner as the real shell evidence channel. More locked
+down institutional deployments can opt into `allowlist` or `deny_all` without
+changing tutor code.
+
+Setup commands still need the same session binding, audit, redaction, timeout
+and optional policy controls. For Sniffing/Spoofing, the expected setup is small:
+create a LabSetup directory, upload the known `docker-compose.yml`, create the
+empty `volumes` directory, and run Docker Compose in that directory. The system
+should not require cloning the whole SEED Labs repository for this case.
 
 ## Session File And LabSetup Handling
 
@@ -237,7 +272,7 @@ Session creation should include an optional machine selector:
   and preserve the Socratic permission boundary: Tutor can only use the machine
   currently bound to that learning session.
 
-The session Shell/Evidence panel should use a terminal-tab model:
+The session Shell panel should use a terminal-tab model:
 
 - A tab represents a Remote Runner shell/session, usually grouped by
   `runner_session_id`.
@@ -252,9 +287,20 @@ The session Shell/Evidence panel should use a terminal-tab model:
   available.
 - Student-entered commands should use `session exec` rather than raw `session
   send` by default. That keeps command boundaries, stdout/stderr, exit code,
-  timeout, allowlist policy, redaction, and audit intact.
+  timeout, optional deployment policy, redaction, and audit intact.
 - Raw `session send/read` is a lower-level capability for future interactive
   flows. It must not become a policy bypass.
+- The user-facing name is simply Shell. Audit records are implementation
+  evidence, but the interface should look and read like a terminal, not a
+  generic evidence text box.
+- The panel should be horizontally resizable on desktop, keep a stable mobile
+  full-width fallback, render transcript content with terminal-style contrast
+  and monospace layout, and show explicit shell state such as connected,
+  running, closed, or error.
+- Raw Remote Runner JSON observations must not leak into ordinary chat text.
+  If a tool-heavy turn needs a fallback teaching reply, the backend should
+  summarize the observation into a short student-readable Shell result summary
+  and then return to the current learning question.
 
 ## Acceptance Demo
 
@@ -277,7 +323,8 @@ The official deployment path should remain conda-based. Remote Runner setup must
 - Install or expose the Remote Runner package/CLI.
 - Configure the Socratic environment with the Remote Runner repository/package path if needed.
 - Configure a valid Fernet `REMOTE_MACHINE_SECRET_KEY` before allowing password-based remote credentials.
-- Configure a non-empty exact command or prefix allowlist; empty command policy means deny-all.
+- Choose a command policy. The default is `REMOTE_TOOL_COMMAND_POLICY=passthrough`;
+  stricter deployments can set `allowlist` or `deny_all`.
 - Keep per-user credentials out of `.env.example`, git, logs, and exported examples.
 - Run a smoke test against a configured machine.
 
@@ -285,5 +332,5 @@ The official deployment path should remain conda-based. Remote Runner setup must
 
 - Remote Runner's background command lifecycle is available, but Socratic must keep tool prompts and tests aligned with that CLI as it evolves.
 - Running real packet labs may require root privileges, Docker access, privileged containers, or network capabilities that differ between machines.
-- Tutor command use can drift from Socratic guidance into direct solution automation. The prompt and command policy must keep the tutor focused on observation, explanation, debugging, and evidence collection.
+- Tutor command use can drift from Socratic guidance into direct solution automation. The prompt, profiles, benchmark, and optional deployment policy must keep the tutor focused on observation, explanation, debugging, and evidence collection.
 - Fully interactive terminal programs may still need additional frontend rendering and input handling beyond the current command input box; raw `session send` should be introduced only with explicit policy and audit decisions.

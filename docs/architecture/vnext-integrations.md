@@ -67,7 +67,7 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 后续实现需要定义记忆写入事件、隐私边界、学生可见/可控机制、记忆检索接口、遗忘策略和 benchmark 评估方式。
 
-## 4. 会话 Shell / Evidence 面板
+## 4. 会话 Shell 面板
 
 当前系统已经能通过 Remote Runner 执行真实命令，并在后端记录审计证据。但学生在前端聊天界面里不一定能直接看到完整执行过程，因此容易出现“Tutor 说它检查过了，但用户不确信”的体验问题。
 
@@ -81,18 +81,22 @@ Socratic Agent Generator 当前的核心能力是把技术实验手册转换为�
 
 设计意图：
 
-- 在会话界面右侧增加可展开的 Shell / Evidence 面板。
+- 在会话界面右侧增加可展开的 Shell 面板。
 - 面板形式类似 VS Code 的 terminal tabs：一个 tab 代表一个 Remote Runner shell/session，而不是一条命令。
 - 每个 terminal tab 优先展示 Remote Runner persistent transcript；`session exec` 在同一 session shell 中执行，因此 shell-local state 能跨命令保留。
 - 前端不应把每条 audit 记录做成 tab；audit 记录应作为同一个 terminal transcript 中的连续片段。
 - 后台命令应能显示 running/exited/failed/stopped 状态，并支持刷新或查看最新结果。
-- 面板是观察和信任建立工具。学生输入命令时应默认走受控 `session exec`，而不是绕过 policy 的 raw shell input。
+- 面板是观察和信任建立工具。学生输入命令时应默认走受控 `session exec`，而不是绕过 command boundary、audit、redaction 和可选部署 policy 的 raw shell input。
+- 用户可见命名应只说 Shell，而不是 Shell Evidence。审计是系统内部证据模型，前端体验应更接近真实 terminal。
+- 桌面端 Shell 面板应支持拖动左边界调整宽度；移动端保持合理降级。
+- transcript 应采用 terminal 风格渲染，长输出和长行不应撑破布局；shell 关闭、不可读、正在执行或出错时应显示明确状态，而不是只显示记录数量。
+- Tutor fallback 回复不应把 `Relevant evidence: {...}` 这类 Remote Runner JSON 直接写进聊天正文；工具输出要先被压缩成可读的 Shell 结果摘要，再回到当前教学目标。
 
 边界：
 
 - 数据来源应优先复用 `RemoteCommandAuditModel`、`SessionRemoteBindingModel.runner_session_id` 和 Remote Runner command lifecycle，而不是新增一套独立日志系统。
 - 不显示密码、私钥、token、host 私密细节或本地路径。
-- raw `session send` 只适合未来复杂交互 flows；在没有明确 policy/audit 方案前，不应作为默认 UI 输入路径。
+- raw `session send` 只适合未来复杂交互 flows；在没有明确 audit、redaction 和可选 policy 方案前，不应作为默认 UI 输入路径。
 - 停止后台命令可以作为明确按钮单独评估。
 
 ## 5. 单实验端到端 Benchmark

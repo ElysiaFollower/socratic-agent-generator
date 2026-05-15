@@ -309,7 +309,7 @@ def run_session_remote_shell_command(
     remote_manager: RemoteMachineManagerDep,
     current_user: User = Depends(get_current_user),
 ) -> SessionRemoteCommandResponse:
-    """Execute one policy-checked command in the persistent session shell."""
+    """Execute one audited command in the persistent session shell."""
     try:
         session_manager.read_session(
             session_id, owner_id=current_user.user_id

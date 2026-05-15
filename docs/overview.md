@@ -32,12 +32,12 @@ Socratic Agent Generator 将技术实验手册转换为可交互的苏格拉底�
 
 - 创建导师：上传 Markdown/PDF 实验手册，后端生成 Persona 和 Curriculum，教师审阅后保存 Profile。
 - 学习对话：学生选择可见 Profile，创建 Session，通过流式对话逐步完成课程节点。
-- 进度评估：StepEvaluator 根据课程节点的成功标准判断是否推进，Assessment Skill 只提供指导信息。
+- 进度评估：StepEvaluator 根据课程节点的成功标准和最近对话证据判断是否推进，Assessment Skill 只提供指导信息。
 - 自定义技能：教师上传材料并建立向量索引，让导师能在特定实验资料中检索辅助信息。
 - 默认实验：新部署会种入 6 个经过真实报告和实验文档校准的 SEED profiles，并关联内置 lab manual 文档。
 - 真实实验环境：用户可在 Settings 配置 Remote Runner 实验机，创建或切换会话绑定后，Tutor 只能访问该会话绑定的机器。
-- 实验证据：Tutor 通过 Remote Runner 执行命令、上传 session 文件、收集 stdout/stderr/exit code，并把脱敏 audit 展示在会话右侧 Shell/Evidence 面板。
-- Shell/Evidence 面板：tab 代表 remote terminal/session，命令是该 terminal transcript 中的连续片段；当前只读，不允许绕过 Tutor 权限直接执行任意命令。
+- 实验证据：Tutor 通过 Remote Runner 执行命令、上传 session 文件、收集 stdout/stderr/exit code，并把脱敏 audit 展示在会话右侧 Shell 面板。
+- Shell 面板：tab 代表 remote terminal/session，命令是该 terminal transcript 中的连续片段；当前只读，不允许绕过 Tutor 权限直接执行任意命令。
 - 长期记忆：Tutor 默认尝试使用 DreamingRAG 进行 session-scoped recall/write，依赖不可用时安全降级。
 
 ## 当前成熟度

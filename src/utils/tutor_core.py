@@ -11,6 +11,7 @@ load_dotenv()
 
 import logging
 import asyncio
+import json
 from copy import deepcopy
 from datetime import datetime
 from typing import Any, AsyncGenerator, Dict, List, Optional, Union, Tuple
@@ -116,6 +117,83 @@ def _missing_stream_reply_chunk(reply: str, yielded_reply: str) -> str:
     if yielded_reply and yielded_reply in reply:
         return reply.replace(yielded_reply, "", 1)
     return ("\n\n" if yielded_reply else "") + reply
+
+
+def _summarize_remote_observation(observation: str) -> str:
+    """Convert a Remote Runner JSON observation into a student-readable line."""
+    text = observation.strip()
+    if not text:
+        return ""
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError:
+        return text[:500]
+
+    action = str(payload.get("action") or "remote tool")
+    ok = bool(payload.get("ok", False))
+    error = str(payload.get("error") or "").strip()
+    result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
+
+    if error:
+        if "busy" in error.lower():
+            return (
+                f"{action}: busy - {error}. The remote terminal is occupied; "
+                "wait for the running command, inspect command status, or retry shortly."
+            )
+        return f"{action}: failed - {error}"
+
+    if action == "machine_doctor":
+        checks = []
+        for key, label in (
+            ("reachable", "reachable"),
+            ("auth_ok", "authenticated"),
+            ("default_cwd_ok", "default cwd ready"),
+        ):
+            if key in result:
+                checks.append(f"{label}={bool(result.get(key))}")
+        return f"machine_doctor: {'; '.join(checks) if checks else 'machine checked'}"
+
+    if action in {"session_exec", "session_exec_background"}:
+        command = str(result.get("command") or payload.get("command") or "").strip()
+        status = str(result.get("status") or ("ok" if ok else "failed"))
+        exit_code = result.get("exit_code")
+        stdout = str(result.get("stdout") or "").strip()
+        stderr = str(result.get("stderr") or "").strip()
+        parts = [f"{action}: {status}"]
+        if command:
+            parts.append(f"command `{command}`")
+        if exit_code is not None:
+            parts.append(f"exit={exit_code}")
+        if stdout:
+            parts.append(f"stdout: {stdout[:240]}")
+        if stderr:
+            parts.append(f"stderr: {stderr[:160]}")
+        return "; ".join(parts)
+
+    if "status" in result or "command_id" in result:
+        status = str(result.get("status") or "recorded")
+        command_id = str(result.get("command_id") or "").strip()
+        suffix = f" command_id={command_id}" if command_id else ""
+        return f"{action}: {status}{suffix}"
+
+    return f"{action}: {'ok' if ok else 'not ok'}"
+
+
+def _summarize_remote_observations(tool_observations: List[str]) -> str:
+    """Summarize tool observations without exposing raw JSON in chat."""
+    lines = [
+        line
+        for line in (
+            _summarize_remote_observation(obs) for obs in tool_observations if obs
+        )
+        if line
+    ]
+    if not lines:
+        return "The remote tool completed, but it did not return additional output."
+    summary = "\n".join(f"- {line}" for line in lines)
+    if len(summary) <= 1800:
+        return summary
+    return summary[:1800].rstrip() + "\n..."
 
 
 def _agent_executor_kwargs() -> Dict[str, Any]:
@@ -488,11 +566,7 @@ class Tutor:
         tool_observations: List[str],
     ) -> str:
         """Build a teaching reply when a tool-heavy turn has no real answer."""
-        observation_text = "\n".join(obs for obs in tool_observations if obs).strip()
-        if len(observation_text) > 1800:
-            observation_text = observation_text[:1800] + "\n..."
-        if not observation_text:
-            observation_text = "The remote tool completed, but it did not return additional output."
+        observation_text = _summarize_remote_observations(tool_observations)
 
         step_info = self._get_current_step_info()
         step_title = step_info.get("step_title", "the current step")
@@ -504,7 +578,7 @@ class Tutor:
         if self.session.output_language == "English":
             return (
                 "I checked the lab machine, but the important part is still your reasoning.\n\n"
-                f"Relevant evidence:\n{observation_text}\n\n"
+                f"Shell result summary:\n{observation_text}\n\n"
                 f"For the current step, \"{step_title}\", focus on this goal: "
                 f"{learning_objective} Based on the evidence, answer this in your own words: "
                 f"{guiding_question} Try to connect the command output to the concept rather "
@@ -513,7 +587,7 @@ class Tutor:
 
         return (
             "我已经检查了实验机，但这一步真正要完成的是你的理解，而不是只看命令输出。\n\n"
-            f"相关证据：\n{observation_text}\n\n"
+            f"Shell 结果摘要：\n{observation_text}\n\n"
             f"当前步骤是「{step_title}」，目标是：{learning_objective}"
             f"请你基于这些证据，用自己的话回答：{guiding_question}"
             "重点不是复述命令输出，而是把输出和实验原理联系起来。"
@@ -579,7 +653,7 @@ class Tutor:
     def extract_step_context(self, max_tokens: int = 2000) -> List[Dict[str, str]]:
         """Extract conversation context for evaluation.
 
-        Uses simplified approach: extracts from all history (does not track
+        Uses simplified approach: extracts recent history (does not track
         step start index). The evaluator can determine current step through
         success_criteria.
 
@@ -589,25 +663,28 @@ class Tutor:
         Returns:
             List of conversation messages with role and content.
         """
-        # Extract from all history (simplified approach)
         messages = self.history.messages
 
-        # Convert to dictionary format
-        context = []
+        # Keep the newest messages first when the conversation is long. Step
+        # evaluation depends on the student's current evidence, not the opener.
+        reversed_context = []
         current_tokens = 0
-        for msg in messages:
+        for msg in reversed(messages):
             msg_tokens = self.llm.get_num_tokens(msg.content)
             if current_tokens + msg_tokens > max_tokens:
-                break
+                if reversed_context:
+                    break
+                # Preserve at least the latest message even if it is oversized.
+                msg_tokens = max_tokens
             role = (
                 "user"
                 if msg.__class__.__name__ == "HumanMessage"
                 else "assistant"
             )
-            context.append({"role": role, "content": msg.content})
+            reversed_context.append({"role": role, "content": msg.content})
             current_tokens += msg_tokens
 
-        return context
+        return list(reversed(reversed_context))
 
     def _ensure_evaluation_lock(self) -> None:
         """Ensure evaluation lock is created.

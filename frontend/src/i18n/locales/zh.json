@@ -35,15 +35,25 @@
     "current": "当前语言"
   },
   "evidence": {
-    "title": "Shell 证据",
-    "open": "打开 Shell 证据",
-    "empty": "当前会话还没有记录远程命令证据。",
+    "title": "Shell",
+    "open": "打开 Shell",
+    "empty": "当前会话还没有 Shell 输出。",
     "noMachine": "未选择实验机",
-    "selectMachineFirst": "请先选择实验机，再查看 Shell 证据。",
+    "selectMachineFirst": "请先选择实验机，再打开 Shell。",
     "terminal": "Shell",
     "records": "条",
     "commandPlaceholder": "在此 Shell 中执行命令",
-    "runCommand": "执行命令"
+    "runCommand": "执行命令",
+    "resize": "调整 Shell 宽度",
+    "noTranscript": "$ 等待 Shell 输出...",
+    "sessionClosed": "这个 Shell 会话已关闭或无法继续读取。",
+    "status": {
+      "connected": "已连接",
+      "running": "运行中",
+      "closed": "已关闭",
+      "error": "错误",
+      "idle": "空闲"
+    }
   },
   "common": {
     "loading": "加载中...",

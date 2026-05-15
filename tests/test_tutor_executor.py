@@ -1,9 +1,11 @@
 from schemas.curriculum import SocraticCurriculum, SocraticStep
 from utils.template_assembler import PromptAssembler
 from utils.tutor_core import (
+    Tutor,
     _agent_executor_kwargs,
     _looks_like_tool_only_reply,
     _missing_stream_reply_chunk,
+    _summarize_remote_observations,
 )
 
 
@@ -36,6 +38,9 @@ def test_runtime_prompt_adds_tool_teaching_contract_to_existing_profiles():
     assert "### Runtime Interaction Contract" in prompt
     assert "Every turn must end with a clear teaching response" in prompt
     assert "Do not keep inventorying the environment" in prompt
+    assert "Prefer one clear remote command per tool call" in prompt
+    assert "Remote Runner owns shell execution semantics" in prompt
+    assert "session is busy" in prompt
 
 
 def test_tool_only_reply_detection_catches_remote_probe_preamble():
@@ -60,3 +65,57 @@ def test_missing_stream_reply_chunk_returns_unstreamed_suffix():
         _missing_stream_reply_chunk("final teaching summary", "tool preamble")
         == "\n\nfinal teaching summary"
     )
+
+
+def test_remote_observation_summary_hides_raw_json():
+    summary = _summarize_remote_observations(
+        [
+            '{"action":"machine_doctor","ok":true,"result":{"reachable":true,'
+            '"auth_ok":true,"default_cwd_ok":true}}',
+            '{"action":"session_exec","ok":false,'
+            '"error":"Command is not allowed by Remote Runner command policy."}',
+        ]
+    )
+
+    assert "machine_doctor:" in summary
+    assert "reachable=True" in summary
+    assert "session_exec: failed" in summary
+    assert "{" not in summary
+    assert "Relevant evidence" not in summary
+
+
+def test_remote_observation_summary_classifies_busy_session():
+    summary = _summarize_remote_observations(
+        [
+            '{"action":"session_exec","ok":false,'
+            '"error":"Session sess1 is busy"}',
+        ]
+    )
+
+    assert "session_exec: busy" in summary
+    assert "terminal is occupied" in summary
+    assert "policy" not in summary.lower()
+
+
+def test_extract_step_context_keeps_recent_messages_under_token_budget():
+    from langchain_community.chat_message_histories import ChatMessageHistory
+    from langchain_core.messages import AIMessage, HumanMessage
+
+    tutor = Tutor.__new__(Tutor)
+    tutor.llm = type(
+        "FakeLLM",
+        (),
+        {"get_num_tokens": staticmethod(lambda text: len(text.split()))},
+    )()
+    history = ChatMessageHistory()
+    history.add_message(HumanMessage(content="old filler " * 60))
+    history.add_message(AIMessage(content="old tutor response " * 60))
+    history.add_message(HumanMessage(content="current step evidence includes BPF filter"))
+    history.add_message(AIMessage(content="current tutor follow-up"))
+    tutor.history = history
+
+    context = tutor.extract_step_context(max_tokens=20)
+    combined = "\n".join(item["content"] for item in context)
+
+    assert "current step evidence includes BPF filter" in combined
+    assert "old filler" not in combined

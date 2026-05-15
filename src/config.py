@@ -272,6 +272,9 @@ REMOTE_TOOL_AGENT_IDLE_TIMEOUT: int = int(
     os.getenv("REMOTE_TOOL_AGENT_IDLE_TIMEOUT", "15")
 )
 REMOTE_TOOL_OUTPUT_CHARS: int = int(os.getenv("REMOTE_TOOL_OUTPUT_CHARS", "4000"))
+REMOTE_TOOL_COMMAND_POLICY: str = os.getenv(
+    "REMOTE_TOOL_COMMAND_POLICY", "passthrough"
+).strip().lower()
 REMOTE_TOOL_ALLOWED_MACHINE_IDS: List[str] = _env_list(
     "REMOTE_TOOL_ALLOWED_MACHINE_IDS"
 )

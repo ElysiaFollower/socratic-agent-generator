@@ -285,7 +285,7 @@ class RemoteMachineManager:
         reason: str = "",
         wait_timeout_seconds: int = 0,
     ) -> Dict[str, Any]:
-        """Run one policy-checked action on the session-bound machine."""
+        """Run one audited action on the session-bound machine."""
         binding = self.get_binding_model(session_id, owner_id)
         provider = self._session_provider_from_binding(binding)
         try:

@@ -2,10 +2,10 @@
 
 ## 当前状态
 
-- 当前功能项：无 active；`vnext-persistent-remote-shell` 已 passing。
-- 当前任务计划：无 active；计划已归档到 `plans/archive/20260514-persistent-remote-shell.md`。
-- 上次验证：2026-05-14，remote machine focused tests 5 passed，`python3 -m compileall src tests` 通过，前端 test/build 通过，`./scripts/harness-check.sh` 0 warning，`git diff --check` 通过。
-- 下一步最佳动作：提交并推送 `vnext-persistent-remote-shell`，创建 stacked PR；合并后部署 linux-01 并做真实 persistent shell smoke。
+- 当前功能项：无 active feature。
+- 当前任务计划：无 active plan。
+- 上次验证：2026-05-15，Remote Runner thin adapter 修正已提交、推送并同步 linux-01 部署，部署侧 compound command 透传验证通过。
+- 下一步最佳动作：等待 PR #26 review/merge；后续可基于真实 conduct 样本继续改进 Tutor 工具规划与学习质量评估。
 
 ## 状态约定
 
@@ -15,6 +15,133 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 开启 Remote Runner 薄 adapter 边界修正
+
+- 用户确认 Remote Runner 核心 `session exec --cmd` 支持 compound shell expression；`id && whoami` 等命令是一条 command record，由 Remote Runner shell wrapper 执行并返回 stdout/stderr/exit code。
+- 现有 Socratic 侧 compound guard 和 prefix allowlist 属于过重封装，会限制工具能力并导致策略不一致。
+- 创建 active plan：`plans/active/20260515-remote-runner-thin-adapter.md`。
+- 将 `vnext-remote-runner-thin-adapter` 设置为当前唯一 active feature。
+- 范围判断：Socratic 只保留用户鉴权、session 绑定、凭据隐藏、audit、redaction、output limit 和可选部署级 policy；命令 shell 语义交还 Remote Runner。
+
+### 2026-05-15 - 完成 Remote Runner 薄 adapter 边界修正
+
+- 移除 `SessionBoundRemoteEnvironmentSkill` 的 compound/multiline 命令拦截；tutor-facing remote tools 现在把 command 字符串交给 provider/Remote Runner。
+- 新增 `REMOTE_TOOL_COMMAND_POLICY`：默认 `passthrough`，不重解释 shell；`allowlist` 保留旧 exact/prefix 兼容策略；`deny_all` 显式禁用命令执行。
+- `RemoteRunnerProvider` 继续保留 session/machine binding、cwd prefix、timeout、redaction、output limit 和 audit 相关路径。
+- Tutor fallback summary 现在把 `Session is busy` 归类为 terminal occupied，引导 wait/inspect/retry，而不是误读成 policy failure。
+- 更新 `.env.example`、`docs/deployment.md`、`docs/architecture/remote-runner-session-tools.md`、`docs/architecture/vnext-integrations.md` 和 runtime prompt contract。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 30 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 状态：`vnext-remote-runner-thin-adapter` 标记为 `passing`，计划归档到 `plans/archive/20260515-remote-runner-thin-adapter.md`。
+
+### 2026-05-15 - 同步 thin adapter 到 linux-01
+
+- 已将 commit `4e7dd43` archive 上传到 linux-01，切换 `/home/ely/deploy/socratic-live/socratic-agent-generator`，保留远端 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515014308`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 已重启 tmux `socratic-backend` 与 `socratic-frontend`；linux-01 本机 `/api/health` 返回 OK、前端 HTTP 200，本地访问 `http://10.203.15.128:8000/api/health` 返回 OK、`http://10.203.15.128:5173` 返回 HTTP 200。
+- 部署侧 Socratic API smoke：以 admin 登录，对 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 调用 `/remote-shell/command` 执行 `whoami && id`，返回 `ok=true`、`action=session_exec`、`status=completed`、`exit_code=0`，stdout 包含 `seed` 和 `uid=1001(seed)`，证明 compound command 已由 Socratic 透传到 Remote Runner。
+
+### 2026-05-15 - 开启真实会话 follow-up hardening
+
+- 用户要求在部署机清理旧 session 后按产品北极星完整 conduct 一次真实实验流程，并保留数据。
+- 已完成真实会话：`8dff9e8f-fa86-449c-93a8-836987c4ee9b`，最终 `stepIndex=9,totalSteps=9,isFinished=true`，artifact 位于 `/home/ely/deploy/socratic-live/logs/manual-conduct-sniffing-spoofing-20260515-consolidated.json`。
+- 真实会话暴露两个需要立即收口的问题：tutor 仍尝试 compound/pipe 命令且出现 `Session is busy`；长会话后 tutor 文本判断已满足成功标准但 StepEvaluator 不推进，疑似评估上下文只保留早期历史。
+- 创建 active plan：`plans/active/20260515-manual-conduct-followup-hardening.md`。
+- 将 `vnext-manual-conduct-followup-hardening` 设置为当前唯一 active feature。
+
+### 2026-05-15 - 完成真实会话 follow-up hardening
+
+- `SessionBoundRemoteEnvironmentSkill` 现在在 tutor-facing 层拒绝多行命令和顶层 compound shell operators（`&&`、`||`、`;`、`|`、`&`），返回拆分命令指导并记录 audit error，不再调用 provider 执行。
+- 同一个 `runner_session_id` 的 tutor command actions 在后端进程内串行执行，降低 LangChain 并发工具调用造成的 `Session is busy`。
+- `Tutor.extract_step_context()` 改为在 token budget 内优先保留最近对话证据，避免长会话评估时只看到开头历史。
+- `docs/overview.md` 和 `docs/architecture/remote-runner-session-tools.md` 已记录最近上下文评估、Shell 命名和 tutor-facing 单命令守卫边界。
+- 验证：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q` 通过 28 passed；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 状态：`vnext-manual-conduct-followup-hardening` 标记为 `passing`，计划归档到 `plans/archive/20260515-manual-conduct-followup-hardening.md`。
+
+### 2026-05-15 - 同步 follow-up hardening 到 linux-01
+
+- 已将 commit `63c4420` archive 上传到 linux-01，切换 `/home/ely/deploy/socratic-live/socratic-agent-generator`，保留远端 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515010759`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 已重启 tmux `socratic-backend` 与 `socratic-frontend`；linux-01 本机 `/api/health` 返回 OK、前端 HTTP 200，本地访问 `http://10.203.15.128:8000/api/health` 返回 OK、`http://10.203.15.128:5173` 返回 HTTP 200。
+- 真实 conduct 样本仍保留：session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 的 DB state 为 `{"stepIndex": 9}`，`remote_command_audits=17`。
+
+### 2026-05-15 - 开启 tutor 远程命令风格修正
+
+- 用户建议将 compound command 问题拆成两层：Remote Runner 上游应记录 `id && whoami` 这类 compound command 支持/契约缺口；Socratic tutor 则应优先使用单条命令，因为单条命令更容易解释、审计，也更符合教学场景。
+- 创建 active plan：`plans/active/20260515-remote-command-style.md`。
+- 将 `vnext-remote-command-style` 设置为当前唯一 active feature。
+- 范围判断：本任务只发上游 issue，并修正 Socratic runtime contract、文档和 focused tests；不在本仓库实现 compound command parser，不放宽命令 allowlist，不修改 Remote Runner 源码。
+- 下一步：创建 SEEDRunner issue，然后更新 tutor prompt contract 和测试。
+
+### 2026-05-15 - 完成 tutor 远程命令风格修正
+
+- 已创建上游 issue：`https://github.com/ElysiaFollower/SEEDRunner/issues/7`，要求 Remote Runner 明确或支持 `session exec` compound command 行为，并在不支持时返回可机器读取的拒绝原因。
+- Socratic runtime interaction contract 已新增规则：tutor 优先每次工具调用运行一条清晰命令；需要多个观察时拆成多次调用；命令被 policy 拒绝且证据仍必要时，用更小的 policy-compliant 单条命令恢复。
+- `docs/architecture/remote-runner-session-tools.md` 已记录单条命令作为教学默认风格，并链接上游 issue。
+- `tests/test_tutor_executor.py` 已覆盖旧 profile 渲染 runtime prompt 时自动包含单条命令和 policy recovery 规则。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py -q` 通过 5 passed；`python3 -m compileall src tests` 通过；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过。
+- 状态：`vnext-remote-command-style` 标记为 `passing`，计划归档到 `plans/archive/20260515-remote-command-style.md`。
+
+### 2026-05-14 - 开启 Shell 面板可用性跟进修正
+
+- 用户在部署效果中发现两个问题：Shell 面板继续向左拖拽会把页面总宽度撑出 viewport，出现页面级横向滚动；Shell transcript 中混入较多审计元信息，不像轻便的真实 terminal。
+- 创建 active plan：`plans/active/20260514-shell-panel-usability-fixes.md`。
+- 将 `vnext-shell-panel-usability-fixes` 设置为当前唯一 active feature。
+- 范围判断：本任务只处理前端布局边界和 transcript 呈现，不改变 Remote Runner API、命令策略、审计落库、登录/数据库或 DreamingRAG。
+
+### 2026-05-14 - 完成 Shell 面板可用性跟进修正
+
+- Shell 面板 resize 现在按实际父容器宽度计算，而不是直接使用 `window.innerWidth`；桌面端最大约为对话区域容器 70%，并保留至少 320px 左侧聊天区域。
+- `ChatPage` 中承载聊天和 Shell 的 flex 容器增加 `minWidth: 0` 与 `maxWidth: 100%`，避免拖拽后产生页面级横向滚动。
+- audit fallback transcript 改为轻量 terminal 样式：`cwd $ command` 后跟 stdout/stderr/error，不再默认显示 `# action`、`# cwd`、`# exit 0 · timestamp`。
+- displayed transcript 会过滤已生成的 audit 元信息行，减少 Shell 内的审计噪声。
+- 新增 `frontend/src/test/SessionEvidencePanel.test.tsx`，覆盖宽度上限、audit transcript 格式和 metadata 清理。
+- 验证：`./scripts/harness-check.sh` 0 warning；`cd frontend && npm test -- --run` 通过 2 files / 4 tests；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`git diff --check` 通过。
+- 状态：`vnext-shell-panel-usability-fixes` 标记为 `passing`，计划归档到 `plans/archive/20260514-shell-panel-usability-fixes.md`。
+
+### 2026-05-14 - 同步 Shell 面板可用性修正到 linux-01
+
+- 将 commit `4149d61` archive 上传到 `/home/ely/deploy/socratic-live/` 并切换部署目录。
+- 部署脚本已修正数据复制顺序：先删除新包自带空 `data/`，再复制旧部署的 `data/`，避免再次出现 `data/data` 嵌套和空 DB 被应用读取的问题。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514150015`。
+- 远端验证：DB users count 为 3；`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 重启 tmux `socratic-backend` 与 `socratic-frontend`；linux-01 本机 health OK、frontend HTTP 200，监听为 `0.0.0.0:8000` 和 `0.0.0.0:5173`。
+- 本地访问验证：`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
+- 登录验证：`demo / SocraticDemo2026!` 返回 200，角色 student；`admin / SocraticAdmin2026!` 返回 200，角色 admin。
+
+### 2026-05-14 - 开启 Shell 面板 UX 修正任务
+
+- 用户反馈会话 Shell 面板仍有前端体验问题：不应强调 Shell Evidence；面板宽度太小且不可拖动；transcript 渲染不像真实 shell；聊天中会泄露 `Relevant evidence: {...}` raw JSON；Shell session 关闭时缺少明确状态。
+- 从 `dev` 创建分支 `vnext-shell-panel-ux`。
+- 创建 active plan：`plans/active/20260514-shell-panel-ux.md`。
+- 将 `vnext-shell-panel-ux` 设置为当前唯一 active feature。
+- 范围判断：本任务只修正 Shell 面板和 remote evidence 的用户可见呈现，不放宽 Remote Runner 权限策略，不实现 raw PTY，不修改 profile/RAG/benchmark 语义。
+- 下一步：先定位 raw JSON evidence 来源，再评估 terminal 渲染方案，随后实现前端拖拽宽度、状态显示和 focused tests。
+
+### 2026-05-14 - 完成 Shell 面板 UX 修正
+
+- 前端会话右侧面板用户可见命名改为 `Shell`，不再强调 `Shell evidence`。
+- `SessionEvidencePanel` 支持桌面端拖动左边界调整宽度，并保持移动端全宽降级。
+- transcript 区域改为 terminal 风格渲染：深色背景、等宽字体、命令/stdout/stderr/error/comment 分层颜色、长行横向滚动。
+- Shell header、tab 和详情区显示 `connected/running/closed/error/idle` 状态；tab 不再以 `xx records` 作为主要信息。
+- shell transcript 读取失败时仍保留 audit fallback，并把 closed/unreadable 状态显式呈现。
+- `Tutor` remote-tool fallback 将 Remote Runner JSON observation 转成可读的 Shell 结果摘要，不再把 `Relevant evidence: {...}` raw JSON 泄露到聊天正文。
+- 更新 `docs/architecture/vnext-integrations.md` 和 `docs/architecture/remote-runner-session-tools.md`，明确 Shell 面板命名、terminal 风格、状态显示和 raw JSON evidence 边界。
+- 验证：`./init.sh` 通过；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py tests/test_remote_machine_manager.py -q` 通过 30 passed；`python3 -m compileall src tests` 通过；`cd frontend && npm test -- --run` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；`./scripts/harness-check.sh` 0 warning；`git diff --check` 通过；`curl -I http://127.0.0.1:5174/` 返回 HTTP 200。
+- 浏览器自动化曾两次尝试打开本地 Vite 页面，但 Browser node runtime 超时，未得到截图；本次 UI 交互效果由 TypeScript build、HTTP smoke 和代码路径验证覆盖。
+- 状态：`vnext-shell-panel-ux` 标记为 `passing`，计划归档。
+
+### 2026-05-14 - 同步 Shell 面板 UX 到 linux-01
+
+- 将 commit `67e8b5d` archive 上传到 `/home/ely/deploy/socratic-live/`，切换部署目录为新的 `socratic-agent-generator`，并保留旧 `.env`、`data`、`frontend/node_modules` 和 `frontend/dist`。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260514141857`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 重启 tmux `socratic-backend` 与 `socratic-frontend`；远端监听确认 `0.0.0.0:8000` 和 `0.0.0.0:5173`。
+- 可访问性验证：linux-01 本机 `http://127.0.0.1:8000/api/health` 返回 `{"status":"ok"}`，本地访问 `http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。
+- 源码验证：部署侧 `frontend/src/i18n/locales/en.json` 包含 `Resize Shell`，确认已同步 Shell UX 分支内容。
+- Remote Runner 部署 session 已销毁；日志保留在本机 Remote Runner log 目录，不提交到仓库。
 
 ### 2026-05-14 - 开启 Persistent Remote Shell 对接任务
 

@@ -35,15 +35,25 @@
     "current": "Current Language"
   },
   "evidence": {
-    "title": "Shell evidence",
-    "open": "Open shell evidence",
-    "empty": "No remote command evidence has been recorded for this session yet.",
+    "title": "Shell",
+    "open": "Open shell",
+    "empty": "No shell transcript has been recorded for this session yet.",
     "noMachine": "No lab machine selected",
-    "selectMachineFirst": "Select a lab machine before viewing shell evidence.",
+    "selectMachineFirst": "Select a lab machine before opening Shell.",
     "terminal": "Shell",
     "records": "records",
     "commandPlaceholder": "Run command in this shell",
-    "runCommand": "Run command"
+    "runCommand": "Run command",
+    "resize": "Resize Shell",
+    "noTranscript": "$ waiting for shell output...",
+    "sessionClosed": "This shell session is closed or no longer readable.",
+    "status": {
+      "connected": "Connected",
+      "running": "Running",
+      "closed": "Closed",
+      "error": "Error",
+      "idle": "Idle"
+    }
   },
   "common": {
     "loading": "Loading...",

@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from "react";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {useTranslation} from "react-i18next";
 import {
   Alert,
@@ -21,7 +21,11 @@ import {
   getSessionRemoteShellTranscript,
   runSessionRemoteShellCommand,
 } from "../../api";
-import {RemoteBindingSummary, RemoteCommandAudit} from "../../types";
+import {
+  RemoteBindingSummary,
+  RemoteCommandAudit,
+  SessionRemoteShellReadResponse,
+} from "../../types";
 import {CircularProgress} from "../common/CircularProgress";
 
 interface SessionEvidencePanelProps {
@@ -39,56 +43,190 @@ interface TerminalGroup {
   readonly hasError: boolean;
 }
 
-function statusLabel(audit: RemoteCommandAudit): string {
-  if (audit.error) {
-    return "error";
-  }
-  if (audit.exit_code === 0) {
-    return "exit 0";
-  }
-  if (typeof audit.exit_code === "number") {
-    return `exit ${audit.exit_code}`;
-  }
-  return "recorded";
+type ShellStatus = "connected" | "running" | "closed" | "error" | "idle";
+
+interface ResizeState {
+  readonly startX: number;
+  readonly startWidth: number;
+}
+
+const MIN_PANEL_WIDTH = 360;
+const MIN_CHAT_WIDTH = 320;
+const MAX_PANEL_RATIO = 0.7;
+const MAX_PANEL_VW = 70;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function panelWidthBounds(containerWidth: number): {min: number; max: number} {
+  const usableWidth = Number.isFinite(containerWidth) && containerWidth > 0
+    ? containerWidth
+    : 1024;
+  const maxByRatio = Math.floor(usableWidth * MAX_PANEL_RATIO);
+  const maxByRemainingChat = usableWidth - MIN_CHAT_WIDTH;
+  return {
+    min: MIN_PANEL_WIDTH,
+    max: Math.max(
+      MIN_PANEL_WIDTH,
+      Math.min(maxByRatio, maxByRemainingChat),
+    ),
+  };
 }
 
 function terminalKey(audit: RemoteCommandAudit): string {
   return audit.terminal_id || audit.runner_session_id || audit.binding_id || "session";
 }
 
-function formatTimestamp(value?: string | null): string {
-  if (!value) {
-    return "";
-  }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-  return date.toLocaleString();
+function commandPrompt(audit: RemoteCommandAudit): string {
+  const cwd = audit.cwd?.trim();
+  return cwd ? `${cwd} $` : "$";
 }
 
-function formatAuditTranscript(audit: RemoteCommandAudit): string {
+export function formatAuditTranscript(audit: RemoteCommandAudit): string {
   const lines: string[] = [];
-  const commandLine = audit.command ? `$ ${audit.command}` : `$ ${audit.action}`;
+  const commandLine = audit.command
+    ? `${commandPrompt(audit)} ${audit.command}`
+    : `$ ${audit.action}`;
   lines.push(commandLine);
-  if (audit.action && audit.command && audit.action !== "session_exec") {
-    lines.push(`# action: ${audit.action}`);
-  }
-  if (audit.cwd) {
-    lines.push(`# cwd: ${audit.cwd}`);
-  }
   if (audit.stdout_excerpt) {
     lines.push(audit.stdout_excerpt.trimEnd());
   }
   if (audit.stderr_excerpt) {
-    lines.push(`[stderr]\n${audit.stderr_excerpt.trimEnd()}`);
+    lines.push(audit.stderr_excerpt.trimEnd());
   }
   if (audit.error) {
-    lines.push(`[error]\n${audit.error.trimEnd()}`);
+    lines.push(`error: ${audit.error.trimEnd()}`);
   }
-  const timestamp = formatTimestamp(audit.create_at);
-  lines.push(`# ${statusLabel(audit)}${timestamp ? ` · ${timestamp}` : ""}`);
+  if (!audit.error && audit.exit_code && audit.exit_code !== 0) {
+    lines.push(`exit ${audit.exit_code}`);
+  }
   return lines.join("\n");
+}
+
+export function cleanShellTranscript(transcript: string): string {
+  return transcript
+    .split("\n")
+    .filter((line) => {
+      if (/^source .*\/\.remote-runner\/commands\/.*\/run\.sh$/.test(line)) {
+        return false;
+      }
+      if (/^__REMOTE_RUNNER_CMD_(BEGIN|END)_/.test(line)) {
+        return false;
+      }
+      if (/^# action:/.test(line)) {
+        return false;
+      }
+      if (/^# cwd:/.test(line)) {
+        return false;
+      }
+      if (/^# (recorded|error|exit \d+)( · .*)?$/.test(line)) {
+        return false;
+      }
+      return true;
+    })
+    .join("\n")
+    .trimEnd();
+}
+
+function auditTranscript(audits: readonly RemoteCommandAudit[]): string {
+  return cleanShellTranscript(audits.map(formatAuditTranscript).join("\n\n"));
+}
+
+function isClosedShellError(message: string): boolean {
+  return /not found|destroy|closed|pane/i.test(message);
+}
+
+function shellStatusColor(
+  status: ShellStatus,
+): "success" | "info" | "warning" | "error" | "default" {
+  if (status === "connected") {
+    return "success";
+  }
+  if (status === "running") {
+    return "info";
+  }
+  if (status === "closed") {
+    return "warning";
+  }
+  if (status === "error") {
+    return "error";
+  }
+  return "default";
+}
+
+function groupStatus(
+  group: TerminalGroup,
+  selectedTerminalId: string | undefined,
+  selectedStatus: ShellStatus,
+): ShellStatus {
+  if (group.id === selectedTerminalId) {
+    return selectedStatus;
+  }
+  return group.hasError ? "error" : "connected";
+}
+
+function lineColor(line: string): string {
+  if (/(^|\s)\$ /.test(line)) {
+    return "#9cdcfe";
+  }
+  if (line.startsWith("error:") || line.startsWith("exit ")) {
+    return "#f48771";
+  }
+  if (line.startsWith("# ")) {
+    return "#6a9955";
+  }
+  return "#d4d4d4";
+}
+
+function TerminalTranscript({
+  text,
+  emptyText,
+}: {
+  readonly text: string;
+  readonly emptyText: string;
+}) {
+  const lines = text ? text.split("\n") : [];
+  return (
+    <Box
+      role='log'
+      aria-live='polite'
+      sx={{
+        m: 0,
+        p: 1.5,
+        border: "1px solid rgba(255,255,255,0.12)",
+        borderRadius: 1,
+        bgcolor: "#111318",
+        color: "#d4d4d4",
+        fontFamily: "var(--font-mono)",
+        fontSize: 12,
+        lineHeight: 1.55,
+        overflow: "auto",
+        flex: 1,
+        minHeight: 0,
+        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.04)",
+      }}
+    >
+      {lines.length === 0 ? (
+        <Box sx={{color: "#858585"}}>{emptyText}</Box>
+      ) : (
+        lines.map((line, index) => (
+          <Box
+            // Transcript lines do not have stable ids; index is stable for this render.
+            key={`${index}-${line.slice(0, 16)}`}
+            component='div'
+            sx={{
+              color: lineColor(line),
+              whiteSpace: "pre",
+              minHeight: "1.55em",
+            }}
+          >
+            {line || " "}
+          </Box>
+        ))
+      )}
+    </Box>
+  );
 }
 
 export function SessionEvidencePanel({
@@ -102,10 +240,16 @@ export function SessionEvidencePanel({
   const [audits, setAudits] = useState<readonly RemoteCommandAudit[]>([]);
   const [selectedTerminalId, setSelectedTerminalId] = useState<string | null>(null);
   const [remoteTranscript, setRemoteTranscript] = useState("");
+  const [shellRead, setShellRead] =
+    useState<SessionRemoteShellReadResponse | null>(null);
+  const [shellError, setShellError] = useState<string | null>(null);
   const [commandInput, setCommandInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isRunningCommand, setIsRunningCommand] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [panelWidth, setPanelWidth] = useState(480);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  const resizeState = useRef<ResizeState | null>(null);
 
   const canLoad = Boolean(open && sessionId && remoteBinding);
   const machineLabel = remoteBinding?.display_name || remoteBinding?.runner_machine_name || "";
@@ -146,31 +290,65 @@ export function SessionEvidencePanel({
     if (!selectedTerminal) {
       return "";
     }
+    if (selectedTerminal.audits.length > 0) {
+      return auditTranscript(selectedTerminal.audits);
+    }
     if (
       remoteTranscript &&
       selectedTerminal.id === remoteBinding?.runner_session_id
     ) {
-      return remoteTranscript;
+      return cleanShellTranscript(remoteTranscript);
     }
-    return selectedTerminal.audits.map(formatAuditTranscript).join("\n\n");
+    return "";
   }, [remoteBinding?.runner_session_id, remoteTranscript, selectedTerminal]);
+
+  const selectedStatus = useMemo<ShellStatus>(() => {
+    if (isRunningCommand) {
+      return "running";
+    }
+    if (!remoteBinding) {
+      return "idle";
+    }
+    if (remoteBinding.status && remoteBinding.status !== "active") {
+      return "closed";
+    }
+    if (shellError) {
+      return isClosedShellError(shellError) ? "closed" : "error";
+    }
+    if (selectedTerminal?.hasError) {
+      return "error";
+    }
+    return shellRead ? "connected" : "idle";
+  }, [isRunningCommand, remoteBinding, selectedTerminal?.hasError, shellError, shellRead]);
 
   const refreshAudits = useCallback(async () => {
     if (!sessionId || !remoteBinding) {
       setAudits([]);
       setSelectedTerminalId(null);
       setRemoteTranscript("");
+      setShellRead(null);
+      setShellError(null);
       return;
     }
     setIsLoading(true);
     setError(null);
+    setShellError(null);
     try {
-      const [nextAudits, shellRead] = await Promise.all([
-        getSessionRemoteAudits(sessionId),
-        getSessionRemoteShellTranscript(sessionId),
-      ]);
+      const nextAudits = await getSessionRemoteAudits(sessionId);
       setAudits(nextAudits);
-      setRemoteTranscript(shellRead.transcript || "");
+      try {
+        const nextShellRead = await getSessionRemoteShellTranscript(sessionId);
+        setShellRead(nextShellRead);
+        setRemoteTranscript(nextShellRead.transcript || "");
+      } catch (nextShellError) {
+        setShellRead(null);
+        setRemoteTranscript("");
+        setShellError(
+          nextShellError instanceof Error
+            ? nextShellError.message
+            : String(nextShellError),
+        );
+      }
       setSelectedTerminalId((previous) => {
         const nextKeys = [
           remoteBinding.runner_session_id,
@@ -214,6 +392,60 @@ export function SessionEvidencePanel({
   );
 
   useEffect(() => {
+    const handleMouseMove = (event: MouseEvent) => {
+      if (!resizeState.current) {
+        return;
+      }
+      const containerWidth =
+        panelRef.current?.parentElement?.clientWidth || window.innerWidth || 1024;
+      const {min, max} = panelWidthBounds(containerWidth);
+      const delta = resizeState.current.startX - event.clientX;
+      setPanelWidth(clamp(resizeState.current.startWidth + delta, min, max));
+    };
+
+    const handleMouseUp = () => {
+      if (!resizeState.current) {
+        return;
+      }
+      resizeState.current = null;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleWindowResize = () => {
+      const containerWidth =
+        panelRef.current?.parentElement?.clientWidth || window.innerWidth || 1024;
+      const {min, max} = panelWidthBounds(containerWidth);
+      setPanelWidth((current) => clamp(current, min, max));
+    };
+
+    window.addEventListener("resize", handleWindowResize);
+    handleWindowResize();
+    return () => {
+      window.removeEventListener("resize", handleWindowResize);
+    };
+  }, []);
+
+  const handlePanelResizeStart = (event: React.MouseEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    resizeState.current = {
+      startX: event.clientX,
+      startWidth: panelWidth,
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  };
+
+  useEffect(() => {
     if (canLoad) {
       void refreshAudits();
     }
@@ -225,9 +457,11 @@ export function SessionEvidencePanel({
 
   return (
     <Box
+      ref={panelRef}
       sx={{
-        width: {xs: "100%", md: 420},
-        maxWidth: {xs: "100%", md: "42vw"},
+        width: {xs: "100%", md: `min(${panelWidth}px, ${MAX_PANEL_VW}vw)`},
+        maxWidth: {xs: "100%", md: `${MAX_PANEL_VW}vw`},
+        minWidth: {xs: "100%", md: MIN_PANEL_WIDTH},
         height: "100%",
         borderLeft: "1px solid",
         borderColor: "divider",
@@ -235,8 +469,30 @@ export function SessionEvidencePanel({
         display: "flex",
         flexDirection: "column",
         flexShrink: 0,
+        position: "relative",
+        boxSizing: "border-box",
+        overflow: "hidden",
       }}
     >
+      <Box
+        role='separator'
+        aria-orientation='vertical'
+        aria-label={t("evidence.resize")}
+        onMouseDown={handlePanelResizeStart}
+        sx={{
+          display: {xs: "none", md: "block"},
+          position: "absolute",
+          top: 0,
+          left: -4,
+          width: 8,
+          height: "100%",
+          cursor: "col-resize",
+          zIndex: 2,
+          "&:hover": {
+            bgcolor: "rgba(25, 118, 210, 0.12)",
+          },
+        }}
+      />
       <Stack
         direction='row'
         spacing={1}
@@ -248,18 +504,27 @@ export function SessionEvidencePanel({
           <Typography variant='subtitle2' sx={{fontWeight: 700}}>
             {t("evidence.title")}
           </Typography>
-          <Typography
-            variant='caption'
-            sx={{
-              color: "text.secondary",
-              display: "block",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {machineLabel || t("evidence.noMachine")}
-          </Typography>
+          <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
+            <Chip
+              size='small'
+              label={t(`evidence.status.${selectedStatus}`)}
+              color={shellStatusColor(selectedStatus)}
+              sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
+            />
+            <Typography
+              variant='caption'
+              sx={{
+                color: "text.secondary",
+                display: "block",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                minWidth: 0,
+              }}
+            >
+              {machineLabel || t("evidence.noMachine")}
+            </Typography>
+          </Stack>
         </Box>
         <Tooltip title={t("common.refresh")} arrow>
           <span>
@@ -283,6 +548,13 @@ export function SessionEvidencePanel({
       {error && (
         <Alert severity='error' sx={{m: 2}}>
           {error}
+        </Alert>
+      )}
+      {shellError && !error && (
+        <Alert severity={isClosedShellError(shellError) ? "warning" : "error"} sx={{m: 2}}>
+          {isClosedShellError(shellError)
+            ? t("evidence.sessionClosed")
+            : shellError}
         </Alert>
       )}
 
@@ -314,68 +586,74 @@ export function SessionEvidencePanel({
               },
             }}
           >
-            {terminalGroups.map((group) => (
-              <Tab
-                key={group.id}
-                value={group.id}
-                label={
-                  <Stack direction='row' spacing={0.75} alignItems='center' sx={{minWidth: 0}}>
-                    <Typography
-                      variant='caption'
-                      sx={{
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                        maxWidth: 120,
-                        fontFamily: "var(--font-mono)",
-                      }}
-                    >
-                      {group.label}
-                    </Typography>
-                    <Chip
-                      size='small'
-                      label={`${group.audits.length} ${t("evidence.records")}`}
-                      color={group.hasError ? "warning" : "success"}
-                      sx={{height: 18, "& .MuiChip-label": {px: 0.75, fontSize: 10}}}
-                    />
-                  </Stack>
-                }
-              />
-            ))}
+            {terminalGroups.map((group) => {
+              const status = groupStatus(
+                group,
+                selectedTerminal?.id,
+                selectedStatus,
+              );
+              return (
+                <Tab
+                  key={group.id}
+                  value={group.id}
+                  label={
+                    <Stack direction='row' spacing={0.75} alignItems='center' sx={{minWidth: 0}}>
+                      <Typography
+                        variant='caption'
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          maxWidth: 120,
+                          fontFamily: "var(--font-mono)",
+                        }}
+                      >
+                        {group.label}
+                      </Typography>
+                      <Chip
+                        size='small'
+                        label={t(`evidence.status.${status}`)}
+                        color={shellStatusColor(status)}
+                        sx={{height: 18, "& .MuiChip-label": {px: 0.75, fontSize: 10}}}
+                      />
+                    </Stack>
+                  }
+                />
+              );
+            })}
           </Tabs>
 
           {selectedTerminal && (
             <Stack spacing={1.25} sx={{p: 2, overflow: "hidden", flex: 1, minHeight: 0}}>
               <Stack spacing={0.5}>
-                <Typography variant='caption' color='text.secondary'>
+                <Stack direction='row' spacing={1} alignItems='center' sx={{minWidth: 0}}>
+                  <Typography variant='body2' sx={{fontWeight: 700}}>
+                    {selectedTerminal.label}
+                  </Typography>
+                  <Chip
+                    size='small'
+                    label={t(`evidence.status.${selectedStatus}`)}
+                    color={shellStatusColor(selectedStatus)}
+                    sx={{height: 20, "& .MuiChip-label": {px: 0.75, fontSize: 11}}}
+                  />
+                </Stack>
+                <Typography
+                  variant='caption'
+                  color='text.secondary'
+                  sx={{
+                    fontFamily: "var(--font-mono)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {selectedTerminal.id}
                 </Typography>
-                <Typography variant='body2' sx={{fontWeight: 700}}>
-                  {selectedTerminal.label}
-                </Typography>
               </Stack>
-              <Box
-                component='pre'
-                sx={{
-                  m: 0,
-                  p: 1.5,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 1,
-                  bgcolor: "var(--color-surface-muted)",
-                  color: "text.primary",
-                  fontFamily: "var(--font-mono)",
-                  fontSize: 12,
-                  lineHeight: 1.5,
-                  whiteSpace: "pre-wrap",
-                  wordBreak: "break-word",
-                  overflow: "auto",
-                  flex: 1,
-                  minHeight: 0,
-                }}
-              >
-                {selectedTranscript}
-              </Box>
+              <TerminalTranscript
+                text={selectedTranscript}
+                emptyText={t("evidence.noTranscript")}
+              />
               <Box component='form' onSubmit={submitCommand}>
                 <Stack direction='row' spacing={1} alignItems='center'>
                   <TextField
