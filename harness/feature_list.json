@@ -260,6 +260,17 @@
       "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q && python3 -m compileall src tests && git diff --check",
       "evidence": "2026-05-15: hardened the live-session follow-up defects found in manual conduct session 8dff9e8f-fa86-449c-93a8-836987c4ee9b. Session-bound tutor remote tools now reject multi-line and top-level compound commands such as id && whoami or ip link | grep before provider execution, return split-command guidance, and record an audit error. Tutor command execution is serialized per runner_session_id inside the backend process to reduce accidental parallel calls against one persistent shell. StepEvaluator context extraction now keeps recent conversation evidence under the token budget instead of truncating from the oldest messages. Updated overview and remote runner architecture docs. Validation passed: ./scripts/harness-check.sh 0 warnings; PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q -> 28 passed; python3 -m compileall src tests passed; git diff --check passed.",
       "notes": "Archived plan: plans/archive/20260515-manual-conduct-followup-hardening.md. This does not change Remote Runner global policy, profile content, or runtime DB/session artifacts."
+    },
+    {
+      "id": "vnext-remote-runner-thin-adapter",
+      "priority": "P0",
+      "area": "remote-tool-adapter",
+      "title": "Remote Runner thin adapter boundary",
+      "behavior": "Socratic forwards command strings to Remote Runner without redefining shell semantics, while preserving session binding, credential hiding, audit, redaction, output limits, and optional deployment-level policy.",
+      "status": "passing",
+      "verification": "./scripts/harness-check.sh && PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q && python3 -m compileall src tests && git diff --check",
+      "evidence": "2026-05-15: corrected the Remote Runner adapter boundary after confirming upstream session exec supports shell expressions. Removed the tutor-facing compound-command guard, made REMOTE_TOOL_COMMAND_POLICY default to passthrough, preserved optional allowlist and deny_all deployment modes, kept per-runner-session command serialization, and improved busy-session summaries so Tutor sees terminal occupancy as distinct from policy rejection. Updated deployment and architecture docs to define Socratic as a thin adapter for binding, credentials, audit, redaction, output limits, and forwarding. Validation passed: PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q -> 30 passed; ./scripts/harness-check.sh 0 warnings; python3 -m compileall src tests passed; git diff --check passed.",
+      "notes": "Archived plan: plans/archive/20260515-remote-runner-thin-adapter.md. This supersedes the over-restrictive compound-command guard from vnext-manual-conduct-followup-hardening without removing session binding or audit."
     }
   ]
 }

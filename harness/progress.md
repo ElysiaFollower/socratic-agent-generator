@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，manual conduct follow-up hardening 已提交、推送并同步 linux-01 部署。
-- 下一步最佳动作：等待 PR #26 review/merge；后续学习质量改进继续基于真实 conduct 样本分析。
+- 上次验证：2026-05-15，Remote Runner thin adapter 修正通过 focused tests、compileall、harness check 和 diff check。
+- 下一步最佳动作：提交并同步 linux-01 部署，验证部署侧 compound command 可透传。
 
 ## 状态约定
 
@@ -15,6 +15,24 @@
 - `passing`：验证通过且 evidence 已记录。
 
 ## 日志
+
+### 2026-05-15 - 开启 Remote Runner 薄 adapter 边界修正
+
+- 用户确认 Remote Runner 核心 `session exec --cmd` 支持 compound shell expression；`id && whoami` 等命令是一条 command record，由 Remote Runner shell wrapper 执行并返回 stdout/stderr/exit code。
+- 现有 Socratic 侧 compound guard 和 prefix allowlist 属于过重封装，会限制工具能力并导致策略不一致。
+- 创建 active plan：`plans/active/20260515-remote-runner-thin-adapter.md`。
+- 将 `vnext-remote-runner-thin-adapter` 设置为当前唯一 active feature。
+- 范围判断：Socratic 只保留用户鉴权、session 绑定、凭据隐藏、audit、redaction、output limit 和可选部署级 policy；命令 shell 语义交还 Remote Runner。
+
+### 2026-05-15 - 完成 Remote Runner 薄 adapter 边界修正
+
+- 移除 `SessionBoundRemoteEnvironmentSkill` 的 compound/multiline 命令拦截；tutor-facing remote tools 现在把 command 字符串交给 provider/Remote Runner。
+- 新增 `REMOTE_TOOL_COMMAND_POLICY`：默认 `passthrough`，不重解释 shell；`allowlist` 保留旧 exact/prefix 兼容策略；`deny_all` 显式禁用命令执行。
+- `RemoteRunnerProvider` 继续保留 session/machine binding、cwd prefix、timeout、redaction、output limit 和 audit 相关路径。
+- Tutor fallback summary 现在把 `Session is busy` 归类为 terminal occupied，引导 wait/inspect/retry，而不是误读成 policy failure。
+- 更新 `.env.example`、`docs/deployment.md`、`docs/architecture/remote-runner-session-tools.md`、`docs/architecture/vnext-integrations.md` 和 runtime prompt contract。
+- 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 30 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 状态：`vnext-remote-runner-thin-adapter` 标记为 `passing`，计划归档到 `plans/archive/20260515-remote-runner-thin-adapter.md`。
 
 ### 2026-05-15 - 开启真实会话 follow-up hardening
 

@@ -135,6 +135,11 @@ def _summarize_remote_observation(observation: str) -> str:
     result = payload.get("result") if isinstance(payload.get("result"), dict) else {}
 
     if error:
+        if "busy" in error.lower():
+            return (
+                f"{action}: busy - {error}. The remote terminal is occupied; "
+                "wait for the running command, inspect command status, or retry shortly."
+            )
         return f"{action}: failed - {error}"
 
     if action == "machine_doctor":

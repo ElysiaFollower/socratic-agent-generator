@@ -24,6 +24,7 @@ from config import (
     REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES,
     REMOTE_TOOL_ALLOWED_CWD_PREFIXES,
     REMOTE_TOOL_ALLOWED_MACHINE_IDS,
+    REMOTE_TOOL_COMMAND_POLICY,
     REMOTE_TOOL_COMMAND_TIMEOUT,
     REMOTE_TOOL_ENABLED,
     REMOTE_TOOL_OUTPUT_CHARS,
@@ -70,6 +71,7 @@ class RemoteRunnerProviderConfig:
     timeout_seconds: int = REMOTE_TOOL_COMMAND_TIMEOUT
     wait_timeout_seconds: int = REMOTE_TOOL_COMMAND_TIMEOUT
     max_output_chars: int = REMOTE_TOOL_OUTPUT_CHARS
+    command_policy: str = REMOTE_TOOL_COMMAND_POLICY
     allowed_machine_ids: Sequence[str] = field(
         default_factory=lambda: tuple(REMOTE_TOOL_ALLOWED_MACHINE_IDS)
     )
@@ -85,7 +87,7 @@ class RemoteRunnerProviderConfig:
 
 
 class RemoteRunnerProvider:
-    """CLI-backed Remote Runner provider with Socratic-side guardrails."""
+    """CLI-backed Remote Runner provider with session binding and audit guardrails."""
 
     def __init__(
         self,
@@ -315,8 +317,8 @@ class RemoteRunnerProvider:
         """Send raw input to the persistent shell.
 
         This is intentionally not the default student command path; normal
-        command entry should use session_exec so command policy and audit stay
-        structured.
+        command entry should use session_exec so command boundaries, result
+        metadata, optional policy, and audit stay structured.
         """
         if not self.enabled:
             raise RemoteRunnerUnavailable("Remote tool is disabled by configuration.")
@@ -585,6 +587,17 @@ class RemoteRunnerProvider:
 
     def _require_allowed_command(self, command: str) -> str:
         safe_command = _require_value(command, "command")
+        policy = (self.config.command_policy or "passthrough").strip().lower()
+        if policy in {"passthrough", "pass_through", "transparent", "remote_runner"}:
+            return safe_command
+        if policy in {"deny_all", "deny-all", "disabled"}:
+            raise RemoteRunnerPermissionError(
+                "Remote command execution is disabled by REMOTE_TOOL_COMMAND_POLICY."
+            )
+        if policy != "allowlist":
+            raise RemoteRunnerPermissionError(
+                f"Unsupported REMOTE_TOOL_COMMAND_POLICY '{self.config.command_policy}'."
+            )
         allowed = {item.strip() for item in self.config.allowed_commands if item.strip()}
         prefixes = tuple(
             item for item in self.config.allowed_command_prefixes if item.strip()

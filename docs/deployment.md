@@ -119,6 +119,7 @@ REMOTE_MACHINE_SECRET_KEY="replace_with_generated_fernet_key"
 REMOTE_TOOL_COMMAND_TIMEOUT=20
 REMOTE_TOOL_AGENT_IDLE_TIMEOUT=15
 REMOTE_TOOL_OUTPUT_CHARS=4000
+REMOTE_TOOL_COMMAND_POLICY=passthrough
 REMOTE_TOOL_ALLOWED_MACHINE_IDS=""
 REMOTE_TOOL_ALLOWED_COMMANDS="pwd,ls,ls -la,whoami,hostname,uname -a,id,ip addr,ip route,ifconfig,cat /etc/os-release,python --version,python3 --version"
 REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES="ls ,cat ,ip ,docker ps,docker exec,docker network inspect,docker compose ps,python ,python3 ,ping "
@@ -127,13 +128,13 @@ REMOTE_TOOL_ALLOWED_CWD_PREFIXES=""
 
 Users configure lab machines from Settings. A learning session only gets the Remote Runner tool when it has a selected machine. Users can select a machine during session creation or switch/detach the current session's machine from the session header. The Tutor receives the current fixed machine/session binding and cannot switch to a different machine by prompt.
 
-Current Socratic expects the Remote Runner persistent shell interface from SEEDRunner main, including `remote-runner session exec`, `remote-runner session read`, and `remote-runner session send`. `session exec` is the default path for Tutor and Shell/Evidence panel commands because it preserves command boundaries, exit code, stdout/stderr, timeout, audit, and command-policy enforcement while still running inside the persistent session shell.
+Current Socratic expects the Remote Runner persistent shell interface from SEEDRunner main, including `remote-runner session exec`, `remote-runner session read`, and `remote-runner session send`. `session exec` is the default path for Tutor and Shell panel commands because it preserves command boundaries, exit code, stdout/stderr, timeout and audit while still running inside the persistent session shell.
 
 `REMOTE_RUNNER_PYTHON_EXECUTABLE` is optional when Remote Runner is installed in the same conda environment as Socratic. Set it when Socratic and Remote Runner are maintained in separate conda environments.
 
 `REMOTE_MACHINE_SECRET_KEY` must be a valid Fernet key before users save password-based remote machines. If the key is missing or invalid, Socratic refuses to store or use remote passwords instead of falling back to plaintext. Key-based and existing Remote Runner machine entries do not require a stored password.
 
-Remote command policy is fail-closed: if both `REMOTE_TOOL_ALLOWED_COMMANDS` and `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` are empty, Tutor command execution is denied. Add exact commands or narrow prefixes deliberately, then restart the backend.
+Remote command policy defaults to `REMOTE_TOOL_COMMAND_POLICY=passthrough`, which means Socratic forwards the command string to Remote Runner and does not reinterpret shell syntax. This matches the current self-use lab workflow: a user explicitly binds a lab machine to the session, while Socratic keeps machine/session binding, credential hiding, audit, redaction and output limits. Stricter deployments can set `REMOTE_TOOL_COMMAND_POLICY=allowlist` to use `REMOTE_TOOL_ALLOWED_COMMANDS` and `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES`, or `REMOTE_TOOL_COMMAND_POLICY=deny_all` to disable command execution. Restart the backend after changing policy.
 
 Tutor remote command tools intentionally separate command lifecycles:
 
@@ -266,7 +267,7 @@ Open `http://localhost:5173`. The backend API docs are available at `http://loca
 - Backend tries to download from HuggingFace: check that `EMBEDDING_PROVIDER` was not set to `huggingface`.
 - Need an offline memory-only demo: set `DREAMINGRAG_MEMORY_MOCK_MODE="true"` temporarily, then switch it back to `false` for real memory behavior.
 - Remote machine test fails: first run `remote-runner machine doctor <machine-id> --json`; do not debug with raw SSH unless you are changing Remote Runner itself.
-- Tutor cannot execute a lab command: confirm the command policy is not empty, then add the exact command or a narrow prefix to `REMOTE_TOOL_ALLOWED_COMMANDS` or `REMOTE_TOOL_ALLOWED_COMMAND_PREFIXES` and restart the backend.
+- Tutor cannot execute a lab command: check the Remote Runner observation first. `Session is busy` means the persistent shell is occupied, so wait/inspect/retry rather than changing policy. If the error says the command is blocked by Socratic policy, check `REMOTE_TOOL_COMMAND_POLICY`; default `passthrough` should forward shell expressions, while `allowlist` requires exact commands or narrow prefixes.
 - Password-based remote machine save fails: set `REMOTE_MACHINE_SECRET_KEY` to a valid Fernet key and restart the backend; Socratic will not store remote passwords in plaintext.
 - A long-running Tutor tool appears to hang: use `start_remote_command` plus `wait_remote_command`/`get_remote_command_result` instead of increasing the synchronous command timeout.
 

@@ -120,12 +120,49 @@ class RemoteRunnerProviderTest(unittest.TestCase):
             self.assertIn(repo_dir, runner.calls[0]["env"]["PYTHONPATH"])
             self.assertEqual(Path(repo_dir).resolve(), runner.calls[0]["cwd"])
 
-    def test_session_exec_rejects_command_not_allowed(self):
+    def test_session_exec_passes_compound_command_through_by_default(self):
+        runner = FakeRunner(
+            [
+                RunnerResult(
+                    returncode=0,
+                    stdout=json.dumps(
+                        {
+                            "session_id": "sess1",
+                            "command": "whoami && id",
+                            "exit_code": 0,
+                            "stdout": "seed\nuid=1000(seed)\n",
+                            "stderr": "",
+                        }
+                    ),
+                ),
+            ]
+        )
+        provider = RemoteRunnerProvider(
+            RemoteRunnerProviderConfig(
+                enabled=True,
+                repo_path=None,
+                allowed_commands=("pwd",),
+            ),
+            command_runner=runner,
+        )
+
+        payload = provider.run_action(
+            action="session_exec",
+            session_id="sess1",
+            command="whoami && id",
+        )
+
+        self.assertTrue(payload["ok"])
+        self.assertEqual("whoami && id", payload["result"]["command"])
+        self.assertIn("whoami && id", runner.calls[-1]["args"])
+
+    def test_session_exec_rejects_command_not_allowed_in_allowlist_mode(self):
         runner = FakeRunner()
         provider = RemoteRunnerProvider(
             RemoteRunnerProviderConfig(
                 enabled=True,
                 repo_path=None,
+                command_policy="allowlist",
                 allowed_commands=("pwd",),
             ),
             command_runner=runner,
@@ -143,14 +180,13 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         self.assertIn("not allowed", result["error"])
         self.assertEqual([], runner.calls)
 
-    def test_session_exec_denies_all_when_command_policy_is_empty(self):
+    def test_session_exec_denies_all_when_policy_is_deny_all(self):
         runner = FakeRunner()
         provider = RemoteRunnerProvider(
             RemoteRunnerProviderConfig(
                 enabled=True,
                 repo_path=None,
-                allowed_commands=(),
-                allowed_command_prefixes=(),
+                command_policy="deny_all",
             ),
             command_runner=runner,
         )
@@ -164,10 +200,10 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         )
 
         self.assertFalse(result["ok"])
-        self.assertIn("allowlist", result["error"])
+        self.assertIn("disabled", result["error"])
         self.assertEqual([], runner.calls)
 
-    def test_session_exec_allows_configured_prefix_command(self):
+    def test_session_exec_allows_configured_prefix_command_in_allowlist_mode(self):
         runner = FakeRunner(
             [
                 RunnerResult(
@@ -193,6 +229,7 @@ class RemoteRunnerProviderTest(unittest.TestCase):
             RemoteRunnerProviderConfig(
                 enabled=True,
                 repo_path=None,
+                command_policy="allowlist",
                 allowed_machine_ids=("lab1",),
                 allowed_commands=("pwd",),
                 allowed_command_prefixes=("docker ps",),
@@ -623,7 +660,7 @@ class RemoteRunnerProviderTest(unittest.TestCase):
         self.assertEqual("session_command_result", provider.calls[-1]["action"])
 
     @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
-    def test_session_bound_skill_rejects_compound_commands_before_provider(self):
+    def test_session_bound_skill_forwards_compound_commands_to_provider(self):
         class FakeProvider:
             def __init__(self):
                 self.calls = []
@@ -652,10 +689,10 @@ class RemoteRunnerProviderTest(unittest.TestCase):
             )
         )
 
-        self.assertFalse(payload["ok"])
+        self.assertTrue(payload["ok"])
         self.assertEqual("session_exec", payload["action"])
-        self.assertIn("one clear command", payload["error"])
-        self.assertEqual([], provider.calls)
+        self.assertEqual(1, len(provider.calls))
+        self.assertEqual("id && whoami", provider.calls[0]["command"])
 
     @unittest.skipUnless(LANGCHAIN_TOOLING_AVAILABLE, "langchain_core is required")
     def test_session_bound_skill_allows_shell_punctuation_inside_quotes(self):

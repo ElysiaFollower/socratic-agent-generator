@@ -39,8 +39,8 @@ def test_runtime_prompt_adds_tool_teaching_contract_to_existing_profiles():
     assert "Every turn must end with a clear teaching response" in prompt
     assert "Do not keep inventorying the environment" in prompt
     assert "Prefer one clear remote command per tool call" in prompt
-    assert "instead of compound shell expressions" in prompt
-    assert "Retry with a smaller, policy-compliant single command" in prompt
+    assert "Remote Runner owns shell execution semantics" in prompt
+    assert "session is busy" in prompt
 
 
 def test_tool_only_reply_detection_catches_remote_probe_preamble():
@@ -82,6 +82,19 @@ def test_remote_observation_summary_hides_raw_json():
     assert "session_exec: failed" in summary
     assert "{" not in summary
     assert "Relevant evidence" not in summary
+
+
+def test_remote_observation_summary_classifies_busy_session():
+    summary = _summarize_remote_observations(
+        [
+            '{"action":"session_exec","ok":false,'
+            '"error":"Session sess1 is busy"}',
+        ]
+    )
+
+    assert "session_exec: busy" in summary
+    assert "terminal is occupied" in summary
+    assert "policy" not in summary.lower()
 
 
 def test_extract_step_context_keeps_recent_messages_under_token_budget():
