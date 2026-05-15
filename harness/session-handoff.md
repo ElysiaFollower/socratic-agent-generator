@@ -47,6 +47,7 @@
 - 该真实会话暴露的 follow-up 缺陷已修复并归档：tutor-facing remote tools 会在调用 Remote Runner 前拒绝 compound/pipe/multiline 命令并提示拆分，记录 audit error；同一 `runner_session_id` 的 tutor command actions 在后端进程内串行化；StepEvaluator 上下文现在优先保留最近对话证据。计划已归档：`plans/archive/20260515-manual-conduct-followup-hardening.md`。
 - linux-01 已同步 commit `63c4420`：远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。部署保留真实 conduct 样本，DB 中 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 的 state 为 `{"stepIndex": 9}`，`remote_command_audits=17`。
 - Remote Runner thin adapter 边界修正已完成：确认上游 Remote Runner 支持 compound shell expression 后，Socratic 移除了 tutor-facing compound guard；`REMOTE_TOOL_COMMAND_POLICY` 默认 `passthrough`，可选 `allowlist`/`deny_all` 用于更严格部署；Socratic 仍保留 session/machine binding、credential hiding、audit、redaction、output limit 和同 runner session 命令串行化。计划已归档：`plans/archive/20260515-remote-runner-thin-adapter.md`。
+- linux-01 已同步 commit `4e7dd43`：远端 compileall 和 frontend build 通过，tmux `socratic-backend`/`socratic-frontend` 已重启，`http://10.203.15.128:8000/api/health` 返回 OK，`http://10.203.15.128:5173` 返回 HTTP 200。部署侧 Socratic API smoke 对 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 执行 `whoami && id`，返回 `ok=true`、`exit_code=0`、stdout 包含 `seed` 和 `uid=1001(seed)`，证明 compound command 已透传给 Remote Runner。
 
 ## 验证记录
 
@@ -75,6 +76,7 @@
 - 2026-05-15 manual conduct follow-up hardening：`./scripts/harness-check.sh` 0 warning；`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_tutor_executor.py tests/test_remote_runner_provider.py -q` 通过 28 passed；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 - 2026-05-15 linux-01 follow-up deploy：上传并部署 commit `63c4420`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过。
 - 2026-05-15 Remote Runner thin adapter：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 30 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
+- 2026-05-15 linux-01 thin adapter deploy：上传并部署 commit `4e7dd43`；远端 `sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；远端 `cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning；重启后远端和本地 health/frontend smoke 均通过；Socratic API compound command smoke 通过。
 
 ## 仍损坏或未验证
 
@@ -102,14 +104,13 @@
 ## 清洁状态
 
 - 不提交 runtime SQLite、session cache、Remote Runner state/logs、tmux 日志、LLM key、SSH key、password 或 token。
-- 当前待提交范围：Remote Runner thin adapter 代码、测试、文档和 harness 更新；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
+- 当前待提交范围：部署收口记录；不包含 runtime DB/cache/logs、远程机器状态或真实凭据。
 - 当前不应包含：runtime DB/cache/logs、远程机器状态、真实凭据、linux-01 部署数据。
 
 ## 下一步最佳动作
 
-1. 提交并推送 Remote Runner thin adapter 修正。
-2. 同步 linux-01 部署并验证部署侧 compound command 可透传。
-3. 等待 PR #26 review/merge。
+1. 提交并推送部署收口记录。
+2. 等待 PR #26 review/merge。
 
 ## 命令
 

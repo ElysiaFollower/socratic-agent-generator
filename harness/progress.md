@@ -4,8 +4,8 @@
 
 - 当前功能项：无 active feature。
 - 当前任务计划：无 active plan。
-- 上次验证：2026-05-15，Remote Runner thin adapter 修正通过 focused tests、compileall、harness check 和 diff check。
-- 下一步最佳动作：提交并同步 linux-01 部署，验证部署侧 compound command 可透传。
+- 上次验证：2026-05-15，Remote Runner thin adapter 修正已提交、推送并同步 linux-01 部署，部署侧 compound command 透传验证通过。
+- 下一步最佳动作：等待 PR #26 review/merge；后续可基于真实 conduct 样本继续改进 Tutor 工具规划与学习质量评估。
 
 ## 状态约定
 
@@ -33,6 +33,14 @@
 - 更新 `.env.example`、`docs/deployment.md`、`docs/architecture/remote-runner-session-tools.md`、`docs/architecture/vnext-integrations.md` 和 runtime prompt contract。
 - 验证：`PYTHONPATH=src _local/socratic-smoke-venv/bin/python -m pytest tests/test_remote_runner_provider.py tests/test_tutor_executor.py -q` 通过 30 passed；`./scripts/harness-check.sh` 0 warning；`python3 -m compileall src tests` 通过；`git diff --check` 通过。
 - 状态：`vnext-remote-runner-thin-adapter` 标记为 `passing`，计划归档到 `plans/archive/20260515-remote-runner-thin-adapter.md`。
+
+### 2026-05-15 - 同步 thin adapter 到 linux-01
+
+- 已将 commit `4e7dd43` archive 上传到 linux-01，切换 `/home/ely/deploy/socratic-live/socratic-agent-generator`，保留远端 `.env`、`data/`、`frontend/node_modules` 和 `frontend/dist`。
+- 远端备份目录：`/home/ely/deploy/socratic-live/socratic-agent-generator.prev-20260515014308`。
+- 远端验证：`sudo /root/miniconda3/envs/SocraticAgent/bin/python -m compileall src tests` 通过；`cd frontend && npm run build` 通过，仅有既有 Browserslist/chunk-size warning。
+- 已重启 tmux `socratic-backend` 与 `socratic-frontend`；linux-01 本机 `/api/health` 返回 OK、前端 HTTP 200，本地访问 `http://10.203.15.128:8000/api/health` 返回 OK、`http://10.203.15.128:5173` 返回 HTTP 200。
+- 部署侧 Socratic API smoke：以 admin 登录，对 session `8dff9e8f-fa86-449c-93a8-836987c4ee9b` 调用 `/remote-shell/command` 执行 `whoami && id`，返回 `ok=true`、`action=session_exec`、`status=completed`、`exit_code=0`，stdout 包含 `seed` 和 `uid=1001(seed)`，证明 compound command 已由 Socratic 透传到 Remote Runner。
 
 ### 2026-05-15 - 开启真实会话 follow-up hardening
 
