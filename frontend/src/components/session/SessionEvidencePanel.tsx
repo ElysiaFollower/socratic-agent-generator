@@ -50,6 +50,13 @@ interface TerminalGroup {
   readonly status?: string;
 }
 
+type TerminalLineKind = "prompt" | "output" | "stderr" | "error" | "comment";
+
+export interface TerminalLine {
+  readonly kind: TerminalLineKind;
+  readonly text: string;
+}
+
 type ShellStatus = "connected" | "running" | "closed" | "error" | "idle";
 
 interface ResizeState {
@@ -90,62 +97,100 @@ function commandPrompt(audit: RemoteCommandAudit): string {
   return cwd ? `${cwd} $` : "$";
 }
 
-export function formatAuditTranscript(audit: RemoteCommandAudit): string {
-  const lines: string[] = [];
-  const commandLine = audit.command
+const RUNNER_SOURCE_RE =
+  /^(?:.*?[$#]\s*)?source\s+\S+\/\.remote-runner\/commands\/\S+\/run\.sh\s*(.*)$/;
+const RUNNER_MARKER_RE = /__REMOTE_RUNNER_CMD_(?:BEGIN|END)_[^\s]+(?::\d+)?\s*/g;
+
+function splitTerminalText(text: string, kind: TerminalLineKind): TerminalLine[] {
+  return text
+    .split("\n")
+    .filter((line) => line.length > 0)
+    .map((line) => ({kind, text: line}));
+}
+
+function auditCommandLine(audit: RemoteCommandAudit): string {
+  return audit.command
     ? `${commandPrompt(audit)} ${audit.command}`
     : `$ ${audit.action}`;
-  lines.push(commandLine);
+}
+
+function auditToTerminalLines(audit: RemoteCommandAudit): TerminalLine[] {
+  const lines: TerminalLine[] = [{kind: "prompt", text: auditCommandLine(audit)}];
   if (audit.stdout_excerpt) {
-    lines.push(audit.stdout_excerpt.trimEnd());
+    lines.push(...splitTerminalText(audit.stdout_excerpt.trimEnd(), "output"));
   }
   if (audit.stderr_excerpt) {
-    lines.push(audit.stderr_excerpt.trimEnd());
+    lines.push(...splitTerminalText(audit.stderr_excerpt.trimEnd(), "stderr"));
   }
   if (audit.error) {
-    lines.push(`error: ${audit.error.trimEnd()}`);
+    lines.push({kind: "error", text: `error: ${audit.error.trimEnd()}`});
   }
   if (!audit.error && audit.exit_code && audit.exit_code !== 0) {
-    lines.push(`exit ${audit.exit_code}`);
+    lines.push({kind: "error", text: `exit ${audit.exit_code}`});
   }
-  return lines.join("\n");
+  return lines;
 }
 
-export function cleanShellTranscript(transcript: string): string {
-  return transcript
-    .split("\n")
-    .map((line) =>
-      line
-        .replace(
-          /^(?:.*[$#]\s*)?source\s+\S+\/\.remote-runner\/commands\/\S+\/run\.sh\s*/g,
-          "",
-        )
-        .replace(/__REMOTE_RUNNER_CMD_(?:BEGIN|END)_[^\s]+(?::\d+)?\s*/g, ""),
-    )
-    .filter((line) => {
-      if (!line.trim()) {
-        return false;
-      }
-      if (/^__REMOTE_RUNNER_CMD_(BEGIN|END)_/.test(line)) {
-        return false;
-      }
-      if (/^# action:/.test(line)) {
-        return false;
-      }
-      if (/^# cwd:/.test(line)) {
-        return false;
-      }
-      if (/^# (recorded|error|exit \d+)( · .*)?$/.test(line)) {
-        return false;
-      }
-      return true;
-    })
-    .join("\n")
-    .trimEnd();
+function classifyTranscriptLine(line: string): TerminalLine {
+  const text = line.replace(/\u001b\[[0-9;]*m/g, "");
+  if (/^(?:[\w.@/:~+-]+)?[$#]\s+\S/.test(text) || /(^|\s)[$#]\s+\S/.test(text)) {
+    return {kind: "prompt", text: line};
+  }
+  if (text.startsWith("error:") || text.startsWith("exit ")) {
+    return {kind: "error", text: line};
+  }
+  if (text.startsWith("# ")) {
+    return {kind: "comment", text: line};
+  }
+  return {kind: "output", text: line};
 }
 
-function auditTranscript(audits: readonly RemoteCommandAudit[]): string {
-  return cleanShellTranscript(audits.map(formatAuditTranscript).join("\n\n"));
+function isRunnerMetadataLine(line: string): boolean {
+  return (
+    /^__REMOTE_RUNNER_CMD_(BEGIN|END)_/.test(line) ||
+    /^# action:/.test(line) ||
+    /^# cwd:/.test(line) ||
+    /^# (recorded|error|exit \d+)( · .*)?$/.test(line)
+  );
+}
+
+export function buildTerminalLines(
+  transcript: string,
+  audits: readonly RemoteCommandAudit[] = [],
+): TerminalLine[] {
+  const rawLines = transcript.split("\n");
+  const commandAudits = audits.filter(
+    (audit) => audit.command && audit.action !== "shell_create",
+  );
+  let auditIndex = 0;
+  const lines: TerminalLine[] = [];
+
+  rawLines.forEach((rawLine) => {
+    const sourceMatch = rawLine.match(RUNNER_SOURCE_RE);
+    if (sourceMatch) {
+      const audit = commandAudits[auditIndex];
+      auditIndex += 1;
+      if (audit) {
+        lines.push({kind: "prompt", text: auditCommandLine(audit)});
+      }
+      const tail = sourceMatch[1].replace(RUNNER_MARKER_RE, "").trimEnd();
+      if (tail.trim()) {
+        lines.push(classifyTranscriptLine(tail));
+      }
+      return;
+    }
+
+    const cleanedLine = rawLine.replace(RUNNER_MARKER_RE, "").trimEnd();
+    if (!cleanedLine.trim() || isRunnerMetadataLine(cleanedLine)) {
+      return;
+    }
+    lines.push(classifyTranscriptLine(cleanedLine));
+  });
+
+  if (lines.length > 0) {
+    return lines;
+  }
+  return audits.flatMap(auditToTerminalLines);
 }
 
 function isClosedShellError(message: string): boolean {
@@ -181,28 +226,29 @@ function groupStatus(
   return group.hasError ? "error" : "connected";
 }
 
-export function lineColor(line: string): string {
-  const text = line.replace(/\u001b\[[0-9;]*m/g, "");
-  if (/^(?:[\w.@/:~+-]+)?[$#]\s+\S/.test(text) || /(^|\s)[$#]\s+\S/.test(text)) {
+export function lineColor(kind: TerminalLineKind): string {
+  if (kind === "prompt") {
     return "#9cdcfe";
   }
-  if (text.startsWith("error:") || text.startsWith("exit ")) {
+  if (kind === "error") {
     return "#f48771";
   }
-  if (text.startsWith("# ")) {
+  if (kind === "stderr") {
+    return "#ce9178";
+  }
+  if (kind === "comment") {
     return "#6a9955";
   }
   return "#d4d4d4";
 }
 
 function TerminalTranscript({
-  text,
+  lines,
   emptyText,
 }: {
-  readonly text: string;
+  readonly lines: readonly TerminalLine[];
   readonly emptyText: string;
 }) {
-  const lines = text ? text.split("\n") : [];
   return (
     <Box
       role='log'
@@ -229,15 +275,15 @@ function TerminalTranscript({
         lines.map((line, index) => (
           <Box
             // Transcript lines do not have stable ids; index is stable for this render.
-            key={`${index}-${line.slice(0, 16)}`}
+            key={`${index}-${line.text.slice(0, 16)}`}
             component='div'
             sx={{
-              color: lineColor(line),
+              color: lineColor(line.kind),
               whiteSpace: "pre",
               minHeight: "1.55em",
             }}
           >
-            {line || " "}
+            {line.text || " "}
           </Box>
         ))
       )}
@@ -337,20 +383,13 @@ export function SessionEvidencePanel({
     );
   }, [selectedTerminalId, terminalGroups]);
 
-  const selectedTranscript = useMemo(() => {
+  const selectedLines = useMemo(() => {
     if (!selectedTerminal) {
-      return "";
+      return [];
     }
-    if (
-      remoteTranscript &&
-      selectedTerminal.id === shellRead?.runner_session_id
-    ) {
-      return cleanShellTranscript(remoteTranscript);
-    }
-    if (selectedTerminal.audits.length > 0) {
-      return auditTranscript(selectedTerminal.audits);
-    }
-    return "";
+    const transcript =
+      selectedTerminal.id === shellRead?.runner_session_id ? remoteTranscript : "";
+    return buildTerminalLines(transcript, selectedTerminal.audits);
   }, [remoteTranscript, selectedTerminal, shellRead?.runner_session_id]);
 
   const selectedStatus = useMemo<ShellStatus>(() => {
@@ -453,8 +492,11 @@ export function SessionEvidencePanel({
     [commandInput, refreshAudits, remoteBinding, selectedTerminal?.shellId, sessionId],
   );
 
+  const selectedShellId = selectedTerminal?.shellId;
+  const selectedRunnerSessionId = selectedTerminal?.id;
+
   useEffect(() => {
-    if (!sessionId || !remoteBinding || !selectedTerminal) {
+    if (!sessionId || !remoteBinding || !selectedRunnerSessionId) {
       return;
     }
     let isActive = true;
@@ -463,7 +505,7 @@ export function SessionEvidencePanel({
       sessionId,
       0,
       12000,
-      selectedTerminal.shellId,
+      selectedShellId,
     )
       .then((nextShellRead) => {
         if (!isActive) {
@@ -487,7 +529,7 @@ export function SessionEvidencePanel({
     return () => {
       isActive = false;
     };
-  }, [remoteBinding, selectedTerminal, sessionId]);
+  }, [remoteBinding, selectedRunnerSessionId, selectedShellId, sessionId]);
 
   useEffect(() => {
     const handleMouseMove = (event: MouseEvent) => {
@@ -755,7 +797,7 @@ export function SessionEvidencePanel({
           {selectedTerminal && (
             <Stack spacing={1.25} sx={{p: 2, overflow: "hidden", flex: 1, minHeight: 0}}>
               <TerminalTranscript
-                text={selectedTranscript}
+                lines={selectedLines}
                 emptyText={t("evidence.noTranscript")}
               />
               <Box component='form' onSubmit={submitCommand}>

@@ -1,7 +1,6 @@
 import {describe, expect, it} from "vitest";
 import {
-  cleanShellTranscript,
-  formatAuditTranscript,
+  buildTerminalLines,
   lineColor,
   panelWidthBounds,
 } from "../components/session/SessionEvidencePanel";
@@ -13,7 +12,7 @@ describe("SessionEvidencePanel helpers", () => {
     expect(panelWidthBounds(1600)).toEqual({min: 360, max: 1120});
   });
 
-  it("formats audit fallback like a lightweight shell transcript", () => {
+  it("normalizes audit records into the same terminal line model", () => {
     const audit: RemoteCommandAudit = {
       audit_id: "audit-1",
       session_id: "session-1",
@@ -28,19 +27,17 @@ describe("SessionEvidencePanel helpers", () => {
       create_at: "2026-05-14T14:00:00Z",
     };
 
-    const transcript = formatAuditTranscript(audit);
+    const lines = buildTerminalLines("", [audit]);
 
-    expect(transcript).toContain("/home/seed/lab $ pwd");
-    expect(transcript).toContain("/home/seed/lab");
-    expect(transcript).not.toContain("# action:");
-    expect(transcript).not.toContain("# cwd:");
-    expect(transcript).not.toContain("2026-05-14");
-    expect(transcript).not.toContain("exit 0");
+    expect(lines).toEqual([
+      {kind: "prompt", text: "/home/seed/lab $ pwd"},
+      {kind: "output", text: "/home/seed/lab"},
+    ]);
   });
 
-  it("removes generated audit metadata from remote transcript text", () => {
+  it("normalizes remote transcript text into the same terminal line model", () => {
     expect(
-      cleanShellTranscript(
+      buildTerminalLines(
         [
           "$ pwd",
           "source /home/seed/.remote-runner/commands/cmd_1/run.sh",
@@ -52,24 +49,46 @@ describe("SessionEvidencePanel helpers", () => {
           "# exit 0 · 2026/5/14 22:00:00",
         ].join("\n"),
       ),
-    ).toBe("$ pwd\n/home/seed");
+    ).toEqual([
+      {kind: "prompt", text: "$ pwd"},
+      {kind: "output", text: "/home/seed"},
+    ]);
   });
 
   it("keeps real shell prompts highlightable after switching from audit fallback", () => {
-    expect(lineColor("bash-5.0$ docker ps")).toBe("#9cdcfe");
-    expect(lineColor("seed@lab:/tmp# tcpdump -i eth0")).toBe("#9cdcfe");
-    expect(lineColor("/home/seed/lab $ pwd")).toBe("#9cdcfe");
+    expect(
+      buildTerminalLines(
+        [
+          "bash-5.0$ docker ps",
+          "seed@lab:/tmp# tcpdump -i eth0",
+          "/home/seed/lab $ pwd",
+        ].join("\n"),
+      ).map((line) => line.kind),
+    ).toEqual(["prompt", "prompt", "prompt"]);
+    expect(lineColor("prompt")).toBe("#9cdcfe");
   });
 
   it("strips Remote Runner source wrappers from real shell transcripts", () => {
     expect(
-      cleanShellTranscript(
+      buildTerminalLines(
         [
           "bash-5.0$ source /home/seed/.remote-runner/commands/cmd_1/run.sh __REMOTE_RUNNER_CMD_BEGIN_cmd_1__ uid=1001(seed)",
           "__REMOTE_RUNNER_CMD_END_cmd_1__:0",
           "bash-5.0$ docker ps",
         ].join("\n"),
+        [{
+          audit_id: "audit-1",
+          session_id: "session-1",
+          terminal_id: "terminal-1",
+          action: "session_exec",
+          command: "id",
+          cwd: "",
+        }],
       ),
-    ).toBe("uid=1001(seed)\nbash-5.0$ docker ps");
+    ).toEqual([
+      {kind: "prompt", text: "$ id"},
+      {kind: "output", text: "uid=1001(seed)"},
+      {kind: "prompt", text: "bash-5.0$ docker ps"},
+    ]);
   });
 });
